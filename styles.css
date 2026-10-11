@@ -650,6 +650,10 @@ table.scores .meta-cell { color: var(--muted); }
   list-style: none;
 }
 
+.lines__done {
+  margin: 4px 0 -4px 4px;
+}
+
 .line {
   display: grid;
   grid-template-columns: auto 1fr auto;

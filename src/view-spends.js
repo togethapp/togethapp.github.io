@@ -15,7 +15,7 @@ import {
   replaceSpend, shareBarHtml, signed,
 } from './view-polls.js';
 import { archivedHtml, openPeopleEditor } from './view-lists.js';
-import { ask, makeDialog } from './view-games.js';
+import { ask, makeDialog, showCopyDialog } from './view-games.js';
 import {
   askGroup, bindData, groups, hiddenByGroupHtml, inGroupHtml, keyFor, landing, myName, organise,
   organiserSecret, resetGroupChoice, shownDocs, willBeInHtml, isOrganiser,
@@ -402,6 +402,16 @@ export function newSpendView() {
 }
 
 /** An amount of an account, in that account's currency. */
+/** Who pays whom, as text: what the group chat needs to settle up. */
+function settleText(spend) {
+  return [
+    `${spendTitle(spend)} — ${t('spends.total', { amount: money(spendTotal(spend), spend) })}`,
+    '',
+    t('spends.settle'),
+    ...settle(spend).map((move) => `${t('spends.move', { from: move.from, to: move.to })} — ${money(move.amount, spend)}`),
+  ].join('\n');
+}
+
 export function money(cents, spend) {
   return showAmount(cents, getLanguage(), spendCurrency(spend));
 }
@@ -604,6 +614,7 @@ export function spendView(spend) {
                  .join('')}
              </div>
              <p class="muted small">${escapeHtml(t('spends.settleHint'))}</p>
+             <button type="button" class="button button--small" id="settle-text">${escapeHtml(t('spends.settleSend'))}</button>
            </section>`
         : `<div class="settled-banner">
              <span class="settled-banner__icon" aria-hidden="true">👍</span>
@@ -773,6 +784,10 @@ export function bindSpend(spend) {
       if (isRepayment(line)) openRepayDialog(spend, { line });
       else openSpendLineDialog(spend, button.dataset.spendLine);
     });
+  });
+
+  view.querySelector('#settle-text')?.addEventListener('click', () => {
+    showCopyDialog({ title: spendTitle(spend), hint: t('lists.textHint'), text: settleText(spend) });
   });
 
   view.querySelectorAll('[data-repay]').forEach((button) => {

@@ -51,9 +51,13 @@ check('et le champ reste prêt pour la suivante',
   await page.evaluate(() => document.activeElement?.id) === 'new-line');
 
 // cocher
-await page.locator('[data-tick]').first().check();
+await page.locator('[data-tick]').first().click();
 await page.waitForTimeout(200);
 check('cocher marque la ligne faite', (await page.locator('.line--done').count()) === 1);
+check('et elle descend sous « Fait », ce qui reste en haut',
+  (await page.locator('.lines__done').textContent()).trim() === 'Fait · 1'
+  && await page.locator('.line').last().evaluate((n) => n.classList.contains('line--done')),
+  await page.locator('.lines__done').textContent().catch(() => 'pas d’en-tête'));
 check('et l’en-tête compte', (await page.locator('h1 + p, .spread p').first().textContent()).includes('1 sur 5'),
   await page.locator('.spread p').first().textContent());
 
@@ -71,7 +75,7 @@ await page.waitForTimeout(300);
 const owners = await page.locator('.line__who').evaluateAll((e) => e.map((x) => x.textContent.trim()));
 check('« Répartir » donne le reste à quelqu’un',
   owners.filter((o) => o === 'À prendre').length === 1, owners.join(' / '));
-check('et la ligne déjà faite reste sans personne', owners[0] === 'À prendre', owners[0]);
+check('et la ligne déjà faite reste sans personne', owners.at(-1) === 'À prendre', owners.at(-1));
 
 // filtrer par personne
 await page.locator('[data-filter]').nth(1).click();
@@ -82,14 +86,14 @@ await page.locator('[data-filter]').first().click();
 await page.waitForTimeout(200);
 
 // modifier et supprimer une ligne
-await page.locator('[data-edit]').last().click();
+await page.locator('.line:not(.line--done) [data-edit]').last().click();
 await page.waitForSelector('#line-text');
 await page.fill('#line-text', 'Réserver le camion (10 h)');
 await page.click('#line-save');
 await page.waitForTimeout(300);
 check('une ligne se corrige',
-  (await page.locator('.line__text').last().textContent()).includes('10 h'));
-await page.locator('[data-edit]').last().click();
+  (await page.locator('.line:not(.line--done) .line__text').last().textContent()).includes('10 h'));
+await page.locator('.line:not(.line--done) [data-edit]').last().click();
 await page.waitForSelector('#line-delete');
 await page.click('#line-delete');
 await page.waitForTimeout(300);
@@ -112,7 +116,7 @@ check('avec ses lignes et ses attributions',
   && (await other.locator('.line__who').nth(1).textContent()).trim() === 'Gui');
 
 // les deux côtés se synchronisent
-await other.locator('[data-tick]').nth(1).check();
+await other.locator('[data-tick]').nth(1).click();
 await other.waitForTimeout(400);
 const seen = await page.waitForFunction(
   () => document.querySelectorAll('.line--done').length === 2, null, { timeout: 15000 },

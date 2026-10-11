@@ -652,6 +652,10 @@ table.scores .meta-cell { color: var(--muted); }
   list-style: none;
 }
 
+.lines__done {
+  margin: 4px 0 -4px 4px;
+}
+
 .line {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -2036,6 +2040,7 @@ const STRINGS = {
     'spends.move': '{from} → {to}',
     'spends.settleHint': 'Le moins de virements possible pour que tout le monde soit à jour. Un virement fait ? « Marquer comme payé » le note, et les soldes suivent.',
     'spends.markPaid': 'Marquer comme payé',
+    'spends.settleSend': 'Envoyer au groupe',
     'spends.repaid': '{from} a remboursé {to}',
     'spends.repayment': 'Remboursement',
     'spends.repayHint': 'Le montant se change si le remboursement n’est que partiel.',
@@ -2454,6 +2459,7 @@ const STRINGS = {
     'lists.peopleHint': 'Les personnes que cette liste concerne. On peut en ajouter plus tard.',
     'lists.person': 'Personne {n}',
     'lists.addPerson': 'Ajouter une personne',
+    'lists.doneHeading': 'Fait · {count}',
     'lists.dropPerson': 'Retirer',
     'lists.people': 'Les personnes',
     'lists.nobodyYet': 'Personne pour l’instant.',
@@ -3124,6 +3130,7 @@ const STRINGS = {
     'spends.move': '{from} → {to}',
     'spends.settleHint': 'The fewest transfers that put everyone straight. Transfer done? “Mark as paid” notes it, and the balances follow.',
     'spends.markPaid': 'Mark as paid',
+    'spends.settleSend': 'Send to the group',
     'spends.repaid': '{from} paid back {to}',
     'spends.repayment': 'Repayment',
     'spends.repayHint': 'Change the amount if only part of it was paid back.',
@@ -3532,6 +3539,7 @@ const STRINGS = {
     'lists.peopleHint': 'The people this list concerns. More can be added later.',
     'lists.person': 'Person {n}',
     'lists.addPerson': 'Add someone',
+    'lists.doneHeading': 'Done · {count}',
     'lists.dropPerson': 'Remove',
     'lists.people': 'People',
     'lists.nobodyYet': 'Nobody yet.',
@@ -11398,6 +11406,21 @@ function newListView() {
     </form>`;
 }
 
+/**
+ * What is left on top, what is done below its own heading: in a long shopping
+ * list, the eye goes straight to what is still to get. The order within each
+ * part is the list's own.
+ */
+function linesHtml(list, items) {
+  const left = items.filter((item) => !item.done);
+  const done = items.filter((item) => item.done);
+  const ul = (part) => `<ul class="lines">${part.map((item) => listItemHtml(list, item)).join('')}</ul>`;
+  if (!done.length || !left.length) return ul(items);
+  return `${ul(left)}
+    <p class="muted small lines__done">${escapeHtml(t('lists.doneHeading', { count: done.length }))}</p>
+    ${ul(done)}`;
+}
+
 function listItemHtml(list, item) {
   const who = personName(list, item.who);
   const late = isLate(item);
@@ -11481,7 +11504,7 @@ function listView(list) {
 
     ${
       shown.length
-        ? `<ul class="lines">${shown.map((item) => listItemHtml(list, item)).join('')}</ul>`
+        ? linesHtml(list, shown)
         : `<p class="muted small">${escapeHtml(list.items.length ? t('lists.nothingHere') : t('lists.addFirst'))}</p>`
     }
 
@@ -12442,6 +12465,16 @@ function newSpendView() {
 }
 
 /** An amount of an account, in that account's currency. */
+/** Who pays whom, as text: what the group chat needs to settle up. */
+function settleText(spend) {
+  return [
+    `${spendTitle(spend)} — ${t('spends.total', { amount: money(spendTotal(spend), spend) })}`,
+    '',
+    t('spends.settle'),
+    ...settle(spend).map((move) => `${t('spends.move', { from: move.from, to: move.to })} — ${money(move.amount, spend)}`),
+  ].join('\n');
+}
+
 function money(cents, spend) {
   return showAmount(cents, getLanguage(), spendCurrency(spend));
 }
@@ -12644,6 +12677,7 @@ function spendView(spend) {
                  .join('')}
              </div>
              <p class="muted small">${escapeHtml(t('spends.settleHint'))}</p>
+             <button type="button" class="button button--small" id="settle-text">${escapeHtml(t('spends.settleSend'))}</button>
            </section>`
         : `<div class="settled-banner">
              <span class="settled-banner__icon" aria-hidden="true">👍</span>
@@ -12813,6 +12847,10 @@ function bindSpend(spend) {
       if (isRepayment(line)) openRepayDialog(spend, { line });
       else openSpendLineDialog(spend, button.dataset.spendLine);
     });
+  });
+
+  view.querySelector('#settle-text')?.addEventListener('click', () => {
+    showCopyDialog({ title: spendTitle(spend), hint: t('lists.textHint'), text: settleText(spend) });
   });
 
   view.querySelectorAll('[data-repay]').forEach((button) => {

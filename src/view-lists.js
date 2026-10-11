@@ -215,6 +215,21 @@ export function newListView() {
     </form>`;
 }
 
+/**
+ * What is left on top, what is done below its own heading: in a long shopping
+ * list, the eye goes straight to what is still to get. The order within each
+ * part is the list's own.
+ */
+function linesHtml(list, items) {
+  const left = items.filter((item) => !item.done);
+  const done = items.filter((item) => item.done);
+  const ul = (part) => `<ul class="lines">${part.map((item) => listItemHtml(list, item)).join('')}</ul>`;
+  if (!done.length || !left.length) return ul(items);
+  return `${ul(left)}
+    <p class="muted small lines__done">${escapeHtml(t('lists.doneHeading', { count: done.length }))}</p>
+    ${ul(done)}`;
+}
+
 function listItemHtml(list, item) {
   const who = personName(list, item.who);
   const late = isLate(item);
@@ -298,7 +313,7 @@ export function listView(list) {
 
     ${
       shown.length
-        ? `<ul class="lines">${shown.map((item) => listItemHtml(list, item)).join('')}</ul>`
+        ? linesHtml(list, shown)
         : `<p class="muted small">${escapeHtml(list.items.length ? t('lists.nothingHere') : t('lists.addFirst'))}</p>`
     }
 

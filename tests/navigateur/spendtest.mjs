@@ -219,6 +219,13 @@ const before = await page.locator('[data-repay]').count();
 check('chaque virement a son « Marquer comme payé »',
   before >= 1 && /Marquer comme payé/.test(await page.locator('[data-repay]').first().textContent()), String(before));
 
+await page.click('#settle-text');
+await page.waitForSelector('#export-dialog[open]');
+const settleText = await page.inputValue('#export-text');
+check('qui rembourse qui s’envoie en texte, avec chaque virement',
+  settleText.split('\n').filter((l) => l.includes('→')).length === before, settleText);
+await page.click('#export-close');
+
 await page.locator('[data-repay]').first().click();
 await page.waitForSelector('dialog[open] #repay-amount');
 check('le montant proposé est celui du virement', /,/.test(await page.inputValue('#repay-amount')));
