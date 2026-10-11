@@ -13,7 +13,7 @@ import {
   askForText, chainLabel, chainOf, documentHref, documentTitle, escapeHtml, everything, flash, formatDayLong, navigate,
   render, state, whenText,
 } from './app.js';
-import { persistPoll, replacePoll, signed } from './view-polls.js';
+import { persistPoll, replacePoll, signed, choiceLabel } from './view-polls.js';
 import { makeDialog } from './view-games.js';
 import {
   deleteDocument, myName, openAttachDialog, openRelateDialog, organise, replaceAny, shownDocs, isOrganiser,
@@ -73,7 +73,7 @@ export function listFlowsHtml(list) {
   for (const poll of related(list, all, 'poll')) {
     const offers = winnerOffers(poll, list).filter((one) => !one.added);
     blocks.push(offersHtml(t('flows.chosenIn', { name: documentTitle(poll) }),
-      offers.map((one) => offerButton('data-flow-winner', `${poll.id}|${one.option.id}`, one.option.text))));
+      offers.map((one) => offerButton('data-flow-winner', `${poll.id}|${one.option.id}`, choiceLabel(one.option)))));
   }
   for (const spend of related(list, all, 'spend')) {
     const spent = spentItems(spend, list);
@@ -177,7 +177,7 @@ export function pollFlowsHtml(poll) {
   const blocks = related(poll, everything(), 'list').map((list) => offersHtml(
     t('flows.intoList', { name: documentTitle(list) }),
     winnerOffers(poll, list).filter((one) => !one.added)
-      .map((one) => offerButton('data-flow-winner-to', `${list.id}|${one.option.id}`, one.option.text)),
+      .map((one) => offerButton('data-flow-winner-to', `${list.id}|${one.option.id}`, choiceLabel(one.option))),
   )).filter(Boolean);
   return blocks.length
     ? `<section class="card stack flows" data-flows-for="${escapeHtml(poll.id)}" aria-label="${escapeHtml(t('flows.title'))}">${blocks.join('')}</section>`
@@ -309,12 +309,12 @@ export function openActivityPicker() {
 }
 
 /** A new activity: what, which day of the event — or later —, and when. */
-export function openActivityDialog(event, { name = '', date = null, from = null, names = null } = {}) {
+export function openActivityDialog(event, { name = '', date = null, at = null, from = null, names = null } = {}) {
   let day = date || '';
   const dialog = makeDialog();
   const draw = () => {
     const typed = dialog.querySelector('#activity-name')?.value ?? name;
-    const hour = dialog.querySelector('#activity-at')?.value ?? '';
+    const hour = dialog.querySelector('#activity-at')?.value ?? (at || '');
     dialog.innerHTML = `
       <form class="stack" method="dialog">
         <h2>${escapeHtml(t('activity.newTitle', { name: documentTitle(event) }))}</h2>
@@ -446,8 +446,7 @@ export function pollActivitiesHtml(poll) {
   return `
     <section class="card stack stack--tight flows" data-flows-for="${escapeHtml(poll.id)}">
       ${offersHtml(t('activity.organise', { name: documentTitle(event) }),
-        open.map((one) => offerButton('data-flow-choice-activity', one.option.id,
-          one.option.day ? `${one.option.text} · ${formatDayLong(one.option.day)}` : one.option.text)))}
+        open.map((one) => offerButton('data-flow-choice-activity', one.option.id, choiceLabel(one.option))))}
     </section>`;
 }
 
@@ -469,7 +468,7 @@ export function bindFlows(root) {
     node.addEventListener('click', () => {
       const [pollId, optionId] = pair(node.dataset.flowWinner);
       const list = owner(node);
-      addFrom(list, pollId, (target, poll) => addWinner(target, poll, poll.options.find((option) => option.id === optionId)));
+      addFrom(list, pollId, (target, poll) => addWinner(target, poll, poll.options.find((option) => option.id === optionId), getLanguage()));
     });
   });
   root.querySelectorAll('[data-flow-winner-to]').forEach((node) => {
@@ -477,7 +476,7 @@ export function bindFlows(root) {
       const [listId, optionId] = pair(node.dataset.flowWinnerTo);
       const poll = owner(node);
       if (!poll) return;
-      addFrom(current(listId), poll.id, (target, source) => addWinner(target, source, source.options.find((option) => option.id === optionId)));
+      addFrom(current(listId), poll.id, (target, source) => addWinner(target, source, source.options.find((option) => option.id === optionId), getLanguage()));
     });
   });
   root.querySelectorAll('[data-flow-spend]').forEach((node) => {
@@ -525,7 +524,6 @@ export function bindFlows(root) {
       if (!activity || !event) return;
       const poll = signed(organise(whenPoll(activity, event, {
         question: t('activity.whenQuestion', { name: documentTitle(activity) }),
-        language: getLanguage(),
       })));
       state.polls = [...state.polls, poll];
       persistPoll(poll);
@@ -546,7 +544,7 @@ export function bindFlows(root) {
       const one = choices.find((choice) => choice.option.id === node.dataset.flowChoiceActivity);
       if (!event || !one) return;
       const keen = activityFromChoice(event, poll, one.option);
-      openActivityDialog(event, { name: one.option.text, date: keen.date, from: keen.from, names: keen.people.map((person) => person.name) });
+      openActivityDialog(event, { name: keen.title || '', date: keen.date, at: keen.at, from: keen.from, names: keen.people.map((person) => person.name) });
     });
   });
   bindLongPress(root);

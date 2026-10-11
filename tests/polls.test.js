@@ -5,6 +5,7 @@ import {
   createPoll, addOptions, renameOption, removeOption, setVote, voteOf, nextValue,
   addPollPerson as addPerson, renamePollPerson as renamePerson, removePollPerson as removePerson,
   setClosed, tally, mergePolls, isValidPoll, VALUES, seeksDay, createEvent, dayOfChoice, choiceOfDay,
+  addChoice, addDays, choiceWhen, isDayChoice, choiceText, optionsByDay, hasOptionDays, setOptionDay,
 } from '../src/polls.js';
 
 const sample = () =>
@@ -379,4 +380,50 @@ test('a picked day is written as words the poll reads back', () => {
     }
   }
   assert.equal(choiceOfDay('', 'fr', now), '');
+});
+
+test('a choice is a day, words, or words on a day — the day never hidden in the words', () => {
+  let poll = createPoll({ question: 'On fait quoi ?', names: ['Gui', 'Alice'] });
+  poll = addDays(poll, ['2026-10-17', '2026-10-10']);
+  poll = addChoice(poll, { day: '2026-10-10' });
+  assert.deepEqual(poll.options.map((o) => o.day), ['2026-10-10', '2026-10-17'], 'in order, a day alone never twice');
+  poll = addChoice(poll, { day: '2026-10-10', at: '20:00' });
+  assert.equal(poll.options.length, 3, 'the same day at an hour is another choice');
+  assert.match(choiceText(poll.options[2], 'fr'), /^Samedi 10 octobre.* · 20:00$/);
+  poll = addChoice(poll, { text: '  Kayak ', day: '2026-10-10', at: 'midi' });
+  poll = addChoice(poll, { text: 'Resto' });
+  assert.equal(addChoice(poll, { text: ' ', day: 'bientôt' }), poll, 'neither words nor a day: nothing');
+  const [samedi, , , kayak, resto] = poll.options;
+  assert.equal(kayak.text, 'Kayak');
+  assert.equal('at' in kayak, false, 'an hour that is not one is dropped');
+  assert.equal(choiceText(kayak), 'Kayak');
+  assert.equal(isDayChoice(samedi), true);
+  assert.equal(isDayChoice(kayak), false, 'words on a day are something done that day');
+  assert.equal(isDayChoice(resto), false);
+  assert.equal(hasOptionDays(poll), true);
+  assert.deepEqual(optionsByDay(poll).map((g) => [g.day, g.options.length]), [['2026-10-10', 1], [null, 4]],
+    'only what is done on a day goes under it; days to vote on stay together');
+
+  // Renaming keeps the day: the words were never where it was kept.
+  const renamed = renameOption(poll, samedi.id, 'Samedi soir');
+  assert.equal(renamed.options[0].day, '2026-10-10');
+  assert.equal(renameOption(poll, resto.id, ''), poll, 'words with no day cannot go');
+  assert.equal(renameOption(poll, kayak.id, '').options[3].text, '', 'with a day, they can');
+
+  const timed = setOptionDay(poll, kayak.id, '2026-10-10', '09:30');
+  assert.equal(timed.options[3].at, '09:30');
+  assert.equal(setOptionDay(timed, kayak.id, '2026-10-10').options[3].at, '09:30', 'the hour stays with its day');
+  assert.equal('at' in setOptionDay(timed, kayak.id, '2026-10-11').options[3], false, 'not on another day');
+  assert.equal('at' in setOptionDay(timed, kayak.id, null).options[3], false);
+});
+
+test('choices written before choices had days are read as their day', () => {
+  const old = { id: 'o1', text: 'Mardi 13 oct à 20h', createdAt: new Date(2026, 8, 26).getTime() };
+  assert.deepEqual(choiceWhen(old), { date: '2026-10-13', at: '20:00' });
+  assert.equal(isDayChoice(old), true);
+  assert.equal(choiceText(old), 'Mardi 13 oct à 20h', 'its words are kept as written');
+  assert.deepEqual(choiceWhen({ id: 'o2', text: 'Kayak', day: '2026-10-10', at: '09:00' }), { date: '2026-10-10', at: '09:00' });
+  assert.equal(choiceWhen({ id: 'o3', text: 'Kayak' }), null);
+  assert.equal(seeksDay(addDays(createPoll({ question: 'Resto ?' }), ['2026-10-10', '2026-10-11'])), true,
+    'days picked on a calendar are what a poll about days offers');
 });

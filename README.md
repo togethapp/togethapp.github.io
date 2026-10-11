@@ -350,8 +350,8 @@ de cette heure le premier jour jusqu'à la fin du dernier).
 L'onglet **Agenda** montre :
 
 - **À décider** : les sondages ouverts qui cherchent un jour. L'app les
-  reconnaît à la question (« quel soir… », « quand… ») ou à des choix qui se
-  lisent comme des jours (« samedi 12 », « 12/10 »). Une fois le jour retenu,
+  reconnaît à la question (« quel soir… », « quand… ») ou à des choix qui sont
+  des jours (pris au calendrier, ou écrits « samedi 12 », « 12/10 »). Une fois le jour retenu,
   le sondage descend simplement dans « À venir » ; les autres questions
   (« quel cadeau ? ») restent sur l'Accueil ;
 - **À venir** : les événements par date, qu'ils viennent d'un sondage ou non,
@@ -377,6 +377,14 @@ poser la question.
   pas avoir répondu n'est pas un non** — le compte dit combien ont répondu.
 - Une jauge horizontale classe les choix par nombre de personnes dispo ; à
   égalité, l'ordre d'écriture décide.
+- **Un choix = des mots, un jour, une heure**, chacun facultatif mais pas tous
+  à la fois (un seul formulaire sous la grille). Un jour seul est un jour à
+  voter (« Samedi 17 octobre · 20:30 », marqué 📅) ; des mots avec un jour sont
+  une chose faite ce jour-là (« Kayak », le samedi) : la grille les range alors
+  sous leur jour, et chaque jour a son gagnant. Le jour est gardé à part des
+  mots (`option.day`, `option.at`) : renommer un choix ne le perd pas. Les
+  choix d'avant, où le jour n'était écrit que dans les mots, se relisent
+  comme leur jour (`choiceWhen`).
 - **Clore** le sondage fige les réponses ; on peut le rouvrir.
 - **Partager** comme le reste : un lien, un code QR, chacun répond de son côté,
   et les réponses de chacun arrivent sans écraser celles des autres.

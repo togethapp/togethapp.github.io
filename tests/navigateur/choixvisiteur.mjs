@@ -48,15 +48,18 @@ check('mais pas de quoi renommer ou retirer ceux qui y sont', (await her.locator
 await her.fill('#solo-me', 'Mme Durand');
 await her.click('#solo-me-form button[type=submit]');
 await her.waitForTimeout(600);
-// Un sondage sur des soirs : le formulaire propose d'abord un jour, au calendrier.
-check('un sondage sur des jours propose d’abord un jour', (await her.locator('#new-choice-day').count()) === 1
-  && (await her.getAttribute('[data-choice-kind="day"]', 'aria-pressed')) === 'true');
+// Un seul formulaire : des mots, un jour, une heure — un jour seul est un soir de plus.
+check('une case de mots, un jour, une heure', (await her.locator('#new-choice').count()) === 1
+  && (await her.locator('#new-choice-day').count()) === 1 && (await her.locator('#new-choice-at').count()) === 1);
+check('l’heure attend un jour', await her.locator('#new-choice-at').isDisabled());
 await her.fill('#new-choice-day', '2026-10-11');
+await her.waitForTimeout(400);
+check('le jour choisi rend l’heure possible', !(await her.locator('#new-choice-at').isDisabled()));
+await her.click('#add-choice button[type=submit]');
 await her.waitForTimeout(800);
 const withDay = await choices(her);
 check('le jour choisi s’ajoute, marqué 📅', withDay.some((c) => c.startsWith('📅') && /dimanche 11 octobre/i.test(c)), withDay.join(' | '));
-await her.click('[data-choice-kind="other"]');
-check('« Autre chose » ouvre une case de texte', (await her.locator('#new-choice').count()) === 1 && (await her.locator('#new-choice-day').count()) === 0);
+check('et le formulaire se vide', (await her.inputValue('#new-choice-day')) === '');
 await her.fill('#new-choice', 'au parc');
 await her.click('#add-choice button[type=submit]');
 await her.waitForTimeout(800);
@@ -87,7 +90,6 @@ await gui.click('#sync').catch(() => {}); await gui.waitForTimeout(1500);
 check('et chez l’organisateur', !(await choices(gui)).includes('pétanque') && (await choices(gui)).includes('au parc'), (await choices(gui)).join(' | '));
 
 // Gui ajoute un choix à son tour, sur une copie qui avait déjà le sien : rien ne se perd.
-await gui.click('[data-choice-kind="other"]');
 await gui.fill('#new-choice', 'chez Paul');
 await gui.click('#add-choice button[type=submit]');
 await gui.waitForTimeout(1200);
