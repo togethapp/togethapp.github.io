@@ -2394,6 +2394,7 @@ const STRINGS = {
     'polls.questionPlaceholder': 'Quel soir pour la raclette ?',
     'polls.choices': 'Les choix (un par ligne)',
     'polls.addDay': '📅 Ajouter un jour',
+    'polls.dropDay': 'Retirer {day}',
     'polls.dateByHand': 'Fixer la date à la main',
     'polls.retainHint': 'Le plus de monde : « {choice} » ({yes} sur {total}). Retenir ce jour le met dans les agendas et clôt le sondage.',
     'polls.retainTie': 'Égalité en tête : choisissez le jour à retenir. Il ira dans les agendas et le sondage sera clos.',
@@ -3481,6 +3482,7 @@ const STRINGS = {
     'polls.questionPlaceholder': 'Which evening for the raclette?',
     'polls.choices': 'The choices (one per line)',
     'polls.addDay': '📅 Add a day',
+    'polls.dropDay': 'Remove {day}',
     'polls.dateByHand': 'Set the day by hand',
     'polls.retainHint': 'Most people: “{choice}” ({yes} of {total}). Keeping this day puts it in the agendas and closes the poll.',
     'polls.retainTie': 'A tie at the top: pick the day to keep. It goes in the agendas and the poll closes.',
@@ -9902,6 +9904,18 @@ function newPollView() {
         ${escapeHtml(t('polls.addDay'))}
         <input type="date" id="poll-add-day" />
       </label>
+      ${
+        state.newPollDays.length
+          ? `<div class="row" id="poll-days">${state.newPollDays
+              .map(
+                (day) => `<button type="button" class="chip chip--on" data-drop-day="${escapeHtml(day)}"
+                                  aria-label="${escapeHtml(t('polls.dropDay', { day: choiceOfDay(day, getLanguage()) }))}">
+                            ${escapeHtml(choiceOfDay(day, getLanguage()))} ×
+                          </button>`,
+              )
+              .join('')}</div>`
+          : ''
+      }
 
       <div class="stack stack--tight">
         <span class="muted small">${escapeHtml(t('polls.peopleHint'))}</span>
@@ -10733,16 +10747,23 @@ function bindNewPoll() {
     });
   });
 
-  // Picking a day writes it as a choice, in words anyone reads and the app
-  // reads back when the poll is settled.
+  // Picked days are kept apart from the typed choices, in date order, as chips
+  // a tap takes away; they become choices, in words anyone reads and the app
+  // reads back when the poll is settled, only when the poll is created.
   view.querySelector('#poll-add-day')?.addEventListener('change', (event) => {
-    const line = choiceOfDay(event.target.value, getLanguage());
-    if (!line) return;
-    const box = view.querySelector('#poll-choices');
-    const lines = box.value.split('\n').filter((one) => one.trim());
-    if (!lines.includes(line)) box.value = [...lines, line].join('\n');
-    event.target.value = '';
-    state.newPollChoices = box.value;
+    const day = event.target.value;
+    if (!choiceOfDay(day, getLanguage())) return;
+    snapshot();
+    if (!state.newPollDays.includes(day)) state.newPollDays = [...state.newPollDays, day].sort();
+    render();
+  });
+
+  view.querySelectorAll('[data-drop-day]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      state.newPollDays = state.newPollDays.filter((day) => day !== chip.dataset.dropDay);
+      render();
+    });
   });
 
   form.addEventListener('submit', (event) => {
@@ -10750,6 +10771,9 @@ function bindNewPoll() {
     snapshot();
     let poll = signed(organise(landing(createPoll({ question: state.newPollQuestion, names: state.newPollPeople }))));
     poll = addOptions(poll, state.newPollChoices);
+    const typed = state.newPollChoices.split('\n').map((line) => line.trim());
+    const days = state.newPollDays.map((day) => choiceOfDay(day, getLanguage())).filter((line) => !typed.includes(line));
+    poll = addOptions(poll, days.join('\n'));
     if (state.newPollForActivity) poll = markForActivity(poll, true);
 
     state.polls = [...state.polls, poll];
@@ -10757,6 +10781,7 @@ function bindNewPoll() {
     resetGroupChoice();
     state.newPollQuestion = '';
     state.newPollChoices = '';
+    state.newPollDays = [];
     state.newPollForActivity = false;
     state.newPollPeople = withMeFirst(['', ''], myName());
     navigate(`#/poll/${poll.id}`);
@@ -18608,6 +18633,8 @@ const state = {
   newEventPeople: ['', ''],
   newPollQuestion: '',
   newPollChoices: '',
+  // Days picked on the calendar, as YYYY-MM-DD, shown apart from the typed choices.
+  newPollDays: [],
   newPollPeople: ['', ''],
   // Names typed so far, so switching preset does not wipe them.
   newGameNames: ['', '', ''],
