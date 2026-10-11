@@ -154,6 +154,18 @@ export function newPollView() {
         ${escapeHtml(t('polls.addDay'))}
         <input type="date" id="poll-add-day" />
       </label>
+      ${
+        state.newPollDays.length
+          ? `<div class="row" id="poll-days">${state.newPollDays
+              .map(
+                (day) => `<button type="button" class="chip chip--on" data-drop-day="${escapeHtml(day)}"
+                                  aria-label="${escapeHtml(t('polls.dropDay', { day: choiceOfDay(day, getLanguage()) }))}">
+                            ${escapeHtml(choiceOfDay(day, getLanguage()))} ×
+                          </button>`,
+              )
+              .join('')}</div>`
+          : ''
+      }
 
       <div class="stack stack--tight">
         <span class="muted small">${escapeHtml(t('polls.peopleHint'))}</span>
@@ -985,16 +997,23 @@ export function bindNewPoll() {
     });
   });
 
-  // Picking a day writes it as a choice, in words anyone reads and the app
-  // reads back when the poll is settled.
+  // Picked days are kept apart from the typed choices, in date order, as chips
+  // a tap takes away; they become choices, in words anyone reads and the app
+  // reads back when the poll is settled, only when the poll is created.
   view.querySelector('#poll-add-day')?.addEventListener('change', (event) => {
-    const line = choiceOfDay(event.target.value, getLanguage());
-    if (!line) return;
-    const box = view.querySelector('#poll-choices');
-    const lines = box.value.split('\n').filter((one) => one.trim());
-    if (!lines.includes(line)) box.value = [...lines, line].join('\n');
-    event.target.value = '';
-    state.newPollChoices = box.value;
+    const day = event.target.value;
+    if (!choiceOfDay(day, getLanguage())) return;
+    snapshot();
+    if (!state.newPollDays.includes(day)) state.newPollDays = [...state.newPollDays, day].sort();
+    render();
+  });
+
+  view.querySelectorAll('[data-drop-day]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      state.newPollDays = state.newPollDays.filter((day) => day !== chip.dataset.dropDay);
+      render();
+    });
   });
 
   form.addEventListener('submit', (event) => {
@@ -1002,6 +1021,9 @@ export function bindNewPoll() {
     snapshot();
     let poll = signed(organise(landing(createPoll({ question: state.newPollQuestion, names: state.newPollPeople }))));
     poll = addOptions(poll, state.newPollChoices);
+    const typed = state.newPollChoices.split('\n').map((line) => line.trim());
+    const days = state.newPollDays.map((day) => choiceOfDay(day, getLanguage())).filter((line) => !typed.includes(line));
+    poll = addOptions(poll, days.join('\n'));
     if (state.newPollForActivity) poll = markForActivity(poll, true);
 
     state.polls = [...state.polls, poll];
@@ -1009,6 +1031,7 @@ export function bindNewPoll() {
     resetGroupChoice();
     state.newPollQuestion = '';
     state.newPollChoices = '';
+    state.newPollDays = [];
     state.newPollForActivity = false;
     state.newPollPeople = withMeFirst(['', ''], myName());
     navigate(`#/poll/${poll.id}`);
