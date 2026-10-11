@@ -20,7 +20,7 @@
 
 const VERSION = 'v10';
 /** Written by tools/bundle.js from the sources: it moves whenever they do. */
-const BUILD = '65846383';
+const BUILD = '6b51da7f';
 const CACHE = `marque-points-${VERSION}-${BUILD}`;
 
 const SHELL = [

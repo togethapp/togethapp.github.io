@@ -96,8 +96,9 @@ export function isEvent(poll) {
  * Whether a question is looking for a day — "which evening for the raclette?"
  * — rather than for anything else — "which present for Léa?". Such a poll
  * belongs in the agenda while it is being decided, next to the days already
- * settled, so it is guessed from what people naturally write: a question
- * asking when, or choices that read as days (a weekday, a month, 12/10).
+ * settled: a question asking when, or choices that are days — picked on a
+ * calendar, or, written before choices had days, read as days (a weekday, a
+ * month, 12/10).
  */
 const WHEN_ASKED = /\b(quand|quel(le)?s? (jour|soir|date|week-?end|midi|matin|après-midi|semaine)|when|which (day|evening|night|date|weekend)|what (day|date|evening))\b/i;
 const READS_AS_DAY = new RegExp([
@@ -112,9 +113,10 @@ const READS_AS_DAY = new RegExp([
 export function seeksDay(poll) {
   if (!poll || isEvent(poll)) return false;
   if (WHEN_ASKED.test(poll.question || '')) return true;
-  const options = (poll.options || []).map((option) => option.text || '');
+  const options = poll.options || [];
   if (!options.length) return false;
-  return options.filter((text) => READS_AS_DAY.test(text)).length * 2 >= options.length;
+  const days = options.filter((option) => (optionDay(option) ? isDayChoice(option) : READS_AS_DAY.test(option.text || '')));
+  return days.length * 2 >= options.length;
 }
 
 /**
@@ -142,11 +144,11 @@ export function archivePoll(poll, yes = true) {
 /**
  * Add choices, one per line — a poll is usually pasted, not typed. `day`
  * pins them all to one day of the event the poll is part of: « Kayak » on the
- * Saturday, « Rando » on the Sunday.
+ * Saturday, « Rando » on the Sunday — and `at`, to an hour of it.
  */
-export function addOptions(poll, text, { day = null } = {}) {
+export function addOptions(poll, text, { day = null, at = null } = {}) {
   const now = Date.now();
-  const pinned = isDayText(day) ? { day: String(day) } : {};
+  const pinned = pinOf(day, at);
   const fresh = String(text || '')
     .split('\n')
     .map((line) => line.replace(/^\s*(?:[-*•–—]+|\d+\s*[.)])\s+/, '').trim())
@@ -155,39 +157,109 @@ export function addOptions(poll, text, { day = null } = {}) {
   return fresh.length ? touch(poll, { options: [...poll.options, ...fresh] }) : poll;
 }
 
+/**
+ * Add one choice made of a day, an hour and a few words — each optional, but
+ * not all three. A day with no words is a day to vote on, « Samedi 13 octobre
+ * · 20:00 »; a day with words is something done that day, « Kayak ». A day
+ * already offered on its own is not offered twice.
+ */
+export function addChoice(poll, { text = '', day = null, at = null } = {}) {
+  const words = String(text || '').replace(/\s+/g, ' ').trim();
+  const pinned = pinOf(day, at);
+  if (!words && !pinned.day) return poll;
+  if (!words && poll.options.some((option) => !option.text.trim() && option.day === pinned.day && (option.at || null) === (pinned.at || null))) {
+    return poll;
+  }
+  const now = Date.now();
+  return touch(poll, { options: [...poll.options, { id: uid('o'), text: words, ...pinned, createdAt: now, updatedAt: now }] });
+}
+
+/** Days to vote on, as choices of their own: what « 📅 Ajouter un jour » makes. */
+export function addDays(poll, days) {
+  return [...days].sort().reduce((current, day) => addChoice(current, { day }), poll);
+}
+
 const isDayText = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+const isHourText = (value) => /^\d{2}:\d{2}$/.test(String(value || ''));
+/** The day and hour fields a choice carries: an hour only with a day. */
+const pinOf = (day, at) => (isDayText(day) ? { day: String(day), ...(isHourText(at) ? { at: String(at) } : {}) } : {});
 
 /** The day a choice is pinned to, or null: a choice open to any day. */
 export function optionDay(option) {
   return isDayText(option?.day) ? option.day : null;
 }
 
-/** Whether any choice of the poll is pinned to a day. */
-export function hasOptionDays(poll) {
-  return (poll?.options || []).some((option) => optionDay(option));
+/**
+ * The day and hour a choice stands for, or null: its own, or — for a choice
+ * written before choices had days, « Vendredi 12 · 20h » — the one its words
+ * name, read from the day it was written.
+ */
+export function choiceWhen(option, from = Date.now()) {
+  const day = optionDay(option);
+  if (day) return { date: day, at: isHourText(option.at) ? option.at : null };
+  return dayOfChoice(option?.text, new Date(option?.createdAt || from));
 }
 
-/** Pin a choice to a day, or unpin it with null. */
-export function setOptionDay(poll, optionId, day) {
+/**
+ * Whether a choice is a day to vote on — « Samedi 13 octobre », with no other
+ * words, or words that only name that day — rather than something done on a
+ * day: « Kayak », pinned to the Saturday.
+ */
+export function isDayChoice(option, from = Date.now()) {
+  const when = choiceWhen(option, from);
+  if (!when) return false;
+  const words = String(option.text || '').trim();
+  return !words || dayOfChoice(words, new Date(option.createdAt || from))?.date === when.date;
+}
+
+/** Something done on a given day: words, pinned to a day they do not name. */
+const onItsDay = (option) => Boolean(optionDay(option)) && !isDayChoice(option);
+
+/**
+ * What a choice says, wherever it is read: its words, or its day — and hour —
+ * when it is a day and nothing else.
+ */
+export function choiceText(option, language = 'fr') {
+  const words = String(option?.text || '').trim();
+  if (words) return words;
+  const day = optionDay(option);
+  if (!day) return '';
+  return [choiceOfDay(day, language), isHourText(option.at) ? option.at : null].filter(Boolean).join(' · ');
+}
+
+/** Whether any choice of the poll is something done on a day. */
+export function hasOptionDays(poll) {
+  return (poll?.options || []).some(onItsDay);
+}
+
+/**
+ * Pin a choice to a day — and an hour of it —, or unpin it with null. `at`
+ * left out keeps the hour the choice had, as long as its day stays.
+ */
+export function setOptionDay(poll, optionId, day, at) {
   const kept = isDayText(day) ? String(day) : null;
   let changed = false;
   const options = poll.options.map((option) => {
-    if (option.id !== optionId || optionDay(option) === kept) return option;
+    if (option.id !== optionId) return option;
+    const hour = kept ? (at === undefined ? (kept === optionDay(option) ? option.at : null) : at) : null;
+    const pinned = pinOf(kept, hour);
+    if (optionDay(option) === (pinned.day || null) && (isHourText(option.at) ? option.at : null) === (pinned.at || null)) return option;
     changed = true;
-    const { day: _old, ...rest } = option;
-    return { ...rest, ...(kept ? { day: kept } : {}), updatedAt: later(option.updatedAt) };
+    const { day: _day, at: _at, ...rest } = option;
+    return { ...rest, ...pinned, updatedAt: later(option.updatedAt) };
   });
   return changed ? touch(poll, { options }) : poll;
 }
 
 /**
- * The choices grouped by the day they are pinned to, days in order and the
- * unpinned last. One group of everything when no choice has a day.
+ * The choices grouped by the day they are done on, days in order and the rest
+ * last — days to vote on among them: they are what that group decides. One
+ * group of everything when no choice is done on a day.
  */
 export function optionsByDay(poll) {
   const groups = new Map();
   for (const option of poll.options) {
-    const day = optionDay(option) || '';
+    const day = onItsDay(option) ? optionDay(option) : '';
     if (!groups.has(day)) groups.set(day, []);
     groups.get(day).push(option);
   }
@@ -198,10 +270,10 @@ export function optionsByDay(poll) {
 
 export function renameOption(poll, optionId, text) {
   const clean = String(text || '').trim();
-  if (!clean) return poll;
   let changed = false;
   const options = poll.options.map((option) => {
-    if (option.id !== optionId) return option;
+    // A choice keeps words, or a day: never neither.
+    if (option.id !== optionId || option.text === clean || (!clean && !optionDay(option))) return option;
     changed = true;
     return { ...option, text: clean, updatedAt: later(option.updatedAt) };
   });

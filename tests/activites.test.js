@@ -9,7 +9,7 @@ import {
   activityFor, ideaActivities, choiceActivities, whenPoll, markForActivity, activitiesOnClose, activityFromChoice, activityVotes,
 } from '../src/flows.js';
 import {
-  createEvent, createPoll, addOptions, setVote, setClosed, dayOfChoice, setPollDate, setOptionDay, optionsByDay, tally, mergePolls,
+  createEvent, createPoll, addOptions, setVote, setClosed, choiceText, setPollDate, setOptionDay, optionsByDay, tally, mergePolls,
 } from '../src/polls.js';
 import { createList } from '../src/lists.js';
 import { createBoard, addCard, editCardText } from '../src/ideas.js';
@@ -82,8 +82,10 @@ test('des idées et d’un sondage clos, des activités ; « quand ? » parmi le
   assert.equal(quand.whenFor, lac.id);
   assert.equal(quand.parent, lac.id);
   assert.equal(quand.options.length, 3);
-  assert.deepEqual(quand.options.map((o) => dayOfChoice(o.text, new Date('2026-10-01'))?.date),
-    ['2026-10-09', '2026-10-10', '2026-10-11'], 'chaque choix se relit comme son jour');
+  assert.deepEqual(quand.options.map((o) => [o.day, o.text]),
+    [['2026-10-09', ''], ['2026-10-10', ''], ['2026-10-11', '']], 'chaque choix est son jour, sans mots');
+  assert.match(choiceText(quand.options[1]), /^Samedi 10 octobre/);
+  assert.deepEqual(optionsByDay(quand).map((group) => group.day), [null], 'des jours à voter ne se rangent pas sous leur jour');
   assert.deepEqual(choiceActivities(setClosed(quand, true), [annecy, lac, quand]).choices, [], 'un « quand ? » ne crée pas d’activité');
   assert.equal(setPollDate(lac, '2026-10-10').date, '2026-10-10');
 });

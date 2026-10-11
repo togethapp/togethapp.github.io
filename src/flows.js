@@ -16,7 +16,7 @@
  */
 
 import { addItems } from './lists.js';
-import { createPoll, createEvent, addOptions, tally, goers, choiceOfDay, voteOf, optionDay } from './polls.js';
+import { createPoll, createEvent, addOptions, addDays, tally, goers, choiceText, voteOf, optionDay } from './polls.js';
 import { addSpend } from './spends.js';
 import { cardsInOrder } from './ideas.js';
 import { addPerson } from './people.js';
@@ -102,8 +102,8 @@ export function winnerOffers(poll, list) {
 }
 
 /** Make what the poll chose a line of the list. */
-export function addWinner(list, poll, option) {
-  const text = oneLine(option.text);
+export function addWinner(list, poll, option, language = 'fr') {
+  const text = oneLine(choiceText(option, language));
   if (!text || cameFrom(list.items, poll.id, option.id)) return list;
   const next = addItems(list, text);
   return next === list ? list : markLast(next, 'items', { doc: poll.id, part: option.id });
@@ -235,16 +235,15 @@ export function choiceActivities(poll, all) {
  * its event and nothing else. Settled, it gives the activity its day, not
  * itself (`whenFor`).
  */
-export function whenPoll(activity, event, { question = '', language = 'fr' } = {}) {
-  const days = eventDays(event);
-  const poll = addOptions(
+export function whenPoll(activity, event, { question = '' } = {}) {
+  const poll = addDays(
     createPoll({
       question: question || activity.title || activity.question || '',
       names: (activity.people || []).map((person) => person.name),
       shared: Boolean(activity.shared),
       groupId: activity.groupId || null,
     }),
-    days.map((day) => choiceOfDay(day, language)).join('\n'),
+    eventDays(event),
   );
   return { ...poll, parent: activity.id, whenFor: activity.id, ...(activity.linkOnly ? { linkOnly: true } : {}) };
 }
@@ -261,7 +260,7 @@ export function markForActivity(poll, yes = true) {
 export function activityFromChoice(event, poll, option) {
   const keen = (poll.people || []).filter((person) => voteOf(poll, person.id, option.id) === 'yes').map((person) => person.name);
   return activityFor(event, {
-    name: oneLine(option.text), date: optionDay(option), names: keen.length ? keen : null, from: { doc: poll.id, part: option.id },
+    name: oneLine(choiceText(option)), date: optionDay(option), at: option.at || null, names: keen.length ? keen : null, from: { doc: poll.id, part: option.id },
   });
 }
 
