@@ -124,8 +124,9 @@ export function removeCard(board, cardId) {
 
 /** Put a board away, or bring it back. Nothing is deleted. */
 export function archiveBoard(board, yes = true) {
-  const at = yes ? Date.now() : null;
-  return at === (board.archivedAt || null) ? board : touch(board, { archivedAt: at });
+  // Put away twice is put away once: the board keeps the day it was put away.
+  if (Boolean(yes) === Boolean(board.archivedAt)) return board;
+  return touch(board, { archivedAt: yes ? Date.now() : null });
 }
 
 /**

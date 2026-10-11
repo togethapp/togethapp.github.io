@@ -485,6 +485,23 @@ de décider : des **notes** et des **croquis**, chacun sur sa carte.
 - Partagé comme le reste, archivé, copié vers un autre groupe. Pas encore de
   schémas (boîtes et flèches) ni de photos.
 
+## Remplir avec Claude
+
+*Réglages → Remplir avec Claude* copie un texte à coller dans une conversation
+avec Claude (ou dans les instructions d'un projet). Claude répond ensuite à
+« une liste de courses pour la raclette » par un lien qui ouvre le formulaire
+**déjà rempli** — titre, lignes, personnes ; question et choix d'un sondage ;
+nom et monnaie d'un compte ; jour et heure d'un événement. Rien n'est créé avant
+d'avoir appuyé sur le bouton : un lien ne fait que proposer. Sur iPhone, un lien
+touché s'ouvre dans Safari, qui a son propre stockage : on le copie plutôt, et
+on le colle dans *Réglages → Ouvrir par un lien*, qui l'ouvre dans l'app.
+
+Les adresses : `#/lists/new?titre=…&lignes=…&personnes=…`,
+`#/polls/new?question=…&choix=…`, `#/spends/new?titre=…&monnaie=EUR`,
+`#/agenda/new?titre=…&jour=AAAA-MM-JJ&heure=HH:MM&fin=…` — lignes et choix
+séparés par un retour à la ligne (`%0A`), personnes par des virgules
+(`src/prefill.js`).
+
 ## Installer d'abord, sur téléphone
 
 Sur iPhone, l'app posée sur l'écran d'accueil et Safari ne partagent rien, et

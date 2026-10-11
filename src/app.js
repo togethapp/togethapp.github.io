@@ -82,6 +82,7 @@ import {
   bindInstall, installFirstHtml, installOfferHtml, installReminderHtml, phoneToInstall, startInstall,
 } from './view-install.js';
 import { swipeable } from './swipe.js';
+import { prefillOf, withoutPrefill } from './prefill.js';
 export const view = document.getElementById('view');
 
 export const state = {
@@ -330,7 +331,8 @@ export function route() {
 
 /** What an address opens, without going there. */
 function routeOf(address) {
-  const hash = address.replace(/^#\/?/, '');
+  // A form may come filled in: `#/lists/new?titre=…`. See prefill.js.
+  const hash = withoutPrefill(address).replace(/^#\/?/, '');
   const [name, param] = hash.split('/');
   if (name === 'games') return { name: 'home' };
   // An invitation link carries both the six digits and the group's name, so
@@ -1550,11 +1552,8 @@ function dataHtml() {
         <button type="button" class="button button--small" id="export">${escapeHtml(t('action.export'))}</button>
         <button type="button" class="button button--small" id="import">${escapeHtml(t('action.import'))}</button>
         <button type="button" class="button button--small" id="import-paste">${escapeHtml(t('action.importPaste'))}</button>
-        ${
-          state.remote
-            ? `<button type="button" class="button button--small" id="open-link">${escapeHtml(t('action.openLink'))}</button>`
-            : ''
-        }
+        <button type="button" class="button button--small" id="open-link">${escapeHtml(t('action.openLink'))}</button>
+        <button type="button" class="button button--small" id="claude-guide">${escapeHtml(t('claude.button'))}</button>
         ${
           lots().length
             ? `<button type="button" class="button button--small" id="my-shares">${escapeHtml(t('lots.title', { count: lots().length }))}</button>`
@@ -3058,8 +3057,40 @@ function leavePoll(current, { unreachable = false } = {}) {
   view.querySelector('#poll-retry').addEventListener('click', () => render());
 }
 
+/**
+ * Put what a form's address fills in into that form's draft, once: the address
+ * then loses it, so going back or reloading keeps what the person changed.
+ */
+function takePrefill(current) {
+  const fill = prefillOf(location.hash);
+  if (!fill) return;
+  history.replaceState(null, '', `${location.pathname}${location.search}${withoutPrefill(location.hash)}`);
+  const people = fill.people ? [...fill.people, ...(fill.people.length < 2 ? [''] : [])] : null;
+  const lines = (list) => (list || []).join('\n');
+  if (current.name === 'new-list') {
+    if (fill.title) state.newListName = fill.title;
+    if (fill.lines) state.newListLines = lines(fill.lines);
+    if (people) state.newListPeople = people;
+  } else if (current.name === 'new-poll') {
+    if (fill.question || fill.title) state.newPollQuestion = fill.question || fill.title;
+    if (fill.choices) state.newPollChoices = lines(fill.choices);
+    if (people) state.newPollPeople = people;
+  } else if (current.name === 'new-spend') {
+    if (fill.title) state.newSpendName = fill.title;
+    if (CURRENCIES.includes(fill.currency)) state.newSpendCurrency = fill.currency;
+    if (people) state.newSpendPeople = people;
+  } else if (current.name === 'new-event') {
+    if (fill.title) state.newEventName = fill.title;
+    if (fill.day) state.newEventDay = fill.day;
+    if (fill.hour) state.newEventHour = fill.hour;
+    if (fill.until) state.newEventUntil = fill.until;
+    if (people) state.newEventPeople = people;
+  }
+}
+
 export function render() {
   const current = route();
+  takePrefill(current);
   markTab(current);
   setSolo(Boolean(current.solo));
   const kept = keptScrolls();
