@@ -521,16 +521,30 @@ export function backTokenFrom(pasted) {
   return found ? found[1] : null;
 }
 
+/**
+ * Where a sent link points. A messaging app draws a link's preview from the
+ * page the server sends, and what follows the `#` never leaves the phone: the
+ * app's own page could only ever be previewed as "Together". So a link to a
+ * poll goes through sondage.html, which carries its own title for the preview
+ * and hands over to the app at once, with the same `#…`. Those pages sit next
+ * to index.html; served from any other file (the single-file build), a link
+ * points at that file directly, as before.
+ */
+function doorway(location, page) {
+  const { origin, pathname, search } = location;
+  return /\/(index\.html)?$/.test(pathname)
+    ? `${origin}${pathname.replace(/index\.html$/, '')}${page}.html${search}`
+    : `${origin}${pathname}${search}`;
+}
+
 /** The link to give someone so they open this very game. */
 export function shareLink(location, gameId) {
-  const { origin, pathname, search } = location;
-  return `${origin}${pathname}${search}#/game/${gameId}`;
+  return `${doorway(location, 'partie')}#/game/${gameId}`;
 }
 
 /** The link to give someone so they open this very list. */
 export function listLink(location, listId) {
-  const { origin, pathname, search } = location;
-  return `${origin}${pathname}${search}#/list/${listId}`;
+  return `${doorway(location, 'liste')}#/list/${listId}`;
 }
 
 /** The list id inside whatever was pasted, or null. */
@@ -546,8 +560,7 @@ export function listIdFrom(pasted) {
  * around. Addresses sent before, without `/solo`, still open it in full.
  */
 export function pollLink(location, pollId) {
-  const { origin, pathname, search } = location;
-  return `${origin}${pathname}${search}#/poll/${pollId}/solo`;
+  return `${doorway(location, 'sondage')}#/poll/${pollId}/solo`;
 }
 
 /** The poll id inside whatever was pasted, or null. */
@@ -567,8 +580,7 @@ export function pollIdFrom(pasted) {
  * loud instead.
  */
 export function joinLink(location, name, code) {
-  const { origin, pathname, search } = location;
-  return `${origin}${pathname}${search}#/join/${code}/${encodeURIComponent(name)}`;
+  return `${doorway(location, 'invitation')}#/join/${code}/${encodeURIComponent(name)}`;
 }
 
 /** The invitation inside whatever was pasted: { code, name }, or null. */

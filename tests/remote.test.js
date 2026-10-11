@@ -103,14 +103,19 @@ test('pickNewer keeps whichever copy changed last', () => {
   assert.equal(pickNewer(null, remote), 'remote', 'a game only the link holder has');
 });
 
-test('a share link points at that game on this same page', () => {
+test('a share link points at that game, through a page whose preview says what it is', () => {
   assert.equal(
     shareLink({ origin: 'https://gui.github.io', pathname: '/Code/', search: '' }, 'g_7'),
-    'https://gui.github.io/Code/#/game/g_7',
+    'https://gui.github.io/Code/partie.html#/game/g_7',
   );
   assert.equal(
     shareLink({ origin: 'http://localhost:8080', pathname: '/index.html', search: '?x=1' }, 'g_7'),
-    'http://localhost:8080/index.html?x=1#/game/g_7',
+    'http://localhost:8080/partie.html?x=1#/game/g_7',
+  );
+  assert.equal(
+    shareLink({ origin: 'http://localhost:8080', pathname: '/dist/marque-points.html', search: '' }, 'g_7'),
+    'http://localhost:8080/dist/marque-points.html#/game/g_7',
+    'the single-file build has no such page beside it, and links to itself',
   );
 });
 
@@ -178,12 +183,12 @@ test('an invitation travels as a link, so nothing has to be typed', async () => 
   const place = { origin: 'https://gui.github.io', pathname: '/Code/', search: '' };
 
   const link = joinLink(place, 'Mifa', '123456');
-  assert.equal(link, 'https://gui.github.io/Code/#/join/123456/Mifa');
+  assert.equal(link, 'https://gui.github.io/Code/invitation.html#/join/123456/Mifa');
   assert.deepEqual(joinFrom(link), { code: '123456', name: 'Mifa' });
   assert.deepEqual(joinFrom(`Tiens : ${link} à ce soir`), { code: '123456', name: 'Mifa' });
 
   const spaced = joinLink(place, 'Copains du mardi', '000042');
-  assert.equal(spaced, 'https://gui.github.io/Code/#/join/000042/Copains%20du%20mardi',
+  assert.equal(spaced, 'https://gui.github.io/Code/invitation.html#/join/000042/Copains%20du%20mardi',
     'a name with spaces still makes one unbroken link');
   assert.deepEqual(joinFrom(spaced), { code: '000042', name: 'Copains du mardi' },
     'and comes back as it was written');
@@ -496,7 +501,7 @@ test('a poll is sent as a link that opens it alone', () => {
   // Whoever receives it came to answer: the link says so, and the app shows
   // them the poll and nothing else of itself.
   const link = pollLink({ origin: 'https://gui.github.io', pathname: '/Code/', search: '' }, 'v_42');
-  assert.equal(link, 'https://gui.github.io/Code/#/poll/v_42/solo');
+  assert.equal(link, 'https://gui.github.io/Code/sondage.html#/poll/v_42/solo');
   assert.equal(pollIdFrom(link), 'v_42', 'and pasting it back still finds the poll');
   assert.equal(pollIdFrom('https://gui.github.io/Code/#/poll/v_42'), 'v_42', 'links sent before still work');
 });
@@ -542,4 +547,18 @@ test('a write refused because the thing was deleted says so', async () => {
   assert.equal(wasDeleted(new TypeError('Failed to fetch')), false);
   assert.equal(wasDeleted({ detail: '{"message":"cle de groupe invalide"}' }), false);
   assert.equal(wasDeleted(undefined), false);
+});
+
+test('each kind of sent link has its page, titled for the preview, that hands over to the app', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { listLink } = await import('../src/remote.js');
+  const place = { origin: 'https://gui.github.io', pathname: '/Code/', search: '' };
+  assert.equal(listLink(place, 'l_1'), 'https://gui.github.io/Code/liste.html#/list/l_1');
+  const workflow = readFileSync(new URL('../.github/workflows/pages.yml', import.meta.url), 'utf8');
+  for (const [page, title] of [['sondage', 'sondage'], ['liste', 'liste'], ['partie', 'partie'], ['invitation', 'invitation']]) {
+    const html = readFileSync(new URL(`../${page}.html`, import.meta.url), 'utf8');
+    assert.match(html, new RegExp(`<meta property="og:title" content="[^"]*${title}`, 'i'), `${page}: its preview says what it is`);
+    assert.match(html, /location\.replace\('\.\/' \+ location\.search \+ location\.hash\)/, `${page}: and opens the app at the same #…`);
+  }
+  assert.match(workflow, /cp \*\.html /, 'and the pages are published with the app');
 });
