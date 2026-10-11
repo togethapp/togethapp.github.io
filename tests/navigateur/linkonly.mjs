@@ -33,7 +33,8 @@ const newPoll = async (question, chip) => {
   await me.click('#new-poll button[type=submit]');
   await me.waitForSelector('#poll-day', { state: 'attached' });
   await me.evaluate(() => document.querySelector('#poll-date-by-hand')?.setAttribute('open', ''));
-  await me.fill('#poll-day', '2026-10-09');
+  // A day still ahead, so the event shows among the coming ones.
+  await me.fill('#poll-day', new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10));
   await me.evaluate(() => document.querySelector('#poll-date-by-hand')?.setAttribute('open', ''));
   await me.click('#poll-date-save');
   await me.waitForTimeout(700);
