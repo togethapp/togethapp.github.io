@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v10" />
-    <meta name="app-build" content="fcdeb3b0" />
+    <meta name="app-build" content="b2b3792b" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -6698,8 +6698,9 @@ function removeCard(board, cardId) {
 
 /** Put a board away, or bring it back. Nothing is deleted. */
 function archiveBoard(board, yes = true) {
-  const at = yes ? Date.now() : null;
-  return at === (board.archivedAt || null) ? board : touch(board, { archivedAt: at });
+  // Put away twice is put away once: the board keeps the day it was put away.
+  if (Boolean(yes) === Boolean(board.archivedAt)) return board;
+  return touch(board, { archivedAt: yes ? Date.now() : null });
 }
 
 /**
