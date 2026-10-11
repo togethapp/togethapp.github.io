@@ -36,6 +36,7 @@ import { isValidBoard } from './ideas.js';
 import { withMeFirst, withoutMe } from './people.js';
 import { saveGames, saveLists, savePolls, saveSpends, saveBoards } from './storage.js';
 import { shareLink, gameIdFrom, listIdFrom, pollIdFrom, setIdFrom, joinFrom, wasDeleted } from './remote.js';
+import { prefillLinkFrom } from './prefill.js';
 import { t } from './i18n.js';
 
 /* -------------------------------------------------------- new game view --- */
@@ -823,6 +824,15 @@ export function openLinkDialog() {
     if (invitation) {
       close();
       navigate(`#/join/${invitation.code}/${encodeURIComponent(invitation.name)}`);
+      return;
+    }
+
+    // A form filled in elsewhere (by Claude, say): opened here, in the
+    // installed app, rather than in the browser the link would open in.
+    const form = prefillLinkFrom(pasted);
+    if (form) {
+      close();
+      navigate(form);
       return;
     }
 

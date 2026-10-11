@@ -20,7 +20,7 @@
 
 const VERSION = 'v10';
 /** Written by tools/bundle.js from the sources: it moves whenever they do. */
-const BUILD = '0a6793ef';
+const BUILD = 'fcdeb3b0';
 const CACHE = `marque-points-${VERSION}-${BUILD}`;
 
 const SHELL = [
@@ -64,6 +64,7 @@ const SHELL = [
   './src/qr.js',
   './src/lock.js',
   './src/remote.js',
+  './src/prefill.js',
   './src/cloud.js',
   './src/i18n.js',
 ];

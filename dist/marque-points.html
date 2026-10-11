@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v10" />
-    <meta name="app-build" content="0a6793ef" />
+    <meta name="app-build" content="fcdeb3b0" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -2594,9 +2594,16 @@ const STRINGS = {
     'paste.hint':
       'Collez ici le texte donné par Exporter, depuis un autre navigateur ou un autre appareil. Les parties déjà présentes ne seront pas dupliquées.',
     'action.openLink': 'Ouvrir par un lien',
-    'openLink.title': 'Ouvrir une partie partagée',
+    'claude.button': 'Remplir avec Claude',
+    'claude.title': 'Remplir avec Claude',
+    'claude.hint':
+      'Collez ce texte au début d’une conversation avec Claude, ou dans les instructions d’un projet Claude. Demandez-lui ensuite « une liste de courses pour la raclette » : il répond par un lien qui ouvre le formulaire déjà rempli, et rien n’est créé avant que vous validiez. Sur iPhone, si le lien s’ouvre dans Safari plutôt que dans l’app, copiez-le et collez-le ici : Réglages → Ouvrir par un lien.',
+    'claude.noName': 'mon prénom',
+    'claude.guide':
+      'Tu m’aides à préparer des choses dans mon app Together. Quand je te demande une liste, un sondage, un compte de dépenses ou un événement, réponds par un lien construit comme ci-dessous. Chaque valeur est encodée pour une adresse web (espace = %20, retour à la ligne = %0A, virgule dans un texte = %2C). Tout est facultatif ; je vérifie le formulaire avant de le créer.\n\n• Liste : {link}#/lists/new?titre=…&lignes=…&personnes=…\n  (lignes : une par ligne, quantités comprises, ex. « 2 baguettes »)\n• Sondage : {link}#/polls/new?question=…&choix=…&personnes=…\n  (choix : un par ligne ; pour une date, le jour en clair, ex. « samedi 14 juin »)\n• Compte de dépenses : {link}#/spends/new?titre=…&personnes=…&monnaie=EUR\n  (monnaie : EUR, CHF, GBP, USD ou CAD)\n• Événement : {link}#/agenda/new?titre=…&jour=AAAA-MM-JJ&heure=HH:MM&fin=AAAA-MM-JJ&personnes=…\n\npersonnes : des prénoms séparés par des virgules, moi en premier ({me}).\n\nExemple : {link}#/lists/new?titre=Raclette&lignes=Fromage%20%C3%A0%20raclette%0APommes%20de%20terre%0ACornichons&personnes={me},Alice',
+    'openLink.title': 'Ouvrir un lien',
     'openLink.hint':
-      'Collez le lien d’une partie — ou d’un lot de parties, ou un identifiant de partie. L’app va chercher dans la base partagée et ajoute tout à cette liste.',
+      'Collez le lien d’une partie, d’une liste, d’un sondage, d’une invitation, ou un formulaire préparé par Claude. L’app va chercher dans la base partagée ce qu’il faut.',
     'openLink.open': 'Ouvrir',
     'openLink.noId': 'Aucun identifiant de partie reconnu dans ce texte.',
     'openLink.notFound':
@@ -3673,9 +3680,16 @@ const STRINGS = {
     'paste.hint':
       'Paste the text that Export gave you, from another browser or another device. Games already here will not be duplicated.',
     'action.openLink': 'Open from a link',
-    'openLink.title': 'Open a shared game',
+    'claude.button': 'Fill in with Claude',
+    'claude.title': 'Fill in with Claude',
+    'claude.hint':
+      'Paste this text at the start of a conversation with Claude, or into a Claude project’s instructions. Then ask it for “a shopping list for the barbecue”: it answers with a link that opens the form already filled in, and nothing is created until you confirm. On iPhone, if the link opens in Safari rather than in the app, copy it and paste it here: Settings → Open from a link.',
+    'claude.noName': 'my first name',
+    'claude.guide':
+      'You help me prepare things in my Together app. When I ask you for a list, a poll, an expense account or an event, answer with a link built as below. Each value is encoded for a web address (space = %20, new line = %0A, comma inside a text = %2C). Everything is optional; I check the form before creating it. The parameter names stay in French.\n\n• List: {link}#/lists/new?titre=…&lignes=…&personnes=…\n  (lignes: one per line, quantities included, e.g. “2 baguettes”)\n• Poll: {link}#/polls/new?question=…&choix=…&personnes=…\n  (choix: one per line; for a date, the day in words, e.g. “Saturday 14 June”)\n• Expense account: {link}#/spends/new?titre=…&personnes=…&monnaie=EUR\n  (monnaie: EUR, CHF, GBP, USD or CAD)\n• Event: {link}#/agenda/new?titre=…&jour=YYYY-MM-DD&heure=HH:MM&fin=YYYY-MM-DD&personnes=…\n\npersonnes: first names separated by commas, me first ({me}).\n\nExample: {link}#/lists/new?titre=Barbecue&lignes=Sausages%0ABread%0AKetchup&personnes={me},Alice',
+    'openLink.title': 'Open a link',
     'openLink.hint':
-      'Paste a game link — or a link to a set of games, or a game id. The app fetches from the shared database and adds it all to this list.',
+      'Paste the link to a game, a list, a poll, an invitation, or a form prepared by Claude. The app fetches what it needs from the shared database.',
     'openLink.open': 'Open',
     'openLink.noId': 'No game id recognised in that text.',
     'openLink.notFound':
@@ -9478,6 +9492,88 @@ function setIdFrom(pasted) {
   return found ? found[1] : null;
 }
 
+  // ---- src/prefill.js --------------------------------------------------
+/**
+ * A form filled in from its address: `#/lists/new?titre=Courses&lignes=Pain%0ALait`.
+ *
+ * Made for an assistant (Claude, say) that is asked « une liste de courses pour
+ * la raclette » and answers with a link: tapped, or pasted into « Ouvrir un
+ * lien », it opens the app on the form, already filled in. Nothing is created
+ * until the person has read it and pressed the button, so a link can only ever
+ * suggest — it cannot write anything on its own.
+ *
+ * The names are French, like the rest of the app's addresses, and short, since
+ * they are written by hand as often as not.
+ */
+
+/** The forms that can be filled in this way. */
+const PREFILL_FORMS = ['lists/new', 'polls/new', 'spends/new', 'agenda/new'];
+
+const PREFILL_TEXT = 200;
+const PREFILL_LINES = 100;
+const PREFILL_PEOPLE = 30;
+
+/**
+ * The form's address inside whatever was pasted — `#/lists/new?…` — or null.
+ * A message around it, or the whole https://… in front, is left out.
+ */
+function prefillLinkFrom(pasted) {
+  const found = String(pasted || '').match(/#\/((?:lists|polls|spends|agenda)\/new)\?([^\s#]*)/);
+  return found ? `#/${found[1]}?${found[2]}` : null;
+}
+
+/** The address without what fills the form: `#/lists/new`. */
+function withoutPrefill(address) {
+  return String(address || '').replace(/^(#\/?(?:lists|polls|spends|agenda)\/new)\?.*$/, '$1');
+}
+
+/**
+ * What the address fills in, cleaned: `{ title, lines, people, … }` with only
+ * what it gave, or null when it gives nothing (or is not one of the forms).
+ */
+function prefillOf(address) {
+  const found = String(address || '').match(/^#\/?((?:lists|polls|spends|agenda)\/new)\?(.*)$/);
+  if (!found || !PREFILL_FORMS.includes(found[1])) return null;
+  let params;
+  try {
+    params = new URLSearchParams(found[2]);
+  } catch {
+    return null;
+  }
+  const text = (key) => (params.get(key) || '').replace(/\s+/g, ' ').trim().slice(0, PREFILL_TEXT);
+  const lines = (key) =>
+    (params.get(key) || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim().slice(0, PREFILL_TEXT))
+      .filter(Boolean)
+      .slice(0, PREFILL_LINES);
+
+  const fill = {};
+  const title = text('titre');
+  if (title) fill.title = title;
+  const question = text('question');
+  if (question) fill.question = question;
+  for (const [key, name] of [['lignes', 'lines'], ['choix', 'choices']]) {
+    const value = lines(key);
+    if (value.length) fill[name] = value;
+  }
+  const people = [];
+  for (const name of (params.get('personnes') || '').split(',')) {
+    const clean = name.replace(/\s+/g, ' ').trim().slice(0, 60);
+    if (clean && !people.some((other) => other.toLowerCase() === clean.toLowerCase())) people.push(clean);
+  }
+  if (people.length) fill.people = people.slice(0, PREFILL_PEOPLE);
+  for (const [key, name] of [['jour', 'day'], ['fin', 'until']]) {
+    const value = text(key);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) fill[name] = value;
+  }
+  const hour = text('heure');
+  if (/^\d{1,2}:\d{2}$/.test(hour)) fill.hour = hour.padStart(5, '0');
+  const currency = text('monnaie').toUpperCase();
+  if (/^[A-Z]{3}$/.test(currency)) fill.currency = currency;
+  return Object.keys(fill).length ? fill : null;
+}
+
   // ---- src/cloud.js ----------------------------------------------------
 /**
  * Storing games outside the browser.
@@ -13806,6 +13902,7 @@ function watchBoard(id) {
 
 
 
+
 /* -------------------------------------------------------- new game view --- */
 
 function newGameView() {
@@ -14591,6 +14688,15 @@ function openLinkDialog() {
     if (invitation) {
       close();
       navigate(`#/join/${invitation.code}/${encodeURIComponent(invitation.name)}`);
+      return;
+    }
+
+    // A form filled in elsewhere (by Claude, say): opened here, in the
+    // installed app, rather than in the browser the link would open in.
+    const form = prefillLinkFrom(pasted);
+    if (form) {
+      close();
+      navigate(form);
       return;
     }
 
@@ -16303,6 +16409,20 @@ const NAME_KEPT = 24;
  * device is whose — and, like any name typed into a list, into that list,
  * which travels to the group when the list is shared. Nowhere else.
  */
+/**
+ * What to tell Claude so it answers « une liste pour la raclette » with a link
+ * that opens this app's form already filled in (see prefill.js): the forms'
+ * addresses, on this very copy of the app, and who « moi » is.
+ */
+function openClaudeGuide() {
+  const me = myName();
+  showCopyDialog({
+    title: t('claude.title'),
+    hint: t('claude.hint'),
+    text: t('claude.guide', { link: appLink(), me: me || t('claude.noName') }),
+  });
+}
+
 function myName() {
   const value = state.prefs.me;
   return typeof value === 'string' ? value.trim().slice(0, NAME_KEPT) : '';
@@ -17166,6 +17286,7 @@ function bindData() {
   view.querySelector('#export')?.addEventListener('click', exportGames);
   view.querySelector('#import-paste')?.addEventListener('click', openPasteDialog);
   view.querySelector('#open-link')?.addEventListener('click', openLinkDialog);
+  view.querySelector('#claude-guide')?.addEventListener('click', openClaudeGuide);
 
   const fileInput = view.querySelector('#import-file');
   view.querySelector('#import')?.addEventListener('click', () => fileInput?.click());
@@ -18438,6 +18559,7 @@ function bindInstall(root = view) {
 
 
 
+
 const view = document.getElementById('view');
 
 const state = {
@@ -18686,7 +18808,8 @@ function route() {
 
 /** What an address opens, without going there. */
 function routeOf(address) {
-  const hash = address.replace(/^#\/?/, '');
+  // A form may come filled in: `#/lists/new?titre=…`. See prefill.js.
+  const hash = withoutPrefill(address).replace(/^#\/?/, '');
   const [name, param] = hash.split('/');
   if (name === 'games') return { name: 'home' };
   // An invitation link carries both the six digits and the group's name, so
@@ -19906,11 +20029,8 @@ function dataHtml() {
         <button type="button" class="button button--small" id="export">${escapeHtml(t('action.export'))}</button>
         <button type="button" class="button button--small" id="import">${escapeHtml(t('action.import'))}</button>
         <button type="button" class="button button--small" id="import-paste">${escapeHtml(t('action.importPaste'))}</button>
-        ${
-          state.remote
-            ? `<button type="button" class="button button--small" id="open-link">${escapeHtml(t('action.openLink'))}</button>`
-            : ''
-        }
+        <button type="button" class="button button--small" id="open-link">${escapeHtml(t('action.openLink'))}</button>
+        <button type="button" class="button button--small" id="claude-guide">${escapeHtml(t('claude.button'))}</button>
         ${
           lots().length
             ? `<button type="button" class="button button--small" id="my-shares">${escapeHtml(t('lots.title', { count: lots().length }))}</button>`
@@ -21414,8 +21534,40 @@ function leavePoll(current, { unreachable = false } = {}) {
   view.querySelector('#poll-retry').addEventListener('click', () => render());
 }
 
+/**
+ * Put what a form's address fills in into that form's draft, once: the address
+ * then loses it, so going back or reloading keeps what the person changed.
+ */
+function takePrefill(current) {
+  const fill = prefillOf(location.hash);
+  if (!fill) return;
+  history.replaceState(null, '', `${location.pathname}${location.search}${withoutPrefill(location.hash)}`);
+  const people = fill.people ? [...fill.people, ...(fill.people.length < 2 ? [''] : [])] : null;
+  const lines = (list) => (list || []).join('\n');
+  if (current.name === 'new-list') {
+    if (fill.title) state.newListName = fill.title;
+    if (fill.lines) state.newListLines = lines(fill.lines);
+    if (people) state.newListPeople = people;
+  } else if (current.name === 'new-poll') {
+    if (fill.question || fill.title) state.newPollQuestion = fill.question || fill.title;
+    if (fill.choices) state.newPollChoices = lines(fill.choices);
+    if (people) state.newPollPeople = people;
+  } else if (current.name === 'new-spend') {
+    if (fill.title) state.newSpendName = fill.title;
+    if (CURRENCIES.includes(fill.currency)) state.newSpendCurrency = fill.currency;
+    if (people) state.newSpendPeople = people;
+  } else if (current.name === 'new-event') {
+    if (fill.title) state.newEventName = fill.title;
+    if (fill.day) state.newEventDay = fill.day;
+    if (fill.hour) state.newEventHour = fill.hour;
+    if (fill.until) state.newEventUntil = fill.until;
+    if (people) state.newEventPeople = people;
+  }
+}
+
 function render() {
   const current = route();
+  takePrefill(current);
   markTab(current);
   setSolo(Boolean(current.solo));
   const kept = keptScrolls();

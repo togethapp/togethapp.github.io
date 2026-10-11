@@ -930,6 +930,20 @@ export const NAME_KEPT = 24;
  * device is whose — and, like any name typed into a list, into that list,
  * which travels to the group when the list is shared. Nowhere else.
  */
+/**
+ * What to tell Claude so it answers « une liste pour la raclette » with a link
+ * that opens this app's form already filled in (see prefill.js): the forms'
+ * addresses, on this very copy of the app, and who « moi » is.
+ */
+function openClaudeGuide() {
+  const me = myName();
+  showCopyDialog({
+    title: t('claude.title'),
+    hint: t('claude.hint'),
+    text: t('claude.guide', { link: appLink(), me: me || t('claude.noName') }),
+  });
+}
+
 export function myName() {
   const value = state.prefs.me;
   return typeof value === 'string' ? value.trim().slice(0, NAME_KEPT) : '';
@@ -1793,6 +1807,7 @@ export function bindData() {
   view.querySelector('#export')?.addEventListener('click', exportGames);
   view.querySelector('#import-paste')?.addEventListener('click', openPasteDialog);
   view.querySelector('#open-link')?.addEventListener('click', openLinkDialog);
+  view.querySelector('#claude-guide')?.addEventListener('click', openClaudeGuide);
 
   const fileInput = view.querySelector('#import-file');
   view.querySelector('#import')?.addEventListener('click', () => fileInput?.click());

@@ -987,9 +987,16 @@ export const STRINGS = {
     'paste.hint':
       'Collez ici le texte donné par Exporter, depuis un autre navigateur ou un autre appareil. Les parties déjà présentes ne seront pas dupliquées.',
     'action.openLink': 'Ouvrir par un lien',
-    'openLink.title': 'Ouvrir une partie partagée',
+    'claude.button': 'Remplir avec Claude',
+    'claude.title': 'Remplir avec Claude',
+    'claude.hint':
+      'Collez ce texte au début d’une conversation avec Claude, ou dans les instructions d’un projet Claude. Demandez-lui ensuite « une liste de courses pour la raclette » : il répond par un lien qui ouvre le formulaire déjà rempli, et rien n’est créé avant que vous validiez. Sur iPhone, si le lien s’ouvre dans Safari plutôt que dans l’app, copiez-le et collez-le ici : Réglages → Ouvrir par un lien.',
+    'claude.noName': 'mon prénom',
+    'claude.guide':
+      'Tu m’aides à préparer des choses dans mon app Together. Quand je te demande une liste, un sondage, un compte de dépenses ou un événement, réponds par un lien construit comme ci-dessous. Chaque valeur est encodée pour une adresse web (espace = %20, retour à la ligne = %0A, virgule dans un texte = %2C). Tout est facultatif ; je vérifie le formulaire avant de le créer.\n\n• Liste : {link}#/lists/new?titre=…&lignes=…&personnes=…\n  (lignes : une par ligne, quantités comprises, ex. « 2 baguettes »)\n• Sondage : {link}#/polls/new?question=…&choix=…&personnes=…\n  (choix : un par ligne ; pour une date, le jour en clair, ex. « samedi 14 juin »)\n• Compte de dépenses : {link}#/spends/new?titre=…&personnes=…&monnaie=EUR\n  (monnaie : EUR, CHF, GBP, USD ou CAD)\n• Événement : {link}#/agenda/new?titre=…&jour=AAAA-MM-JJ&heure=HH:MM&fin=AAAA-MM-JJ&personnes=…\n\npersonnes : des prénoms séparés par des virgules, moi en premier ({me}).\n\nExemple : {link}#/lists/new?titre=Raclette&lignes=Fromage%20%C3%A0%20raclette%0APommes%20de%20terre%0ACornichons&personnes={me},Alice',
+    'openLink.title': 'Ouvrir un lien',
     'openLink.hint':
-      'Collez le lien d’une partie — ou d’un lot de parties, ou un identifiant de partie. L’app va chercher dans la base partagée et ajoute tout à cette liste.',
+      'Collez le lien d’une partie, d’une liste, d’un sondage, d’une invitation, ou un formulaire préparé par Claude. L’app va chercher dans la base partagée ce qu’il faut.',
     'openLink.open': 'Ouvrir',
     'openLink.noId': 'Aucun identifiant de partie reconnu dans ce texte.',
     'openLink.notFound':
@@ -2066,9 +2073,16 @@ export const STRINGS = {
     'paste.hint':
       'Paste the text that Export gave you, from another browser or another device. Games already here will not be duplicated.',
     'action.openLink': 'Open from a link',
-    'openLink.title': 'Open a shared game',
+    'claude.button': 'Fill in with Claude',
+    'claude.title': 'Fill in with Claude',
+    'claude.hint':
+      'Paste this text at the start of a conversation with Claude, or into a Claude project’s instructions. Then ask it for “a shopping list for the barbecue”: it answers with a link that opens the form already filled in, and nothing is created until you confirm. On iPhone, if the link opens in Safari rather than in the app, copy it and paste it here: Settings → Open from a link.',
+    'claude.noName': 'my first name',
+    'claude.guide':
+      'You help me prepare things in my Together app. When I ask you for a list, a poll, an expense account or an event, answer with a link built as below. Each value is encoded for a web address (space = %20, new line = %0A, comma inside a text = %2C). Everything is optional; I check the form before creating it. The parameter names stay in French.\n\n• List: {link}#/lists/new?titre=…&lignes=…&personnes=…\n  (lignes: one per line, quantities included, e.g. “2 baguettes”)\n• Poll: {link}#/polls/new?question=…&choix=…&personnes=…\n  (choix: one per line; for a date, the day in words, e.g. “Saturday 14 June”)\n• Expense account: {link}#/spends/new?titre=…&personnes=…&monnaie=EUR\n  (monnaie: EUR, CHF, GBP, USD or CAD)\n• Event: {link}#/agenda/new?titre=…&jour=YYYY-MM-DD&heure=HH:MM&fin=YYYY-MM-DD&personnes=…\n\npersonnes: first names separated by commas, me first ({me}).\n\nExample: {link}#/lists/new?titre=Barbecue&lignes=Sausages%0ABread%0AKetchup&personnes={me},Alice',
+    'openLink.title': 'Open a link',
     'openLink.hint':
-      'Paste a game link — or a link to a set of games, or a game id. The app fetches from the shared database and adds it all to this list.',
+      'Paste the link to a game, a list, a poll, an invitation, or a form prepared by Claude. The app fetches what it needs from the shared database.',
     'openLink.open': 'Open',
     'openLink.noId': 'No game id recognised in that text.',
     'openLink.notFound':
