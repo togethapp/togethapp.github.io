@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <!-- A doorway, not a page: a messaging app draws a link's preview from
+         what the server sends, and never sees what follows the `#`. This page
+         only gives the preview a title that says what was sent, then hands
+         over to the app with the same address after the `#`. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Un sondage à remplir · Together</title>
+    <meta name="description" content="Touchez le lien pour donner vos disponibilités ou votre avis." />
+    <meta property="og:site_name" content="Together" />
+    <meta property="og:title" content="Un sondage à remplir" />
+    <meta property="og:description" content="Touchez le lien pour donner vos disponibilités ou votre avis." />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#b8761a" />
+    <script>location.replace('./' + location.search + location.hash);</script>
+  </head>
+  <body>
+    <p><a href="./">Ouvrir Together</a></p>
+  </body>
+</html>

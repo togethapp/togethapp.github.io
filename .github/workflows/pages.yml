@@ -38,7 +38,7 @@ jobs:
       - name: Rassembler le site
         run: |
           mkdir -p site
-          cp index.html styles.css manifest.webmanifest sw.js site/
+          cp *.html styles.css manifest.webmanifest sw.js site/
           cp -r src icons dist site/
 
       # enablement active Pages si ce n'est pas déjà fait, au lieu d'échouer.
