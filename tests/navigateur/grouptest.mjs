@@ -124,7 +124,7 @@ const guest = await device('invité'); // aucun groupe
 await guest.goto(`http://localhost:8099/dist/marque-points.html${link.slice(link.indexOf('#'))}`);
 await guest.waitForSelector('.lines', { timeout: 15000 });
 check('qui reçoit le lien ouvre la liste sans clé', (await guest.locator('.line').count()) === 2);
-await guest.locator('[data-tick]').first().check();
+await guest.locator('[data-tick]').first().click();
 await guest.waitForTimeout(600);
 const seen = await page.waitForFunction(
   () => document.querySelectorAll('.line--done').length === 1, null, { timeout: 15000 },

@@ -48,7 +48,7 @@ await page.waitForFunction(() => document.querySelectorAll('.lines .line').lengt
 check('et la ligne part', !/Lait/.test(await page.locator('.lines').textContent()));
 
 // Cocher une ligne marche toujours : un toucher n'est pas un glissement.
-await page.locator('.lines [data-tick]').first().check();
+await page.locator('.lines [data-tick]').first().click();
 await page.waitForFunction(() => document.querySelector('.lines .line--done'));
 check('cocher une ligne marche toujours', (await page.locator('.lines .line--done').count()) === 1);
 
