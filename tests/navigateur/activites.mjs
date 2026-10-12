@@ -94,7 +94,7 @@ await page.waitForSelector('dialog[open] #activity-name');
 await page.fill('dialog[open] #activity-name', 'Lac');
 await page.click('dialog[open] #activity-ok');
 await page.waitForFunction(() => /Lac/.test(document.querySelector('.programme')?.textContent || ''));
-check('sans jour, elle est « à caler », en fin de programme', /Rando.*à caler Lac/.test(await text('.programme')), await text('.programme'));
+check('sans jour, elle est « à caler », en fin de programme', /Rando.*à planifier Lac/.test(await text('.programme')), await text('.programme'));
 
 /* --- 2. caler par un sondage des jours ----------------------------------- */
 
@@ -193,7 +193,7 @@ check('clos : le gagnant est au programme, d’office', cineActivite.parent === 
 check('le sondage ne propose plus rien', (await page.locator('[data-flow-choice-activity]').count()) === 0);
 await page.goto(`${B}#/poll/${annecy.id}`);
 await page.waitForSelector('.programme');
-check('le programme a l’activité, plus le vote', /à caler Ciné/.test(await text('.programme')) && !/en vote/.test(await text('.programme')), await text('.programme'));
+check('le programme a l’activité, plus le vote', /à planifier Ciné/.test(await text('.programme')) && !/en vote/.test(await text('.programme')), await text('.programme'));
 
 /* --- 8. un jour par choix : un gagnant par jour ------------------------- */
 

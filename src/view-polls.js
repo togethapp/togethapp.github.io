@@ -363,7 +363,7 @@ export function pollView(poll, { solo = false } = {}) {
                    .map(
                      (row) => row.day !== undefined ? `
                        <tr class="votes__day">
-                         <th scope="rowgroup">${escapeHtml(row.day ? formatDayLong(row.day) : t('activity.unscheduled'))}</th>
+                         <th scope="rowgroup">${escapeHtml(row.day ? formatDayLong(row.day) : t('polls.anyDay'))}</th>
                          <td colspan="${poll.people.length + 1}"></td>
                        </tr>` : `
                        <tr class="${leaders.includes(row.option.id) ? 'votes__leader' : ''}">
@@ -404,7 +404,10 @@ export function pollView(poll, { solo = false } = {}) {
         : addChoiceHtml(poll)
     }
 
-    ${guest || poll.date || fixed || poll.whenFor ? '' : `<details class="details" id="poll-date-by-hand">
+    ${
+      // No day to set by hand on a poll choosing what to do on the days of
+      // its event: its choices have days of their own.
+      guest || poll.date || fixed || poll.whenFor || hasOptionDays(poll) ? '' : `<details class="details" id="poll-date-by-hand">
       <summary>${escapeHtml(t('polls.dateByHand'))}</summary>
       ${dateCardHtml(poll, fixed)}
     </details>`}
@@ -1141,10 +1144,9 @@ export function bindPoll(poll) {
     }
     // Something done on a day keeps the day for the next one; a day added on
     // its own leaves the form empty for another.
-    if (!field.value.trim()) {
-      delete pickedDays[poll.id];
-      delete pickedHours[poll.id];
-    }
+    // The hour goes either way: it was this one's.
+    delete pickedHours[poll.id];
+    if (!field.value.trim()) delete pickedDays[poll.id];
     replacePoll(await added(next));
     view.querySelector('#new-choice')?.focus();
   });

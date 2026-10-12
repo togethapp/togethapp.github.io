@@ -1865,7 +1865,7 @@ const STRINGS = {
     'activity.programme': 'Programme',
     'activity.none': 'Pas encore d’activité. Une rando, un resto, un karaoké ?',
     'activity.add': 'Activité',
-    'activity.unscheduled': 'à caler',
+    'activity.unscheduled': 'à planifier',
     'activity.outsideShort': 'hors des jours',
     'activity.outside': 'Ce jour tombe en dehors de l’événement.',
     'activity.newTitle': 'Une activité pendant « {name} »',
@@ -1873,7 +1873,7 @@ const STRINGS = {
     'activity.namePlaceholder': 'Rando, resto, karaoké…',
     'activity.day': 'Quel jour ?',
     'activity.at': 'À quelle heure ? (facultatif)',
-    'activity.newHint': 'Avec les personnes de l’événement ; on peut en retirer ensuite. Sans jour, elle reste « à caler ».',
+    'activity.newHint': 'Avec les personnes de l’événement ; on peut en retirer ensuite. Sans jour, elle reste « à planifier ».',
     'activity.create': 'Créer l’activité',
     'activity.made': '« {name} » ajouté au programme de « {event} ».',
     'activity.of': 'Une activité de « {name} » ({when}).',
@@ -1882,10 +1882,10 @@ const STRINGS = {
     'activity.seeWhen': 'Voir le sondage : quel jour ?',
     'activity.whenQuestion': 'Quel jour pour « {name} » ?',
     'activity.whenMade': 'Sondage créé avec les jours de l’événement.',
-    'activity.dayKept': 'Activité calée le {day}.',
+    'activity.dayKept': 'Activité prévue le {day}.',
     'activity.fromIdeas': 'En faire des activités…',
     'activity.fromIdeasTitle': 'Des activités pour « {name} »',
-    'activity.fromIdeasHint': 'Touchez une idée : elle s’ajoute au programme, à caler.',
+    'activity.fromIdeasHint': 'Touchez une idée : elle s’ajoute au programme, à planifier.',
     'activity.organise': 'L’organiser pendant « {name} »',
     'activity.onProgramme': 'Programme : {items}',
     'activity.attach': 'En faire une activité de…',
@@ -2393,13 +2393,13 @@ const STRINGS = {
     'polls.question': 'La question',
     'polls.questionPlaceholder': 'Quel soir pour la raclette ?',
     'polls.choices': 'Les choix (un par ligne)',
-    'polls.addDay': '📅 Ajouter un jour',
+    'polls.addDay': '📅 Et/ou des jours, au calendrier',
     'polls.dropDay': 'Retirer {day}',
     'polls.dateByHand': 'Fixer la date à la main',
     'polls.retainHint': 'Le plus de monde : « {choice} » ({yes} sur {total}). Retenir ce jour le met dans les agendas et clôt le sondage.',
     'polls.retainTie': 'Égalité en tête : choisissez le jour à retenir. Il ira dans les agendas et le sondage sera clos.',
     'polls.retain': 'Retenir {day}',
-    'polls.choicesPlaceholder': 'Vendredi 12\nSamedi 13\nDimanche 14',
+    'polls.choicesPlaceholder': 'Raclette\nFondue\nPizzas',
     'polls.peopleHint': 'Les personnes à qui on demande. On peut en ajouter plus tard.',
     'polls.create': 'Créer le sondage',
     'polls.untitled': 'Sondage sans question',
@@ -2408,7 +2408,7 @@ const STRINGS = {
     'polls.answered': '{count} {count|réponse|réponses} sur {total}',
     'polls.noAnswerYet': 'Personne n’a encore répondu.',
     'polls.leading': 'En tête : {option} ({count} dispo)',
-    'polls.gauge': 'Les dates qui arrangent le plus',
+    'polls.gauge': 'Ce qui arrange le plus',
     'sign.by': 'Proposé par {name}',
     'sign.edit': 'Signature',
     'sign.placeholder': 'Votre surnom',
@@ -2427,7 +2427,8 @@ const STRINGS = {
     'polls.choice': 'Choix',
     'polls.count': 'Oui',
     'polls.iAm': 'Je suis :',
-    'polls.tapHint': 'Choisissez votre prénom, puis cochez les dates où vous êtes disponible.',
+    'polls.tapHint': 'Choisissez votre prénom, puis cochez ce qui vous va.',
+    'polls.anyDay': 'Sans jour précis',
     'polls.answeringAs': 'Vous répondez pour {name} : seule sa colonne se coche. Touchez un autre prénom plus haut pour changer.',
     'polls.addChoice': 'Ajouter un choix',
     'polls.dropMine': 'Retirer « {choice} », ajouté par vous',
@@ -3481,13 +3482,13 @@ const STRINGS = {
     'polls.question': 'The question',
     'polls.questionPlaceholder': 'Which evening for the raclette?',
     'polls.choices': 'The choices (one per line)',
-    'polls.addDay': '📅 Add a day',
+    'polls.addDay': '📅 And/or days, from the calendar',
     'polls.dropDay': 'Remove {day}',
     'polls.dateByHand': 'Set the day by hand',
     'polls.retainHint': 'Most people: “{choice}” ({yes} of {total}). Keeping this day puts it in the agendas and closes the poll.',
     'polls.retainTie': 'A tie at the top: pick the day to keep. It goes in the agendas and the poll closes.',
     'polls.retain': 'Keep {day}',
-    'polls.choicesPlaceholder': 'Friday 12\nSaturday 13\nSunday 14',
+    'polls.choicesPlaceholder': 'Raclette\nFondue\nPizzas',
     'polls.peopleHint': 'The people being asked. More can be added later.',
     'polls.create': 'Create the poll',
     'polls.untitled': 'Poll with no question',
@@ -3496,7 +3497,7 @@ const STRINGS = {
     'polls.answered': '{count} of {total} answered',
     'polls.noAnswerYet': 'Nobody has answered yet.',
     'polls.leading': 'Leading: {option} ({count} available)',
-    'polls.gauge': 'The dates that suit most people',
+    'polls.gauge': 'What suits most people',
     'sign.by': 'Proposed by {name}',
     'sign.edit': 'Signature',
     'sign.placeholder': 'Your nickname',
@@ -3515,7 +3516,8 @@ const STRINGS = {
     'polls.choice': 'Choice',
     'polls.count': 'Yes',
     'polls.iAm': 'I am:',
-    'polls.tapHint': 'Choose your name, then tick the dates you can make.',
+    'polls.tapHint': 'Choose your name, then tick what works for you.',
+    'polls.anyDay': 'Any day',
     'polls.answeringAs': 'You are answering for {name}: only that column can be ticked. Tap another name above to change.',
     'polls.addChoice': 'Add a choice',
     'polls.dropMine': 'Remove “{choice}”, added by you',
@@ -10184,7 +10186,7 @@ function pollView(poll, { solo = false } = {}) {
                    .map(
                      (row) => row.day !== undefined ? `
                        <tr class="votes__day">
-                         <th scope="rowgroup">${escapeHtml(row.day ? formatDayLong(row.day) : t('activity.unscheduled'))}</th>
+                         <th scope="rowgroup">${escapeHtml(row.day ? formatDayLong(row.day) : t('polls.anyDay'))}</th>
                          <td colspan="${poll.people.length + 1}"></td>
                        </tr>` : `
                        <tr class="${leaders.includes(row.option.id) ? 'votes__leader' : ''}">
@@ -10225,7 +10227,10 @@ function pollView(poll, { solo = false } = {}) {
         : addChoiceHtml(poll)
     }
 
-    ${guest || poll.date || fixed || poll.whenFor ? '' : `<details class="details" id="poll-date-by-hand">
+    ${
+      // No day to set by hand on a poll choosing what to do on the days of
+      // its event: its choices have days of their own.
+      guest || poll.date || fixed || poll.whenFor || hasOptionDays(poll) ? '' : `<details class="details" id="poll-date-by-hand">
       <summary>${escapeHtml(t('polls.dateByHand'))}</summary>
       ${dateCardHtml(poll, fixed)}
     </details>`}
@@ -10962,10 +10967,9 @@ function bindPoll(poll) {
     }
     // Something done on a day keeps the day for the next one; a day added on
     // its own leaves the form empty for another.
-    if (!field.value.trim()) {
-      delete pickedDays[poll.id];
-      delete pickedHours[poll.id];
-    }
+    // The hour goes either way: it was this one's.
+    delete pickedHours[poll.id];
+    if (!field.value.trim()) delete pickedDays[poll.id];
     replacePoll(await added(next));
     view.querySelector('#new-choice')?.focus();
   });
