@@ -267,28 +267,28 @@ enfants. Le plus récent l'emporte à la fusion. Rien ne change dans la base.
 
 Une activité, c'est un événement rattaché à un autre : la rando du week-end,
 le karaoké de la raclette. Pas de nouvelle sorte d'élément : un nom, un jour
-(ou « à caler »), une heure facultative, ses personnes — par défaut celles qui
+(ou « à planifier »), une heure facultative, ses personnes — par défaut celles qui
 viennent à l'événement — et sa propre chaîne (la liste du matériel de la rando).
 
 - **+ → Activité** : depuis n'importe où, demande pour quel événement (tout
   droit s'il n'y en a qu'un à venir) ; sur la page d'un événement ou d'une de
   ses activités, va droit à cet événement.
 - **Programme**, sur la page de l'événement : ses activités par jour et par
-  heure, celles à caler à la fin, et **+ Activité** (quoi, l'un des jours de
-  l'événement ou « à caler », l'heure). La carte de l'événement, sur
+  heure, celles à planifier à la fin, et **+ Activité** (quoi, l'un des jours de
+  l'événement ou « à planifier », l'heure). La carte de l'événement, sur
   l'Accueil et dans l'Agenda, en dit les premières ; une activité ne s'y
   ajoute pas comme un événement de plus.
-- **Sur la page d'une activité** : de quel événement elle est ; à caler, les
+- **Sur la page d'une activité** : de quel événement elle est ; à planifier, les
   jours de l'événement à toucher, ou **Faire un sondage : quel jour ?** — un
   sondage dont les choix sont ces jours, et qui, tranché, donne son jour à
   l'activité (`whenFor`) au lieu de devenir lui-même un événement. Un jour
   hors de l'événement est signalé, pas interdit.
 - **Des idées** : un tableau d'idées de l'événement offre **En faire des
-  activités…** ; chaque idée touchée s'ajoute au programme, à caler.
+  activités…** ; chaque idée touchée s'ajoute au programme, à planifier.
 - **L'étiquette 🎯 « Ce sondage choisit une activité »** (à la création, ou
   Plus d'actions) : le sondage porte 🎯 sur sa carte et dans l'arbre, et
   figure au programme de son événement, « en vote ». Clos avec un gagnant net,
-  le gagnant entre au programme d'office, à caler, avec ceux qui l'ont voulu —
+  le gagnant entre au programme d'office, à planifier, avec ceux qui l'ont voulu —
   sur l'appareil qui le clôt seulement, pour ne jamais le faire deux fois. En
   cas d'égalité, rien d'office : **L'organiser pendant « … »** propose chaque
   choix à égalité. Un sondage sans l'étiquette ne propose pas d'activité.

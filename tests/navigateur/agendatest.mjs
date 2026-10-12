@@ -67,7 +67,7 @@ check('l’heure aussi', /20:00/.test(await page.locator('.card .pill').first().
 
 await openTab('polls');
 check('et la carte du sondage le dit',
-  /retenu le 24 sept/.test(await page.locator('.game-card').first().textContent()),
+  /Retenu le 24 sept/.test(await page.locator('.game-card').first().textContent()),
   (await page.locator('.game-card').first().textContent()).replace(/\s+/g, ' ').trim());
 
 /* ---- 2. le fichier .ics -------------------------------------------------- */

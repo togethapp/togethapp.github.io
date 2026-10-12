@@ -174,9 +174,9 @@ export function addChoice(poll, { text = '', day = null, at = null } = {}) {
   return touch(poll, { options: [...poll.options, { id: uid('o'), text: words, ...pinned, createdAt: now, updatedAt: now }] });
 }
 
-/** Days to vote on, as choices of their own: what « 📅 Ajouter un jour » makes. */
-export function addDays(poll, days) {
-  return [...days].sort().reduce((current, day) => addChoice(current, { day }), poll);
+/** Days to vote on, as choices of their own — at one hour, when given. */
+export function addDays(poll, days, at = null) {
+  return [...days].sort().reduce((current, day) => addChoice(current, { day, at }), poll);
 }
 
 const isDayText = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));

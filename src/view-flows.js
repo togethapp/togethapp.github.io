@@ -257,12 +257,12 @@ export function programmeHtml(event, { guest = false } = {}) {
 }
 
 /** Day chips for an event's days, one picked; `none` offers « à caler ». */
-export function dayChipsHtml(event, picked, { none = true, attr = 'data-activity-day' } = {}) {
+export function dayChipsHtml(event, picked, { none = true, noneLabel = t('activity.unscheduled'), attr = 'data-activity-day' } = {}) {
   const chip = (value, label) => `<button type="button" class="chip ${value === picked ? 'chip--on' : ''}" ${attr}="${escapeHtml(value)}"
       aria-pressed="${value === picked ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
   return `<div class="row row--chips" role="group">
       ${eventDays(event).map((day) => chip(day, formatDayLong(day))).join('')}
-      ${none ? chip('', t('activity.unscheduled')) : ''}
+      ${none ? chip('', noneLabel) : ''}
     </div>`;
 }
 
