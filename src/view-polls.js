@@ -20,7 +20,7 @@ import { ask, download, fileName, makeDialog, showCopyDialog } from './view-game
 import {
   NAME_KEPT, groups, hiddenByGroupHtml, inGroupHtml, isOrganiser, keyFor, landing, myName,
   organise, organiserSecret, claimChoices, ownsChoice, choiceUnlocks, resetGroupChoice, shownDocs, startSharing, willBeInHtml,
-  removeEverywhere,
+  removeEverywhere, linkedEvent, chooseEvent,
 } from './view-groups.js';
 import { markForActivity, activitiesOnClose } from './flows.js';
 import {
@@ -63,6 +63,23 @@ export function pollTitle(poll) {
 /** A cell says one thing: available. What was "maybe" or "no" before shows as nothing. */
 const VOTE_MARK = { yes: '✓' };
 
+/**
+ * A poll card's last line: what a poll still being answered offers — « 3 jours
+ * proposés » —, rather than when it was last touched; the day it settled on
+ * once it has; when it closed, otherwise.
+ */
+function cardWhenText(poll) {
+  if (poll.date) {
+    const settled = t(poll.until ? 'polls.settledRange' : 'polls.settledOn', { day: whenText(poll) });
+    return settled.charAt(0).toUpperCase() + settled.slice(1);
+  }
+  if (poll.closedAt) return formatDate(poll.closedAt);
+  const count = poll.options.length;
+  if (!count) return formatDate(poll.updatedAt);
+  const days = poll.options.filter((option) => isDayChoice(option, poll.createdAt)).length;
+  return t(days === count ? 'polls.daysOffered' : 'polls.choicesOffered', { count });
+}
+
 export function pollCardHtml(poll) {
   const { answered, leaders, ranked } = tally(poll);
   const leading = ranked.find((row) => leaders.includes(row.option.id));
@@ -83,9 +100,7 @@ export function pollCardHtml(poll) {
           : `<span class="game-card__meta">${escapeHtml(t('polls.noAnswerYet'))}</span>`
       }
       <span class="game-card__meta">
-        ${escapeHtml(formatDate(poll.updatedAt))}${
-          poll.date ? ` — ${escapeHtml(t(poll.until ? 'polls.settledRange' : 'polls.settledOn', { day: whenText(poll) }))}` : ''
-        }
+        ${escapeHtml(cardWhenText(poll))}
       </span>
       ${eventTagHtml(poll)}
     </button>`;
@@ -150,22 +165,7 @@ export function newPollView() {
         ${escapeHtml(t('polls.choices'))}
         <textarea id="poll-choices" rows="5" placeholder="${escapeHtml(t('polls.choicesPlaceholder'))}">${escapeHtml(state.newPollChoices)}</textarea>
       </label>
-      <label class="small add-day">
-        ${escapeHtml(t('polls.addDay'))}
-        <input type="date" id="poll-add-day" />
-      </label>
-      ${
-        state.newPollDays.length
-          ? `<div class="row" id="poll-days">${state.newPollDays
-              .map(
-                (day) => `<button type="button" class="chip chip--on" data-drop-day="${escapeHtml(day)}"
-                                  aria-label="${escapeHtml(t('polls.dropDay', { day: choiceOfDay(day, getLanguage()) }))}">
-                            ${escapeHtml(choiceOfDay(day, getLanguage()))} ×
-                          </button>`,
-              )
-              .join('')}</div>`
-          : ''
-      }
+      ${newPollDaysHtml()}
 
       <div class="stack stack--tight">
         <span class="muted small">${escapeHtml(t('polls.peopleHint'))}</span>
@@ -204,6 +204,9 @@ export function newPollView() {
     </form>`;
 }
 
+/** From how many people the gauge is worth its room above the grid. */
+const GAUGE_FROM = 4;
+
 /**
  * Which evenings suit the most people, at a glance: one bar per choice, the
  * longest first.
@@ -218,6 +221,8 @@ export function newPollView() {
  */
 function gaugeHtml(poll) {
   const total = poll.people.length;
+  // Up to three people, the grid's « Oui » column says it all at a glance.
+  if (total < GAUGE_FROM) return '';
   const { ranked, leaders } = tally(poll);
   if (!total || !ranked.some((row) => row.yes > 0)) return '';
   return `
@@ -462,7 +467,7 @@ export function actionsHtml(everyday, rare) {
 function dateCardHtml(poll, fixed) {
   return `<section class="card stack stack--tight">
       <div class="section__head">
-        <h2>${escapeHtml(t('polls.date'))}</h2>
+        <h2>${escapeHtml(t(fixed ? 'events.date' : 'polls.date'))}</h2>
         ${poll.date ? `<span class="pill">${escapeHtml(whenText(poll))}</span>` : ''}
       </div>
       <p class="muted small">${escapeHtml(t(fixed ? 'events.dateHint' : 'polls.dateHint'))}</p>
@@ -557,7 +562,7 @@ function addChoiceHtml(poll) {
       ${
         event
           ? `<span class="small">${escapeHtml(t('polls.choiceDay'))}</span>
-             ${dayChipsHtml(event, day, { attr: 'data-choice-day' })}`
+             ${dayChipsHtml(event, day, { attr: 'data-choice-day', noneLabel: t('polls.anyDay') })}`
           : `<label class="small add-day">
                ${escapeHtml(t('polls.pickDay'))}
                <input type="date" id="new-choice-day" value="${escapeHtml(day)}" />
@@ -953,6 +958,54 @@ export function replacePoll(next, { redraw = true } = {}) {
   if (redraw) render();
 }
 
+/**
+ * The days of a new poll, apart from the typed choices: those of the event it
+ * is for, a tap each, when it runs over several; any other on the calendar;
+ * and one hour for them all, when the evening has one.
+ */
+function newPollDaysHtml() {
+  const event = linkedEvent();
+  const eventDaysOf = event && eventDays(event).length > 1 ? eventDays(event) : [];
+  const picked = state.newPollDays;
+  const chip = (day) => `<button type="button" class="chip ${picked.includes(day) ? 'chip--on' : ''}" data-toggle-day="${escapeHtml(day)}"
+      aria-pressed="${picked.includes(day) ? 'true' : 'false'}">${escapeHtml(formatDayLong(day))}</button>`;
+  const others = picked.filter((day) => !eventDaysOf.includes(day));
+  return `
+      ${
+        eventDaysOf.length
+          ? `<span class="small">${escapeHtml(t('polls.eventDays'))}</span>
+             <div class="row row--chips" role="group">${eventDaysOf.map(chip).join('')}</div>
+             <p class="muted small">${escapeHtml(t('polls.eventDaysHint'))}</p>`
+          : ''
+      }
+      <div class="row row--tight">
+        <label class="small add-day">
+          ${escapeHtml(t(eventDaysOf.length ? 'polls.addOtherDay' : 'polls.addDay'))}
+          <input type="date" id="poll-add-day" />
+        </label>
+        ${
+          picked.length
+            ? `<label class="small add-day">
+                 ${escapeHtml(t('polls.daysHour'))}
+                 <input type="time" id="poll-add-at" value="${escapeHtml(state.newPollAt || '')}" />
+               </label>`
+            : ''
+        }
+      </div>
+      ${
+        others.length
+          ? `<div class="row" id="poll-days">${others
+              .map(
+                (day) => `<button type="button" class="chip chip--on" data-drop-day="${escapeHtml(day)}"
+                                  aria-label="${escapeHtml(t('polls.dropDay', { day: choiceOfDay(day, getLanguage()) }))}">
+                            ${escapeHtml(choiceOfDay(day, getLanguage()))} ×
+                          </button>`,
+              )
+              .join('')}</div>`
+          : ''
+      }`;
+}
+
 export function bindNewPoll() {
   const form = view.querySelector('#new-poll');
   if (!form) return;
@@ -961,6 +1014,7 @@ export function bindNewPoll() {
     state.newPollForActivity = Boolean(view.querySelector('#poll-for-activity')?.checked);
     state.newPollQuestion = view.querySelector('#poll-question').value;
     state.newPollChoices = view.querySelector('#poll-choices').value;
+    state.newPollAt = view.querySelector('#poll-add-at')?.value ?? state.newPollAt;
     view.querySelectorAll('[data-person-index]').forEach((input) => {
       state.newPollPeople[Number(input.dataset.personIndex)] = input.value;
     });
@@ -1010,6 +1064,26 @@ export function bindNewPoll() {
     render();
   });
 
+  view.querySelectorAll('[data-toggle-day]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      const day = chip.dataset.toggleDay;
+      state.newPollDays = state.newPollDays.includes(day)
+        ? state.newPollDays.filter((one) => one !== day)
+        : [...state.newPollDays, day].sort();
+      render();
+    });
+  });
+
+  // Another event picked: its days are the ones to offer.
+  view.querySelectorAll('[data-new-event]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      chooseEvent(state.polls.find((one) => one.id === chip.dataset.newEvent) || null);
+      render();
+    });
+  });
+
   view.querySelectorAll('[data-drop-day]').forEach((chip) => {
     chip.addEventListener('click', () => {
       snapshot();
@@ -1025,7 +1099,7 @@ export function bindNewPoll() {
     poll = addOptions(poll, state.newPollChoices);
     // A day typed out already is not offered twice.
     const typed = new Set(poll.options.map((option) => choiceWhen(option)?.date).filter(Boolean));
-    poll = addDays(poll, state.newPollDays.filter((day) => !typed.has(day)));
+    poll = addDays(poll, state.newPollDays.filter((day) => !typed.has(day)), state.newPollAt || null);
     if (state.newPollForActivity) poll = markForActivity(poll, true);
 
     state.polls = [...state.polls, poll];
@@ -1034,6 +1108,7 @@ export function bindNewPoll() {
     state.newPollQuestion = '';
     state.newPollChoices = '';
     state.newPollDays = [];
+    state.newPollAt = '';
     state.newPollForActivity = false;
     state.newPollPeople = withMeFirst(['', ''], myName());
     navigate(`#/poll/${poll.id}`);
@@ -1344,7 +1419,7 @@ function openChoiceDialog(poll, optionId) {
       ${
         event
           ? `<span class="small">${escapeHtml(t('polls.choiceDay'))}</span>
-             ${dayChipsHtml(event, day, { attr: 'data-choice-day' })}`
+             ${dayChipsHtml(event, day, { attr: 'data-choice-day', noneLabel: t('polls.anyDay') })}`
           : `<label class="small add-day">
                ${escapeHtml(t('polls.pickDay'))}
                <input type="date" id="choice-day" value="${escapeHtml(day)}" />

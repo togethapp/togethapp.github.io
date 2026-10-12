@@ -149,6 +149,8 @@ export const state = {
   newPollChoices: '',
   // Days picked on the calendar, as YYYY-MM-DD, shown apart from the typed choices.
   newPollDays: [],
+  // One hour for all the picked days, when the evening has one.
+  newPollAt: '',
   newPollPeople: ['', ''],
   // Names typed so far, so switching preset does not wipe them.
   newGameNames: ['', '', ''],

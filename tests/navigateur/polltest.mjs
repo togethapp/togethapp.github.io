@@ -39,12 +39,15 @@ check('ajouter une personne garde la question et les choix',
   (await page.inputValue('#poll-question')).includes('raclette')
   && (await page.inputValue('#poll-choices')).includes('Dimanche'));
 await page.fill('[data-person-index="2"]', 'Bob');
+// Quatre : à partir de là, la grille ne tient plus d'un coup d'œil, et la jauge s'ajoute.
+await page.click('#add-person'); await page.waitForTimeout(150);
+await page.fill('[data-person-index="3"]', 'Zoé');
 await page.click('#new-poll button[type=submit]');
 await page.waitForSelector('.votes');
 
 const rows = await page.locator('.votes tbody tr').count();
 check('la grille a une ligne par choix', rows === 3, String(rows));
-check('et une colonne par personne', (await page.locator('.votes thead th').count()) === 5,
+check('et une colonne par personne', (await page.locator('.votes thead th').count()) === 6,
   String(await page.locator('.votes thead th').count()));
 check('les puces des choix sont nettoyées',
   (await page.locator('.votes tbody th').allTextContents()).map((s) => s.trim()).includes('Samedi 13'));
@@ -104,12 +107,12 @@ await page.waitForTimeout(300);
 check('décocher ne fait pas descendre la ligne', (await listed()).join(' / ') === before.join(' / '),
   (await listed()).join(' / '));
 
-// la jauge : les dates qui arrangent le plus, la plus longue en tête
+// la jauge : ce qui arrange le plus, le plus long en tête
 const gauge = (await page.locator('.gauge__row').allTextContents()).map((s) => s.replace(/\s+/g, ' ').trim());
-check('une jauge montre les dates, la plus demandée en tête', /^Samedi 13 2\/3/.test(gauge[0] || ''), gauge.join(' | '));
+check('une jauge montre les dates, la plus demandée en tête', /^Samedi 13 2\/4/.test(gauge[0] || ''), gauge.join(' | '));
 check('avec toutes les dates', gauge.length === 3, String(gauge.length));
 const widths = await page.locator('.gauge__fill').evaluateAll((bars) => bars.map((b) => b.style.width));
-check('et des barres à la mesure de tous les invités', widths[0] === '67%' && widths[1] === '33%', widths.join(' / '));
+check('et des barres à la mesure de tous les invités', widths[0] === '50%' && widths[1] === '25%', widths.join(' / '));
 
 check('le choix qui arrange le plus de monde est mis en avant',
   (await page.locator('.votes__leader').count()) === 1,
