@@ -42,8 +42,8 @@ const page = await device('moi', { key: 'la-cle-famille', me: 'Gui' });
 
 /* ---- 1. un onglet de plus ------------------------------------------------ */
 
-check('quatre onglets, les comptes dans l’Agenda, et ils tiennent sur l’écran',
-  (await page.locator('.tab').count()) === 4
+check('cinq onglets, les comptes dans l’Agenda, et ils tiennent sur l’écran',
+  (await page.locator('.tab').count()) === 5
   && (await page.locator('[data-tab="agenda"]').textContent()).trim() === 'Agenda');
 
 /* ---- 2. créer un compte -------------------------------------------------- */
