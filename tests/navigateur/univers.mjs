@@ -108,6 +108,21 @@ if (spot) {
   check('un point se trouve', false);
 }
 
+// Le clavier tourne la vue ; un nouveau dessin de la page (la base apporte
+// du neuf) garde l'angle et le choix.
+await page.goto('http://localhost:8099/dist/marque-points.html#/3d');
+await page.waitForSelector('#universe-canvas');
+await page.waitForTimeout(200);
+check('le choix survit à un nouveau dessin', (await page.locator('#universe-picked').textContent()).includes('Mifa'));
+check('l’arrêt aussi', (await page.locator('#universe-spin').textContent()).trim() === 'Faire tourner');
+await page.focus('#universe-canvas');
+const still = await page.locator('#universe-canvas').screenshot();
+await page.keyboard.press('ArrowRight');
+await page.waitForTimeout(100);
+check('les flèches tournent la vue', !still.equals(await page.locator('#universe-canvas').screenshot()));
+await page.keyboard.press('Escape');
+check('Échap lâche le choix', !(await page.locator('#universe-picked').textContent()).includes('Mifa'));
+
 // Une pastille de groupe : seulement ce groupe.
 await page.goto('http://localhost:8099/dist/marque-points.html#/3d');
 await page.waitForSelector('#universe-canvas');

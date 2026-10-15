@@ -30,6 +30,13 @@ const UNIVERSE_COLOURS = {
 
 const UNIVERSE_KINDS = ['group', 'event', 'poll', 'list', 'spend', 'board', 'game', 'person'];
 
+/**
+ * How the picture is turned, how close, whether it spins and what is picked.
+ * Kept here rather than in bindUniverse(): the page is redrawn whenever the
+ * database brings something new, and the picture should not jump back.
+ */
+const universeCamera = { yaw: 0.6, pitch: 0.35, zoom: 1, spinning: null, picked: null };
+
 /** What is on show: the chosen group's documents, or everything. */
 function universeShown() {
   const wanted = groupFilter();
@@ -58,7 +65,7 @@ export function universeView() {
         ? `
           <p class="muted small">${escapeHtml(t('universe.counts', { docs: counts.docs, people: counts.people }))}</p>
           <div class="universe card">
-            <canvas class="universe__canvas" id="universe-canvas" role="img"
+            <canvas class="universe__canvas" id="universe-canvas" role="img" tabindex="0"
                     aria-label="${escapeHtml(t('universe.aria', { docs: counts.docs, people: counts.people }))}"></canvas>
             <div class="universe__tools">
               <button type="button" class="button button--small button--ghost" id="universe-spin" aria-pressed="true">${escapeHtml(t('universe.pause'))}</button>
@@ -101,15 +108,19 @@ export function bindUniverse() {
   }
 
   const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const view = { yaw: 0.6, pitch: 0.35, zoom: 1 };
-  let spinning = !still;
-  let picked = null;
+  const view = universeCamera;
+  let spinning = view.spinning ?? !still;
+  let picked = nodes.find((node) => node.id === view.picked) || null;
   let shown = [];
+  // Drawn again only when something moved: a still picture costs nothing.
+  let dirty = true;
   const context = canvas.getContext('2d');
   const spin = document.getElementById('universe-spin');
   const sayPaused = () => {
     spin.textContent = t(spinning ? 'universe.pause' : 'universe.play');
     spin.setAttribute('aria-pressed', spinning ? 'true' : 'false');
+    view.spinning = spinning;
+    dirty = true;
   };
   sayPaused();
 
@@ -189,6 +200,8 @@ export function bindUniverse() {
   };
 
   const showPicked = () => {
+    view.picked = picked ? picked.id : null;
+    dirty = true;
     const box = document.getElementById('universe-picked');
     if (!box) return;
     if (!picked) {
@@ -233,6 +246,7 @@ export function bindUniverse() {
       if (pinch) view.zoom = Math.max(0.5, Math.min(4, view.zoom * (apart / pinch)));
       pinch = apart;
       moved += 10;
+      dirty = true;
       return;
     }
     const dx = now.x - was.x;
@@ -240,6 +254,7 @@ export function bindUniverse() {
     moved += Math.abs(dx) + Math.abs(dy);
     view.yaw += dx * 0.008;
     view.pitch = Math.max(-1.4, Math.min(1.4, view.pitch + dy * 0.008));
+    dirty = true;
   });
   const lift = (event) => {
     const tap = fingers.size === 1 && moved < 6;
@@ -268,7 +283,28 @@ export function bindUniverse() {
   canvas.addEventListener('wheel', (event) => {
     event.preventDefault();
     view.zoom = Math.max(0.5, Math.min(4, view.zoom * Math.exp(-event.deltaY * 0.0015)));
+    dirty = true;
   }, { passive: false });
+
+  // The keyboard turns it too: arrows, + and -, Escape lets go of the pick.
+  canvas.addEventListener('keydown', (event) => {
+    const turn = { ArrowLeft: [-0.15, 0], ArrowRight: [0.15, 0], ArrowUp: [0, -0.15], ArrowDown: [0, 0.15] }[event.key];
+    if (turn) {
+      view.yaw += turn[0];
+      view.pitch = Math.max(-1.4, Math.min(1.4, view.pitch + turn[1]));
+    } else if (event.key === '+' || event.key === '=') {
+      view.zoom = Math.min(4, view.zoom * 1.2);
+    } else if (event.key === '-') {
+      view.zoom = Math.max(0.5, view.zoom / 1.2);
+    } else if (event.key === 'Escape' && picked) {
+      picked = null;
+      showPicked();
+    } else {
+      return;
+    }
+    event.preventDefault();
+    dirty = true;
+  });
 
   spin.addEventListener('click', () => {
     spinning = !spinning;
@@ -286,16 +322,30 @@ export function bindUniverse() {
     return one ? { x: one.x, y: one.y } : null;
   };
 
-  // Drawn while on the page; the canvas gone, the loop ends by itself.
+  // Drawn while on the page; the canvas gone, the loop ends by itself. A new
+  // size (the phone turned) or a new theme is something moved too.
   let last = performance.now();
+  let looks = '';
   const frame = (now) => {
     if (!canvas.isConnected) return;
     const step = Math.min(64, now - last);
     last = now;
-    if (spinning && !fingers.size) view.yaw += step * 0.00018;
-    draw();
+    if (spinning && !fingers.size) {
+      view.yaw += step * 0.00018;
+      dirty = true;
+    }
+    const nowLooks = `${canvas.clientWidth}x${canvas.clientHeight}|${document.documentElement.dataset.theme || ''}`;
+    if (nowLooks !== looks) {
+      looks = nowLooks;
+      dirty = true;
+    }
+    if (dirty) {
+      dirty = false;
+      draw();
+    }
     requestAnimationFrame(frame);
   };
+  if (picked) showPicked();
   draw();
   requestAnimationFrame(frame);
 }
