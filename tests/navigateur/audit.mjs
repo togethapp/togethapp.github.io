@@ -70,7 +70,7 @@ function seedOf(docs, { remote }) {
   };
 }
 
-const TABS = ['#/', '#/agenda', '#/groups', '#/settings', '#/lists', '#/polls', '#/games', '#/spends', '#/ideas'];
+const TABS = ['#/', '#/agenda', '#/3d', '#/groups', '#/settings', '#/lists', '#/polls', '#/games', '#/spends', '#/ideas'];
 const routesOf = (docs) => [
   ...TABS,
   `#/list/${docs.list.id}`, `#/poll/${docs.poll.id}`, `#/poll/${docs.event.id}`, `#/spend/${docs.spend.id}`,

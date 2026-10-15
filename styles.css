@@ -1066,7 +1066,9 @@ body.solo .app-bar__brand { cursor: default; }
   /* minmax(0, 1fr) et non 1fr : sans cela, chaque piste ne peut pas descendre
      sous la largeur de son mot, et les onglets poussent la barre — donc toute
      la page — sur un écran de 320. */
-  grid-template-columns: repeat(2, minmax(0, 1fr)) 76px repeat(2, minmax(0, 1fr));
+  /* Three tabs on the left, two on the right: the tracks are weighted so both
+     sides add up to the same width and the "+" stays in the middle. */
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.15fr) minmax(0, 0.7fr) 76px minmax(0, 1.5fr) minmax(0, 1.5fr);
   align-items: stretch;
   border-top: 1px solid var(--border);
   background: var(--surface);
@@ -1120,7 +1122,7 @@ body:not(.solo) .view {
 }
 
 .tabs__new {
-  grid-column: 3;
+  grid-column: 4;
   justify-self: center;
   align-self: start;
   /* Half above the bar, half on it. */
@@ -1145,7 +1147,7 @@ body:not(.solo) .view {
 .app-bar__brand[aria-current="page"] strong { color: var(--accent); }
 
 @media (max-width: 345px) {
-  .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)) 68px repeat(2, minmax(0, 1fr)); }
+  .tabs { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.15fr) minmax(0, 0.7fr) 68px minmax(0, 1.5fr) minmax(0, 1.5fr); }
   .tab { font-size: 0.66rem; }
   .tabs__new { width: 54px; height: 54px; margin-top: -24px; }
 }
@@ -1527,4 +1529,51 @@ body:not(.solo) .view {
   .game-card .press-more { position: absolute; top: 10px; right: 10px; }
   .pressable:hover .press-more, .pressable:focus-visible .press-more { opacity: 1; }
   .press-more:hover { background: var(--surface-alt); color: var(--text); }
+}
+
+/* --- Everything, in 3D ---------------------------------------------------- */
+
+.universe {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, var(--surface) 0%, var(--surface-alt) 100%);
+}
+
+.universe__canvas {
+  display: block;
+  width: 100%;
+  height: min(62vh, 520px);
+  min-height: 300px;
+  touch-action: none;
+  cursor: grab;
+}
+
+.universe__canvas:active { cursor: grabbing; }
+
+.universe__tools {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.universe__picked { margin: 12px 0; min-height: 3em; }
+
+.universe__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.universe__key { display: inline-flex; align-items: center; gap: 6px; }
+
+.universe__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
 }
