@@ -27,8 +27,8 @@ async function device(label, { key = null } = {}) {
 
 const page = await device('moi');
 const tabs = (await page.locator('.tab').allTextContents()).map((s) => s.trim());
-check('quatre onglets : Accueil, Agenda, Groupes, Réglages',
-  tabs.join(' / ') === 'Accueil / Agenda / Groupes / Réglages', tabs.join(' / '));
+check('cinq onglets : Accueil, Agenda, 3D, Groupes, Réglages',
+  tabs.join(' / ') === 'Accueil / Agenda / 3D / Groupes / Réglages', tabs.join(' / '));
 check("l'app ouvre sur l'Accueil",
   (await page.locator('.tab[aria-current]').textContent()).trim() === 'Accueil');
 check("l'Accueil vide dit ce qu'est l'app", (await page.locator('.lead').textContent()).length > 40);

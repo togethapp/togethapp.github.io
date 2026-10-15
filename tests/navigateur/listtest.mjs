@@ -18,9 +18,9 @@ async function device(label) {
 
 const page = await device('moi');
 check("l'app s'appelle Together", (await page.locator('.app-bar strong').textContent()) === 'Together');
-check('quatre onglets : Accueil, Agenda, Groupes, Réglages',
+check('cinq onglets : Accueil, Agenda, 3D, Groupes, Réglages',
   (await page.locator('.tab').allTextContents()).map((x) => x.trim()).join(' / ')
-    === 'Accueil / Agenda / Groupes / Réglages',
+    === 'Accueil / Agenda / 3D / Groupes / Réglages',
   (await page.locator('.tab').allTextContents()).join(' / '));
 check("l'app ouvre sur l'Accueil",
   (await page.locator('.tab[aria-current]').textContent()).trim() === 'Accueil');

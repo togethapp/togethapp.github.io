@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
-    <meta name="app-version" content="v10" />
-    <meta name="app-build" content="f18048ca" />
+    <meta name="app-version" content="v11" />
+    <meta name="app-build" content="a2d0726b" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -46,8 +46,8 @@
 
     <!-- At the bottom, within the thumb's reach, and always there: a phone is
          held from below. The tabs answer questions rather than sort by kind:
-         what is on (home), when (agenda), with whom (groups), and the app's
-         own settings. The "+" in the middle makes anything, from anywhere. -->
+         what is on (home), when (agenda), everything at once (3D), with whom
+         (groups), and the app's own settings. The "+" in the middle makes anything, from anywhere. -->
     <nav class="tabs" id="tabs" aria-label="Sections">
       <a class="tab" href="#/" data-tab="home">
         <svg class="tab__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7M6 9.5V20h4.5v-5.5h3V20H18V9.5"/></svg>
@@ -56,6 +56,10 @@
       <a class="tab" href="#/agenda" data-tab="agenda">
         <svg class="tab__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></svg>
         <span data-i18n="tab.agenda">Agenda</span>
+      </a>
+      <a class="tab" href="#/3d" data-tab="universe">
+        <svg class="tab__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>
+        <span data-i18n="tab.universe">3D</span>
       </a>
       <button type="button" class="tabs__new" id="create" data-i18n-title="create.title">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
