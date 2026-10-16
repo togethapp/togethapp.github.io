@@ -1,7 +1,9 @@
 # 🃏 Together
 
-Quatre onglets et un « + », une seule app. **Accueil** : les événements qui
-viennent, ce qui vous attend, ce qui est en cours — et, d'une rangée *Tout · Listes · Sondages
+Quatre onglets et un « + », une seule app. **Accueil** : en tête, une vue
+d'ensemble en 3D (chaque groupe une étoile, ses éléments en orbite, ce qui
+est rattaché à un événement autour de lui comme une lune ; sans les
+personnes), puis les événements qui viennent, ce qui vous attend, ce qui est en cours — et, d'une rangée *Tout · Listes · Sondages
 · Jeux · Comptes · Idées*, chaque sorte en entier : des **listes** à cocher
 et à répartir, des **sondages** pour trancher une date ou un choix, un compteur
 de points pour Papayoo et une vingtaine d'autres **parties**, des **comptes** de

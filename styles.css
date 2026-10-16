@@ -1592,3 +1592,299 @@ body:not(.solo) .view {
   .press-more:hover { background: var(--surface-alt); color: var(--text); }
 }
 
+
+/* --- Home's 3D view ---------------------------------------------------------
+ * A hologram on dark glass, whatever the theme: a screen within the page.
+ * The canvas draws the sky; the words around it are HTML, crisp and read
+ * aloud. On the page a finger sliding up or down scrolls (pan-y); full
+ * screen, every gesture belongs to the sky.
+ */
+.holo {
+  --holo-ink: #c9f6ff;
+  --holo-line: rgb(95 243 255 / 60%);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgb(95 243 255 / 22%);
+  border-radius: var(--radius);
+  background: radial-gradient(120% 90% at 50% -10%, #12305a 0%, #081329 45%, #03060d 100%);
+  box-shadow: 0 10px 30px rgb(0 30 70 / 28%), inset 0 0 50px rgb(95 243 255 / 6%);
+  color: var(--holo-ink);
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+.holo__canvas {
+  display: block;
+  width: 100%;
+  height: clamp(230px, 36vh, 340px);
+  touch-action: pan-y;
+  cursor: grab;
+  outline: none;
+}
+
+.holo__canvas:active { cursor: grabbing; }
+.holo__canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--holo-line); }
+
+/* Scanlines, and a band of light passing down the glass. */
+.holo__scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgb(255 255 255 / 2.5%) 0 1px, transparent 1px 3px);
+}
+
+.holo__scan::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -35%;
+  height: 35%;
+  background: linear-gradient(to bottom, transparent, rgb(95 243 255 / 7%), transparent);
+  animation: holo-sweep 7s linear infinite;
+}
+
+@keyframes holo-sweep { to { transform: translateY(400%); } }
+
+/* The four corners of a viewfinder. */
+.holo__frame {
+  position: absolute;
+  inset: 8px;
+  pointer-events: none;
+  --c: var(--holo-line);
+  background:
+    linear-gradient(var(--c), var(--c)) top left / 16px 1px no-repeat,
+    linear-gradient(var(--c), var(--c)) top left / 1px 16px no-repeat,
+    linear-gradient(var(--c), var(--c)) top right / 16px 1px no-repeat,
+    linear-gradient(var(--c), var(--c)) top right / 1px 16px no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom left / 16px 1px no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom left / 1px 16px no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom right / 16px 1px no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom right / 1px 16px no-repeat;
+}
+
+.holo__top {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  right: 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.holo__heading { display: grid; gap: 3px; min-width: 0; padding-top: 2px; }
+
+.holo__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgb(95 243 255 / 60%);
+  white-space: nowrap;
+}
+
+.holo__pulse {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #5ff3ff;
+  box-shadow: 0 0 8px #5ff3ff;
+  animation: holo-pulse 2s ease-in-out infinite;
+}
+
+@keyframes holo-pulse { 50% { opacity: 0.25; } }
+
+.holo__tools { display: flex; gap: 6px; flex: none; pointer-events: auto; }
+
+.holo__button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid rgb(95 243 255 / 35%);
+  border-radius: 10px;
+  background: rgb(6 16 32 / 60%);
+  color: var(--holo-ink);
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+}
+
+.holo__button:hover { border-color: #5ff3ff; box-shadow: 0 0 12px rgb(95 243 255 / 35%); }
+.holo__button:active { transform: scale(0.94); }
+.holo__button:focus-visible { outline: 2px solid #5ff3ff; outline-offset: 2px; }
+
+.holo__button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.holo__bottom {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 13px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(201 246 255 / 78%);
+  pointer-events: none;
+}
+
+.holo__readout { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.holo__hint {
+  padding-left: 15px;
+  font-size: 0.58rem;
+  line-height: 1.45;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(201 246 255 / 55%);
+}
+
+/* What a tap picked: its kind, its name, where it belongs, and the way in. */
+.holo__card {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 34px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1px 12px;
+  padding: 9px 10px 9px 12px;
+  border: 1px solid rgb(95 243 255 / 30%);
+  border-left: 3px solid var(--holo-kind, #5ff3ff);
+  border-radius: 10px;
+  background: rgb(4 12 26 / 82%);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 18px rgb(95 243 255 / 14%);
+  animation: holo-in 0.18s ease-out;
+}
+
+@keyframes holo-in { from { opacity: 0; transform: translateY(6px); } }
+
+.holo__kind {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--holo-kind, #5ff3ff);
+}
+
+.holo__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #ffffff;
+  font: 650 0.95rem/1.3 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.holo__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.64rem;
+  color: rgb(201 246 255 / 72%);
+}
+
+.holo__card > .holo__kind,
+.holo__card > .holo__name,
+.holo__card > .holo__meta { grid-column: 1; }
+
+.holo__open {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--holo-kind, #5ff3ff);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--holo-kind, #5ff3ff) 18%, transparent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.holo__open:hover { background: color-mix(in srgb, var(--holo-kind, #5ff3ff) 30%, transparent); }
+.holo__open:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
+
+/* The colours of the kinds: full screen only, where there is room. */
+.holo__legend { display: none; }
+
+.holo__key { display: inline-flex; align-items: center; gap: 6px; }
+
+.holo__key i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--holo-key);
+  box-shadow: 0 0 6px var(--holo-key);
+}
+
+.holo--full {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  height: 100vh;
+  height: 100dvh;
+  border: 0;
+  border-radius: 0;
+}
+
+.holo--full .holo__canvas { height: 100%; touch-action: none; }
+.holo--full .holo__frame { inset: calc(env(safe-area-inset-top, 0px) + 8px) 8px calc(env(safe-area-inset-bottom, 0px) + 8px); }
+.holo--full .holo__top { top: calc(env(safe-area-inset-top, 0px) + 14px); }
+.holo--full .holo__bottom { bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); }
+
+.holo--full .holo__legend {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 36px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(201 246 255 / 80%);
+  pointer-events: none;
+}
+
+.holo--full .holo__card {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+/* Full screen, the page underneath stays where it was. */
+body.holo-open { overflow: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  .holo__scan::after,
+  .holo__pulse,
+  .holo__card { animation: none; }
+}

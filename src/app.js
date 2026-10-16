@@ -81,6 +81,7 @@ import {
 import {
   bindInstall, installFirstHtml, installOfferHtml, installReminderHtml, phoneToInstall, startInstall,
 } from './view-install.js';
+import { holoHtml, bindHolo } from './view-holo.js';
 import { swipeable } from './swipe.js';
 import { prefillOf, withoutPrefill } from './prefill.js';
 export const view = document.getElementById('view');
@@ -1393,6 +1394,7 @@ function overviewView() {
     ${flashHtml()}
     ${kindsHtml('overview')}
     ${groupChipsHtml()}
+    ${holoHtml()}
     ${nothingYet ? `<p class="lead">${escapeHtml(t('overview.what'))}</p>` : ''}
 
     ${accountNeededHtml()}
@@ -3332,6 +3334,7 @@ export function render() {
   } else {
     view.innerHTML = overviewView();
     bindOverview();
+    bindHolo();
     if (state.remote && groups().some((group) => group.admits !== false)) watchGate();
     else stopWatching();
   }
