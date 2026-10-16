@@ -81,7 +81,6 @@ import {
 import {
   bindInstall, installFirstHtml, installOfferHtml, installReminderHtml, phoneToInstall, startInstall,
 } from './view-install.js';
-import { universeView, bindUniverse } from './view-universe.js';
 import { swipeable } from './swipe.js';
 import { prefillOf, withoutPrefill } from './prefill.js';
 export const view = document.getElementById('view');
@@ -363,8 +362,6 @@ function routeOf(address) {
   if (name === 'privacy' || name === 'confidentialite') return { name: 'privacy' };
   if (name === 'new') return { name: 'new' };
   if (name === 'stats') return { name: 'stats' };
-  // Everything at once, in three dimensions. See view-universe.js.
-  if (name === '3d' || name === 'univers' || name === 'universe') return { name: 'universe' };
   if (name === 'game' && param) return { name: 'game', id: param };
   if (name === 'set' && param) return { name: 'set', id: param };
   if (name === 'lists' && param === 'new') return { name: 'new-list' };
@@ -3243,10 +3240,6 @@ export function render() {
   } else if (current.name === 'stats') {
     stopWatching();
     view.innerHTML = statsView();
-  } else if (current.name === 'universe') {
-    stopWatching();
-    view.innerHTML = universeView();
-    bindUniverse();
   } else if (current.name === 'new') {
     stopWatching();
     view.innerHTML = newGameView();
@@ -3452,7 +3445,6 @@ function markTab(current) {
     if (['agenda', 'new-event'].includes(at.name)) return 'agenda';
     if (['groups', 'group', 'person', 'join', 'back'].includes(at.name)) return 'groups';
     if (at.name === 'settings') return 'settings';
-    if (at.name === 'universe') return 'universe';
     return 'home';
   };
   // A document's page stays under the tab it was opened from: a poll opened

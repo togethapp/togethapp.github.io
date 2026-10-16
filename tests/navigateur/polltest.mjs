@@ -17,9 +17,9 @@ async function device(label) {
 }
 
 const page = await device('moi');
-check('cinq onglets : Accueil, Agenda, 3D, Groupes, Réglages',
+check('quatre onglets : Accueil, Agenda, Groupes, Réglages',
   (await page.locator('.tab').allTextContents()).map((x) => x.trim()).join(' / ')
-    === 'Accueil / Agenda / 3D / Groupes / Réglages',
+    === 'Accueil / Agenda / Groupes / Réglages',
   (await page.locator('.tab').allTextContents()).join(' / '));
 
 await page.click('[data-tab="home"]'); await page.click('.segmented--kinds [data-goto="#/polls"]');

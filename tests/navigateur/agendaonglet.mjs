@@ -48,7 +48,7 @@ const text = async (selector) => ((await page.locator(selector).first().textCont
 
 /* ---- 1. l'onglet ---------------------------------------------------------- */
 
-check('cinq onglets, dont l’Agenda', (await page.locator('.tab').count()) === 5
+check('quatre onglets, dont l’Agenda', (await page.locator('.tab').count()) === 4
   && (await text('[data-tab="agenda"]')) === 'Agenda');
 
 await page.click('[data-tab="agenda"]');
