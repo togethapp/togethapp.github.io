@@ -5,8 +5,8 @@
     <meta charset="utf-8" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
-    <meta name="app-version" content="v11" />
-    <meta name="app-build" content="a2d0726b" />
+    <meta name="app-version" content="v12" />
+    <meta name="app-build" content="2b16dd00" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -1135,9 +1135,7 @@ body.solo .app-bar__brand { cursor: default; }
   /* minmax(0, 1fr) et non 1fr : sans cela, chaque piste ne peut pas descendre
      sous la largeur de son mot, et les onglets poussent la barre — donc toute
      la page — sur un écran de 320. */
-  /* Three tabs on the left, two on the right: the tracks are weighted so both
-     sides add up to the same width and the "+" stays in the middle. */
-  grid-template-columns: minmax(0, 1.08fr) minmax(0, 1.08fr) minmax(0, 0.84fr) 76px minmax(0, 1.5fr) minmax(0, 1.5fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr)) 76px repeat(2, minmax(0, 1fr));
   align-items: stretch;
   border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   background: var(--surface);
@@ -1198,7 +1196,7 @@ body:not(.solo) .view {
 .tab:active .tab__icon { transform: scale(0.92); }
 
 .tabs__new {
-  grid-column: 4;
+  grid-column: 3;
   justify-self: center;
   align-self: start;
   /* Half above the bar, half on it. */
@@ -1229,7 +1227,7 @@ body:not(.solo) .view {
 .app-bar__brand[aria-current="page"] strong { color: var(--accent); }
 
 @media (max-width: 345px) {
-  .tabs { grid-template-columns: minmax(0, 1.08fr) minmax(0, 1.08fr) minmax(0, 0.84fr) 68px minmax(0, 1.5fr) minmax(0, 1.5fr); }
+  .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)) 68px repeat(2, minmax(0, 1fr)); }
   .tab { font-size: 0.66rem; }
   .tabs__new { width: 54px; height: 54px; margin-top: -24px; }
 }
@@ -1612,54 +1610,6 @@ body:not(.solo) .view {
   .pressable:hover .press-more, .pressable:focus-visible .press-more { opacity: 1; }
   .press-more:hover { background: var(--surface-alt); color: var(--text); }
 }
-
-/* --- Everything, in 3D ---------------------------------------------------- */
-
-.universe {
-  position: relative;
-  padding: 0;
-  overflow: hidden;
-  background: radial-gradient(circle at 50% 40%, var(--surface) 0%, var(--surface-alt) 100%);
-}
-
-.universe__canvas {
-  display: block;
-  width: 100%;
-  height: min(62vh, 520px);
-  min-height: 300px;
-  touch-action: none;
-  cursor: grab;
-}
-
-.universe__canvas:active { cursor: grabbing; }
-.universe__canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-
-.universe__tools {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  gap: 6px;
-}
-
-.universe__picked { margin: 12px 0; min-height: 3em; }
-
-.universe__legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-.universe__key { display: inline-flex; align-items: center; gap: 6px; }
-
-.universe__dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex: none;
-}
     </style>
   </head>
   <body>
@@ -1689,8 +1639,8 @@ body:not(.solo) .view {
 
     <!-- At the bottom, within the thumb's reach, and always there: a phone is
          held from below. The tabs answer questions rather than sort by kind:
-         what is on (home), when (agenda), everything at once (3D), with whom
-         (groups), and the app's own settings. The "+" in the middle makes anything, from anywhere. -->
+         what is on (home), when (agenda), with whom (groups), and the app's
+         own settings. The "+" in the middle makes anything, from anywhere. -->
     <nav class="tabs" id="tabs" aria-label="Sections">
       <a class="tab" href="#/" data-tab="home">
         <svg class="tab__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7M6 9.5V20h4.5v-5.5h3V20H18V9.5"/></svg>
@@ -1699,10 +1649,6 @@ body:not(.solo) .view {
       <a class="tab" href="#/agenda" data-tab="agenda">
         <svg class="tab__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></svg>
         <span data-i18n="tab.agenda">Agenda</span>
-      </a>
-      <a class="tab" href="#/3d" data-tab="universe">
-        <svg class="tab__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>
-        <span data-i18n="tab.universe">3D</span>
       </a>
       <button type="button" class="tabs__new" id="create" data-i18n-title="create.title">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
@@ -1844,27 +1790,6 @@ const STRINGS = {
     'tab.home': 'Accueil',
     'tab.groups': 'Groupes',
     'tab.settings': 'Réglages',
-    'tab.universe': '3D',
-    'universe.title': 'Tout, en 3D',
-    'universe.counts': '{docs} {docs|document|documents} · {people} {people|personne|personnes}',
-    'universe.aria': 'Vue en trois dimensions de {docs} documents et {people} personnes, reliés à leurs groupes.',
-    'universe.empty': 'Rien à voir pour l’instant : créez une liste, un sondage ou une partie, et ils apparaîtront ici, reliés à leur groupe.',
-    'universe.hint': 'Glissez pour tourner, pincez pour zoomer, touchez un point pour savoir ce que c’est.',
-    'universe.pause': 'Arrêter',
-    'universe.play': 'Faire tourner',
-    'universe.reset': 'Recentrer',
-    'universe.open': 'Ouvrir',
-    'universe.outside': 'Hors groupe',
-    'universe.ties': '{count} {count|lien|liens}',
-    'universe.kind.group': 'Groupe',
-    'universe.kind.outside': 'Hors groupe',
-    'universe.kind.event': 'Événement',
-    'universe.kind.poll': 'Sondage',
-    'universe.kind.list': 'Liste',
-    'universe.kind.spend': 'Compte',
-    'universe.kind.board': 'Idées',
-    'universe.kind.game': 'Partie',
-    'universe.kind.person': 'Personne',
     'tab.all': 'Tout',
     'home.kinds': 'Que montrer',
     'forYou.title': 'Pour vous',
@@ -2971,27 +2896,6 @@ const STRINGS = {
     'tab.home': 'Home',
     'tab.groups': 'Groups',
     'tab.settings': 'Settings',
-    'tab.universe': '3D',
-    'universe.title': 'Everything, in 3D',
-    'universe.counts': '{docs} {docs|document|documents} · {people} {people|person|people}',
-    'universe.aria': 'A three-dimensional view of {docs} documents and {people} people, tied to their groups.',
-    'universe.empty': 'Nothing to see yet: make a list, a poll or a game, and it will show up here, tied to its group.',
-    'universe.hint': 'Drag to turn, pinch to zoom, tap a point to see what it is.',
-    'universe.pause': 'Stop',
-    'universe.play': 'Spin',
-    'universe.reset': 'Recentre',
-    'universe.open': 'Open',
-    'universe.outside': 'Outside groups',
-    'universe.ties': '{count} {count|link|links}',
-    'universe.kind.group': 'Group',
-    'universe.kind.outside': 'Outside groups',
-    'universe.kind.event': 'Event',
-    'universe.kind.poll': 'Poll',
-    'universe.kind.list': 'List',
-    'universe.kind.spend': 'Account',
-    'universe.kind.board': 'Ideas',
-    'universe.kind.game': 'Game',
-    'universe.kind.person': 'Person',
     'tab.all': 'All',
     'home.kinds': 'What to show',
     'forYou.title': 'For you',
@@ -7878,248 +7782,6 @@ function stepOf(document_, all, seen = new Set()) {
   if (!before.length) return 0;
   const path = new Set([...seen, document_.id]);
   return 1 + Math.max(...before.map((one) => stepOf(one.document, all, path)));
-}
-
-  // ---- src/universe.js -------------------------------------------------
-/**
- * Everything the app holds, as one picture in three dimensions: each group a
- * star, its documents around it, the people they name drifting between them.
- *
- * Nothing new is stored. The picture is read from what is already there: a
- * document hangs from its event when it has one, from its group otherwise; a
- * link joins the two documents it names; a person is tied to every document
- * that names them.
- *
- * Pure, like the models: documents in, points in space out. Drawing them is
- * view-universe.js's business.
- */
-
-
-
-/** Where documents in none of the groups gather, as a node id. */
-const UNIVERSE_OUTSIDE = 'outside';
-
-/** The names a document writes, whatever its kind calls them. */
-function universeNames(document_) {
-  const rows = [...(document_.people || []), ...(document_.players || [])];
-  return rows.map((row) => String(row?.name || '').trim()).filter(Boolean);
-}
-
-/**
- * The graph: `nodes` (groups, documents, people) and `edges` between them.
- *
- * A node is `{ id, type, kind, label, ref, size }`: `type` is `group`,
- * `outside`, `doc` or `person`; `kind` is the document's own kind (`event`
- * for a poll that has its day); `ref` is what opening it needs — a group's
- * id, a document, a name. An edge is `{ from, to, type }`, `type` being
- * `group`, `parent`, `link` or `person`.
- */
-function universeGraph(held, groupList = [], titleOf = (document_) => document_.name || document_.id) {
-  const documents = allDocuments(held).filter(isLive);
-  const byId = new Map(documents.map((one) => [one.id, one]));
-  const nodes = [];
-  const edges = [];
-  const index = new Map();
-  const add = (node) => {
-    index.set(node.id, node);
-    nodes.push(node);
-    return node;
-  };
-
-  for (const group of groupList) {
-    add({ id: `g:${group.id}`, type: 'group', kind: 'group', label: String(group.name || ''), ref: group.id, size: 1 });
-  }
-
-  for (const document_ of documents) {
-    const kind = isEventDoc(document_) ? 'event' : kindOf(document_) || 'game';
-    add({ id: `d:${document_.id}`, type: 'doc', kind, label: String(titleOf(document_) || ''), ref: document_, size: 1 });
-  }
-
-  for (const document_ of documents) {
-    const from = `d:${document_.id}`;
-    const parent = byId.get(parentId(document_));
-    if (parent && parent.id !== document_.id) {
-      edges.push({ from, to: `d:${parent.id}`, type: 'parent' });
-      continue;
-    }
-    const group = groupList.find((one) => inGroup(document_, one.id));
-    if (group) {
-      edges.push({ from, to: `g:${group.id}`, type: 'group' });
-      index.get(`g:${group.id}`).size += 1;
-      continue;
-    }
-    if (!index.has(UNIVERSE_OUTSIDE)) {
-      add({ id: UNIVERSE_OUTSIDE, type: 'outside', kind: 'outside', label: '', ref: null, size: 1 });
-    }
-    edges.push({ from, to: UNIVERSE_OUTSIDE, type: 'group' });
-    index.get(UNIVERSE_OUTSIDE).size += 1;
-  }
-
-  const paired = new Set();
-  for (const document_ of documents) {
-    for (const link of linksOf(document_)) {
-      if (!byId.has(link.id) || link.id === document_.id) continue;
-      const pair = [document_.id, link.id].sort().join('|');
-      if (paired.has(pair)) continue;
-      paired.add(pair);
-      edges.push({ from: `d:${document_.id}`, to: `d:${link.id}`, type: 'link' });
-    }
-  }
-
-  // One person under one spelling, however many phones wrote it: the most
-  // recent one, as the overview does.
-  const people = new Map();
-  for (const document_ of documents) {
-    const seen = new Set();
-    for (const name of universeNames(document_)) {
-      const key = sameName(name);
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      const at = document_.updatedAt || 0;
-      const held_ = people.get(key) || { name, at, docs: [] };
-      if (at >= held_.at) Object.assign(held_, { name, at });
-      held_.docs.push(document_.id);
-      people.set(key, held_);
-    }
-  }
-  for (const [key, person] of people) {
-    const id = `p:${key}`;
-    add({ id, type: 'person', kind: 'person', label: person.name, ref: person.name, size: person.docs.length });
-    for (const docId of person.docs) edges.push({ from: id, to: `d:${docId}`, type: 'person' });
-  }
-
-  for (const node of nodes) if (node.type === 'doc') node.size += edges.filter((edge) => edge.to === node.id).length;
-  return { nodes, edges };
-}
-
-/** A number in [0, 1) that a text always gives the same: places stay put. */
-function universeHash(text, salt = 0) {
-  let hash = 2166136261 ^ salt;
-  for (const char of String(text)) {
-    hash ^= char.codePointAt(0);
-    hash = Math.imul(hash, 16777619);
-  }
-  hash ^= hash >>> 15;
-  hash = Math.imul(hash, 2246822507);
-  hash ^= hash >>> 13;
-  return (hash >>> 0) / 4294967296;
-}
-
-/** How far apart things like to sit, by the kind of tie between them. */
-const UNIVERSE_SPRING = { group: 0.55, parent: 0.32, link: 0.4, person: 0.5 };
-const UNIVERSE_PULL = { group: 0.06, parent: 0.08, link: 0.03, person: 0.012 };
-
-/**
- * Where each node sits, as a Map of id to `{ x, y, z }`, the whole fitted in
- * a ball of radius 1.
- *
- * Groups start spread over a sphere, everything else near what it hangs
- * from; then ties pull and every pair pushes, a few dozen times. The start
- * comes from the ids, never from chance: the same documents give the same
- * picture on every phone and at every visit.
- */
-function universeLayout({ nodes, edges }) {
-  const at = new Map();
-  if (!nodes.length) return at;
-  const hubs = nodes.filter((node) => node.type === 'group' || node.type === 'outside');
-  hubs.forEach((node, i) => {
-    // A Fibonacci sphere: evenly spread, whatever their number.
-    const y = hubs.length === 1 ? 0 : 1 - (2 * (i + 0.5)) / hubs.length;
-    const r = Math.sqrt(Math.max(0, 1 - y * y));
-    const turn = i * Math.PI * (3 - Math.sqrt(5));
-    const spread = hubs.length === 1 ? 0 : 1.4;
-    at.set(node.id, { x: Math.cos(turn) * r * spread, y: y * spread, z: Math.sin(turn) * r * spread });
-  });
-
-  const anchor = new Map();
-  for (const edge of edges) if (edge.type !== 'person' && edge.type !== 'link') anchor.set(edge.from, edge.to);
-  const placeOf = (id, depth = 0) => {
-    if (at.has(id)) return at.get(id);
-    const up = anchor.get(id);
-    const base = up && depth < 20 ? placeOf(up, depth + 1) : { x: 0, y: 0, z: 0 };
-    const jitter = (salt) => (universeHash(id, salt) - 0.5) * 0.9;
-    const point = { x: base.x + jitter(1), y: base.y + jitter(2), z: base.z + jitter(3) };
-    at.set(id, point);
-    return point;
-  };
-  for (const node of nodes) if (node.type === 'doc') placeOf(node.id);
-  for (const node of nodes) {
-    if (node.type !== 'person') continue;
-    const near = edges.filter((edge) => edge.from === node.id).map((edge) => at.get(edge.to)).filter(Boolean);
-    const mean = (axis) => near.reduce((sum, point) => sum + point[axis], 0) / (near.length || 1);
-    const jitter = (salt) => (universeHash(node.id, salt) - 0.5) * 0.6;
-    at.set(node.id, { x: mean('x') + jitter(4), y: mean('y') + jitter(5), z: mean('z') + jitter(6) });
-  }
-
-  const points = nodes.map((node) => at.get(node.id));
-  const position = new Map(nodes.map((node, i) => [node.id, i]));
-  const ties = edges
-    .map((edge) => [position.get(edge.from), position.get(edge.to), edge.type])
-    .filter(([a, b]) => a !== undefined && b !== undefined);
-  const rounds = nodes.length > 400 ? 30 : nodes.length > 150 ? 60 : 110;
-  for (let round = 0; round < rounds; round += 1) {
-    const cool = 1 - round / rounds;
-    const push = points.map(() => ({ x: 0, y: 0, z: 0 }));
-    for (let i = 0; i < points.length; i += 1) {
-      for (let j = i + 1; j < points.length; j += 1) {
-        const dx = points[i].x - points[j].x;
-        const dy = points[i].y - points[j].y;
-        const dz = points[i].z - points[j].z;
-        const d2 = dx * dx + dy * dy + dz * dz + 0.01;
-        const force = 0.012 / d2;
-        push[i].x += dx * force; push[i].y += dy * force; push[i].z += dz * force;
-        push[j].x -= dx * force; push[j].y -= dy * force; push[j].z -= dz * force;
-      }
-    }
-    for (const [a, b, type] of ties) {
-      const dx = points[b].x - points[a].x;
-      const dy = points[b].y - points[a].y;
-      const dz = points[b].z - points[a].z;
-      const d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 0.001;
-      const force = ((d - UNIVERSE_SPRING[type]) / d) * UNIVERSE_PULL[type];
-      push[a].x += dx * force; push[a].y += dy * force; push[a].z += dz * force;
-      push[b].x -= dx * force; push[b].y -= dy * force; push[b].z -= dz * force;
-    }
-    points.forEach((point, i) => {
-      const step = (value) => Math.max(-0.2, Math.min(0.2, value)) * cool;
-      point.x += step(push[i].x - point.x * 0.004);
-      point.y += step(push[i].y - point.y * 0.004);
-      point.z += step(push[i].z - point.z * 0.004);
-    });
-  }
-
-  // Centred, then shrunk or grown to fill the ball.
-  const centre = ['x', 'y', 'z'].map((axis) => points.reduce((sum, point) => sum + point[axis], 0) / points.length);
-  for (const point of points) {
-    point.x -= centre[0]; point.y -= centre[1]; point.z -= centre[2];
-  }
-  const far = Math.max(...points.map((point) => Math.hypot(point.x, point.y, point.z)));
-  const scale = far > 0 ? 1 / far : 1;
-  for (const point of points) {
-    point.x *= scale; point.y *= scale; point.z *= scale;
-  }
-  return at;
-}
-
-/**
- * A point in space as it falls on the screen, seen turned by `yaw` and
- * `pitch` (radians), from `distance` away, `zoom` times larger.
- *
- * Returns `{ x, y, scale, depth }`: `scale` shrinks what is far, `depth`
- * orders the drawing (the farthest first).
- */
-function universeProject(point, { yaw = 0, pitch = 0, zoom = 1, distance = 3.2 } = {}, { width = 1, height = 1 } = {}) {
-  const cy = Math.cos(yaw);
-  const sy = Math.sin(yaw);
-  const x1 = point.x * cy - point.z * sy;
-  const z1 = point.x * sy + point.z * cy;
-  const cp = Math.cos(pitch);
-  const sp = Math.sin(pitch);
-  const y2 = point.y * cp - z1 * sp;
-  const z2 = point.y * sp + z1 * cp;
-  const scale = distance / Math.max(0.2, distance + z2);
-  const unit = (Math.min(width, height) / 2) * 0.82 * zoom;
-  return { x: width / 2 + x1 * scale * unit, y: height / 2 - y2 * scale * unit, scale, depth: z2 };
 }
 
   // ---- src/flows.js ----------------------------------------------------
@@ -19139,361 +18801,8 @@ function bindInstall(root = view) {
   });
 }
 
-  // ---- src/view-universe.js --------------------------------------------
-/**
- * Everything, in three dimensions, on its own tab: the groups as stars, their
- * documents around them, the people between. It turns by itself; a finger
- * turns it, two fingers (or the wheel) bring it closer, a tap picks a point
- * and says what it is, with the way to open it.
- *
- * Drawn on a canvas by hand — no library: the app has none. The picture's
- * shape comes from universe.js.
- *
- * Calls back into app.js and the other views only from inside functions.
- */
-
-
-
-
-
-/** One colour per kind, readable on the light page and on the dark one. */
-const UNIVERSE_COLOURS = {
-  group: '#d08a1e',
-  outside: '#8a8478',
-  event: '#d9534f',
-  poll: '#e07b39',
-  list: '#3f9c5a',
-  spend: '#2f86b8',
-  board: '#9b59b6',
-  game: '#c9a227',
-  person: '#7d8fa3',
-};
-
-const UNIVERSE_KINDS = ['group', 'event', 'poll', 'list', 'spend', 'board', 'game', 'person'];
-
-/**
- * How the picture is turned, how close, whether it spins and what is picked.
- * Kept here rather than in bindUniverse(): the page is redrawn whenever the
- * database brings something new, and the picture should not jump back.
- */
-const universeCamera = { yaw: 0.6, pitch: 0.35, zoom: 1, spinning: null, picked: null };
-
-/** What is on show: the chosen group's documents, or everything. */
-function universeShown() {
-  const wanted = groupFilter();
-  const held = {
-    lists: shownDocs(state.lists), polls: shownDocs(state.polls), games: shownDocs(state.games),
-    spends: shownDocs(state.spends), boards: shownDocs(state.boards),
-  };
-  const groupList = wanted === OUTSIDE_GROUPS ? [] : groupsByName().filter((group) => !wanted || group.id === wanted);
-  return universeGraph(held, groupList, documentTitle);
-}
-
-function universeView() {
-  const graph = universeShown();
-  const counts = {
-    docs: graph.nodes.filter((node) => node.type === 'doc').length,
-    people: graph.nodes.filter((node) => node.type === 'person').length,
-  };
-  const legend = UNIVERSE_KINDS.map((kind) => `
-    <span class="universe__key"><span class="universe__dot" style="background:${UNIVERSE_COLOURS[kind]}"></span>${escapeHtml(t(`universe.kind.${kind}`))}</span>`).join('');
-  return `
-    ${flashHtml()}
-    <h1>${escapeHtml(t('universe.title'))}</h1>
-    ${groupChipsHtml()}
-    ${
-      graph.nodes.length
-        ? `
-          <p class="muted small">${escapeHtml(t('universe.counts', { docs: counts.docs, people: counts.people }))}</p>
-          <div class="universe card">
-            <canvas class="universe__canvas" id="universe-canvas" role="img" tabindex="0"
-                    aria-label="${escapeHtml(t('universe.aria', { docs: counts.docs, people: counts.people }))}"></canvas>
-            <div class="universe__tools">
-              <button type="button" class="button button--small button--ghost" id="universe-spin" aria-pressed="true">${escapeHtml(t('universe.pause'))}</button>
-              <button type="button" class="button button--small button--ghost" id="universe-reset">${escapeHtml(t('universe.reset'))}</button>
-            </div>
-          </div>
-          <div class="universe__picked" id="universe-picked" aria-live="polite">
-            <p class="muted small">${escapeHtml(t('universe.hint'))}</p>
-          </div>
-          <div class="universe__legend">${legend}</div>`
-        : `<p class="lead">${escapeHtml(t('universe.empty'))}</p>`
-    }`;
-}
-
-/** Where a node leads, or null for what has no page. */
-function universeHref(node) {
-  if (node.type === 'doc') return documentHref(node.ref);
-  if (node.type === 'group') return `#/group/${encodeURIComponent(node.ref)}`;
-  if (node.type === 'person') return `#/person/${encodeURIComponent(node.ref)}`;
-  return null;
-}
-
-function universeLabel(node) {
-  if (node.type === 'outside') return t('universe.outside');
-  return node.label || t(`universe.kind.${node.kind}`);
-}
-
-function bindUniverse() {
-  const canvas = document.getElementById('universe-canvas');
-  if (!canvas) return;
-  const graph = universeShown();
-  const places = universeLayout(graph);
-  const nodes = graph.nodes.map((node) => ({ ...node, at: places.get(node.id) }));
-  const byId = new Map(nodes.map((node) => [node.id, node]));
-  const ties = graph.edges.map((edge) => ({ ...edge, a: byId.get(edge.from), b: byId.get(edge.to) })).filter((edge) => edge.a && edge.b);
-  const neighbours = new Map(nodes.map((node) => [node.id, new Set()]));
-  for (const edge of ties) {
-    neighbours.get(edge.a.id).add(edge.b.id);
-    neighbours.get(edge.b.id).add(edge.a.id);
-  }
-
-  const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const view = universeCamera;
-  let spinning = view.spinning ?? !still;
-  let picked = nodes.find((node) => node.id === view.picked) || null;
-  let shown = [];
-  // Drawn again only when something moved: a still picture costs nothing.
-  let dirty = true;
-  const context = canvas.getContext('2d');
-  const spin = document.getElementById('universe-spin');
-  const sayPaused = () => {
-    spin.textContent = t(spinning ? 'universe.pause' : 'universe.play');
-    spin.setAttribute('aria-pressed', spinning ? 'true' : 'false');
-    view.spinning = spinning;
-    dirty = true;
-  };
-  sayPaused();
-
-  const size = () => {
-    const ratio = window.devicePixelRatio || 1;
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-    if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
-      canvas.width = Math.round(width * ratio);
-      canvas.height = Math.round(height * ratio);
-    }
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    return { width, height };
-  };
-
-  const draw = () => {
-    const box = size();
-    const style = getComputedStyle(document.documentElement);
-    const ink = style.getPropertyValue('--text').trim() || '#222';
-    const faint = style.getPropertyValue('--muted').trim() || '#888';
-    context.clearRect(0, 0, box.width, box.height);
-    shown = nodes.map((node) => ({ node, ...universeProject(node.at, view, box) }));
-    const screen = new Map(shown.map((one) => [one.node.id, one]));
-    const lit = picked ? new Set([picked.id, ...neighbours.get(picked.id)]) : null;
-
-    for (const edge of ties) {
-      const a = screen.get(edge.a.id);
-      const b = screen.get(edge.b.id);
-      const near = lit && lit.has(edge.a.id) && lit.has(edge.b.id) && (edge.a.id === picked.id || edge.b.id === picked.id);
-      context.globalAlpha = lit ? (near ? 0.9 : 0.06) : edge.type === 'person' ? 0.16 : 0.35;
-      context.strokeStyle = edge.type === 'link' ? UNIVERSE_COLOURS.board : near ? ink : faint;
-      context.lineWidth = (edge.type === 'person' ? 0.6 : 1.1) * (a.scale + b.scale) / 2;
-      context.setLineDash(edge.type === 'link' ? [4, 3] : []);
-      context.beginPath();
-      context.moveTo(a.x, a.y);
-      context.lineTo(b.x, b.y);
-      context.stroke();
-    }
-    context.setLineDash([]);
-
-    const order = [...shown].sort((p, q) => q.depth - p.depth);
-    for (const one of order) {
-      const { node } = one;
-      const base = node.type === 'group' || node.type === 'outside' ? 9 + Math.min(8, node.size * 0.5) : node.type === 'person' ? 3 + Math.min(4, node.size * 0.6) : 4.5 + Math.min(4, node.size * 0.5);
-      one.radius = base * one.scale;
-      const fog = Math.max(0.35, Math.min(1, 0.95 - one.depth * 0.35));
-      context.globalAlpha = lit && !lit.has(node.id) ? 0.12 : fog;
-      const colour = UNIVERSE_COLOURS[node.kind] || UNIVERSE_COLOURS.outside;
-      const glow = context.createRadialGradient(one.x - one.radius * 0.35, one.y - one.radius * 0.35, one.radius * 0.1, one.x, one.y, one.radius);
-      glow.addColorStop(0, '#ffffff');
-      glow.addColorStop(0.25, colour);
-      glow.addColorStop(1, colour);
-      context.fillStyle = glow;
-      context.beginPath();
-      context.arc(one.x, one.y, one.radius, 0, Math.PI * 2);
-      context.fill();
-      if (picked && node.id === picked.id) {
-        context.globalAlpha = 1;
-        context.strokeStyle = ink;
-        context.lineWidth = 2;
-        context.stroke();
-      }
-    }
-
-    context.font = '600 12px system-ui, sans-serif';
-    context.textAlign = 'center';
-    for (const one of order) {
-      const { node } = one;
-      const hub = node.type === 'group' || node.type === 'outside';
-      if (!(hub || (lit && lit.has(node.id)))) continue;
-      context.globalAlpha = lit && !lit.has(node.id) ? 0.25 : 1;
-      context.fillStyle = ink;
-      const text = universeLabel(node);
-      context.fillText(text.length > 24 ? `${text.slice(0, 23)}…` : text, one.x, one.y - one.radius - 5);
-    }
-    context.globalAlpha = 1;
-  };
-
-  const showPicked = () => {
-    view.picked = picked ? picked.id : null;
-    dirty = true;
-    const box = document.getElementById('universe-picked');
-    if (!box) return;
-    if (!picked) {
-      box.innerHTML = `<p class="muted small">${escapeHtml(t('universe.hint'))}</p>`;
-      return;
-    }
-    const href = universeHref(picked);
-    const around = neighbours.get(picked.id).size;
-    box.innerHTML = `
-      <div class="spread">
-        <div>
-          <strong>${escapeHtml(universeLabel(picked))}</strong>
-          <div class="muted small">${escapeHtml(t(`universe.kind.${picked.kind}`))} · ${escapeHtml(t('universe.ties', { count: around }))}</div>
-        </div>
-        ${href ? `<button type="button" class="button button--small" id="universe-open">${escapeHtml(t('universe.open'))}</button>` : ''}
-      </div>`;
-    box.querySelector('#universe-open')?.addEventListener('click', () => navigate(href));
-  };
-
-  // A finger turns it; two bring it closer or farther; a tap that did not
-  // move picks the point under it.
-  const fingers = new Map();
-  let moved = 0;
-  let pinch = 0;
-  canvas.addEventListener('pointerdown', (event) => {
-    canvas.setPointerCapture?.(event.pointerId);
-    fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    moved = 0;
-    if (fingers.size === 2) {
-      const [p, q] = [...fingers.values()];
-      pinch = Math.hypot(p.x - q.x, p.y - q.y);
-    }
-  });
-  canvas.addEventListener('pointermove', (event) => {
-    const was = fingers.get(event.pointerId);
-    if (!was) return;
-    const now = { x: event.clientX, y: event.clientY };
-    fingers.set(event.pointerId, now);
-    if (fingers.size === 2) {
-      const [p, q] = [...fingers.values()];
-      const apart = Math.hypot(p.x - q.x, p.y - q.y);
-      if (pinch) view.zoom = Math.max(0.5, Math.min(4, view.zoom * (apart / pinch)));
-      pinch = apart;
-      moved += 10;
-      dirty = true;
-      return;
-    }
-    const dx = now.x - was.x;
-    const dy = now.y - was.y;
-    moved += Math.abs(dx) + Math.abs(dy);
-    view.yaw += dx * 0.008;
-    view.pitch = Math.max(-1.4, Math.min(1.4, view.pitch + dy * 0.008));
-    dirty = true;
-  });
-  const lift = (event) => {
-    const tap = fingers.size === 1 && moved < 6;
-    fingers.delete(event.pointerId);
-    if (fingers.size < 2) pinch = 0;
-    if (!tap) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    let best = null;
-    for (const one of shown) {
-      const reach = Math.max(14, (one.radius || 0) + 6);
-      const d = Math.hypot(one.x - x, one.y - y);
-      if (d <= reach && (!best || one.depth < best.depth)) best = { ...one, d };
-    }
-    picked = best ? best.node : null;
-    if (picked) spinning = false;
-    sayPaused();
-    showPicked();
-  };
-  canvas.addEventListener('pointerup', lift);
-  canvas.addEventListener('pointercancel', (event) => {
-    fingers.delete(event.pointerId);
-    pinch = 0;
-  });
-  canvas.addEventListener('wheel', (event) => {
-    event.preventDefault();
-    view.zoom = Math.max(0.5, Math.min(4, view.zoom * Math.exp(-event.deltaY * 0.0015)));
-    dirty = true;
-  }, { passive: false });
-
-  // The keyboard turns it too: arrows, + and -, Escape lets go of the pick.
-  canvas.addEventListener('keydown', (event) => {
-    const turn = { ArrowLeft: [-0.15, 0], ArrowRight: [0.15, 0], ArrowUp: [0, -0.15], ArrowDown: [0, 0.15] }[event.key];
-    if (turn) {
-      view.yaw += turn[0];
-      view.pitch = Math.max(-1.4, Math.min(1.4, view.pitch + turn[1]));
-    } else if (event.key === '+' || event.key === '=') {
-      view.zoom = Math.min(4, view.zoom * 1.2);
-    } else if (event.key === '-') {
-      view.zoom = Math.max(0.5, view.zoom / 1.2);
-    } else if (event.key === 'Escape' && picked) {
-      picked = null;
-      showPicked();
-    } else {
-      return;
-    }
-    event.preventDefault();
-    dirty = true;
-  });
-
-  spin.addEventListener('click', () => {
-    spinning = !spinning;
-    sayPaused();
-  });
-  document.getElementById('universe-reset')?.addEventListener('click', () => {
-    Object.assign(view, { yaw: 0.6, pitch: 0.35, zoom: 1 });
-    picked = null;
-    showPicked();
-  });
-
-  // Where a point is on the canvas, by its label: for the browser tests.
-  canvas.universeSpot = (label) => {
-    const one = shown.find((each) => universeLabel(each.node) === label);
-    return one ? { x: one.x, y: one.y } : null;
-  };
-
-  // Drawn while on the page; the canvas gone, the loop ends by itself. A new
-  // size (the phone turned) or a new theme is something moved too.
-  let last = performance.now();
-  let looks = '';
-  const frame = (now) => {
-    if (!canvas.isConnected) return;
-    const step = Math.min(64, now - last);
-    last = now;
-    if (spinning && !fingers.size) {
-      view.yaw += step * 0.00018;
-      dirty = true;
-    }
-    const nowLooks = `${canvas.clientWidth}x${canvas.clientHeight}|${document.documentElement.dataset.theme || ''}`;
-    if (nowLooks !== looks) {
-      looks = nowLooks;
-      dirty = true;
-    }
-    if (dirty) {
-      dirty = false;
-      draw();
-    }
-    requestAnimationFrame(frame);
-  };
-  if (picked) showPicked();
-  draw();
-  requestAnimationFrame(frame);
-}
-
   // ---- src/app.js ------------------------------------------------------
 /** UI layer: hash router, views, event wiring. */
-
 
 
 
@@ -19808,8 +19117,6 @@ function routeOf(address) {
   if (name === 'privacy' || name === 'confidentialite') return { name: 'privacy' };
   if (name === 'new') return { name: 'new' };
   if (name === 'stats') return { name: 'stats' };
-  // Everything at once, in three dimensions. See view-universe.js.
-  if (name === '3d' || name === 'univers' || name === 'universe') return { name: 'universe' };
   if (name === 'game' && param) return { name: 'game', id: param };
   if (name === 'set' && param) return { name: 'set', id: param };
   if (name === 'lists' && param === 'new') return { name: 'new-list' };
@@ -22688,10 +21995,6 @@ function render() {
   } else if (current.name === 'stats') {
     stopWatching();
     view.innerHTML = statsView();
-  } else if (current.name === 'universe') {
-    stopWatching();
-    view.innerHTML = universeView();
-    bindUniverse();
   } else if (current.name === 'new') {
     stopWatching();
     view.innerHTML = newGameView();
@@ -22897,7 +22200,6 @@ function markTab(current) {
     if (['agenda', 'new-event'].includes(at.name)) return 'agenda';
     if (['groups', 'group', 'person', 'join', 'back'].includes(at.name)) return 'groups';
     if (at.name === 'settings') return 'settings';
-    if (at.name === 'universe') return 'universe';
     return 'home';
   };
   // A document's page stays under the tab it was opened from: a poll opened

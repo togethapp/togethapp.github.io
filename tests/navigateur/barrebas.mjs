@@ -1,5 +1,5 @@
 /**
- * La barre d'onglets en bas de l'écran — Accueil, Agenda, 3D, « + », Groupes,
+ * La barre d'onglets en bas de l'écran — Accueil, Agenda, « + », Groupes,
  * Réglages —, la rangée des sortes en haut de l'Accueil, « Pour vous », et la
  * page d'un groupe : tout ce qui est en cours dans ce groupe, sur une seule page.
  */
@@ -55,9 +55,9 @@ const bar = await page.locator('#tabs').boundingBox();
 check('la barre est collée en bas de l’écran', Math.abs(bar.y + bar.height - 800) < 2, JSON.stringify(bar));
 check('sur une seule ligne', bar.height < 90, JSON.stringify(bar));
 const tabs = (await page.locator('.tab').allTextContents()).map((s) => s.trim());
-check('cinq onglets, trois à gauche du « + », deux à droite',
-  tabs.join(' / ') === 'Accueil / Agenda / 3D / Groupes / Réglages', tabs.join(' / '));
-check('chacun a son icône', (await page.locator('.tab .tab__icon').count()) === 5);
+check('quatre onglets, deux de chaque côté du « + »',
+  tabs.join(' / ') === 'Accueil / Agenda / Groupes / Réglages', tabs.join(' / '));
+check('chacun a son icône', (await page.locator('.tab .tab__icon').count()) === 4);
 check('le « + » est dans la barre', await page.locator('#tabs #create').isVisible());
 const plus = await page.locator('#create').boundingBox();
 check('le « + » est pile au milieu', Math.abs(plus.x + plus.width / 2 - 195) < 1, JSON.stringify(plus));
