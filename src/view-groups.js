@@ -8,8 +8,9 @@
 
 import {
   appLink, chainLabel, chainOf, documentTitle, escapeHtml, everything, flash, formatDate, formatDay, isBusy,
-  knocking, lookForUpdate, navigate, pullAny, render, showsGate, state, view,
+  lookForUpdate, navigate, pullAny, render, state, view,
 } from './app.js';
+import { knocking, showsGate } from './view-join.js';
 import {
   getPoll, getSpend, persistPoll, persistSpend, pullPoll, pushFailed, replacePoll, replaceSpend,
 } from './view-polls.js';

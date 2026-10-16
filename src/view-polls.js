@@ -8,11 +8,11 @@
  */
 
 import {
-  chainLabel, chainLabelShort, chainOf, documentHref, escapeHtml, everything, flash, flashHtml, formatDate, formatDay, formatDayLong, gameCardHtml, gameTitle, groupChipsHtml,
-  isBusy, isHidden, kindsHtml, navigate, openEventMenu, pollHome, render, route, signature, state, stopWatching,
-  view, whenText,
-  attachedHtml, chainButtonsHtml,
+  attachedHtml, chainButtonsHtml, chainLabel, chainLabelShort, chainOf, documentHref, escapeHtml, everything, flash,
+  flashHtml, formatDate, formatDay, formatDayLong, gameCardHtml, gameTitle, groupChipsHtml, isBusy, isHidden,
+  kindsHtml, navigate, pollHome, render, route, signature, state, stopWatching, view, whenText,
 } from './app.js';
+import { openEventMenu } from './view-home.js';
 import { archivedHtml, getGame, getList, listCardHtml, listTitle, openPeopleEditor, persistList } from './view-lists.js';
 import { spendCardHtml, spendTitle } from './view-spends.js';
 import { boardCardHtml, boardTitle, getBoard } from './view-ideas.js';
