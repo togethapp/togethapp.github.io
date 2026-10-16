@@ -1,7 +1,8 @@
 /**
  * « Safari a poussé quelque chose, l'app de l'écran d'accueil ne le voit pas. »
  * Le bouton de récupération, et la récupération toute seule au retour au premier
- * plan — sur les trois onglets, pas seulement sur la partie ouverte.
+ * plan — sur les trois onglets, pas seulement sur la partie ouverte. Sans
+ * Realtime : c'est le chemin de repli (suite `direct` pour le temps réel).
  */
 import { chromium } from 'playwright';
 const results = [];
@@ -17,6 +18,8 @@ async function device(label, { key = 'la-cle-famille', me = 'Gui', admits = true
   page.on('pageerror', (e) => errors.push(`${label}: ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`${label}: ${m.text()}`));
   await page.addInitScript(([c, k, name, admitting]) => {
+    // Pas de WebSocket : la base n'annonce rien, l'app relève d'elle-même.
+    delete window.WebSocket;
     localStorage.setItem('marque-points:remote:v1', c);
     localStorage.setItem('marque-points:prefs:v1', JSON.stringify({
       me: name, groups: k ? [{ id: 'grp_famille', name: 'Mifa', key: k, admits: admitting }] : [],

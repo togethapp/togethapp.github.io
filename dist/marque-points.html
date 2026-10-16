@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v14" />
-    <meta name="app-build" content="29aca02f" />
+    <meta name="app-build" content="7e2622c2" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -24914,9 +24914,18 @@ async function pullAny(id) {
  * theirs.
  */
 function liveTopics(current) {
-  const topics = groups().filter((group) => group.channel).map((group) => groupTopic(group.channel));
+  const topics = [...groups().filter((group) => group.channel).map((group) => groupTopic(group.channel)),
+    ...linkOnlyPolls().map((poll) => docTopic(poll.id))];
   if (['game', 'list', 'spend', 'board', 'poll'].includes(current.name) && current.id) topics.push(docTopic(current.id));
-  return topics;
+  return [...new Set(topics)];
+}
+
+/**
+ * The link-only polls held here: listed for no group, so no group's channel
+ * speaks of them — each is heard on its own, as the catch-up asks for each.
+ */
+function linkOnlyPolls() {
+  return state.polls.filter((poll) => poll.shared && poll.linkOnly && !poll.archivedAt);
 }
 
 /** Groups asked for their channel this session, so a database without one is asked once. */
@@ -24940,9 +24949,11 @@ function liveQuiet(topic) {
   return Boolean(state.live?.quiet(topic));
 }
 
-/** Whether every group's changes would be heard as they happen. */
+/** Whether everything the catch-up asks for would be heard as it happens. */
 function liveCoversGroups() {
-  return Boolean(state.live) && groups().every((group) => group.channel && state.live.covers(groupTopic(group.channel)));
+  return Boolean(state.live)
+    && groups().every((group) => group.channel && state.live.covers(groupTopic(group.channel)))
+    && linkOnlyPolls().every((poll) => state.live.covers(docTopic(poll.id)));
 }
 
 /** Announcements arriving in a burst — a list ticked line after line — cost one fetch at a time. */

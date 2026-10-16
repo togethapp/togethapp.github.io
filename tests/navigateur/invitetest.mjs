@@ -119,16 +119,14 @@ check('le nouvel appareil partage dans le groupe',
   /#\/list\/l_/.test(await other.inputValue('#export-text')));
 await other.click('#export-close');
 
-// et l'appareil d'origine le voit
+// et l'appareil d'origine le voit : annoncé par la base, ou au plus tard par
+// le bouton de récupération.
 await mine.click('[data-catch-up]');
-// Un message précédent peut encore être à l'écran : on attend celui-ci.
-await mine.waitForFunction(
-  () => /élément/.test(document.querySelector('.banner')?.textContent || ''),
+const arrived = await mine.waitForFunction(
+  () => JSON.parse(localStorage.getItem('marque-points:lists:v1') || '[]').some((list) => list.name === 'Courses'),
   null, { timeout: 15000 },
-);
-check('ce qu’il partage arrive chez l’autre appareil du groupe',
-  /1 élément/.test(await mine.locator('.banner').textContent()),
-  await mine.locator('.banner').textContent());
+).then(() => true).catch(() => false);
+check('ce qu’il partage arrive chez l’autre appareil du groupe', arrived);
 
 /* --- la clé reste possible pour le tout premier appareil ------------------ */
 

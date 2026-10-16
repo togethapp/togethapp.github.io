@@ -8,11 +8,13 @@ const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromi
 const results = [];
 const check = (n, ok, d = '') => results.push({ n, ok, d });
 const errors = [];
-async function device(label, prefs, { shares = null } = {}) {
+async function device(label, prefs, { shares = null, asleep = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 1100 }, locale: 'fr-FR' });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(`${label}: ${e.message}`));
-  await page.addInitScript(([c, p, s]) => {
+  await page.addInitScript(([c, p, s, z]) => {
+    // Un téléphone en veille n'a pas de connexion ouverte : rien ne lui est annoncé.
+    if (z) delete window.WebSocket;
     try {
       localStorage.setItem('marque-points:remote:v1', c);
       if (p && !localStorage.getItem('marque-points:prefs:v1')) localStorage.setItem('marque-points:prefs:v1', JSON.stringify(p));
@@ -21,7 +23,7 @@ async function device(label, prefs, { shares = null } = {}) {
       window.__shared = [];
       navigator.share = async (data) => { window.__shared.push(data); };
     }
-  }, [CONFIG, prefs, shares]);
+  }, [CONFIG, prefs, shares, asleep]);
   await page.goto(PAGE);
   await page.waitForSelector('.app-bar');
   return page;
@@ -44,7 +46,7 @@ await gui.waitForTimeout(800);
 check('le sondage est dans la base', (await db('marque_points_get', { p_id: pollId })).includes('Secret de famille'));
 
 // --- Paul, qui n'est que dans « Copains », l'ouvre par le lien et vote
-const paul = await device('Paul', { me: 'Paul', groups: [COPAINS] });
+const paul = await device('Paul', { me: 'Paul', groups: [COPAINS] }, { asleep: true });
 await paul.goto(`${PAGE}#/poll/${pollId}/solo`);
 await paul.waitForSelector('.votes', { timeout: 15000 });
 await paul.locator('[data-me]', { hasText: 'Paul' }).click(); await paul.waitForTimeout(300);
