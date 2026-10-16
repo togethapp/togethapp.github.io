@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v14" />
-    <meta name="app-build" content="9c11a4f7" />
+    <meta name="app-build" content="a76d6ce5" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -2676,6 +2676,10 @@ const STRINGS = {
     'account.sendFailed': 'Le code n’a pas pu être envoyé. Vérifiez l’adresse et réessayez.',
     'account.tooMany': 'Trop de codes demandés d’un coup : réessayez dans quelques minutes.',
     'account.welcome': 'Connecté. Vos groupes et vos sondages sont gardés sur votre compte.',
+    'account.offerTitle': 'Garder {name} sur un compte ?',
+    'account.offerTitleBare': 'Garder ce groupe sur un compte ?',
+    'account.offerWhy': 'Facultatif, et sans mot de passe : un code arrive par e-mail. Connecté, vous retrouvez ce groupe sur tout appareil — même si ce téléphone efface ses données, ou si vous en changez.',
+    'account.offerWithout': 'Sans compte, gardez votre lien de retour : bouton « Mon lien de retour », sous le groupe, plus bas.',
     'account.signedIn': 'Connecté : {email}',
     'account.keeps': 'Votre compte garde vos groupes et vos droits d’organisateur. Sur un autre appareil, connectez-vous avec la même adresse pour tout retrouver.',
     'account.sync': 'Synchroniser',
@@ -3823,6 +3827,10 @@ const STRINGS = {
     'account.sendFailed': 'The code could not be sent. Check the address and try again.',
     'account.tooMany': 'Too many codes asked for at once: try again in a few minutes.',
     'account.welcome': 'Signed in. Your groups and polls are kept on your account.',
+    'account.offerTitle': 'Keep {name} on an account?',
+    'account.offerTitleBare': 'Keep this group on an account?',
+    'account.offerWhy': 'Optional, and no password: a code arrives by e-mail. Signed in, you get this group back on any device — even if this phone clears its data, or you change phones.',
+    'account.offerWithout': 'Without an account, keep your return link: the “My return link” button, under the group, further down.',
     'account.signedIn': 'Signed in: {email}',
     'account.keeps': 'Your account keeps your groups and your organiser rights. On another device, sign in with the same address to get everything back.',
     'account.sync': 'Sync',
@@ -10790,6 +10798,252 @@ async function connectStore({ getLocalGames, onGames, onLost }) {
   return { save, remove, stop };
 }
 
+  // ---- src/live.js -----------------------------------------------------
+/**
+ * Hearing changes as they happen, instead of asking every few seconds.
+ *
+ * The database announces each write on Supabase Realtime: « something changed »
+ * on the channel of the document, and on the secret channel of its group. The
+ * announcement carries nothing — no id, no content — so hearing it gives away
+ * nothing either: the app then asks the database the usual way, with its key,
+ * and a key that was cut off gets nothing more than before.
+ *
+ * This is a small client of the Phoenix protocol Realtime speaks (JSON, version
+ * 1.0.0), with no library. Nothing here is needed for the app to work: when the
+ * socket is closed, refused or silent, `covers` says no and the app goes on
+ * asking every few seconds, as it always did.
+ */
+
+/** Realtime closes a socket that has said nothing for a minute. */
+const HEARTBEAT_EVERY = 25000;
+/** Waits before trying again, longer each time, up to a minute. */
+const RETRY_AFTER = [1000, 2000, 5000, 10000, 30000, 60000];
+
+/** The socket's address, from the REST address the app already has. */
+function liveUrl(config) {
+  if (!config || !config.url || !config.key) return '';
+  const origin = String(config.url).replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+  if (!/^https?:\/\//.test(origin)) return '';
+  return `${origin.replace(/^http/, 'ws')}/realtime/v1/websocket?apikey=${encodeURIComponent(config.key)}&vsn=1.0.0`;
+}
+
+/** The channel of one document, as the database names it. */
+function docTopic(id) {
+  return `doc-${id}`;
+}
+
+/** The channel of a group: its secret name, handed over only with a key. */
+function groupTopic(channel) {
+  return `group-${channel}`;
+}
+
+/** The message that joins a public channel, broadcast only. */
+function joinMessage(topic, ref, key) {
+  return {
+    topic: `realtime:${topic}`,
+    event: 'phx_join',
+    payload: {
+      config: {
+        broadcast: { ack: false, self: false },
+        presence: { key: '', enabled: false },
+        postgres_changes: [],
+        private: false,
+      },
+      access_token: key,
+    },
+    ref,
+    join_ref: ref,
+  };
+}
+
+/**
+ * What a message from the socket means for us: a channel joined or refused,
+ * a change announced, or nothing.
+ */
+function readMessage(raw) {
+  let message = null;
+  try {
+    message = typeof raw === 'string' ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+  if (!message || typeof message.topic !== 'string' || !message.topic.startsWith('realtime:')) return null;
+  const topic = message.topic.slice('realtime:'.length);
+  if (message.event === 'phx_reply') {
+    const ok = message.payload?.status === 'ok';
+    return { kind: ok ? 'joined' : 'refused', topic, ref: message.ref ?? null };
+  }
+  if (message.event === 'phx_error' || message.event === 'phx_close') return { kind: 'refused', topic, ref: null };
+  if (message.event === 'broadcast') return { kind: 'changed', topic };
+  return null;
+}
+
+/**
+ * The client. `onChange(topic)` is called for each announcement heard, on a
+ * channel asked for with `watch`. `WebSocketImpl` and the timers are there for
+ * the tests.
+ */
+function createLive({
+  url, key, onChange, WebSocketImpl = globalThis.WebSocket,
+  setTimer = setTimeout, clearTimer = clearTimeout, every = setInterval, stopEvery = clearInterval,
+  now = () => Date.now(),
+}) {
+  if (!url || typeof WebSocketImpl !== 'function') return null;
+
+  let socket = null;
+  let open = false;
+  let heartbeat = null;
+  let retry = null;
+  let failures = 0;
+  let counter = 0;
+  let wanted = new Set();
+  /** topic -> { ref, joined } for the channels asked on this socket. */
+  let channels = new Map();
+  /** Channels joined at least once, on this socket or an earlier one. */
+  const heardBefore = new Set();
+  /** topic -> when the app last asked the database itself, while covered. */
+  const asked = new Map();
+
+  const send = (message) => {
+    if (!open) return;
+    try {
+      socket.send(JSON.stringify(message));
+    } catch {
+      // A socket closing under our feet: the close handler takes it from here.
+    }
+  };
+  const nextRef = () => String(++counter);
+
+  const join = (topic) => {
+    const ref = nextRef();
+    channels.set(topic, { ref, joined: false });
+    send(joinMessage(topic, ref, key));
+  };
+  const leave = (topic) => {
+    const channel = channels.get(topic);
+    channels.delete(topic);
+    if (channel) send({ topic: `realtime:${topic}`, event: 'phx_leave', payload: {}, ref: nextRef(), join_ref: channel.ref });
+  };
+
+  const drop = () => {
+    open = false;
+    channels = new Map();
+    if (heartbeat) stopEvery(heartbeat);
+    heartbeat = null;
+  };
+
+  const schedule = () => {
+    if (retry || !wanted.size) return;
+    const wait = RETRY_AFTER[Math.min(failures, RETRY_AFTER.length - 1)];
+    failures += 1;
+    retry = setTimer(() => {
+      retry = null;
+      connect();
+    }, wait);
+  };
+
+  function connect() {
+    if (socket || !wanted.size) return;
+    let created = null;
+    try {
+      created = new WebSocketImpl(url);
+    } catch {
+      schedule();
+      return;
+    }
+    socket = created;
+    created.onopen = () => {
+      if (socket !== created) return;
+      open = true;
+      failures = 0;
+      for (const topic of wanted) join(topic);
+      heartbeat = every(() => send({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: nextRef() }), HEARTBEAT_EVERY);
+    };
+    created.onmessage = (event) => {
+      if (socket !== created) return;
+      const heard = readMessage(event?.data);
+      if (!heard) return;
+      const channel = channels.get(heard.topic);
+      if (!channel) return;
+      if (heard.kind === 'joined' && heard.ref === channel.ref) {
+        channel.joined = true;
+        // Joined again after the socket dropped: what was said meanwhile was
+        // not heard, so it counts as one announcement.
+        if (heardBefore.has(heard.topic)) onChange(heard.topic);
+        heardBefore.add(heard.topic);
+      }
+      else if (heard.kind === 'refused') channel.joined = false;
+      else if (heard.kind === 'changed' && channel.joined) onChange(heard.topic);
+    };
+    created.onclose = () => {
+      if (socket !== created) return;
+      socket = null;
+      drop();
+      schedule();
+    };
+    created.onerror = () => {
+      // The close event follows; nothing to do twice.
+    };
+  }
+
+  return {
+    /** Listen to exactly these channels from now on. */
+    watch(topics) {
+      const next = new Set(topics.filter(Boolean));
+      for (const topic of [...channels.keys()]) if (!next.has(topic)) leave(topic);
+      if (open) for (const topic of next) if (!channels.has(topic)) join(topic);
+      wanted = next;
+      if (!wanted.size) {
+        this.stop();
+        return;
+      }
+      connect();
+    },
+
+    /** Whether an announcement on this channel would be heard right now. */
+    covers(topic) {
+      return open && Boolean(channels.get(topic)?.joined);
+    },
+
+    /**
+     * Whether the app may skip asking the database itself this time. While a
+     * channel is heard, asking once a minute is enough — in case an
+     * announcement was lost; otherwise, the app asks as it always did.
+     */
+    quiet(topic, every_ = 60000) {
+      if (!this.covers(topic)) return false;
+      const last = asked.get(topic);
+      if (last !== undefined && now() - last < every_) return true;
+      asked.set(topic, now());
+      return false;
+    },
+
+    /** Back in front: a socket the phone closed meanwhile is opened again now. */
+    wake() {
+      if (retry) {
+        clearTimer(retry);
+        retry = null;
+      }
+      failures = 0;
+      connect();
+    },
+
+    stop() {
+      wanted = new Set();
+      if (retry) clearTimer(retry);
+      retry = null;
+      const closing = socket;
+      socket = null;
+      drop();
+      try {
+        closing?.close();
+      } catch {
+        // Already closed.
+      }
+    },
+  };
+}
+
   // ---- src/swipe.js ----------------------------------------------------
 /**
  * Slide left to delete — the gesture a phone's own lists taught everyone.
@@ -10904,6 +11158,7 @@ function bindSwipes(kind, onDelete) {
  * Split out of app.js, which it calls back into: only from inside functions,
  * so the two may import each other.
  */
+
 
 
 
@@ -12594,7 +12849,7 @@ function watchPoll(id) {
   if (!state.remote) return;
   state.pollWatched = id;
   const look = async () => {
-    if (isBusy() || isHidden()) return;
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
     if (await pullPoll(id)) render();
   };
   // At once, and then every five seconds: opening a poll should show the
@@ -12635,7 +12890,7 @@ function watchSpend(id) {
   stopWatching();
   if (!state.remote) return;
   state.poll = setInterval(async () => {
-    if (isBusy() || isHidden()) return;
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
     if (await pullSpend(id)) render();
   }, 5000);
 }
@@ -14548,6 +14803,7 @@ function openSpendPeopleDialog(spend) {
 
 
 
+
 function boardTitle(board) {
   return board.name || t('ideas.untitled');
 }
@@ -15177,7 +15433,7 @@ function watchBoard(id) {
   stopWatching();
   if (!state.remote) return;
   state.poll = setInterval(async () => {
-    if (isBusy() || isHidden()) return;
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
     if (await pullBoard(id)) render();
   }, 5000);
 }
@@ -17821,7 +18077,7 @@ async function joinGroup(key) {
   if (!group) return null;
   rememberGroup({
     id: group.id, name: group.name, key: clean, admits: Boolean(group.admits),
-    accounts: Boolean(group.accounts), linked: Boolean(group.linked),
+    accounts: Boolean(group.accounts), linked: Boolean(group.linked), channel: liveChannel(group),
   });
   return group;
 }
@@ -17850,10 +18106,11 @@ async function verifyGroups() {
       continue;
     }
     if (found.name !== group.name || Boolean(found.admits) !== group.admits
-        || Boolean(found.accounts) !== Boolean(group.accounts) || Boolean(found.linked) !== Boolean(group.linked)) {
+        || Boolean(found.accounts) !== Boolean(group.accounts) || Boolean(found.linked) !== Boolean(group.linked)
+        || liveChannel(found) !== (group.channel || '')) {
       rememberGroup({
         ...group, name: found.name || group.name, admits: Boolean(found.admits),
-        accounts: Boolean(found.accounts), linked: Boolean(found.linked),
+        accounts: Boolean(found.accounts), linked: Boolean(found.linked), channel: liveChannel(found),
       });
       learnt = true;
     }
@@ -17932,12 +18189,15 @@ async function checkPending(knock) {
     } catch {
       // In the group either way; what it shares can be fetched later.
     }
-    // Just let in: the one moment they will listen to "keep your return link".
-    // Said in the line that greets them rather than in a dialog — a question
-    // that blocks the screen on the way in is a question in the wrong place.
-    flash(taken
-      ? t('groups.joinedWithKeepLink', { name: group.name, count: taken })
-      : t('groups.joinedKeepLink', { name: group.name }));
+    // Just let in: the one moment they will listen to "keep this group". An
+    // account is offered on the groups tab, where they land, the return link
+    // beside it; signed in already, the account keeps it. Said on the page
+    // rather than in a dialog — a question that blocks the screen on the way
+    // in is a question in the wrong place.
+    const offered = !alreadyIn && offerAccount(group);
+    flash(offered || account()
+      ? t(taken ? 'groups.joinedWith' : 'groups.joined', { name: group.name, count: taken })
+      : t(taken ? 'groups.joinedWithKeepLink' : 'groups.joinedKeepLink', { name: group.name, count: taken }));
     return 'ok';
   }
 
@@ -18038,6 +18298,14 @@ async function loadGate(group) {
 }
 
 /**
+ * The secret name of the group's channel on Realtime (see live.js), or '' from
+ * a database that does not announce its changes yet.
+ */
+function liveChannel(found) {
+  return typeof found?.channel === 'string' && /^[a-z0-9]{8,64}$/.test(found.channel) ? found.channel : '';
+}
+
+/**
  * Whether this device's key lets people in. Groups remembered before the
  * question existed do not say, so the database is asked once.
  */
@@ -18052,7 +18320,7 @@ async function refreshGroup(group) {
   if (!found) return false;
   rememberGroup({
     ...group, name: found.name || group.name, admits: Boolean(found.admits),
-    accounts: Boolean(found.accounts), linked: Boolean(found.linked),
+    accounts: Boolean(found.accounts), linked: Boolean(found.linked), channel: liveChannel(found),
   });
   return true;
 }
@@ -18090,6 +18358,8 @@ async function catchUpAll() {
 
 /** Not more often than this, when it happens on its own. */
 const SYNC_EVERY = 20000;
+/** And while the database announces every change (live.js). */
+const SYNC_HEARD = 120000;
 
 /**
  * Catch up by itself: when the app opens, and each time it comes back to the
@@ -18097,7 +18367,10 @@ const SYNC_EVERY = 20000;
  */
 async function catchUpQuietly() {
   if (!state.remote || !groups().length) return;
-  if (state.syncedAt && Date.now() - state.syncedAt < SYNC_EVERY) return;
+  // Every group heard as it changes: asking is only a net, in case an
+  // announcement was lost.
+  const every = liveCoversGroups() ? SYNC_HEARD : SYNC_EVERY;
+  if (state.syncedAt && Date.now() - state.syncedAt < every) return;
   const taken = await catchUpAll();
   const changed = showsGate() ? await refreshGate() : false;
   if ((taken || changed) && !isBusy()) render();
@@ -19480,30 +19753,81 @@ function accountHtml() {
     <section class="section" id="account">
       <div class="section__head"><h2>${escapeHtml(t('account.title'))}</h2></div>
       <p class="muted small">${escapeHtml(t('account.why'))}</p>
-      ${
-        awaiting
-          ? `<form id="account-code-form" class="card stack stack--tight">
-               <label class="stack stack--tight">
-                 <span class="small">${escapeHtml(t('account.codeSent', { email: awaiting }))}</span>
-                 <input type="text" id="account-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10"
-                        placeholder="${escapeHtml(t('account.codePlaceholder'))}" />
-               </label>
-               <div class="row">
-                 <button type="submit" class="button button--primary">${escapeHtml(t('account.signIn'))}</button>
-                 <button type="button" class="button button--ghost" id="account-other">${escapeHtml(t('account.otherEmail'))}</button>
-               </div>
-             </form>`
-          : `<form id="account-email-form" class="card stack stack--tight">
-               <label class="stack stack--tight">
-                 <span class="small">${escapeHtml(t('account.email'))}</span>
-                 <input type="email" id="account-email" autocomplete="email" inputmode="email"
-                        placeholder="${escapeHtml(t('account.emailPlaceholder'))}" />
-               </label>
-               <div class="row"><button type="submit" class="button button--primary">${escapeHtml(t('account.sendCode'))}</button></div>
-               <p class="muted small">${escapeHtml(t('account.privacy'))}</p>
-               <div class="row"><button type="button" class="button button--small button--ghost" data-goto="#/confidentialite">${escapeHtml(t('privacy.title'))}</button></div>
-             </form>`
-      }
+      ${signInFormHtml()}
+    </section>`;
+}
+
+/** The two steps of signing in: the address, then the code it received. */
+function signInFormHtml() {
+  return awaiting
+    ? `<form id="account-code-form" class="card stack stack--tight">
+         <label class="stack stack--tight">
+           <span class="small">${escapeHtml(t('account.codeSent', { email: awaiting }))}</span>
+           <input type="text" id="account-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10"
+                  placeholder="${escapeHtml(t('account.codePlaceholder'))}" />
+         </label>
+         <div class="row">
+           <button type="submit" class="button button--primary">${escapeHtml(t('account.signIn'))}</button>
+           <button type="button" class="button button--ghost" id="account-other">${escapeHtml(t('account.otherEmail'))}</button>
+         </div>
+       </form>`
+    : `<form id="account-email-form" class="card stack stack--tight">
+         <label class="stack stack--tight">
+           <span class="small">${escapeHtml(t('account.email'))}</span>
+           <input type="email" id="account-email" autocomplete="email" inputmode="email"
+                  placeholder="${escapeHtml(t('account.emailPlaceholder'))}" />
+         </label>
+         <div class="row"><button type="submit" class="button button--primary">${escapeHtml(t('account.sendCode'))}</button></div>
+         <p class="muted small">${escapeHtml(t('account.privacy'))}</p>
+         <div class="row"><button type="button" class="button button--small button--ghost" data-goto="#/confidentialite">${escapeHtml(t('privacy.title'))}</button></div>
+       </form>`;
+}
+
+/* ------------------------------------------------- offered on the way in --- */
+
+/**
+ * Just let into a group: the moment to offer an account, once. It is what
+ * keeps the group when the phone wipes its data or is replaced — and nobody
+ * listens to that advice later, from the settings. Optional: « Plus tard »
+ * puts it away, and nothing else changes.
+ */
+function offerAccount(group) {
+  // Answered once — « Plus tard », or signed in — is answered for this device:
+  // the reminder on Home takes over from there.
+  if (!state.remote || account() || state.prefs.accountOfferDone) return false;
+  state.prefs = { ...state.prefs, accountOffer: { name: String(group?.name || ''), at: Date.now() } };
+  savePrefs(state.prefs);
+  return true;
+}
+
+/** Offered for a week at most: by then, the reminder on Home takes over. */
+const OFFER_MS = 7 * 24 * 60 * 60 * 1000;
+
+function offered() {
+  const offer = state.prefs.accountOffer;
+  if (!offer || !state.remote || account() || state.prefs.accountOfferDone) return null;
+  return Date.now() - (offer.at || 0) < OFFER_MS ? offer : null;
+}
+
+function forgetOffer() {
+  const { accountOffer, ...rest } = state.prefs;
+  state.prefs = { ...rest, accountOfferDone: Date.now() };
+  savePrefs(state.prefs);
+}
+
+/** On the groups tab, where someone just let in lands. */
+function accountOfferHtml() {
+  const offer = offered();
+  if (!offer) return '';
+  return `
+    <section class="section account-offer" id="account">
+      <div class="section__head">
+        <h2>${escapeHtml(offer.name ? t('account.offerTitle', { name: offer.name }) : t('account.offerTitleBare'))}</h2>
+      </div>
+      <p class="small">${escapeHtml(t('account.offerWhy'))}</p>
+      ${signInFormHtml()}
+      <p class="muted small">${escapeHtml(t('account.offerWithout'))}</p>
+      <div class="row"><button type="button" class="button button--small button--ghost" data-account-later>${escapeHtml(t('install.later'))}</button></div>
     </section>`;
 }
 
@@ -19545,9 +19869,15 @@ function bindAccount() {
     }
     saveAccount({ ...session, email: session.email || awaiting });
     awaiting = '';
+    forgetOffer();
     flash(t('account.welcome'));
     render();
     await syncAccount({ force: true });
+    render();
+  });
+  view.querySelector('[data-account-later]')?.addEventListener('click', () => {
+    awaiting = '';
+    forgetOffer();
     render();
   });
   view.querySelector('#account-other')?.addEventListener('click', () => {
@@ -21705,7 +22035,11 @@ function groupsView() {
   }
   return `
     ${flashHtml()}
-    ${accountNeededHtml()}
+    ${
+      // Just let in, an account is offered with its form; the same form says
+      // what the reminder would.
+      accountOfferHtml() || accountNeededHtml()
+    }
     ${
       // Knocking at a group asks for a first name: better to meet the field
       // here than to be sent to the settings by an error.
@@ -22234,6 +22568,7 @@ function bindOverview() {
 
 
 
+
 /* ------------------------------------------------------------- coming back --- */
 
 /**
@@ -22301,6 +22636,7 @@ function bindBack(token) {
     } catch {
       // In the group either way.
     }
+    offerAccount(group);
     flash(taken
       ? t('groups.joinedWith', { name: group.name, count: taken })
       : t('groups.joined', { name: group.name }));
@@ -22698,11 +23034,17 @@ function showsGate() {
   return ['overview', 'groups'].includes(route().name);
 }
 
+/** When the knocks were last asked for, while the group's channel is heard. */
+let lastGateLook = 0;
+
 function watchGate() {
   stopWatching();
   if (!state.remote) return;
   state.poll = setInterval(async () => {
     if (isBusy() || isHidden() || !showsGate()) return;
+    // Heard as they happen: a knock is announced on the group's channel.
+    if (liveCoversGroups() && Date.now() - lastGateLook < 60000) return;
+    lastGateLook = Date.now();
     if (await refreshGate()) render();
   }, 15000);
 }
@@ -23069,6 +23411,7 @@ function statsView() {
 
 
 
+
 const view = document.getElementById('view');
 
 const state = {
@@ -23091,6 +23434,8 @@ const state = {
   remote: createRemote(remoteConfig()),
   // Polling while a shared game is on screen.
   poll: null,
+  // Changes heard as they happen, when the database announces them: live.js.
+  live: null,
   // The set of games being fetched, so a redraw does not start a second fetch.
   openingSet: null,
   // The same, for a shared list opened from its link.
@@ -23864,6 +24209,7 @@ function render() {
   takePrefill(current);
   markTab(current);
   setSolo(Boolean(current.solo));
+  listenLive(current);
   const kept = keptScrolls();
   // Nothing to fetch without a database, or before this device is in a group.
   const sync = document.getElementById('sync');
@@ -24095,6 +24441,7 @@ function render() {
   } else if (current.name === 'groups') {
     view.innerHTML = groupsView();
     bindOverview();
+    bindAccount();
     if (state.remote && groups().some((group) => group.admits !== false)) watchGate();
     else stopWatching();
   } else {
@@ -24256,12 +24603,89 @@ async function pullAny(id) {
   return false;
 }
 
+/* ------------------------------------------------------------------- live --- */
+
+/**
+ * The channels worth hearing now: every group this device is in, and the
+ * document on screen — a visitor's poll included, which belongs to no group of
+ * theirs.
+ */
+function liveTopics(current) {
+  const topics = groups().filter((group) => group.channel).map((group) => groupTopic(group.channel));
+  if (['game', 'list', 'spend', 'board', 'poll'].includes(current.name) && current.id) topics.push(docTopic(current.id));
+  return topics;
+}
+
+/** Groups asked for their channel this session, so a database without one is asked once. */
+const askedChannel = new Set();
+
+function listenLive(current) {
+  if (!state.live) return;
+  state.live.watch(liveTopics(current));
+  for (const group of groups().filter((held) => !held.channel && !askedChannel.has(held.id))) {
+    askedChannel.add(group.id);
+    void refreshGroup(group).then((learnt) => learnt && state.live.watch(liveTopics(route())));
+  }
+}
+
+/**
+ * True when the app need not ask the database itself this time: the channel is
+ * heard, and was asked less than a minute ago. The watchers keep their clock;
+ * they only skip their turn.
+ */
+function liveQuiet(topic) {
+  return Boolean(state.live?.quiet(topic));
+}
+
+/** Whether every group's changes would be heard as they happen. */
+function liveCoversGroups() {
+  return Boolean(state.live) && groups().every((group) => group.channel && state.live.covers(groupTopic(group.channel)));
+}
+
+/** Announcements arriving in a burst — a list ticked line after line — cost one fetch at a time. */
+const hearing = new Map();
+
+async function heard(topic) {
+  if (hearing.has(topic)) {
+    hearing.set(topic, true);
+    return;
+  }
+  hearing.set(topic, false);
+  try {
+    let changed = false;
+    const group = groups().find((held) => held.channel && groupTopic(held.channel) === topic);
+    if (group) {
+      changed = (await catchUpWith(group)) > 0;
+      if (showsGate()) changed = (await refreshGate()) || changed;
+    } else if (topic.startsWith('doc-')) {
+      changed = await pullAny(topic.slice('doc-'.length));
+    }
+    if (changed && !isBusy()) render();
+  } catch {
+    // Out of reach for now: the watchers ask again on their own.
+  } finally {
+    const again = hearing.get(topic);
+    hearing.delete(topic);
+    if (again) void heard(topic);
+  }
+}
+
+function startLive() {
+  state.live = createLive({ url: liveUrl(remoteConfig()), key: remoteConfig()?.key, onChange: (topic) => void heard(topic) });
+  if (!state.live) return;
+  // A phone closes the socket of an app left in the background: open it again
+  // on coming back, rather than after the next wait.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') state.live.wake();
+  });
+}
+
 /** While a shared list is on screen, watch for what the others are ticking. */
 function watchList(id) {
   stopWatching();
   if (!state.remote) return;
   state.poll = setInterval(async () => {
-    if (isBusy() || isHidden()) return;
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
     if (await pullList(id)) render();
   }, 5000);
 }
@@ -24272,6 +24696,7 @@ function watchGame(id) {
   if (!state.remote) return;
   state.poll = setInterval(async () => {
     if (isBusy() || isHidden()) return; // never redraw under someone's fingers
+    if (liveQuiet(docTopic(id))) return;
     if (await pullGame(id)) render();
   }, 5000);
 }
@@ -24478,6 +24903,7 @@ render();
 // What happened while the app was closed, learnt on opening it rather than left
 // waiting for someone to press a button: a knock answered, a key cut off.
 if (state.remote) {
+  startLive();
   (async () => {
     const answered = pendings().length ? await checkAllPendings() : false;
     const changed = await verifyGroups();

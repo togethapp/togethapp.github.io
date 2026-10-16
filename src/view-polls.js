@@ -10,8 +10,9 @@
 import {
   attachedHtml, chainButtonsHtml, chainLabel, chainLabelShort, chainOf, documentHref, escapeHtml, everything, flash,
   flashHtml, formatDate, formatDay, formatDayLong, gameCardHtml, gameTitle, groupChipsHtml, isBusy, isHidden,
-  kindsHtml, navigate, pollHome, render, route, signature, state, stopWatching, view, whenText,
+  kindsHtml, liveQuiet, navigate, pollHome, render, route, signature, state, stopWatching, view, whenText,
 } from './app.js';
+import { docTopic } from './live.js';
 import { openEventMenu } from './view-home.js';
 import { archivedHtml, getGame, getList, listCardHtml, listTitle, openPeopleEditor, persistList } from './view-lists.js';
 import { spendCardHtml, spendTitle } from './view-spends.js';
@@ -1715,7 +1716,7 @@ export function watchPoll(id) {
   if (!state.remote) return;
   state.pollWatched = id;
   const look = async () => {
-    if (isBusy() || isHidden()) return;
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
     if (await pullPoll(id)) render();
   };
   // At once, and then every five seconds: opening a poll should show the
@@ -1756,7 +1757,7 @@ export function watchSpend(id) {
   stopWatching();
   if (!state.remote) return;
   state.poll = setInterval(async () => {
-    if (isBusy() || isHidden()) return;
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
     if (await pullSpend(id)) render();
   }, 5000);
 }

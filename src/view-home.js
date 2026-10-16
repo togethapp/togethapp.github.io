@@ -19,7 +19,9 @@ import { joinLink } from './remote.js';
 import { gameStatus } from './scoring.js';
 import { balances, showAmount, spendCurrency, spendTotal } from './spends.js';
 import { sameName } from './stats.js';
-import { accountHtml, accountNeededHtml, accountToken, leaveWithAccount, syncAccount } from './view-account.js';
+import {
+  accountHtml, accountNeededHtml, accountOfferHtml, accountToken, leaveWithAccount, syncAccount,
+} from './view-account.js';
 import { openActivityDialog, openActivityPicker, unblockedHtml } from './view-flows.js';
 import { ask, makeDialog, shareMessage, showCopyDialog } from './view-games.js';
 import {
@@ -957,7 +959,11 @@ export function groupsView() {
   }
   return `
     ${flashHtml()}
-    ${accountNeededHtml()}
+    ${
+      // Just let in, an account is offered with its form; the same form says
+      // what the reminder would.
+      accountOfferHtml() || accountNeededHtml()
+    }
     ${
       // Knocking at a group asks for a first name: better to meet the field
       // here than to be sent to the settings by an error.

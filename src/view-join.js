@@ -6,11 +6,13 @@
  */
 
 import {
-  escapeHtml, flash, flashHtml, isBusy, isHidden, navigate, render, route, state, stopWatching, view,
+  escapeHtml, flash, flashHtml, isBusy, isHidden, liveCoversGroups, navigate, render, route, state, stopWatching,
+  view,
 } from './app.js';
 import { t } from './i18n.js';
 import { readCode } from './lock.js';
 import { backLink } from './remote.js';
+import { offerAccount } from './view-account.js';
 import { ask, makeDialog, showCopyDialog } from './view-games.js';
 import {
   bindInAppWarning, catchUpWith, checkPending, deviceLabel, forgetPending, groups, inAppWarningHtml, myName,
@@ -86,6 +88,7 @@ export function bindBack(token) {
     } catch {
       // In the group either way.
     }
+    offerAccount(group);
     flash(taken
       ? t('groups.joinedWith', { name: group.name, count: taken })
       : t('groups.joined', { name: group.name }));
@@ -483,11 +486,17 @@ export function showsGate() {
   return ['overview', 'groups'].includes(route().name);
 }
 
+/** When the knocks were last asked for, while the group's channel is heard. */
+let lastGateLook = 0;
+
 export function watchGate() {
   stopWatching();
   if (!state.remote) return;
   state.poll = setInterval(async () => {
     if (isBusy() || isHidden() || !showsGate()) return;
+    // Heard as they happen: a knock is announced on the group's channel.
+    if (liveCoversGroups() && Date.now() - lastGateLook < 60000) return;
+    lastGateLook = Date.now();
     if (await refreshGate()) render();
   }, 15000);
 }

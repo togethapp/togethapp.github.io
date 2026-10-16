@@ -35,10 +35,10 @@ import {
 } from './view-ideas.js';
 import { bindGame, bindNewGame, gameView, makeDialog, newGameView } from './view-games.js';
 import {
-  bindDocSwipes, bindEventChips, bindHome, catchUpAll, catchUpQuietly, checkAllPendings, copyToGroup, groupFilter,
-  groups, groupsByName, hiddenByGroupHtml, offerMeInForms, openAttachDialog, openGatherDialog, openRelateDialog,
-  openSet, OUTSIDE_GROUPS, outsideGroups, pendingFor, pendings, putInGroup, refreshGate, setGroupFilter, shownDocs,
-  verifyGroups,
+  bindDocSwipes, bindEventChips, bindHome, catchUpAll, catchUpQuietly, catchUpWith, checkAllPendings, copyToGroup,
+  groupFilter, groups, groupsByName, hiddenByGroupHtml, offerMeInForms, openAttachDialog, openGatherDialog,
+  openRelateDialog, openSet, OUTSIDE_GROUPS, outsideGroups, pendingFor, pendings, putInGroup, refreshGate,
+  refreshGroup, setGroupFilter, shownDocs, verifyGroups,
 } from './view-groups.js';
 import { bindFlows } from './view-flows.js';
 import { bindAccount, privacyView, syncAccount } from './view-account.js';
@@ -47,6 +47,7 @@ import { bindHolo } from './view-holo.js';
 import { applyLook, bindLook, lookIsDark } from './view-look.js';
 import { swipeable } from './swipe.js';
 import { prefillOf, withoutPrefill } from './prefill.js';
+import { createLive, docTopic, groupTopic, liveUrl } from './live.js';
 import { bindOverview, groupsView, groupView, openCreateMenu, overviewView, settingsView } from './view-home.js';
 import { backView, bindBack, bindJoin, joinView, showsGate, watchGate, watchPending } from './view-join.js';
 import { personView, renameEverywhere, statsView } from './view-people.js';
@@ -73,6 +74,8 @@ export const state = {
   remote: createRemote(remoteConfig()),
   // Polling while a shared game is on screen.
   poll: null,
+  // Changes heard as they happen, when the database announces them: live.js.
+  live: null,
   // The set of games being fetched, so a redraw does not start a second fetch.
   openingSet: null,
   // The same, for a shared list opened from its link.
@@ -846,6 +849,7 @@ export function render() {
   takePrefill(current);
   markTab(current);
   setSolo(Boolean(current.solo));
+  listenLive(current);
   const kept = keptScrolls();
   // Nothing to fetch without a database, or before this device is in a group.
   const sync = document.getElementById('sync');
@@ -1077,6 +1081,7 @@ export function render() {
   } else if (current.name === 'groups') {
     view.innerHTML = groupsView();
     bindOverview();
+    bindAccount();
     if (state.remote && groups().some((group) => group.admits !== false)) watchGate();
     else stopWatching();
   } else {
@@ -1238,12 +1243,89 @@ export async function pullAny(id) {
   return false;
 }
 
+/* ------------------------------------------------------------------- live --- */
+
+/**
+ * The channels worth hearing now: every group this device is in, and the
+ * document on screen — a visitor's poll included, which belongs to no group of
+ * theirs.
+ */
+function liveTopics(current) {
+  const topics = groups().filter((group) => group.channel).map((group) => groupTopic(group.channel));
+  if (['game', 'list', 'spend', 'board', 'poll'].includes(current.name) && current.id) topics.push(docTopic(current.id));
+  return topics;
+}
+
+/** Groups asked for their channel this session, so a database without one is asked once. */
+const askedChannel = new Set();
+
+function listenLive(current) {
+  if (!state.live) return;
+  state.live.watch(liveTopics(current));
+  for (const group of groups().filter((held) => !held.channel && !askedChannel.has(held.id))) {
+    askedChannel.add(group.id);
+    void refreshGroup(group).then((learnt) => learnt && state.live.watch(liveTopics(route())));
+  }
+}
+
+/**
+ * True when the app need not ask the database itself this time: the channel is
+ * heard, and was asked less than a minute ago. The watchers keep their clock;
+ * they only skip their turn.
+ */
+export function liveQuiet(topic) {
+  return Boolean(state.live?.quiet(topic));
+}
+
+/** Whether every group's changes would be heard as they happen. */
+export function liveCoversGroups() {
+  return Boolean(state.live) && groups().every((group) => group.channel && state.live.covers(groupTopic(group.channel)));
+}
+
+/** Announcements arriving in a burst — a list ticked line after line — cost one fetch at a time. */
+const hearing = new Map();
+
+async function heard(topic) {
+  if (hearing.has(topic)) {
+    hearing.set(topic, true);
+    return;
+  }
+  hearing.set(topic, false);
+  try {
+    let changed = false;
+    const group = groups().find((held) => held.channel && groupTopic(held.channel) === topic);
+    if (group) {
+      changed = (await catchUpWith(group)) > 0;
+      if (showsGate()) changed = (await refreshGate()) || changed;
+    } else if (topic.startsWith('doc-')) {
+      changed = await pullAny(topic.slice('doc-'.length));
+    }
+    if (changed && !isBusy()) render();
+  } catch {
+    // Out of reach for now: the watchers ask again on their own.
+  } finally {
+    const again = hearing.get(topic);
+    hearing.delete(topic);
+    if (again) void heard(topic);
+  }
+}
+
+function startLive() {
+  state.live = createLive({ url: liveUrl(remoteConfig()), key: remoteConfig()?.key, onChange: (topic) => void heard(topic) });
+  if (!state.live) return;
+  // A phone closes the socket of an app left in the background: open it again
+  // on coming back, rather than after the next wait.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') state.live.wake();
+  });
+}
+
 /** While a shared list is on screen, watch for what the others are ticking. */
 function watchList(id) {
   stopWatching();
   if (!state.remote) return;
   state.poll = setInterval(async () => {
-    if (isBusy() || isHidden()) return;
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
     if (await pullList(id)) render();
   }, 5000);
 }
@@ -1254,6 +1336,7 @@ function watchGame(id) {
   if (!state.remote) return;
   state.poll = setInterval(async () => {
     if (isBusy() || isHidden()) return; // never redraw under someone's fingers
+    if (liveQuiet(docTopic(id))) return;
     if (await pullGame(id)) render();
   }, 5000);
 }
@@ -1460,6 +1543,7 @@ render();
 // What happened while the app was closed, learnt on opening it rather than left
 // waiting for someone to press a button: a knock answered, a key cut off.
 if (state.remote) {
+  startLive();
   (async () => {
     const answered = pendings().length ? await checkAllPendings() : false;
     const changed = await verifyGroups();

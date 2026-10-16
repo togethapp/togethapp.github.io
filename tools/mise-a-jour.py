@@ -31,6 +31,10 @@ def accounts_required_column():
     m = re.search(r"(alter table public\.marque_points_group\n  add column if not exists accounts_required[^;]*;\n)", bis); assert m; return m.group(1)
 def trigger(name):
     m = re.search(r"(drop trigger if exists " + name + r" on [^;]*;\ncreate trigger " + name + r"\n[^;]*;\n)", bis); assert m, name; return m.group(1)
+def channel_column():
+    m = re.search(r"(alter table public\.marque_points_group\n  add column if not exists channel[^;]*;\n)", bis); assert m; return m.group(1)
+def live_triggers():
+    m = re.search(r"(drop trigger if exists marque_points_live on public\.marque_points_games;\n.*?for each row execute function public\.marque_points_live\(\);\n\ndrop trigger if exists marque_points_live on public\.marque_points_request;\n.*?for each row execute function public\.marque_points_live\(\);\n)", bis, flags=re.S); assert m; return m.group(1)
 def alter(column):
     m = re.search(r"(alter table public\.marque_points_games\n  add column if not exists " + column + r"[^;]*;\n)", bis); assert m, column; return m.group(1)
 out = "\n".join([
@@ -65,12 +69,15 @@ out = "\n".join([
 --      agenda, la suppression et les lots aux clés sans compte ; seule une clé
 --      qui fait entrer coupe l'agenda ; un lot ne se retire qu'avec une clé de
 --      son groupe ; un sondage ne grossit plus sans fin sous les envois des
---      visiteurs.
+--      visiteurs ;
+--  10. les changements arrivent aussitôt : la base annonce chaque écriture
+--      sur Supabase Realtime (une annonce vide, sur un canal secret par
+--      groupe), au lieu que l'app redemande toutes les quelques secondes.
 --
 -- Généré depuis docs/DEPLOIEMENT.md, étape 2 bis ; un test vérifie que les
 -- deux disent la même chose. Modifiez le guide, pas ce fichier seul.
 """,
-"-- 6 et 7. Les comptes, et les groupes qui en exigent un : les colonnes d'abord,\n-- que les fonctions ci-dessous lisent.\n" + accounts_column() + "\n" + accounts_required_column(),
+"-- 6 et 7. Les comptes, et les groupes qui en exigent un : les colonnes d'abord,\n-- que les fonctions ci-dessous lisent.\n" + accounts_column() + "\n" + accounts_required_column() + "\n-- 10. Le canal de chaque groupe, que la fonction suivante donne.\n" + channel_column(),
 "-- 1. Deux jours pour une invitation.\n" + function('marque_points_invite'),
 "-- 2. « Lien seulement », et 3. l'organisateur.\n" + alter('listed') + "\n" + alter('owner_hash'),
 "-- 4. Les votes fondus case par case.\n" + function('marque_points_merge_votes'),
@@ -108,10 +115,13 @@ function('marque_points_account_delete'),
 "-- 7. Exiger un compte dans un groupe.\n" + function('marque_points_group_of'),
 function('marque_points_group_keys'),
 function('marque_points_set_accounts'),
+"-- 10. Les changements annoncés aussitôt.\n" + function('marque_points_announce'),
+function('marque_points_live'),
+live_triggers(),
 "-- Pour les comptes connectés seulement, pas pour la clé publique de la page.\n" + "\n".join(
     [revoke(n) for n in ['marque_points_account_link', 'marque_points_account_owner_put', 'marque_points_account_restore', 'marque_points_account_leave', 'marque_points_account_delete']]
     + [grant(n) for n in ['marque_points_account_link', 'marque_points_account_owner_put', 'marque_points_account_restore', 'marque_points_account_leave', 'marque_points_account_delete']]
-    + [revoke('marque_points_account_cut_mark')]
+    + [revoke('marque_points_account_cut_mark'), revoke('marque_points_announce'), revoke('marque_points_live')]
     + [grant(n) for n in ['marque_points_group_of', 'marque_points_group_keys', 'marque_points_set_accounts']]) + "\n",
 ])
 (root / 'supabase/mise-a-jour.sql').write_text(out)

@@ -87,8 +87,17 @@ web, aucune dépendance, aucun build.
   chaque fois qu'on y revient, elle va chercher ce que le groupe a partagé
   depuis — Safari et l'app de l'écran d'accueil sont deux appareils, et ne se
   parlent que par la base. Le bouton **⟳** de la barre du haut le fait sur
-  commande et dit combien d'éléments sont arrivés ; un document ouvert à l'écran,
-  lui, se met à jour toutes les cinq secondes.
+  commande et dit combien d'éléments sont arrivés.
+- **Et pendant qu'on regarde, aussitôt** : la base annonce chaque écriture sur
+  Supabase Realtime (déclencheur `marque_points_live`) — une annonce vide, sur
+  le canal du document et sur celui de son groupe, dont le nom est tiré au
+  hasard et donné seulement avec une clé (`group_of` → `channel`). L'app
+  écoute ses groupes et le document à l'écran, puis redemande comme d'habitude,
+  avec sa clé : une clé coupée n'apprend rien de plus. Sans Realtime (ou
+  canal refusé), elle redemande toutes les 5 s (document ouvert) et 20 s
+  (groupes), comme avant ; quand elle entend, une fois par minute seulement,
+  au cas où une annonce se perdrait. `src/live.js` (client Phoenix écrit à la
+  main) ; suite `direct`, contrôle SQL `annonces`.
 - **Ce prénom sert ensuite partout** : le groupe voit qui est entré, et vous êtes
   proposé en premier dans une nouvelle liste, un sondage ou une partie — proposé
   une fois, au moment où le formulaire est vide ; effacé, il reste effacé. Il ne
@@ -565,6 +574,12 @@ l'ancienne le faisait), les secrets d'organisateur, le prénom.
 - Synchronisé à l'ouverture de l'app, en rejoignant un groupe, et par
   **Synchroniser** — seulement ce qui est nouveau (une clé, un secret), pas
   tout à chaque fois. Se déconnecter laisse tout sur l'appareil.
+- **Proposé à l'entrée** (étape 2) : qui vient d'être accepté dans un groupe
+  — ou revient par son lien de retour — trouve en tête de l'onglet Groupes
+  « Garder Mifa sur un compte ? », le formulaire sur place, et le lien de
+  retour comme autre voie. **Plus tard** le range pour de bon sur cet
+  appareil (le rappel de l'Accueil prend le relais) ; se connecter aussi.
+  Suite `offrecompte`.
 - Les visiteurs d'un lien de sondage n'ont besoin de rien.
 - **Exiger un compte**, groupe par groupe (Groupes → le groupe → Appareils,
   pour une clé qui fait entrer) : la liste dit combien d'appareils ont un
@@ -789,8 +804,11 @@ src/config.js     l'adresse de cette base, à remplir pour activer le partage
 tools/check-remote.js  vérifie que la base est correctement configurée
 docs/DEPLOIEMENT.md    mise en ligne pas à pas
 src/i18n.js       traductions fr / en
-src/app.js        routeur, accueil, agenda, pages des personnes
-src/view-*.js     un écran chacun : sondages, listes, comptes, idées, parties, groupes
+src/app.js        routeur, rendu, relèves, et les aides communes aux écrans
+src/view-*.js     un écran chacun : accueil et réglages (home), entrée dans un
+                  groupe (join), personnes (people), sondages, listes, comptes,
+                  idées, parties, groupes
+src/live.js       les changements entendus aussitôt (Supabase Realtime)
 tools/serve.js    serveur statique de développement
 tools/bundle.js   construction du fichier unique autonome
 dist/             le fichier unique, livré dans le dépôt

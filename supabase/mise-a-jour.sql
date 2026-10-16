@@ -29,7 +29,10 @@
 --      agenda, la suppression et les lots aux clés sans compte ; seule une clé
 --      qui fait entrer coupe l'agenda ; un lot ne se retire qu'avec une clé de
 --      son groupe ; un sondage ne grossit plus sans fin sous les envois des
---      visiteurs.
+--      visiteurs ;
+--  10. les changements arrivent aussitôt : la base annonce chaque écriture
+--      sur Supabase Realtime (une annonce vide, sur un canal secret par
+--      groupe), au lieu que l'app redemande toutes les quelques secondes.
 --
 -- Généré depuis docs/DEPLOIEMENT.md, étape 2 bis ; un test vérifie que les
 -- deux disent la même chose. Modifiez le guide, pas ce fichier seul.
@@ -42,6 +45,10 @@ create index if not exists marque_points_group_key_user on public.marque_points_
 
 alter table public.marque_points_group
   add column if not exists accounts_required boolean not null default false;
+
+-- 10. Le canal de chaque groupe, que la fonction suivante donne.
+alter table public.marque_points_group
+  add column if not exists channel text not null default replace(gen_random_uuid()::text, '-', '');
 
 -- 1. Deux jours pour une invitation.
 create or replace function public.marque_points_invite(
@@ -728,7 +735,8 @@ security definer
 set search_path = public
 as $$
   select jsonb_build_object('id', g.id, 'name', g.name, 'admits', k.admits,
-                            'accounts', g.accounts_required, 'linked', k.user_id is not null)
+                            'accounts', g.accounts_required, 'linked', k.user_id is not null,
+                            'channel', g.channel)
     from public.marque_points_group_key k
     join public.marque_points_group g on g.id = k.group_id
    where k.key_hash = md5(coalesce(p_key, '') || k.key_salt)
@@ -793,6 +801,75 @@ begin
 end;
 $$;
 
+-- 10. Les changements annoncés aussitôt.
+create or replace function public.marque_points_announce(p_topic text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if to_regprocedure('realtime.send(jsonb, text, text, boolean)') is null then
+    return;
+  end if;
+  execute 'select realtime.send($1, $2, $3, false)' using '{}'::jsonb, 'changed', p_topic;
+exception when others then
+  null;
+end;
+$$;
+
+create or replace function public.marque_points_live()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_channel text;
+  v_fresh boolean := false;
+begin
+  if tg_table_name = 'marque_points_request' then
+    select channel into v_channel from public.marque_points_group where id = new.group_id;
+    if found then
+      perform public.marque_points_announce('group-' || v_channel);
+    end if;
+    return null;
+  end if;
+  if tg_op <> 'INSERT' then
+    perform public.marque_points_announce('doc-' || old.id);
+    if old.group_id is not null and old.listed and old.code_hash is null then
+      select channel into v_channel from public.marque_points_group where id = old.group_id;
+      if found then
+        perform public.marque_points_announce('group-' || v_channel);
+      end if;
+    end if;
+  end if;
+  if tg_op = 'INSERT' then
+    perform public.marque_points_announce('doc-' || new.id);
+    v_fresh := true;
+  elsif tg_op = 'UPDATE' then
+    v_fresh := new.group_id is distinct from old.group_id or not old.listed or old.code_hash is not null;
+  end if;
+  if v_fresh and new.group_id is not null and new.listed and new.code_hash is null then
+    select channel into v_channel from public.marque_points_group where id = new.group_id;
+    if found then
+      perform public.marque_points_announce('group-' || v_channel);
+    end if;
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists marque_points_live on public.marque_points_games;
+create trigger marque_points_live
+  after insert or update or delete on public.marque_points_games
+  for each row execute function public.marque_points_live();
+
+drop trigger if exists marque_points_live on public.marque_points_request;
+create trigger marque_points_live
+  after insert on public.marque_points_request
+  for each row execute function public.marque_points_live();
+
 -- Pour les comptes connectés seulement, pas pour la clé publique de la page.
 revoke all on function public.marque_points_account_link(text, text) from public, anon;
 revoke all on function public.marque_points_account_owner_put(text, text) from public, anon;
@@ -805,6 +882,8 @@ grant execute on function public.marque_points_account_restore(jsonb, text) to a
 grant execute on function public.marque_points_account_leave(text) to authenticated;
 grant execute on function public.marque_points_account_delete() to authenticated;
 revoke all on function public.marque_points_account_cut_mark() from public, anon, authenticated;
+revoke all on function public.marque_points_announce(text) from public, anon, authenticated;
+revoke all on function public.marque_points_live() from public, anon, authenticated;
 grant execute on function public.marque_points_group_of(text) to anon, authenticated;
 grant execute on function public.marque_points_group_keys(text) to anon, authenticated;
 grant execute on function public.marque_points_set_accounts(text, boolean) to anon, authenticated;

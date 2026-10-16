@@ -242,6 +242,12 @@ alter table public.marque_points_group enable row level security;
 alter table public.marque_points_group
   add column if not exists accounts_required boolean not null default false;
 
+-- Le nom du canal où la base annonce les changements du groupe (voir « Les
+-- changements annoncés aussitôt », plus bas) : tiré au hasard, donné seulement
+-- à qui a une clé.
+alter table public.marque_points_group
+  add column if not exists channel text not null default replace(gen_random_uuid()::text, '-', '');
+
 -- Deux groupes du même nom seraient indiscernables : on entre dans un groupe en
 -- disant son nom, et un lien d'invitation ne porte que ce nom. Sur une base qui
 -- en aurait déjà deux, l'index n'est pas créé et un message le dit — renommez-en
@@ -530,7 +536,8 @@ security definer
 set search_path = public
 as $$
   select jsonb_build_object('id', g.id, 'name', g.name, 'admits', k.admits,
-                            'accounts', g.accounts_required, 'linked', k.user_id is not null)
+                            'accounts', g.accounts_required, 'linked', k.user_id is not null,
+                            'channel', g.channel)
     from public.marque_points_group_key k
     join public.marque_points_group g on g.id = k.group_id
    where k.key_hash = md5(coalesce(p_key, '') || k.key_salt)
@@ -1811,6 +1818,81 @@ begin
 end;
 $$;
 
+-- Les changements annoncés aussitôt : à chaque écriture, la base dit « ça a
+-- changé » sur Supabase Realtime, sur le canal du document et sur celui de son
+-- groupe. L'annonce ne porte rien, ni identifiant ni contenu : l'app qui
+-- l'entend redemande comme d'habitude, avec sa clé. Le canal d'un groupe a un
+-- nom tiré au hasard (colonne channel, plus haut), donné seulement à qui a une
+-- clé. Sans Realtime, rien n'est annoncé, rien n'échoue, et l'app redemande
+-- toutes les quelques secondes, comme avant.
+create or replace function public.marque_points_announce(p_topic text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if to_regprocedure('realtime.send(jsonb, text, text, boolean)') is null then
+    return;
+  end if;
+  execute 'select realtime.send($1, $2, $3, false)' using '{}'::jsonb, 'changed', p_topic;
+exception when others then
+  null;
+end;
+$$;
+
+create or replace function public.marque_points_live()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_channel text;
+  v_fresh boolean := false;
+begin
+  if tg_table_name = 'marque_points_request' then
+    select channel into v_channel from public.marque_points_group where id = new.group_id;
+    if found then
+      perform public.marque_points_announce('group-' || v_channel);
+    end if;
+    return null;
+  end if;
+  if tg_op <> 'INSERT' then
+    perform public.marque_points_announce('doc-' || old.id);
+    if old.group_id is not null and old.listed and old.code_hash is null then
+      select channel into v_channel from public.marque_points_group where id = old.group_id;
+      if found then
+        perform public.marque_points_announce('group-' || v_channel);
+      end if;
+    end if;
+  end if;
+  if tg_op = 'INSERT' then
+    perform public.marque_points_announce('doc-' || new.id);
+    v_fresh := true;
+  elsif tg_op = 'UPDATE' then
+    v_fresh := new.group_id is distinct from old.group_id or not old.listed or old.code_hash is not null;
+  end if;
+  if v_fresh and new.group_id is not null and new.listed and new.code_hash is null then
+    select channel into v_channel from public.marque_points_group where id = new.group_id;
+    if found then
+      perform public.marque_points_announce('group-' || v_channel);
+    end if;
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists marque_points_live on public.marque_points_games;
+create trigger marque_points_live
+  after insert or update or delete on public.marque_points_games
+  for each row execute function public.marque_points_live();
+
+drop trigger if exists marque_points_live on public.marque_points_request;
+create trigger marque_points_live
+  after insert on public.marque_points_request
+  for each row execute function public.marque_points_live();
+
 -- PostgreSQL accorde l'exécution à tout le monde par défaut : ce qui ne doit
 -- s'exécuter que d'ici, depuis l'éditeur SQL, doit être retiré explicitement.
 -- Sans cette ligne, quiconque a la clé publique de la page — elle est dans le
@@ -1850,6 +1932,8 @@ grant execute on function public.marque_points_account_leave(text) to authentica
 revoke all on function public.marque_points_account_delete() from public, anon;
 grant execute on function public.marque_points_set_accounts(text, boolean) to anon, authenticated;
 revoke all on function public.marque_points_account_cut_mark() from public, anon, authenticated;
+revoke all on function public.marque_points_announce(text) from public, anon, authenticated;
+revoke all on function public.marque_points_live() from public, anon, authenticated;
 grant execute on function public.marque_points_account_delete() to authenticated;
 ```
 

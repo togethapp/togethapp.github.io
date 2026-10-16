@@ -30,8 +30,9 @@ App web installable (PWA), sans dépendance ni framework : modules ES dans
 facultative : Supabase (supabase.com), appelée uniquement par des fonctions
 RPC `security definer` ; la table n'est jamais exposée.
 
-- `src/app.js` : routeur, accueil, agenda, personnes ; `src/view-*.js` : un
-  écran chacun (sondages, listes, comptes, idées, parties, groupes), qui rappellent
+- `src/app.js` : routeur, rendu, relèves ; `src/view-*.js` : un écran chacun
+  (accueil, entrée dans un groupe, personnes, sondages, listes, comptes, idées,
+  parties, groupes), qui rappellent
   `app.js` depuis leurs fonctions seulement ; `src/i18n.js` : tous les textes
   (FR et EN, ajouter les deux ; pluriel : `{count|ligne|lignes}`) ; `src/remote.js` : appels à la base ; `polls.js`,
   `lists.js`, `spends.js`, `ideas.js`, `model.js` (parties) : la logique pure, testée.
