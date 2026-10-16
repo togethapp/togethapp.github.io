@@ -92,7 +92,9 @@ for (const [target, name] of BUILDS) {
 test('an import spread over several lines is stripped like any other', async () => {
   const { bundle } = await import('../tools/bundle.js');
   const page = await bundle('page');
-  const body = page.slice(page.indexOf('<script>') + 8, page.indexOf('</script>'));
+  // The app's own script, not the few lines in <head> that set the look first.
+  const start = page.indexOf('<script>') + 8;
+  const body = page.slice(start, page.indexOf('</script>', start));
 
   assert.ok(!/^\s*import\s/m.test(body), 'no import survived the bundling');
   assert.ok(body.includes('createList'), 'and what it imported is in there');

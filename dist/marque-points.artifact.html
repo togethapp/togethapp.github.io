@@ -2,11 +2,18 @@
 <style>
 /* ---------------------------------------------------------------- tokens --- */
 /*
- * The look: a hologram — night blue, cyan light, thin lines, glass, small
- * capitals in an instrument face. Night is the app's own look, whatever the
- * phone's setting; the moon button gives the same language on ice. Every
- * colour that carries words is checked against its background: 4.5:1 at
- * least, in both.
+ * How the app looks, chosen in Réglages → Apparence (src/view-look.js) and
+ * written as attributes on the root element:
+ *
+ * - a style, `data-look`: none for the hologram, the app's own look (night
+ *   blue, cyan light, glass, small capitals in an instrument face);
+ *   `classic`, the first look (warm paper, amber, nothing that glows);
+ *   `calm` (greys, flat);
+ * - `data-accent`, a colour chosen over the style's own;
+ * - `data-theme="light"` for light; night otherwise, whatever the phone says.
+ *
+ * Every colour that carries words reaches 4.5:1 against its ground, in every
+ * style, colour and theme: tests/contrast.test.js reads these blocks.
  */
 :root {
   --bg: #050b16;
@@ -15,23 +22,55 @@
   --border: #1c3350;
   --text: #e3f3ff;
   --muted: #8aa5c1;
-  --accent: #5ff3ff;
-  --accent-text: #021019;
-  --accent-soft: #0b2a38;
   --good: #46f0a0;
   --bad: #ff5f7e;
-  /* Light itself: the halo round what glows, the grid on the glass, the
-     haze from the top, the glass of the bars, a field to type in. */
-  --glow: rgb(95 243 255 / 28%);
+  /* The colours one may choose, in their night shades — which the 3D view
+     on Home keeps whatever the theme, since it is always night in there. */
+  --night-cyan: #5ff3ff;
+  --night-violet: #b9a0ff;
+  --night-green: #4ff0a0;
+  --night-amber: #f2b14d;
+  --night-pink: #ff85dc;
+  --night-blue: #7ab8ff;
+  --accent-cyan: var(--night-cyan);
+  --accent-violet: var(--night-violet);
+  --accent-green: var(--night-green);
+  --accent-amber: var(--night-amber);
+  --accent-pink: var(--night-pink);
+  --accent-blue: var(--night-blue);
+  --accent: var(--accent-cyan);
+  --holo-hue: var(--night-cyan);
+  --accent-text: #04101a;
+  /* Made from the colour, so that any colour sits on any style. */
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  --glow: color-mix(in srgb, var(--accent) 28%, transparent);
+  --ring: color-mix(in srgb, var(--accent) 30%, transparent);
+  /* The grid on the glass, the haze from the top, the glass of the bars, a
+     field to type in, the veil behind a dialog. */
   --grid: rgb(95 243 255 / 4%);
   --haze: rgb(40 110 190 / 30%);
   --glass: rgb(5 11 22 / 74%);
   --field: #07111f;
   --scrim: rgb(2 6 14 / 72%);
   --shadow: 0 1px 2px rgb(0 0 0 / 50%), 0 8px 24px rgb(0 0 0 / 35%);
-  --shadow-lift: 0 0 0 1px rgb(95 243 255 / 22%), 0 12px 30px rgb(0 0 0 / 45%), 0 0 22px rgb(95 243 255 / 12%);
-  --ring: rgb(95 243 255 / 30%);
-  --hud: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --shadow-lift: 0 0 0 1px var(--ring), 0 12px 30px rgb(0 0 0 / 45%), 0 0 22px var(--glow);
+  /* What makes the hologram one: the instrument face, small capitals spaced
+     out, a tick of light on titles and panels, a thread under the top bar,
+     a sheen of the colour on panels. The other styles turn them off. */
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --hud: var(--mono);
+  --hud-case: uppercase;
+  --hud-spacing: 0.16em;
+  --section-size: 0.74rem;
+  --section-weight: 600;
+  --section-color: var(--accent);
+  --brand-font: var(--mono);
+  --brand-size: 0.95rem;
+  --brand-spacing: 0.2em;
+  --brand-case: uppercase;
+  --tick: block;
+  --thread: 0.5;
+  --sheen: 5%;
   --radius: 16px;
   --radius-sm: 11px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -45,22 +84,142 @@
   --border: #cddcea;
   --text: #0a1626;
   --muted: #4c6176;
-  --accent: #00718c;
-  --accent-text: #ffffff;
-  --accent-soft: #dcf2f8;
   --good: #0b7d4c;
   --bad: #c8233f;
-  --glow: rgb(0 113 140 / 16%);
+  /* The same colours, deep enough to read on light. */
+  --accent-cyan: #00718c;
+  --accent-violet: #6a3fcf;
+  --accent-green: #067044;
+  --accent-amber: #985a00;
+  --accent-pink: #b4237c;
+  --accent-blue: #1f5fbf;
+  --accent-text: #ffffff;
+  --glow: color-mix(in srgb, var(--accent) 16%, transparent);
+  --ring: color-mix(in srgb, var(--accent) 22%, transparent);
   --grid: rgb(0 90 140 / 5%);
   --haze: rgb(120 200 240 / 35%);
   --glass: rgb(255 255 255 / 78%);
   --field: #f7fafd;
   --scrim: rgb(10 22 38 / 40%);
   --shadow: 0 1px 2px rgb(10 30 60 / 6%), 0 6px 18px rgb(10 30 60 / 7%);
-  --shadow-lift: 0 0 0 1px rgb(0 113 140 / 22%), 0 12px 28px rgb(10 30 60 / 12%);
-  --ring: rgb(0 113 140 / 22%);
+  --shadow-lift: 0 0 0 1px var(--ring), 0 12px 28px rgb(10 30 60 / 12%);
   color-scheme: light;
 }
+
+/* Classique: the app's first look — warm paper and amber, nothing glows, and
+   titles are set in the reading face. */
+:root[data-look='classic'] {
+  --bg: #17150f;
+  --surface: #211e17;
+  --surface-alt: #2b2720;
+  --border: #3b362c;
+  --text: #f2ede2;
+  --muted: #a49a89;
+  --good: #66bd86;
+  --bad: #e4796b;
+  --accent: var(--accent-amber);
+  --holo-hue: var(--night-amber);
+  --glow: transparent;
+  --grid: transparent;
+  --haze: color-mix(in srgb, var(--accent) 10%, transparent);
+  --glass: rgb(23 21 15 / 82%);
+  --field: #1c1a14;
+  --scrim: rgb(0 0 0 / 55%);
+  --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 6px 18px rgb(0 0 0 / 25%);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 45%), 0 14px 32px rgb(0 0 0 / 38%);
+  --hud: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --hud-case: none;
+  --hud-spacing: 0em;
+  --section-size: 1.15rem;
+  --section-weight: 700;
+  --section-color: var(--text);
+  --brand-font: inherit;
+  --brand-size: 1.1rem;
+  --brand-spacing: -0.02em;
+  --brand-case: none;
+  --tick: none;
+  --thread: 0;
+  --sheen: 0%;
+  --radius: 18px;
+  --radius-sm: 12px;
+}
+
+:root[data-look='classic'][data-theme='light'] {
+  --bg: #f6f4ef;
+  --surface: #ffffff;
+  --surface-alt: #f0ece3;
+  --border: #ded7c9;
+  --text: #241f18;
+  --muted: #6d6458;
+  --good: #2f7d4f;
+  --bad: #b2372c;
+  --glass: rgb(255 255 255 / 80%);
+  --field: #ffffff;
+  --scrim: rgb(0 0 0 / 45%);
+  --shadow: 0 1px 2px rgb(36 31 24 / 6%), 0 4px 14px rgb(36 31 24 / 5%);
+  --shadow-lift: 0 2px 4px rgb(36 31 24 / 7%), 0 12px 28px rgb(36 31 24 / 10%);
+}
+
+/* Épuré: greys, flat, the colour only where it means something. */
+:root[data-look='calm'] {
+  --bg: #111214;
+  --surface: #1a1b1e;
+  --surface-alt: #232428;
+  --border: #2f3136;
+  --text: #ececee;
+  --muted: #a1a4ab;
+  --good: #5fd08e;
+  --bad: #f2737f;
+  --accent: var(--accent-blue);
+  --holo-hue: var(--night-blue);
+  --glow: transparent;
+  --grid: transparent;
+  --haze: transparent;
+  --glass: rgb(17 18 20 / 86%);
+  --field: #151619;
+  --scrim: rgb(0 0 0 / 60%);
+  --shadow: 0 1px 2px rgb(0 0 0 / 35%);
+  --shadow-lift: 0 0 0 1px var(--border), 0 6px 16px rgb(0 0 0 / 35%);
+  --hud: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --hud-case: uppercase;
+  --hud-spacing: 0.08em;
+  --section-size: 0.76rem;
+  --section-weight: 650;
+  --section-color: var(--muted);
+  --brand-font: inherit;
+  --brand-size: 1.05rem;
+  --brand-spacing: 0em;
+  --brand-case: none;
+  --tick: none;
+  --thread: 0;
+  --sheen: 0%;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+:root[data-look='calm'][data-theme='light'] {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-alt: #efeff2;
+  --border: #dcdce1;
+  --text: #18181b;
+  --muted: #5d6068;
+  --good: #1d7a48;
+  --bad: #c0313f;
+  --glass: rgb(255 255 255 / 86%);
+  --field: #ffffff;
+  --scrim: rgb(0 0 0 / 35%);
+  --shadow: 0 1px 2px rgb(0 0 0 / 6%);
+  --shadow-lift: 0 0 0 1px var(--border), 0 6px 16px rgb(0 0 0 / 8%);
+}
+
+/* A colour chosen in the settings wins over the style's own. */
+:root[data-accent='cyan'] { --accent: var(--accent-cyan); --holo-hue: var(--night-cyan); }
+:root[data-accent='violet'] { --accent: var(--accent-violet); --holo-hue: var(--night-violet); }
+:root[data-accent='green'] { --accent: var(--accent-green); --holo-hue: var(--night-green); }
+:root[data-accent='amber'] { --accent: var(--accent-amber); --holo-hue: var(--night-amber); }
+:root[data-accent='pink'] { --accent: var(--accent-pink); --holo-hue: var(--night-pink); }
+:root[data-accent='blue'] { --accent: var(--accent-blue); --holo-hue: var(--night-blue); }
 
 /* ------------------------------------------------------------------ base --- */
 * { box-sizing: border-box; }
@@ -145,7 +304,7 @@ a { color: inherit; }
   bottom: -1px;
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--accent) 50%, transparent);
-  opacity: 0.5;
+  opacity: var(--thread);
   pointer-events: none;
 }
 
@@ -164,15 +323,15 @@ a { color: inherit; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--hud);
-  font-size: 0.95rem;
+  font-family: var(--brand-font);
+  font-size: var(--brand-size);
   font-weight: 700;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+  letter-spacing: var(--brand-spacing);
+  text-transform: var(--brand-case);
 }
 
 @media (max-width: 380px) {
-  .app-bar__brand strong { font-size: 0.8rem; letter-spacing: 0.08em; }
+  :root:not([data-look]) .app-bar__brand strong { font-size: 0.8rem; letter-spacing: 0.08em; }
 }
 .app-bar__brand small { display: block; color: var(--muted); font-size: 0.75rem; }
 /* The mark: two tokens side by side, in the accent, at the size of a word. */
@@ -227,15 +386,16 @@ a { color: inherit; }
   align-items: center;
   gap: 10px;
   font-family: var(--hud);
-  font-size: 0.74rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--accent);
+  font-size: var(--section-size);
+  font-weight: var(--section-weight);
+  letter-spacing: var(--hud-spacing);
+  text-transform: var(--hud-case);
+  color: var(--section-color);
 }
 
 .section__head h2::before {
   content: '';
+  display: var(--tick);
   flex: none;
   width: 14px;
   height: 2px;
@@ -247,7 +407,7 @@ a { color: inherit; }
 .card {
   position: relative;
   background: var(--surface);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, var(--surface)), var(--surface) 45%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) var(--sheen), var(--surface)), var(--surface) 45%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -259,6 +419,7 @@ a { color: inherit; }
 .card::before,
 .game-card::before {
   content: '';
+  display: var(--tick);
   position: absolute;
   top: -1px;
   left: 18px;
@@ -432,7 +593,7 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
 .code-box__label { font-size: 0.8rem; font-weight: 550; }
 
 .code-box__value {
-  font-family: var(--hud);
+  font-family: var(--mono);
   font-size: 1.8rem;
   letter-spacing: 0.18em;
   color: var(--accent);
@@ -440,7 +601,7 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
 }
 
 .code-input {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--mono);
   font-size: 1.5rem;
   letter-spacing: 0.18em;
   text-align: center;
@@ -456,7 +617,7 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
 
 /* Le même code, mais à lire et à recopier plutôt qu'à saisir. */
 .code-shown {
-  font-family: var(--hud);
+  font-family: var(--mono);
   color: var(--accent);
   font-size: 1.1rem;
   letter-spacing: 0.14em;
@@ -507,7 +668,7 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
 
 .lot__code {
   margin-right: 8px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--mono);
   font-size: 1.05rem;
   letter-spacing: 0.12em;
 }
@@ -551,7 +712,7 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 4%, var(--surface)), var(--surface) 55%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) var(--sheen), var(--surface)), var(--surface) 55%);
   box-shadow: var(--shadow);
   color: inherit;
   font: inherit;
@@ -713,7 +874,7 @@ table.scores td:first-child {
   background: var(--surface);
 }
 
-table.scores thead th { color: var(--muted); font-family: var(--hud); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+table.scores thead th { color: var(--muted); font-family: var(--hud); font-size: 0.68rem; font-weight: 600; letter-spacing: calc(var(--hud-spacing) / 2); text-transform: var(--hud-case); }
 table.scores tbody tr:hover td { background: var(--surface-alt); }
 table.scores tbody tr:hover td:first-child { background: var(--surface-alt); }
 table.scores tfoot td { font-weight: 700; border-bottom: none; }
@@ -1130,7 +1291,13 @@ select.field-pill {
   cursor: pointer;
 }
 
-.vote--yes { border-color: #2bd88a; background: #0c2a1f; color: #7dffc0; box-shadow: 0 0 10px rgb(70 240 160 / 20%); }
+/* A yes is green in every style: made from --good, so it sits on each. */
+.vote--yes {
+  border-color: var(--good);
+  background: color-mix(in srgb, var(--good) 16%, var(--surface));
+  color: color-mix(in srgb, var(--good) 75%, var(--text));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--good) 22%, transparent);
+}
 .vote[disabled] { cursor: default; opacity: 0.75; }
 /* The others' cells, while this device answers for someone: still readable,
    plainly not for touching. */
@@ -1164,7 +1331,7 @@ select.field-pill {
 
 
 
-:root[data-theme="light"] .vote--yes { border-color: #0b7d4c; background: #e3f6ec; color: #0b5e3a; box-shadow: none; }
+
 
 /* ------------------------------------------------------------------ solo --- */
 /*
@@ -1358,7 +1525,7 @@ body:not(.solo) .view {
 .dialog::backdrop { background: var(--scrim); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
 
 .dialog textarea {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--mono);
   font-size: 0.78rem;
 }
 
@@ -1601,6 +1768,36 @@ body:not(.solo) .view {
 .swatch--pen .swatch__rubber { background: transparent; border: 2px solid var(--text); }
 .swatch--on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 
+/* Réglages → Apparence: each colour shown as itself; « A », the style's own. */
+.tints { gap: 4px; }
+
+.tint {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.tint__dot {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--tint);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%), 0 0 10px color-mix(in srgb, var(--tint) 35%, transparent);
+  color: var(--accent-text);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.tint--on { border-color: var(--text); }
+
 /* A card or a line that slides left to uncover « Supprimer » (src/swipe.js). */
 .swipe {
   position: relative;
@@ -1719,15 +1916,15 @@ body:not(.solo) .view {
  * screen, every gesture belongs to the sky.
  */
 .holo {
-  --holo-ink: #c9f6ff;
-  --holo-line: rgb(95 243 255 / 60%);
+  --holo-ink: color-mix(in srgb, var(--holo-hue) 25%, #ffffff);
+  --holo-line: color-mix(in srgb, var(--holo-hue) 60%, transparent);
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  border: 1px solid rgb(95 243 255 / 22%);
+  border: 1px solid color-mix(in srgb, var(--holo-hue) 22%, transparent);
   border-radius: var(--radius);
-  background: radial-gradient(120% 90% at 50% -10%, #12305a 0%, #081329 45%, #03060d 100%);
-  box-shadow: 0 10px 30px rgb(0 30 70 / 28%), inset 0 0 50px rgb(95 243 255 / 6%);
+  background: radial-gradient(120% 90% at 50% -10%, color-mix(in srgb, var(--holo-hue) 18%, #081329) 0%, #081329 45%, #03060d 100%);
+  box-shadow: 0 10px 30px rgb(0 30 70 / 28%), inset 0 0 50px color-mix(in srgb, var(--holo-hue) 6%, transparent);
   color: var(--holo-ink);
   font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 }
@@ -1759,7 +1956,7 @@ body:not(.solo) .view {
   right: 0;
   top: -35%;
   height: 35%;
-  background: linear-gradient(to bottom, transparent, rgb(95 243 255 / 7%), transparent);
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--holo-hue) 7%, transparent), transparent);
   animation: holo-sweep 7s linear infinite;
 }
 
@@ -1805,7 +2002,7 @@ body:not(.solo) .view {
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  text-shadow: 0 0 8px rgb(95 243 255 / 60%);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--holo-hue) 60%, transparent);
   white-space: nowrap;
 }
 
@@ -1814,8 +2011,8 @@ body:not(.solo) .view {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #5ff3ff;
-  box-shadow: 0 0 8px #5ff3ff;
+  background: var(--holo-hue);
+  box-shadow: 0 0 8px var(--holo-hue);
   animation: holo-pulse 2s ease-in-out infinite;
 }
 
@@ -1829,7 +2026,7 @@ body:not(.solo) .view {
   width: 34px;
   height: 34px;
   padding: 0;
-  border: 1px solid rgb(95 243 255 / 35%);
+  border: 1px solid color-mix(in srgb, var(--holo-hue) 35%, transparent);
   border-radius: 10px;
   background: rgb(6 16 32 / 60%);
   color: var(--holo-ink);
@@ -1839,9 +2036,9 @@ body:not(.solo) .view {
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
 }
 
-.holo__button:hover { border-color: #5ff3ff; box-shadow: 0 0 12px rgb(95 243 255 / 35%); }
+.holo__button:hover { border-color: var(--holo-hue); box-shadow: 0 0 12px color-mix(in srgb, var(--holo-hue) 35%, transparent); }
 .holo__button:active { transform: scale(0.94); }
-.holo__button:focus-visible { outline: 2px solid #5ff3ff; outline-offset: 2px; }
+.holo__button:focus-visible { outline: 2px solid var(--holo-hue); outline-offset: 2px; }
 
 .holo__button svg {
   width: 18px;
@@ -1864,7 +2061,7 @@ body:not(.solo) .view {
   font-size: 0.62rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgb(201 246 255 / 78%);
+  color: color-mix(in srgb, var(--holo-ink) 78%, transparent);
   pointer-events: none;
 }
 
@@ -1876,7 +2073,7 @@ body:not(.solo) .view {
   line-height: 1.45;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgb(201 246 255 / 55%);
+  color: color-mix(in srgb, var(--holo-ink) 55%, transparent);
 }
 
 /* What a tap picked: its kind, its name, where it belongs, and the way in. */
@@ -1890,13 +2087,13 @@ body:not(.solo) .view {
   align-items: center;
   gap: 1px 12px;
   padding: 9px 10px 9px 12px;
-  border: 1px solid rgb(95 243 255 / 30%);
-  border-left: 3px solid var(--holo-kind, #5ff3ff);
+  border: 1px solid color-mix(in srgb, var(--holo-hue) 30%, transparent);
+  border-left: 3px solid var(--holo-kind, var(--holo-hue));
   border-radius: 10px;
   background: rgb(4 12 26 / 82%);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
-  box-shadow: 0 0 18px rgb(95 243 255 / 14%);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--holo-hue) 14%, transparent);
   animation: holo-in 0.18s ease-out;
 }
 
@@ -1907,7 +2104,7 @@ body:not(.solo) .view {
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--holo-kind, #5ff3ff);
+  color: var(--holo-kind, var(--holo-hue));
 }
 
 .holo__name {
@@ -1923,7 +2120,7 @@ body:not(.solo) .view {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.64rem;
-  color: rgb(201 246 255 / 72%);
+  color: color-mix(in srgb, var(--holo-ink) 72%, transparent);
 }
 
 .holo__card > .holo__kind,
@@ -1935,9 +2132,9 @@ body:not(.solo) .view {
   grid-row: 1 / span 3;
   min-height: 34px;
   padding: 0 14px;
-  border: 1px solid var(--holo-kind, #5ff3ff);
+  border: 1px solid var(--holo-kind, var(--holo-hue));
   border-radius: 10px;
-  background: color-mix(in srgb, var(--holo-kind, #5ff3ff) 18%, transparent);
+  background: color-mix(in srgb, var(--holo-kind, var(--holo-hue)) 18%, transparent);
   color: #ffffff;
   font: inherit;
   font-size: 0.7rem;
@@ -1947,7 +2144,7 @@ body:not(.solo) .view {
   cursor: pointer;
 }
 
-.holo__open:hover { background: color-mix(in srgb, var(--holo-kind, #5ff3ff) 30%, transparent); }
+.holo__open:hover { background: color-mix(in srgb, var(--holo-kind, var(--holo-hue)) 30%, transparent); }
 .holo__open:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
 
 /* The colours of the kinds: full screen only, where there is room. */
@@ -1989,7 +2186,7 @@ body:not(.solo) .view {
   font-size: 0.62rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgb(201 246 255 / 80%);
+  color: color-mix(in srgb, var(--holo-ink) 80%, transparent);
   pointer-events: none;
 }
 
@@ -2187,6 +2384,23 @@ const STRINGS = {
     'tab.home': 'Accueil',
     'tab.groups': 'Groupes',
     'tab.settings': 'Réglages',
+    'look.title': 'Apparence',
+    'look.style': 'Style',
+    'look.holo': 'Hologramme',
+    'look.classic': 'Classique',
+    'look.calm': 'Épuré',
+    'look.colour': 'Couleur',
+    'look.accent.auto': 'Celle du style',
+    'look.accent.cyan': 'Cyan',
+    'look.accent.violet': 'Violet',
+    'look.accent.green': 'Vert',
+    'look.accent.amber': 'Ambre',
+    'look.accent.pink': 'Rose',
+    'look.accent.blue': 'Bleu',
+    'look.theme': 'Thème',
+    'look.night': 'Nuit',
+    'look.light': 'Clair',
+    'look.hint': 'Gardé sur cet appareil. Le bouton rond en haut de l’écran passe aussi de la nuit au clair.',
     'holo.title': 'Vue d’ensemble 3D',
     'holo.aria': 'Vue en trois dimensions de {count} {count|élément|éléments}, en orbite autour de leurs groupes.',
     'holo.docs': '{count} {count|élément|éléments}',
@@ -3195,7 +3409,7 @@ const STRINGS = {
     'notes.custom': 'À vous de régler le sens du classement, la fin de partie et le total par manche.',
 
     'lang.switch': 'English',
-    'theme.toggle': 'Thème clair / sombre',
+    'theme.toggle': 'Nuit / clair',
   },
 
   en: {
@@ -3317,6 +3531,23 @@ const STRINGS = {
     'tab.home': 'Home',
     'tab.groups': 'Groups',
     'tab.settings': 'Settings',
+    'look.title': 'Appearance',
+    'look.style': 'Style',
+    'look.holo': 'Hologram',
+    'look.classic': 'Classic',
+    'look.calm': 'Calm',
+    'look.colour': 'Colour',
+    'look.accent.auto': 'The style’s own',
+    'look.accent.cyan': 'Cyan',
+    'look.accent.violet': 'Violet',
+    'look.accent.green': 'Green',
+    'look.accent.amber': 'Amber',
+    'look.accent.pink': 'Pink',
+    'look.accent.blue': 'Blue',
+    'look.theme': 'Theme',
+    'look.night': 'Night',
+    'look.light': 'Light',
+    'look.hint': 'Kept on this device. The round button at the top of the screen also switches between night and light.',
     'holo.title': '3D overview',
     'holo.aria': 'A three-dimensional view of {count} {count|item|items}, orbiting their groups.',
     'holo.docs': '{count} {count|item|items}',
@@ -4313,7 +4544,7 @@ const STRINGS = {
     'notes.custom': 'Set the ranking direction, the end condition and the round total yourself.',
 
     'lang.switch': 'Français',
-    'theme.toggle': 'Light / dark theme',
+    'theme.toggle': 'Night / light',
   },
 };
 
@@ -19585,7 +19816,10 @@ function bindInstall(root = view) {
 
 
 
-/** Neon on night: one colour per kind, and cyan for the stars. */
+/**
+ * Neon on night: one colour per kind, and for the stars the light of the
+ * style or colour chosen in the settings (`--holo-hue`, read when drawing).
+ */
 const HOLO_COLOURS = {
   group: '#5ff3ff',
   outside: '#8f98c2',
@@ -19695,10 +19929,11 @@ function holoRgba(hex, alpha) {
 
 /**
  * A glow and a core for each colour, drawn once: stamping a small picture is
- * far cheaper, sixty times a second, than painting a gradient.
+ * far cheaper, sixty times a second, than painting a gradient. Drawn again
+ * only when the stars' light changes.
  */
-function holoSprites() {
-  if (holoState.sprites) return holoState.sprites;
+function holoSprites(colours) {
+  if (holoState.sprites?.group?.hue === colours.group) return holoState.sprites;
   const make = (colour, core) => {
     const sprite = document.createElement('canvas');
     sprite.width = 64;
@@ -19720,8 +19955,8 @@ function holoSprites() {
     paint.fillRect(0, 0, 64, 64);
     return sprite;
   };
-  holoState.sprites = Object.fromEntries(Object.entries(HOLO_COLOURS).map(([kind, colour]) => [
-    kind, { glow: make(colour, false), core: make(colour, true) },
+  holoState.sprites = Object.fromEntries(Object.entries(colours).map(([kind, colour]) => [
+    kind, { glow: make(colour, false), core: make(colour, true), hue: colour },
   ]));
   holoState.sprites.link = { glow: make('#ff8af0', false), core: make('#ff8af0', true) };
   holoState.sprites.order = { glow: make('#ffd166', false), core: make('#ffd166', true) };
@@ -19776,7 +20011,11 @@ function bindHolo() {
   const reduced = holoReduced();
   if (holoState.still === null) holoState.still = reduced;
   let picked = nodes.get(holoState.picked) || null;
-  const sprites = holoSprites();
+  // The stars and the table take the light of the chosen style or colour.
+  const hue = getComputedStyle(document.documentElement).getPropertyValue('--holo-hue').trim();
+  const colours = { ...HOLO_COLOURS, group: /^#[0-9a-f]{6}$/i.test(hue) ? hue : HOLO_COLOURS.group };
+  const light = (alpha) => holoRgba(colours.group, alpha);
+  const sprites = holoSprites(colours);
   const stars = holoStars();
   const spin = panel.querySelector('#holo-spin');
   const fullButton = panel.querySelector('#holo-full');
@@ -19886,16 +20125,16 @@ function bindHolo() {
       return { x: cx + Math.cos(angle) * radius, y, z: cz + Math.sin(angle) * radius };
     });
     context.lineWidth = 1;
-    context.strokeStyle = 'rgba(95,243,255,0.16)';
+    context.strokeStyle = light(0.16);
     context.globalAlpha = 1;
     for (const radius of [0.4, 0.8, 1.2]) path3d(circle(radius * (0.6 + 0.4 * spread), 72));
-    context.strokeStyle = 'rgba(95,243,255,0.08)';
+    context.strokeStyle = light(0.08);
     for (let i = 0; i < 12; i += 1) {
       const angle = (i / 12) * Math.PI * 2;
       path3d([0.4, 1.2].map((r) => ({ x: Math.cos(angle) * r, y: HOLO_FLOOR, z: Math.sin(angle) * r })));
     }
     const rim = clock * 0.00004;
-    context.strokeStyle = 'rgba(95,243,255,0.28)';
+    context.strokeStyle = light(0.28);
     for (let i = 0; i < 48; i += 1) {
       const angle = rim + (i / 48) * Math.PI * 2;
       const inner = i % 4 ? 1.31 : 1.27;
@@ -19904,11 +20143,11 @@ function bindHolo() {
     const sweep = clock * 0.0007;
     for (let i = 0; i < 14; i += 1) {
       const angle = sweep - i * 0.035;
-      context.strokeStyle = `rgba(95,243,255,${0.12 * (1 - i / 14)})`;
+      context.strokeStyle = light(0.12 * (1 - i / 14));
       path3d([0.12, 1.2].map((r) => ({ x: Math.cos(angle) * r, y: HOLO_FLOOR, z: Math.sin(angle) * r })));
     }
     if (intro < 1) {
-      context.strokeStyle = `rgba(95,243,255,${0.6 * (1 - intro)})`;
+      context.strokeStyle = light(0.6 * (1 - intro));
       context.lineWidth = 2;
       path3d(circle(0.2 + 1.2 * spread, 72));
       context.lineWidth = 1;
@@ -19925,7 +20164,7 @@ function bindHolo() {
       const steps = ring.depth ? 28 : 64;
       const far = orbits.scale * spread;
       const ringLit = lit && lit.has(ring.centre);
-      context.strokeStyle = `rgba(95,243,255,${(ring.depth ? 0.1 : 0.14) * (lit && !ringLit ? 0.4 : 1) * (ringLit ? 2.2 : 1)})`;
+      context.strokeStyle = light((ring.depth ? 0.1 : 0.14) * (lit && !ringLit ? 0.4 : 1) * (ringLit ? 2.2 : 1));
       path3d(Array.from({ length: steps + 1 }, (_, i) => {
         const offset = holoOrbitPoint(ring, (i / steps) * Math.PI * 2);
         return { x: centre.x + offset.x * far, y: centre.y + offset.y * far, z: centre.z + offset.z * far };
@@ -19937,7 +20176,7 @@ function bindHolo() {
       const point = at.get(hub.id);
       const top = screen.get(hub.id);
       const base = project({ x: point.x, y: HOLO_FLOOR, z: point.z });
-      const colour = HOLO_COLOURS[hub.type];
+      const colour = colours[hub.type];
       const beam = context.createLinearGradient(top.x, top.y, base.x, base.y);
       beam.addColorStop(0, holoRgba(colour, 0.5));
       beam.addColorStop(1, holoRgba(colour, 0.04));
@@ -19987,7 +20226,7 @@ function bindHolo() {
       const b = screen.get(picked.around);
       if (a && b) {
         context.globalAlpha = 0.8;
-        context.strokeStyle = holoRgba(HOLO_COLOURS[picked.kind] || HOLO_COLOURS.group, 0.9);
+        context.strokeStyle = holoRgba(colours[picked.kind] || colours.group, 0.9);
         context.setLineDash([4, 3]);
         context.beginPath();
         context.moveTo(a.x, a.y);
@@ -20007,7 +20246,7 @@ function bindHolo() {
       const fog = Math.max(0.45, Math.min(1, 1 - (one.depth + 0.3) * 0.35));
       const dim = lit && !lit.has(node.id) ? 0.2 : 1;
       const sprite = sprites[node.kind] || sprites.group;
-      const colour = HOLO_COLOURS[node.kind] || HOLO_COLOURS.group;
+      const colour = colours[node.kind] || colours.group;
       if (node.star) {
         const radius = unit * 0.07 * one.scale * (1 + Math.min(0.7, node.count * 0.05));
         one.radius = radius;
@@ -20070,10 +20309,10 @@ function bindHolo() {
         const x = one.x + one.radius + 14;
         const y = one.y - one.radius - 8;
         const box = tag(words, x, y, {
-          colour: '#d8fbff', border: holoRgba(HOLO_COLOURS[node.type], 0.6), size: 10, width, alpha: dim, must: true,
+          colour: '#d8fbff', border: holoRgba(colours[node.type], 0.6), size: 10, width, alpha: dim, must: true,
         });
         context.globalAlpha = 0.6 * dim;
-        context.strokeStyle = holoRgba(HOLO_COLOURS[node.type], 0.8);
+        context.strokeStyle = holoRgba(colours[node.type], 0.8);
         context.beginPath();
         context.moveTo(one.x + (box.left > one.x ? 1 : -1) * one.radius * 0.8, one.y - one.radius * 0.6);
         context.lineTo(box.left > one.x ? box.left : box.left + box.wide, box.top + box.high);
@@ -20086,7 +20325,7 @@ function bindHolo() {
       const text = holoLabel(node);
       const words = text.length > 22 ? `${text.slice(0, 21)}…` : text;
       tag(words, one.x + one.radius + 6, one.y + 6, {
-        colour: HOLO_COLOURS[node.kind] || '#ffffff', size: 9.5, width, alpha: node.id === picked?.id ? 1 : 0.85 * dim,
+        colour: colours[node.kind] || '#ffffff', size: 9.5, width, alpha: node.id === picked?.id ? 1 : 0.85 * dim,
         must: node.id === picked?.id,
       });
     }
@@ -20174,7 +20413,7 @@ function bindHolo() {
       if (links) meta.push(t('holo.links', { count: links }));
       if (picked.done) meta.push(t('holo.done'));
     }
-    card.style.setProperty('--holo-kind', HOLO_COLOURS[picked.kind] || HOLO_COLOURS.group);
+    card.style.setProperty('--holo-kind', colours[picked.kind] || colours.group);
     card.innerHTML = `
       <span class="holo__kind">${escapeHtml(t(`holo.kind.${picked.kind}`))}</span>
       <strong class="holo__name">${escapeHtml(holoLabel(picked))}</strong>
@@ -20364,8 +20603,124 @@ function bindHolo() {
   requestAnimationFrame(frame);
 }
 
+  // ---- src/view-look.js ------------------------------------------------
+/**
+ * How the app looks, chosen in Réglages → Apparence: a style (the hologram,
+ * the first warm look, or a calm grey one), a colour, and night or light.
+ *
+ * Kept on this device with the other preferences, and written as attributes
+ * on the root element that styles.css reads — `data-look`, `data-accent`, `data-theme`.
+ * index.html sets them once more before the first paint, so that a phone on
+ * the classic style does not flash the hologram while the app loads.
+ *
+ * Calls back into app.js only from inside functions.
+ */
+
+
+
+
+/** The styles, the app's own first: it is the one with no attribute. */
+const LOOKS = ['holo', 'classic', 'calm'];
+
+/** The colours one may choose over a style's own. */
+const LOOK_ACCENTS = ['cyan', 'violet', 'green', 'amber', 'pink', 'blue'];
+
+/** Each style's own colour, the one shown under « Celle du style ». */
+const LOOK_OWN_ACCENT = { holo: 'cyan', classic: 'amber', calm: 'blue' };
+
+/** Night is the app's own; light is a choice, made here or with the round button at the top. */
+function lookIsDark() {
+  return state.prefs.theme !== 'light';
+}
+
+function chosenLook() {
+  return LOOKS.includes(state.prefs.look) ? state.prefs.look : 'holo';
+}
+
+function chosenAccent() {
+  return LOOK_ACCENTS.includes(state.prefs.accent) ? state.prefs.accent : '';
+}
+
+/** Write the choices on the root element; the phone's bar takes the page's colour. */
+function applyLook() {
+  const root = document.documentElement;
+  const theme = state.prefs.theme;
+  if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
+  else delete root.dataset.theme;
+  const look = chosenLook();
+  if (look === 'holo') delete root.dataset.look;
+  else root.dataset.look = look;
+  const accent = chosenAccent();
+  if (accent) root.dataset.accent = accent;
+  else delete root.dataset.accent;
+  const ground = getComputedStyle(root).getPropertyValue('--bg').trim();
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', ground || '#050b16');
+}
+
+/** Réglages → Apparence. */
+function lookHtml() {
+  const look = chosenLook();
+  const accent = chosenAccent();
+  const dark = lookIsDark();
+  const chip = (kind, value, label, on) => `
+    <button type="button" class="chip ${on ? 'chip--on' : ''}" data-pick-${kind}="${escapeHtml(value)}"
+            aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
+  // A colour is shown as itself, in the theme on screen: the same token the
+  // page would take, read from styles.css rather than written twice.
+  const dot = (value, label) => `
+    <button type="button" class="tint ${accent === value ? 'tint--on' : ''}" data-pick-accent="${escapeHtml(value)}"
+            aria-pressed="${accent === value ? 'true' : 'false'}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">
+      <span class="tint__dot" style="--tint: var(--accent-${value || LOOK_OWN_ACCENT[look]})" aria-hidden="true">${value ? '' : 'A'}</span>
+    </button>`;
+  return `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('look.title'))}</h2></div>
+      <div class="stack stack--tight">
+        <span class="muted small">${escapeHtml(t('look.style'))}</span>
+        <div class="row row--chips" role="group" aria-label="${escapeHtml(t('look.style'))}">
+          ${LOOKS.map((value) => chip('look', value, t(`look.${value}`), look === value)).join('')}
+        </div>
+        <span class="muted small">${escapeHtml(t('look.colour'))}</span>
+        <div class="row row--chips tints" role="group" aria-label="${escapeHtml(t('look.colour'))}">
+          ${dot('', t('look.accent.auto'))}
+          ${LOOK_ACCENTS.map((value) => dot(value, t(`look.accent.${value}`))).join('')}
+        </div>
+        <span class="muted small">${escapeHtml(t('look.theme'))}</span>
+        <div class="row row--chips" role="group" aria-label="${escapeHtml(t('look.theme'))}">
+          ${chip('theme', 'dark', t('look.night'), dark)}
+          ${chip('theme', 'light', t('look.light'), !dark)}
+        </div>
+        <p class="muted small">${escapeHtml(t('look.hint'))}</p>
+      </div>
+    </section>`;
+}
+
+/** One choice made: kept, applied at once, and the page redrawn to say so. */
+function pickLook(change) {
+  state.prefs = { ...state.prefs, ...change };
+  savePrefs(state.prefs);
+  applyLook();
+  render();
+}
+
+function bindLook(view) {
+  view.querySelectorAll('[data-pick-look]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const look = button.dataset.pickLook;
+      pickLook({ look: look === 'holo' ? undefined : look });
+    });
+  });
+  view.querySelectorAll('[data-pick-accent]').forEach((button) => {
+    button.addEventListener('click', () => pickLook({ accent: button.dataset.pickAccent || undefined }));
+  });
+  view.querySelectorAll('[data-pick-theme]').forEach((button) => {
+    button.addEventListener('click', () => pickLook({ theme: button.dataset.pickTheme }));
+  });
+}
+
   // ---- src/app.js ------------------------------------------------------
 /** UI layer: hash router, views, event wiring. */
+
 
 
 
@@ -21863,6 +22218,7 @@ function settingsView() {
   return `
     ${flashHtml()}
     ${meHtml()}
+    ${lookHtml()}
     ${accountHtml()}
     ${dataHtml()}`;
 }
@@ -23251,28 +23607,15 @@ function applyStaticText() {
   });
 }
 
-/**
- * Night is the app's own look, whatever the phone's setting; light is a
- * choice, made with the moon button and kept. The bar the phone draws above
- * the page takes the same colour as the page.
- */
-function applyTheme() {
-  const theme = state.prefs.theme;
-  if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
-  else delete document.documentElement.dataset.theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', currentThemeIsDark() ? '#050b16' : '#eaf1f8');
-}
-
-function currentThemeIsDark() {
-  return state.prefs.theme !== 'light';
-}
-
 function bindChrome() {
   document.getElementById('create')?.addEventListener('click', openCreateMenu);
+  // Night or light, from any page; the settings say the same, so on that page
+  // they are drawn again to show it. See view-look.js for the rest.
   document.getElementById('theme-toggle').addEventListener('click', () => {
-    state.prefs = { ...state.prefs, theme: currentThemeIsDark() ? 'light' : 'dark' };
+    state.prefs = { ...state.prefs, theme: lookIsDark() ? 'light' : 'dark' };
     savePrefs(state.prefs);
-    applyTheme();
+    applyLook();
+    if (route().name === 'settings') render();
   });
 
   // One button for "bring me what the others have done", on every screen: the
@@ -23649,6 +23992,7 @@ function render() {
     view.innerHTML = settingsView();
     bindOverview();
     bindAccount();
+    bindLook(view);
   } else if (current.name === 'groups') {
     view.innerHTML = groupsView();
     bindOverview();
@@ -23909,7 +24253,7 @@ function connectToStore() {
 
 setLanguage(state.prefs.lang || detectLanguage());
 applyStaticText();
-applyTheme();
+applyLook();
 bindChrome();
 followTrail();
 window.addEventListener('hashchange', () => {
@@ -23933,6 +24277,8 @@ window.addEventListener('hashchange', () => {
 window.addEventListener('storage', (event) => {
   if (event.key && !event.key.startsWith('marque-points:')) return;
   state.prefs = loadPrefs();
+  // The look chosen over there, here too.
+  applyLook();
   state.games = loadGames();
   state.lists = loadLists();
   state.polls = loadPolls();

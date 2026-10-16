@@ -11,7 +11,7 @@ dépenses (qui a payé quoi, qui rembourse qui), des tableaux d'**idées** (note
 et croquis au doigt). **Agenda** : les sondages qui
 cherchent un jour, puis ce qui vient, jour par jour, avec pour chaque
 événement sa liste et son compte. **Groupes** : vos groupes, leur page, entrer
-et inviter. **Réglages** : votre prénom, vos données, la version. Une page
+et inviter. **Réglages** : votre prénom, l'apparence, vos données, la version. Une page
 web, aucune dépendance, aucun build.
 
 <p>
@@ -116,7 +116,10 @@ web, aucune dépendance, aucun build.
   une manche, *Annuler la dernière manche* défait la saisie précédente, et
   *Renommer* corrige un nom mal saisi sans toucher aux scores.
 - **Ça marche sur téléphone**, hors ligne, en français ou en anglais, avec un
-  look d'hologramme : thème nuit par défaut, thème clair au bouton lune. Les parties sont enregistrées dans le navigateur, et
+  apparence au choix dans **Réglages → Apparence** : trois styles (Hologramme,
+  le style de l'app ; Classique, papier chaud et ambre ; Épuré, gris et plat),
+  six couleurs ou celle du style, nuit (par défaut) ou clair — aussi au bouton
+  rond du haut. Gardé sur l'appareil, appliqué avant le premier affichage. Les parties sont enregistrées dans le navigateur, et
   exportables en JSON pour sauvegarder ou changer d'appareil.
 
 ## Ce que ça fait — les listes
