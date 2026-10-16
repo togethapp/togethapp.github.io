@@ -34,6 +34,7 @@ import { setLink } from './remote.js';
 import { canSeal, newCode, readCode, seal, unseal } from './lock.js';
 import { t } from './i18n.js';
 import { account, offerAccount, syncAccount } from './view-account.js';
+import { syncPush } from './view-notify.js';
 import { keepData } from './view-install.js';
 
 /* ------------------------------------------------------------- the chain --- */
@@ -244,6 +245,7 @@ export function rememberGroup(group) {
   if (!known) {
     void syncAccount({ restore: false, force: true });
     void keepData();
+    void syncPush();
   }
 }
 

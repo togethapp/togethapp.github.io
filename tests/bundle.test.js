@@ -179,3 +179,16 @@ test('an aliased import is refused, because the bundle cannot follow it', async 
     }
   }
 });
+
+test('the committed notifications function is up to date, and one file', async () => {
+  const [built, committed] = await Promise.all([
+    edgeFunction('notifier'),
+    readFile(join(root, 'supabase', 'functions', 'notifier', 'index.ts'), 'utf8'),
+  ]);
+  assert.equal(built, committed, 'supabase/functions/notifier/index.ts is stale — run `npm run bundle` and commit the result.');
+  assert.equal(/^\s*import\b/m.test(built), false);
+  assert.equal(/^\s*export\b/m.test(built), false);
+  assert.match(built, /Deno\.serve/);
+  assert.match(built, /function encrypt/, 'it carries Web Push with it');
+  assert.match(built, /vérification du JWT/);
+});

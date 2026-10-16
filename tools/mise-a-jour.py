@@ -72,7 +72,10 @@ out = "\n".join([
 --      visiteurs ;
 --  10. les changements arrivent aussitôt : la base annonce chaque écriture
 --      sur Supabase Realtime (une annonce vide, sur un canal secret par
---      groupe), au lieu que l'app redemande toutes les quelques secondes.
+--      groupe), au lieu que l'app redemande toutes les quelques secondes ;
+--  11. les notifications : un appareil qui les active est prévenu d'un
+--      nouveau document dans ses groupes, d'une date retenue, et — s'il fait
+--      entrer — de quelqu'un qui frappe (avec la fonction « notifier »).
 --
 -- Généré depuis docs/DEPLOIEMENT.md, étape 2 bis ; un test vérifie que les
 -- deux disent la même chose. Modifiez le guide, pas ce fichier seul.
@@ -118,10 +121,21 @@ function('marque_points_set_accounts'),
 "-- 10. Les changements annoncés aussitôt.\n" + function('marque_points_announce'),
 function('marque_points_live'),
 live_triggers(),
+"-- 11. Les notifications.\n" + table('marque_points_push') + "create index if not exists marque_points_push_key on public.marque_points_push (key_id);\n\n"
++ table('marque_points_push_sent') + "\n" + table('marque_points_push_vapid'),
+function('marque_points_push_subscribe'),
+function('marque_points_push_unsubscribe'),
+function('marque_points_push_vapid'),
+function('marque_points_push_event'),
+function('marque_points_push_knock'),
+function('marque_points_push_gone'),
 "-- Pour les comptes connectés seulement, pas pour la clé publique de la page.\n" + "\n".join(
     [revoke(n) for n in ['marque_points_account_link', 'marque_points_account_owner_put', 'marque_points_account_restore', 'marque_points_account_leave', 'marque_points_account_delete']]
     + [grant(n) for n in ['marque_points_account_link', 'marque_points_account_owner_put', 'marque_points_account_restore', 'marque_points_account_leave', 'marque_points_account_delete']]
     + [revoke('marque_points_account_cut_mark'), revoke('marque_points_announce'), revoke('marque_points_live')]
+    + [grant(n) for n in ['marque_points_push_subscribe', 'marque_points_push_unsubscribe']]
+    + [revoke(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_gone']]
+    + [grant(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_gone']]
     + [grant(n) for n in ['marque_points_group_of', 'marque_points_group_keys', 'marque_points_set_accounts']]) + "\n",
 ])
 (root / 'supabase/mise-a-jour.sql').write_text(out)

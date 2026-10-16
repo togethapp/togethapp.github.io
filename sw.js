@@ -20,7 +20,7 @@
 
 const VERSION = 'v14';
 /** Written by tools/bundle.js from the sources: it moves whenever they do. */
-const BUILD = 'a76d6ce5';
+const BUILD = '29aca02f';
 const CACHE = `marque-points-${VERSION}-${BUILD}`;
 
 const SHELL = [
@@ -44,6 +44,8 @@ const SHELL = [
   './src/view-holo.js',
   './src/view-look.js',
   './src/live.js',
+  './src/notify.js',
+  './src/view-notify.js',
   './src/view-home.js',
   './src/view-join.js',
   './src/view-people.js',
@@ -125,5 +127,40 @@ self.addEventListener('fetch', (event) => {
       .catch(() =>
         caches.match(request).then((cached) => cached || caches.match('./index.html')),
       ),
+  );
+});
+
+// A notification from the notifier (supabase/functions/notifier): shown at
+// once — a push the user does not see is one the phone stops delivering.
+self.addEventListener('push', (event) => {
+  let message = {};
+  try {
+    message = event.data ? event.data.json() : {};
+  } catch {
+    message = {};
+  }
+  event.waitUntil(
+    self.registration.showNotification(message.title || 'Together', {
+      body: message.body || '',
+      tag: message.tag || undefined,
+      icon: './icons/icon-192.png',
+      badge: './icons/icon-192.png',
+      data: { url: message.url || './' },
+    }),
+  );
+});
+
+// Tapped: the app's page for it, in the window already open if there is one.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = new URL(event.notification.data?.url || './', self.registration.scope).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((client) => client.url.startsWith(self.registration.scope));
+      if (open) {
+        return open.focus().then((client) => (client || open).navigate(url)).catch(() => self.clients.openWindow(url));
+      }
+      return self.clients.openWindow(url);
+    }),
   );
 });

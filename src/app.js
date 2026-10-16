@@ -48,6 +48,7 @@ import { applyLook, bindLook, lookIsDark } from './view-look.js';
 import { swipeable } from './swipe.js';
 import { prefillOf, withoutPrefill } from './prefill.js';
 import { createLive, docTopic, groupTopic, liveUrl } from './live.js';
+import { bindNotify, syncPush, tell, tellKnock } from './view-notify.js';
 import { bindOverview, groupsView, groupView, openCreateMenu, overviewView, settingsView } from './view-home.js';
 import { backView, bindBack, bindJoin, joinView, showsGate, watchGate, watchPending } from './view-join.js';
 import { personView, renameEverywhere, statsView } from './view-people.js';
@@ -1077,6 +1078,7 @@ export function render() {
     view.innerHTML = settingsView();
     bindOverview();
     bindAccount();
+    bindNotify();
     bindLook(view);
   } else if (current.name === 'groups') {
     view.innerHTML = groupsView();
@@ -1308,6 +1310,26 @@ async function heard(topic) {
     hearing.delete(topic);
     if (again) void heard(topic);
   }
+}
+
+/**
+ * Every write with a group key may be news for the group, and every knock is
+ * news for its door-keepers: the notifier is told after the database has
+ * taken it (view-notify.js). Wrapped here once, rather than at each of the
+ * many places that write.
+ */
+function tellTheNotifier() {
+  const { put, ask } = state.remote;
+  state.remote.put = async (document_, key = null, owner = null) => {
+    const answer = await put(document_, key, owner);
+    if (key) void tell(document_, key);
+    return answer;
+  };
+  state.remote.ask = async (...args) => {
+    const answer = await ask(...args);
+    if (answer?.status === 'waiting') tellKnock(answer.ticket);
+    return answer;
+  };
 }
 
 function startLive() {
@@ -1543,6 +1565,7 @@ render();
 // What happened while the app was closed, learnt on opening it rather than left
 // waiting for someone to press a button: a knock answered, a key cut off.
 if (state.remote) {
+  tellTheNotifier();
   startLive();
   (async () => {
     const answered = pendings().length ? await checkAllPendings() : false;
@@ -1553,6 +1576,9 @@ if (state.remote) {
     await syncAccount({ force: true });
     // And what the others pushed meanwhile, without being asked for it.
     await catchUpQuietly();
+    // Notifications on: the database has this device's subscription for
+    // every group it is now in.
+    await syncPush();
   })();
 
   // Coming back to the app — from Safari, from another app, from a locked

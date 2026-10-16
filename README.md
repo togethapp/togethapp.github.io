@@ -602,6 +602,33 @@ l'ancienne le faisait), les secrets d'organisateur, le prénom.
   pour plus que quelques e-mails par heure, un service d'envoi (SMTP) — voir
   docs/DEPLOIEMENT.md, étape 9.
 
+## Les notifications
+
+**Réglages → Notifications → Activer les notifications** : cet appareil est
+prévenu d'un nouveau sondage, d'une liste, d'un compte ou d'un tableau d'idées
+dans ses groupes, d'une date retenue, et — s'il fait entrer — de quelqu'un qui
+frappe. Toucher la notification ouvre la bonne page.
+
+- Sur iPhone, seule l'app posée sur l'écran d'accueil les reçoit (iOS 16.4+) :
+  la section le dit dans Safari. Le fichier unique (`dist/`) n'a pas de service
+  worker et dit qu'il ne les reçoit pas.
+- L'appareil confie son abonnement à la base **une fois par groupe, avec la clé
+  de ce groupe** (`marque_points_push_subscribe`) : couper la clé l'efface.
+- Chaque écriture faite avec une clé de groupe, et chaque frappe, préviennent
+  la fonction **`notifier`** (`supabase/functions/notifier/`, construite en un
+  fichier par `npm run bundle`), une fois par document et par date
+  (`marque-points:told:v1`). C'est la base qui décide de ce qui est nouveau
+  (`marque_points_push_event` : créé il y a moins de deux jours, jamais
+  annoncé ; une date pas encore annoncée ni passée), une seule fois
+  (`marque_points_push_sent`), et jamais à l'appareil qui l'a écrit. Le texte
+  vient de la base, pas de l'appelant.
+- Web Push écrit à la main, sans bibliothèque (`webpush.js` : VAPID et
+  aes128gcm, RFC 8291), vérifié contre une implémentation indépendante. La paire
+  de clés VAPID est faite par la fonction au premier appel et gardée dans la
+  base. Le contenu est chiffré pour le seul téléphone qui le reçoit.
+- Mise en place : docs/DEPLOIEMENT.md, étape 10. Tests : `notify`, `webpush`,
+  `notifier`, contrôle SQL `notifications`, suite `notifications`.
+
 ## Supprimer d'un glissement
 
 Ce qui se supprime dans une liste de choses se glisse vers la gauche, au doigt
@@ -809,6 +836,8 @@ src/view-*.js     un écran chacun : accueil et réglages (home), entrée dans u
                   groupe (join), personnes (people), sondages, listes, comptes,
                   idées, parties, groupes
 src/live.js       les changements entendus aussitôt (Supabase Realtime)
+src/notify.js     notifications : ce qui se décide sans navigateur
+supabase/functions/notifier/  la fonction qui envoie les notifications
 tools/serve.js    serveur statique de développement
 tools/bundle.js   construction du fichier unique autonome
 dist/             le fichier unique, livré dans le dépôt

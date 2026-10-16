@@ -74,6 +74,10 @@ const OWNED = new Map(); // `${compte}|${doc}` → secret d'organisateur
 const CUT = new Map(); // `${compte}|${groupe}` → quand une clé du compte y a été coupée
 const REQUIRED = new Set(); // groupes qui exigent un compte
 const REVOKED = new Set(); // comptes déconnectés partout : leur jeton de renouvellement ne sert plus
+const PUSH = []; // marque_points_push : { endpoint, group, lang, app }
+const NOTIFIED = []; // ce que la fonction « notifier » a reçu
+// Une clé publique VAPID quelconque, de la bonne forme (un point P-256 brut).
+const VAPID_PUBLIC = 'BA3xkPq8MXN8qJ3wk_0BrivFfuUnIdGzFWzitn3FfhXJyS5nAgjhs3xLrV-TvwrlAz6OYo_vwuqCGf6w7SIYtlw';
 const port = Number(process.env.PORT) || 8123;
 const old = process.env.OLD === '1';
 
@@ -90,6 +94,8 @@ const server = createServer(async (req, res) => {
   const raise = (message) => send(400, { code: 'P0001', message });
   if (req.method === 'OPTIONS') return send(204);
   // Pour les tests : le code que l'e-mail aurait porté.
+  // Pour les tests : ce que la fonction « notifier » a reçu, et les abonnements.
+  if (req.url === '/__notifier') return send(200, { calls: NOTIFIED, subscriptions: PUSH });
   if (req.url.startsWith('/__code?')) {
     return send(200, { code: CODES.get(new URL(req.url, 'http://x').searchParams.get('email')) ?? null });
   }
@@ -99,6 +105,15 @@ const server = createServer(async (req, res) => {
   for await (const chunk of req) body += chunk;
   const at = body ? JSON.parse(body) : {};
   const fn = req.url.split('/').pop();
+
+  // La fonction « notifier », réduite à ce qu'elle reçoit : chiffrer et envoyer
+  // est l'affaire de tests/notifier.test.js et tests/webpush.test.js.
+  if (req.url === '/functions/v1/notifier') {
+    if (old || process.env.NONOTIFIER === '1') return send(404, { message: 'Function not found' });
+    NOTIFIED.push(at);
+    if (at.action === 'key') return send(200, { status: 'ok', key: VAPID_PUBLIC });
+    return send(200, { status: 'ok', sent: 0 });
+  }
 
   if (req.url.startsWith('/auth/v1/')) {
     if (old) return send(404, { message: 'not found' });
@@ -301,6 +316,21 @@ const server = createServer(async (req, res) => {
       ...group, admits: ADMITS.has(at.p_key), accounts: REQUIRED.has(group.id),
       linked: Boolean(KEYS.find((one) => one.key === at.p_key)?.user), channel: channelOf(group.id),
     } : null);
+  }
+  if (fn === 'marque_points_push_subscribe') {
+    const group = GROUPS.get(at.p_key);
+    if (!group || closed(at.p_key)) return send(200, { status: 'unknown' });
+    if (!/^https:\/\/\S+$/.test(String(at.p_endpoint ?? ''))) return raise('abonnement invalide');
+    const kept = PUSH.filter((one) => !(one.endpoint === at.p_endpoint && one.group === group.id));
+    PUSH.length = 0;
+    PUSH.push(...kept, { endpoint: at.p_endpoint, group: group.id, lang: at.p_lang, app: at.p_app });
+    return send(200, { status: 'ok' });
+  }
+  if (fn === 'marque_points_push_unsubscribe') {
+    const kept = PUSH.filter((one) => one.endpoint !== at.p_endpoint);
+    PUSH.length = 0;
+    PUSH.push(...kept);
+    return send(204);
   }
   if (fn === 'marque_points_set_accounts') {
     const group = GROUPS.get(at.p_key);

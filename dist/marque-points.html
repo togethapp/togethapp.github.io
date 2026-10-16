@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v14" />
-    <meta name="app-build" content="a76d6ce5" />
+    <meta name="app-build" content="29aca02f" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -2676,6 +2676,20 @@ const STRINGS = {
     'account.sendFailed': 'Le code n’a pas pu être envoyé. Vérifiez l’adresse et réessayez.',
     'account.tooMany': 'Trop de codes demandés d’un coup : réessayez dans quelques minutes.',
     'account.welcome': 'Connecté. Vos groupes et vos sondages sont gardés sur votre compte.',
+    'notify.title': 'Notifications',
+    'notify.why': 'Être prévenu sur cet appareil : un nouveau sondage, une liste, un compte ou un tableau d’idées dans vos groupes, une date retenue — et, si vous faites entrer, quelqu’un qui frappe.',
+    'notify.on': 'Activées sur cet appareil.',
+    'notify.enable': 'Activer les notifications',
+    'notify.disable': 'Désactiver',
+    'notify.install': 'Sur iPhone, seule l’app posée sur l’écran d’accueil reçoit des notifications : installez-la d’abord (Partager → Sur l’écran d’accueil), ouvrez-la, puis revenez ici.',
+    'notify.denied': 'Les notifications sont bloquées pour cette app dans les réglages du téléphone ou du navigateur. Autorisez-les là, puis revenez ici.',
+    'notify.unsupported': 'Ce navigateur ne reçoit pas de notifications.',
+    'notify.noGroup': 'Entrez d’abord dans un groupe : c’est ce qui s’y passe qui est annoncé.',
+    'notify.enabled': 'Notifications activées.',
+    'notify.disabled': 'Notifications désactivées sur cet appareil.',
+    'notify.refused': 'Pas de notifications sans votre accord : le téléphone n’a pas donné la permission.',
+    'notify.failed': 'Les notifications n’ont pas pu être activées. Réessayez dans un moment.',
+    'notify.notReady': 'La base ne sait pas encore envoyer de notifications : la fonction « notifier » n’est pas en place.',
     'account.offerTitle': 'Garder {name} sur un compte ?',
     'account.offerTitleBare': 'Garder ce groupe sur un compte ?',
     'account.offerWhy': 'Facultatif, et sans mot de passe : un code arrive par e-mail. Connecté, vous retrouvez ce groupe sur tout appareil — même si ce téléphone efface ses données, ou si vous en changez.',
@@ -3827,6 +3841,20 @@ const STRINGS = {
     'account.sendFailed': 'The code could not be sent. Check the address and try again.',
     'account.tooMany': 'Too many codes asked for at once: try again in a few minutes.',
     'account.welcome': 'Signed in. Your groups and polls are kept on your account.',
+    'notify.title': 'Notifications',
+    'notify.why': 'Be told on this device: a new poll, list, account or board of ideas in your groups, a date set — and, if you let people in, someone knocking.',
+    'notify.on': 'On for this device.',
+    'notify.enable': 'Turn on notifications',
+    'notify.disable': 'Turn off',
+    'notify.install': 'On an iPhone, only the app on the home screen gets notifications: install it first (Share → Add to Home Screen), open it, then come back here.',
+    'notify.denied': 'Notifications are blocked for this app in the phone’s or the browser’s settings. Allow them there, then come back here.',
+    'notify.unsupported': 'This browser does not receive notifications.',
+    'notify.noGroup': 'Join a group first: what happens there is what gets announced.',
+    'notify.enabled': 'Notifications on.',
+    'notify.disabled': 'Notifications off for this device.',
+    'notify.refused': 'No notifications without your say-so: the phone did not give permission.',
+    'notify.failed': 'Notifications could not be turned on. Try again in a moment.',
+    'notify.notReady': 'The database cannot send notifications yet: the « notifier » function is not set up.',
     'account.offerTitle': 'Keep {name} on an account?',
     'account.offerTitleBare': 'Keep this group on an account?',
     'account.offerWhy': 'Optional, and no password: a code arrives by e-mail. Signed in, you get this group back on any device — even if this phone clears its data, or you change phones.',
@@ -10429,6 +10457,25 @@ function createRemote(config, fetchImpl = globalThis.fetch) {
     async accountLeave(token, key) {
       return call('marque_points_account_leave', { p_key: key }, token);
     },
+
+    /* -------------------------------------------------- notifications --- */
+
+    /** Keep this browser's subscription for a group, with that group's key. */
+    async pushSubscribe(key, { endpoint, p256dh, auth }, lang = 'fr', app = '') {
+      return call('marque_points_push_subscribe', {
+        p_key: key, p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_lang: lang, p_app: app,
+      });
+    },
+
+    /** Forget this browser's subscription, in every group. */
+    async pushUnsubscribe(endpoint) {
+      await call('marque_points_push_unsubscribe', { p_endpoint: endpoint });
+    },
+
+    /** The notifier function: { action: 'key' | 'doc' | 'knock', … }. */
+    async notifier(body) {
+      return call('notifier', body, null, '/functions/v1/notifier');
+    },
   };
 }
 
@@ -11042,6 +11089,62 @@ function createLive({
       }
     },
   };
+}
+
+  // ---- src/notify.js ---------------------------------------------------
+/**
+ * Notifications, the parts that need no browser: whether this one can receive
+ * them, what to tell the notifier, and what to remember having told it.
+ */
+
+/** The kinds of document whose arrival in a group is worth a notification. */
+const NEWS_KINDS = new Set(['poll', 'list', 'spend', 'board']);
+
+/**
+ * What this browser can do: 'ready' (ask away), 'install' (an iPhone in
+ * Safari: only the app on the home screen receives them), 'denied' (refused
+ * in the phone's settings), or 'unsupported'.
+ */
+function pushSupport({ worker, push, notification, permission, phone, standalone }) {
+  if (worker && push && notification) return permission === 'denied' ? 'denied' : 'ready';
+  if (phone === 'ios' && !standalone) return 'install';
+  return 'unsupported';
+}
+
+/**
+ * Whether a document just written with a group key may be news for the
+ * group: one of the kinds above, shared in the group rather than by link.
+ */
+function mayBeNews(document_) {
+  return Boolean(document_ && typeof document_.id === 'string' && NEWS_KINDS.has(document_.kind) && !document_.linkOnly);
+}
+
+/**
+ * What has been told about a document: its arrival, and the day it settled
+ * on. Told once each, so a list ticked twenty times costs one call.
+ */
+function toldKey(document_) {
+  return `${document_.id}|${document_.kind === 'poll' && document_.date ? document_.date : ''}`;
+}
+
+/** Remember a key told, the newest last, the oldest forgotten past `limit`. */
+function rememberTold(told, key, limit = 400) {
+  return [...told.filter((one) => one !== key), key].slice(-limit);
+}
+
+/** The fields the database keeps of a subscription, from its JSON form. */
+function subscriptionFields(json) {
+  const endpoint = typeof json?.endpoint === 'string' ? json.endpoint : '';
+  const p256dh = typeof json?.keys?.p256dh === 'string' ? json.keys.p256dh : '';
+  const auth = typeof json?.keys?.auth === 'string' ? json.keys.auth : '';
+  return endpoint && p256dh && auth ? { endpoint, p256dh, auth } : null;
+}
+
+/** A base64url key as the bytes `pushManager.subscribe` takes. */
+function keyBytes(text) {
+  const plain = String(text || '').replace(/-/g, '+').replace(/_/g, '/');
+  const padded = plain + '='.repeat((4 - (plain.length % 4)) % 4);
+  return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
 }
 
   // ---- src/swipe.js ----------------------------------------------------
@@ -17081,6 +17184,7 @@ function bindGame(game) {
 
 
 
+
 /* ------------------------------------------------------------- the chain --- */
 
 /** Write a document back, whatever its kind. */
@@ -17289,6 +17393,7 @@ function rememberGroup(group) {
   if (!known) {
     void syncAccount({ restore: false, force: true });
     void keepData();
+    void syncPush();
   }
 }
 
@@ -21115,6 +21220,7 @@ function bindLook(view) {
 
 
 
+
 /* --------------------------------------------------------------- overview --- */
 
 /**
@@ -22056,6 +22162,7 @@ function settingsView() {
     ${meHtml()}
     ${lookHtml()}
     ${accountHtml()}
+    ${notifyHtml()}
     ${dataHtml()}`;
 }
 
@@ -23377,8 +23484,203 @@ function statsView() {
     <p class="notes">${escapeHtml(t('stats.note'))}</p>`;
 }
 
+  // ---- src/view-notify.js ----------------------------------------------
+/**
+ * Notifications on this device: turned on in the settings, and told to the
+ * notifier (supabase/functions/notifier) whenever this device writes
+ * something that may be news for its group, or knocks at one.
+ *
+ * Turning them on asks the phone, subscribes the browser with the database's
+ * public key, and hands the subscription to the database once per group, with
+ * that group's key — so a key cut off stops the notifications too.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+
+const TOLD = 'marque-points:told:v1';
+
+/** What this browser can do with notifications. */
+function support() {
+  const served = Boolean(document.querySelector('link[rel="manifest"]'));
+  return pushSupport({
+    worker: served && 'serviceWorker' in navigator,
+    push: 'PushManager' in window,
+    notification: 'Notification' in window,
+    permission: 'Notification' in window ? Notification.permission : 'default',
+    phone: phoneToInstall(),
+    standalone: onHomeScreen(),
+  });
+}
+
+function isOn() {
+  return Boolean(state.prefs.push) && support() === 'ready' && Notification.permission === 'granted';
+}
+
+/** The app's own address, for a notification to open. */
+function appAddress() {
+  return `${location.origin}${location.pathname}`;
+}
+
+/** The service worker, within a few seconds, or null. */
+async function worker() {
+  if (!('serviceWorker' in navigator)) return null;
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
+  ]);
+}
+
+/** This browser's subscription, made with the database's key if there is none yet. */
+async function subscribe(registration) {
+  const held = await registration.pushManager.getSubscription();
+  if (held) return held;
+  const answer = await state.remote.notifier({ action: 'key' });
+  if (!answer?.key) throw new Error('no key');
+  return registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(answer.key) });
+}
+
+/** Hand the subscription to the database, once per group. */
+async function register(subscription) {
+  const fields = subscriptionFields(subscription.toJSON());
+  if (!fields) throw new Error('no subscription');
+  for (const group of groups()) {
+    await state.remote.pushSubscribe(group.key, fields, getLanguage(), appAddress()).catch(() => null);
+  }
+}
+
+/* ---------------------------------------------------------------- screen --- */
+
+/** The settings section. */
+function notifyHtml() {
+  if (!state.remote) return '';
+  const can = support();
+  const on = isOn();
+  let body = '';
+  if (on) {
+    body = `
+      <p class="small">${escapeHtml(t('notify.on'))}</p>
+      <div class="row"><button type="button" class="button button--small button--ghost" id="notify-off">${escapeHtml(t('notify.disable'))}</button></div>`;
+  } else if (can === 'ready') {
+    body = groups().length
+      ? `<div class="row"><button type="button" class="button button--small button--primary" id="notify-on">${escapeHtml(t('notify.enable'))}</button></div>`
+      : `<p class="muted small">${escapeHtml(t('notify.noGroup'))}</p>`;
+  } else {
+    body = `<p class="muted small">${escapeHtml(t(`notify.${can}`))}</p>`;
+  }
+  return `
+    <section class="section" id="notify">
+      <div class="section__head"><h2>${escapeHtml(t('notify.title'))}</h2></div>
+      <p class="muted small">${escapeHtml(t('notify.why'))}</p>
+      ${body}
+    </section>`;
+}
+
+function bindNotify() {
+  view.querySelector('#notify-on')?.addEventListener('click', async (event) => {
+    event.currentTarget.disabled = true;
+    const permission = await Notification.requestPermission().catch(() => 'denied');
+    if (permission !== 'granted') {
+      flash(t('notify.refused'), 'error');
+      render();
+      return;
+    }
+    try {
+      const registration = await worker();
+      if (!registration) throw new Error('no worker');
+      await register(await subscribe(registration));
+    } catch (error) {
+      flash(t(/no key|404/.test(String(error?.message)) ? 'notify.notReady' : 'notify.failed'), 'error');
+      render();
+      return;
+    }
+    state.prefs = { ...state.prefs, push: true };
+    savePrefs(state.prefs);
+    flash(t('notify.enabled'));
+    render();
+  });
+  view.querySelector('#notify-off')?.addEventListener('click', async (event) => {
+    event.currentTarget.disabled = true;
+    try {
+      const registration = await worker();
+      const held = await registration?.pushManager.getSubscription();
+      if (held) {
+        await state.remote.pushUnsubscribe(held.endpoint).catch(() => null);
+        await held.unsubscribe().catch(() => null);
+      }
+    } catch {
+      // Turned off here all the same; the database forgets it at the next send.
+    }
+    state.prefs = { ...state.prefs, push: false };
+    savePrefs(state.prefs);
+    flash(t('notify.disabled'));
+    render();
+  });
+}
+
+/**
+ * On opening, and after joining a group: the database holds this device's
+ * subscription for every group it is in — a new group, a key made anew, a
+ * subscription the browser renewed.
+ */
+async function syncPush() {
+  if (!state.remote || !isOn()) return;
+  try {
+    const registration = await worker();
+    if (registration) await register(await subscribe(registration));
+  } catch {
+    // Tried again at the next opening.
+  }
+}
+
+/* --------------------------------------------------------------- telling --- */
+
+function told() {
+  try {
+    const list = JSON.parse(localStorage.getItem(TOLD) || '[]');
+    return Array.isArray(list) ? list.filter((one) => typeof one === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * A document written with a group key: the notifier decides whether that is
+ * news (new, or a day settled) and for whom. Asked once per document and day,
+ * whatever this device's own notifications.
+ */
+async function tell(document_, key) {
+  if (!state.remote || !key || !mayBeNews(document_)) return;
+  const said = toldKey(document_);
+  if (told().includes(said)) return;
+  try {
+    await state.remote.notifier({ action: 'doc', key, id: document_.id });
+  } catch (error) {
+    // No network: asked again at the next write. Anything else — no notifier
+    // in this database — is not worth asking again for the same thing.
+    if (!error?.status) return;
+  }
+  try {
+    localStorage.setItem(TOLD, JSON.stringify(rememberTold(told(), said)));
+  } catch {
+    // No storage: the notifier tells each piece of news once anyway.
+  }
+}
+
+/** Someone knocked from this device: the group's door-keepers hear of it. */
+function tellKnock(ticket) {
+  if (!state.remote || !ticket) return;
+  state.remote.notifier({ action: 'knock', ticket }).catch(() => null);
+}
+
   // ---- src/app.js ------------------------------------------------------
 /** UI layer: hash router, views, event wiring. */
+
 
 
 
@@ -24437,6 +24739,7 @@ function render() {
     view.innerHTML = settingsView();
     bindOverview();
     bindAccount();
+    bindNotify();
     bindLook(view);
   } else if (current.name === 'groups') {
     view.innerHTML = groupsView();
@@ -24668,6 +24971,26 @@ async function heard(topic) {
     hearing.delete(topic);
     if (again) void heard(topic);
   }
+}
+
+/**
+ * Every write with a group key may be news for the group, and every knock is
+ * news for its door-keepers: the notifier is told after the database has
+ * taken it (view-notify.js). Wrapped here once, rather than at each of the
+ * many places that write.
+ */
+function tellTheNotifier() {
+  const { put, ask } = state.remote;
+  state.remote.put = async (document_, key = null, owner = null) => {
+    const answer = await put(document_, key, owner);
+    if (key) void tell(document_, key);
+    return answer;
+  };
+  state.remote.ask = async (...args) => {
+    const answer = await ask(...args);
+    if (answer?.status === 'waiting') tellKnock(answer.ticket);
+    return answer;
+  };
 }
 
 function startLive() {
@@ -24903,6 +25226,7 @@ render();
 // What happened while the app was closed, learnt on opening it rather than left
 // waiting for someone to press a button: a knock answered, a key cut off.
 if (state.remote) {
+  tellTheNotifier();
   startLive();
   (async () => {
     const answered = pendings().length ? await checkAllPendings() : false;
@@ -24913,6 +25237,9 @@ if (state.remote) {
     await syncAccount({ force: true });
     // And what the others pushed meanwhile, without being asked for it.
     await catchUpQuietly();
+    // Notifications on: the database has this device's subscription for
+    // every group it is now in.
+    await syncPush();
   })();
 
   // Coming back to the app — from Safari, from another app, from a locked

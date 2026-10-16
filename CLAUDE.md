@@ -16,8 +16,9 @@ base).
   --coller` (sans commentaires). Avec : « SQL Editor → New query → coller → Run
   → attendu : Success. No rows returned ». Pas d'encadré dans l'app pour ça : il
   a été essayé et retiré.
-- Si la fonction d'agenda change (`supabase/functions/agenda/index.ts`), le dire :
-  elle se recolle dans Supabase → Edge Functions (JWT désactivé).
+- Si une fonction change (`supabase/functions/agenda/index.ts` ou
+  `…/notifier/index.ts`), le dire : elle se recolle dans Supabase → Edge
+  Functions (JWT désactivé).
 - Sobriété : sessions courtes, une par chantier ; ne pas relire en entier
   `src/app.js` ni les `src/view-*.js` (≈ 1 000 à 3 000 lignes chacun) —
   chercher avec grep et lire des extraits.

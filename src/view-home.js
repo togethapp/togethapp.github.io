@@ -34,6 +34,7 @@ import { holoHtml } from './view-holo.js';
 import { boardCardHtml } from './view-ideas.js';
 import { installReminderHtml } from './view-install.js';
 import { askInvitationShape, groupNamed, showCalendar, showMyLink, showsGate } from './view-join.js';
+import { notifyHtml } from './view-notify.js';
 import { listCardHtml, listTitle } from './view-lists.js';
 import { lookHtml } from './view-look.js';
 import { getPoll, heldCounts, pollCardHtml, pollTitle } from './view-polls.js';
@@ -980,6 +981,7 @@ export function settingsView() {
     ${meHtml()}
     ${lookHtml()}
     ${accountHtml()}
+    ${notifyHtml()}
     ${dataHtml()}`;
 }
 
