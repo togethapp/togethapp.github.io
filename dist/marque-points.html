@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v14" />
-    <meta name="app-build" content="7e2622c2" />
+    <meta name="app-build" content="da6cbf08" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -43,18 +43,22 @@
   --bad: #ff5f7e;
   /* The colours one may choose, in their night shades — which the 3D view
      on Home keeps whatever the theme, since it is always night in there. */
-  --night-cyan: #5ff3ff;
-  --night-violet: #b9a0ff;
-  --night-green: #4ff0a0;
+  --night-red: #ff6450;
+  --night-orange: #ff8a3d;
   --night-amber: #f2b14d;
-  --night-pink: #ff85dc;
+  --night-green: #4ff0a0;
+  --night-cyan: #5ff3ff;
   --night-blue: #7ab8ff;
-  --accent-cyan: var(--night-cyan);
-  --accent-violet: var(--night-violet);
-  --accent-green: var(--night-green);
+  --night-violet: #b9a0ff;
+  --night-pink: #ff85dc;
+  --accent-red: var(--night-red);
+  --accent-orange: var(--night-orange);
   --accent-amber: var(--night-amber);
-  --accent-pink: var(--night-pink);
+  --accent-green: var(--night-green);
+  --accent-cyan: var(--night-cyan);
   --accent-blue: var(--night-blue);
+  --accent-violet: var(--night-violet);
+  --accent-pink: var(--night-pink);
   --accent: var(--accent-cyan);
   --holo-hue: var(--night-cyan);
   --accent-text: #04101a;
@@ -104,12 +108,14 @@
   --good: #0b7d4c;
   --bad: #c8233f;
   /* The same colours, deep enough to read on light. */
-  --accent-cyan: #00718c;
-  --accent-violet: #6a3fcf;
-  --accent-green: #067044;
+  --accent-red: #b52a17;
+  --accent-orange: #a8420a;
   --accent-amber: #985a00;
-  --accent-pink: #b4237c;
+  --accent-green: #067044;
+  --accent-cyan: #00718c;
   --accent-blue: #1f5fbf;
+  --accent-violet: #6a3fcf;
+  --accent-pink: #b4237c;
   --accent-text: #ffffff;
   --glow: color-mix(in srgb, var(--accent) 16%, transparent);
   --ring: color-mix(in srgb, var(--accent) 22%, transparent);
@@ -230,13 +236,16 @@
   --shadow-lift: 0 0 0 1px var(--border), 0 6px 16px rgb(0 0 0 / 8%);
 }
 
-/* A colour chosen in the settings wins over the style's own. */
-:root[data-accent='cyan'] { --accent: var(--accent-cyan); --holo-hue: var(--night-cyan); }
-:root[data-accent='violet'] { --accent: var(--accent-violet); --holo-hue: var(--night-violet); }
-:root[data-accent='green'] { --accent: var(--accent-green); --holo-hue: var(--night-green); }
+/* A colour chosen in the settings wins over the style's own. The red is a
+   vermilion, warmer than the red of errors and of « Supprimer » (--bad). */
+:root[data-accent='red'] { --accent: var(--accent-red); --holo-hue: var(--night-red); }
+:root[data-accent='orange'] { --accent: var(--accent-orange); --holo-hue: var(--night-orange); }
 :root[data-accent='amber'] { --accent: var(--accent-amber); --holo-hue: var(--night-amber); }
-:root[data-accent='pink'] { --accent: var(--accent-pink); --holo-hue: var(--night-pink); }
+:root[data-accent='green'] { --accent: var(--accent-green); --holo-hue: var(--night-green); }
+:root[data-accent='cyan'] { --accent: var(--accent-cyan); --holo-hue: var(--night-cyan); }
 :root[data-accent='blue'] { --accent: var(--accent-blue); --holo-hue: var(--night-blue); }
+:root[data-accent='violet'] { --accent: var(--accent-violet); --holo-hue: var(--night-violet); }
+:root[data-accent='pink'] { --accent: var(--accent-pink); --holo-hue: var(--night-pink); }
 
 /* ------------------------------------------------------------------ base --- */
 * { box-sizing: border-box; }
@@ -1785,14 +1794,19 @@ body:not(.solo) .view {
 .swatch--pen .swatch__rubber { background: transparent; border: 2px solid var(--text); }
 .swatch--on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 
-/* Réglages → Apparence: each colour shown as itself; « A », the style's own. */
-.tints { gap: 4px; }
+/* Réglages → Apparence: each colour shown as itself, all eight on one line —
+   narrower than 40px each on the smallest phones rather than one alone below. */
+.tints {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 40px));
+  gap: 4px;
+}
 
 .tint {
   display: inline-grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 100%;
+  aspect-ratio: 1;
   padding: 0;
   border: 2px solid transparent;
   border-radius: 50%;
@@ -1808,9 +1822,6 @@ body:not(.solo) .view {
   border-radius: 50%;
   background: var(--tint);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%), 0 0 10px color-mix(in srgb, var(--tint) 35%, transparent);
-  color: var(--accent-text);
-  font-size: 0.72rem;
-  font-weight: 800;
 }
 
 .tint--on { border-color: var(--text); }
@@ -2231,7 +2242,7 @@ body.holo-open { overflow: hidden; }
         const root = document.documentElement;
         if (prefs.theme === 'light' || prefs.theme === 'dark') root.dataset.theme = prefs.theme;
         if (prefs.look === 'classic' || prefs.look === 'calm') root.dataset.look = prefs.look;
-        if (/^(cyan|violet|green|amber|pink|blue)$/.test(prefs.accent || '')) root.dataset.accent = prefs.accent;
+        if (/^(red|orange|amber|green|cyan|blue|violet|pink)$/.test(prefs.accent || '')) root.dataset.accent = prefs.accent;
         // The phone's bar takes the page's colour from the start, too.
         const ground = getComputedStyle(root).getPropertyValue('--bg').trim();
         if (ground) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', ground);
@@ -2424,13 +2435,15 @@ const STRINGS = {
     'look.classic': 'Classique',
     'look.calm': 'Épuré',
     'look.colour': 'Couleur',
-    'look.accent.auto': 'Celle du style',
-    'look.accent.cyan': 'Cyan',
-    'look.accent.violet': 'Violet',
-    'look.accent.green': 'Vert',
+    'look.accent.own': '{name} — celle du style',
+    'look.accent.red': 'Rouge',
+    'look.accent.orange': 'Orange',
     'look.accent.amber': 'Ambre',
-    'look.accent.pink': 'Rose',
+    'look.accent.green': 'Vert',
+    'look.accent.cyan': 'Cyan',
     'look.accent.blue': 'Bleu',
+    'look.accent.violet': 'Violet',
+    'look.accent.pink': 'Rose',
     'look.theme': 'Thème',
     'look.night': 'Nuit',
     'look.light': 'Clair',
@@ -3589,13 +3602,15 @@ const STRINGS = {
     'look.classic': 'Classic',
     'look.calm': 'Calm',
     'look.colour': 'Colour',
-    'look.accent.auto': 'The style’s own',
-    'look.accent.cyan': 'Cyan',
-    'look.accent.violet': 'Violet',
-    'look.accent.green': 'Green',
+    'look.accent.own': '{name} — the style’s own',
+    'look.accent.red': 'Red',
+    'look.accent.orange': 'Orange',
     'look.accent.amber': 'Amber',
-    'look.accent.pink': 'Pink',
+    'look.accent.green': 'Green',
+    'look.accent.cyan': 'Cyan',
     'look.accent.blue': 'Blue',
+    'look.accent.violet': 'Violet',
+    'look.accent.pink': 'Pink',
     'look.theme': 'Theme',
     'look.night': 'Night',
     'look.light': 'Light',
@@ -21093,8 +21108,8 @@ function bindHolo() {
 /** The styles, the app's own first: it is the one with no attribute. */
 const LOOKS = ['holo', 'classic', 'calm'];
 
-/** The colours one may choose over a style's own. */
-const LOOK_ACCENTS = ['cyan', 'violet', 'green', 'amber', 'pink', 'blue'];
+/** The colours one may choose, in the order of the rainbow. */
+const LOOK_ACCENTS = ['red', 'orange', 'amber', 'green', 'cyan', 'blue', 'violet', 'pink'];
 
 /** Each style's own colour, the one shown under « Celle du style ». */
 const LOOK_OWN_ACCENT = { holo: 'cyan', classic: 'amber', calm: 'blue' };
@@ -21138,10 +21153,17 @@ function lookHtml() {
             aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
   // A colour is shown as itself, in the theme on screen: the same token the
   // page would take, read from styles.css rather than written twice.
-  const dot = (value, label) => `
-    <button type="button" class="tint ${accent === value ? 'tint--on' : ''}" data-pick-accent="${escapeHtml(value)}"
-            aria-pressed="${accent === value ? 'true' : 'false'}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">
-      <span class="tint__dot" style="--tint: var(--accent-${value || LOOK_OWN_ACCENT[look]})" aria-hidden="true">${value ? '' : 'A'}</span>
+  //
+  // The style's own colour is one of the dots, not a dot of its own beside
+  // them — that showed the same colour twice. Picking it means « the style's
+  // own »: no colour is kept, and changing style changes the colour with it.
+  const own = LOOK_OWN_ACCENT[look];
+  const shown = accent || own;
+  const name = (value) => (value === own ? t('look.accent.own', { name: t(`look.accent.${value}`) }) : t(`look.accent.${value}`));
+  const dot = (value) => `
+    <button type="button" class="tint ${shown === value ? 'tint--on' : ''}" data-pick-accent="${value === own ? '' : escapeHtml(value)}"
+            aria-pressed="${shown === value ? 'true' : 'false'}" aria-label="${escapeHtml(name(value))}" title="${escapeHtml(name(value))}">
+      <span class="tint__dot" style="--tint: var(--accent-${value})" aria-hidden="true"></span>
     </button>`;
   return `
     <section class="section">
@@ -21153,9 +21175,9 @@ function lookHtml() {
         </div>
         <span class="muted small">${escapeHtml(t('look.colour'))}</span>
         <div class="row row--chips tints" role="group" aria-label="${escapeHtml(t('look.colour'))}">
-          ${dot('', t('look.accent.auto'))}
-          ${LOOK_ACCENTS.map((value) => dot(value, t(`look.accent.${value}`))).join('')}
+          ${LOOK_ACCENTS.map(dot).join('')}
         </div>
+        <span class="muted small" id="look-colour-name">${escapeHtml(name(shown))}</span>
         <span class="muted small">${escapeHtml(t('look.theme'))}</span>
         <div class="row row--chips" role="group" aria-label="${escapeHtml(t('look.theme'))}">
           ${chip('theme', 'dark', t('look.night'), dark)}

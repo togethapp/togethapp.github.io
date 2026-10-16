@@ -17,8 +17,8 @@ import { t } from './i18n.js';
 /** The styles, the app's own first: it is the one with no attribute. */
 export const LOOKS = ['holo', 'classic', 'calm'];
 
-/** The colours one may choose over a style's own. */
-export const LOOK_ACCENTS = ['cyan', 'violet', 'green', 'amber', 'pink', 'blue'];
+/** The colours one may choose, in the order of the rainbow. */
+export const LOOK_ACCENTS = ['red', 'orange', 'amber', 'green', 'cyan', 'blue', 'violet', 'pink'];
 
 /** Each style's own colour, the one shown under « Celle du style ». */
 const LOOK_OWN_ACCENT = { holo: 'cyan', classic: 'amber', calm: 'blue' };
@@ -62,10 +62,17 @@ export function lookHtml() {
             aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
   // A colour is shown as itself, in the theme on screen: the same token the
   // page would take, read from styles.css rather than written twice.
-  const dot = (value, label) => `
-    <button type="button" class="tint ${accent === value ? 'tint--on' : ''}" data-pick-accent="${escapeHtml(value)}"
-            aria-pressed="${accent === value ? 'true' : 'false'}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">
-      <span class="tint__dot" style="--tint: var(--accent-${value || LOOK_OWN_ACCENT[look]})" aria-hidden="true">${value ? '' : 'A'}</span>
+  //
+  // The style's own colour is one of the dots, not a dot of its own beside
+  // them — that showed the same colour twice. Picking it means « the style's
+  // own »: no colour is kept, and changing style changes the colour with it.
+  const own = LOOK_OWN_ACCENT[look];
+  const shown = accent || own;
+  const name = (value) => (value === own ? t('look.accent.own', { name: t(`look.accent.${value}`) }) : t(`look.accent.${value}`));
+  const dot = (value) => `
+    <button type="button" class="tint ${shown === value ? 'tint--on' : ''}" data-pick-accent="${value === own ? '' : escapeHtml(value)}"
+            aria-pressed="${shown === value ? 'true' : 'false'}" aria-label="${escapeHtml(name(value))}" title="${escapeHtml(name(value))}">
+      <span class="tint__dot" style="--tint: var(--accent-${value})" aria-hidden="true"></span>
     </button>`;
   return `
     <section class="section">
@@ -77,9 +84,9 @@ export function lookHtml() {
         </div>
         <span class="muted small">${escapeHtml(t('look.colour'))}</span>
         <div class="row row--chips tints" role="group" aria-label="${escapeHtml(t('look.colour'))}">
-          ${dot('', t('look.accent.auto'))}
-          ${LOOK_ACCENTS.map((value) => dot(value, t(`look.accent.${value}`))).join('')}
+          ${LOOK_ACCENTS.map(dot).join('')}
         </div>
+        <span class="muted small" id="look-colour-name">${escapeHtml(name(shown))}</span>
         <span class="muted small">${escapeHtml(t('look.theme'))}</span>
         <div class="row row--chips" role="group" aria-label="${escapeHtml(t('look.theme'))}">
           ${chip('theme', 'dark', t('look.night'), dark)}

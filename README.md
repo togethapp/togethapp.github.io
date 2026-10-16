@@ -127,8 +127,10 @@ web, aucune dépendance, aucun build.
 - **Ça marche sur téléphone**, hors ligne, en français ou en anglais, avec un
   apparence au choix dans **Réglages → Apparence** : trois styles (Hologramme,
   le style de l'app ; Classique, papier chaud et ambre ; Épuré, gris et plat),
-  six couleurs ou celle du style, nuit (par défaut) ou clair — aussi au bouton
-  rond du haut. Gardé sur l'appareil, appliqué avant le premier affichage. Les parties sont enregistrées dans le navigateur, et
+  huit couleurs, du rouge au rose (celle du style est l'une d'elles, cochée
+  d'origine), nuit (par défaut) ou clair — aussi au bouton rond du haut. Gardé
+  sur l'appareil, appliqué avant le premier affichage. Les parties sont
+  enregistrées dans le navigateur, et
   exportables en JSON pour sauvegarder ou changer d'appareil.
 
 ## Ce que ça fait — les listes

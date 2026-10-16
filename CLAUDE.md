@@ -90,10 +90,12 @@ guide en français.
   (`#/poll/<id>/solo`), sans navigation.
 - **Apparence** (octobre 2026) : style « hologramme » par défaut, nuit quel
   que soit le réglage du téléphone ; Réglages → Apparence (`view-look.js`) :
-  styles Classique / Épuré, six couleurs, nuit/clair, en attributs `data-look`,
-  `data-accent`, `data-theme` lus par les variables en tête de `styles.css`
-  (contrastes ≥ 4,5:1 partout, `tests/contrast.test.js`). En tête de
-  l'Accueil, la vue d'ensemble 3D (`holo.js`, `view-holo.js`), sans personnes.
+  styles Classique / Épuré, huit couleurs (celle du style en fait partie,
+  pas de pastille à part : elle doublait une couleur), nuit/clair, en
+  attributs `data-look`, `data-accent`, `data-theme` lus par les variables en
+  tête de `styles.css` (contrastes ≥ 4,5:1 partout, `tests/contrast.test.js`).
+  En tête de l'Accueil, la vue d'ensemble 3D (`holo.js`, `view-holo.js`),
+  sans personnes.
 - **Ce qui est supprimé ne revient pas** : table `marque_points_gone` ; l'app
   retire sa copie quand la base répond « document supprime ».
 

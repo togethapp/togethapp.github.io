@@ -40,11 +40,16 @@ await page.goto(`${B}#/settings`);
 await page.waitForSelector('[data-pick-look]');
 
 check('une section Apparence dans les réglages', /Apparence/.test(await page.locator('#view').textContent()));
-check('trois styles, sept couleurs, deux thèmes',
-  (await page.locator('[data-pick-look]').count()) === 3 && (await page.locator('[data-pick-accent]').count()) === 7
+check('trois styles, huit couleurs, deux thèmes',
+  (await page.locator('[data-pick-look]').count()) === 3 && (await page.locator('[data-pick-accent]').count()) === 8
   && (await page.locator('[data-pick-theme]').count()) === 2);
+const dots = await page.locator('.tint__dot').evaluateAll((nodes) => nodes.map((n) => getComputedStyle(n).backgroundColor));
+check('huit couleurs différentes : celle du style n’est pas montrée deux fois', new Set(dots).size === 8, dots.join(' '));
 check('d’origine : hologramme, sa couleur, la nuit',
   await pressed('[data-pick-look="holo"]') && await pressed('[data-pick-accent=""]') && await pressed('[data-pick-theme="dark"]'));
+check('et la couleur choisie est nommée', /Cyan — celle du style/.test(await page.locator('#look-colour-name').textContent()));
+const line = await page.locator('.tint').evaluateAll((nodes) => new Set(nodes.map((n) => Math.round(n.getBoundingClientRect().top))).size);
+check('les huit tiennent sur une ligne', line === 1, String(line));
 check('et rien d’écrit sur la page', JSON.stringify(await root()) === '{}', JSON.stringify(await root()));
 check('le fond de nuit de l’hologramme', (await token('--bg')) === '#050b16', await token('--bg'));
 if (SHOTS) await page.screenshot({ path: `${SHOTS}/apparence-holo.png`, fullPage: true });
@@ -106,6 +111,14 @@ if (SHOTS) {
   await page.goto(`${B}#/settings`);
   await page.waitForSelector('[data-pick-look]');
 }
+
+await page.click('[data-pick-accent="red"]');
+await settle();
+check('le rouge, plus chaud que celui des erreurs', (await root()).accent === 'red' && (await token('--accent')) === '#ff6450'
+  && (await token('--bad')) !== (await token('--accent')), await token('--accent'));
+check('nommé tel quel, sans « celle du style »', (await page.locator('#look-colour-name').textContent()).trim() === 'Rouge');
+await page.click('[data-pick-accent=""]');
+await settle();
 
 await page.click('[data-pick-look="holo"]');
 await settle();
