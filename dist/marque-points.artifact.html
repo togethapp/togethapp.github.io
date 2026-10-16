@@ -10883,27 +10883,51 @@ function newPollDaysHtml() {
           ${escapeHtml(t(eventDaysOf.length ? 'polls.addOtherDay' : 'polls.addDay'))}
           <input type="date" id="poll-add-day" />
         </label>
-        ${
-          picked.length
-            ? `<label class="small add-day">
-                 ${escapeHtml(t('polls.daysHour'))}
-                 <input type="time" id="poll-add-at" value="${escapeHtml(state.newPollAt || '')}" />
-               </label>`
-            : ''
-        }
+        <label class="small add-day" id="poll-add-at-label" ${picked.length ? '' : 'hidden'}>
+          ${escapeHtml(t('polls.daysHour'))}
+          <input type="time" id="poll-add-at" value="${escapeHtml(state.newPollAt || '')}" />
+        </label>
       </div>
-      ${
-        others.length
-          ? `<div class="row" id="poll-days">${others
-              .map(
-                (day) => `<button type="button" class="chip chip--on" data-drop-day="${escapeHtml(day)}"
-                                  aria-label="${escapeHtml(t('polls.dropDay', { day: choiceOfDay(day, getLanguage()) }))}">
-                            ${escapeHtml(choiceOfDay(day, getLanguage()))} ×
-                          </button>`,
-              )
-              .join('')}</div>`
-          : ''
-      }`;
+      <div class="row" id="poll-days" ${others.length ? '' : 'hidden'}>${pickedDaysHtml(others)}</div>`;
+}
+
+/** The picked days that are not the event's, as chips a tap takes away. */
+function pickedDaysHtml(days) {
+  return days
+    .map(
+      (day) => `<button type="button" class="chip chip--on" data-drop-day="${escapeHtml(day)}"
+                        aria-label="${escapeHtml(t('polls.dropDay', { day: choiceOfDay(day, getLanguage()) }))}">
+                  ${escapeHtml(choiceOfDay(day, getLanguage()))} ×
+                </button>`,
+    )
+    .join('');
+}
+
+/**
+ * A plausible day from a date field. Typing the year on a keyboard goes
+ * through 0002, 0020 and 0202 before 2026, each a valid date to the browser.
+ */
+function typedDay(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value || '') && Number(value.slice(0, 4)) >= 1900 ? value : '';
+}
+
+/** The picked days shown again, the date field left alone. */
+function showNewPollDays() {
+  const picked = state.newPollDays;
+  view.querySelectorAll('[data-toggle-day]').forEach((chip) => {
+    const on = picked.includes(chip.dataset.toggleDay);
+    chip.classList.toggle('chip--on', on);
+    chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  const eventDaysOf = [...view.querySelectorAll('[data-toggle-day]')].map((chip) => chip.dataset.toggleDay);
+  const others = picked.filter((day) => !eventDaysOf.includes(day));
+  const hour = view.querySelector('#poll-add-at-label');
+  if (hour) hour.hidden = !picked.length;
+  const list = view.querySelector('#poll-days');
+  if (list) {
+    list.innerHTML = pickedDaysHtml(others);
+    list.hidden = !others.length;
+  }
 }
 
 function bindNewPoll() {
@@ -10956,12 +10980,15 @@ function bindNewPoll() {
   // Picked days are kept apart from the typed choices, in date order, as chips
   // a tap takes away; they become choices — days, not words about days — only
   // when the poll is created.
+  // No redraw here: it would rebuild the date field under the finger, and
+  // iOS closes its calendar the moment its field goes. Only what the days
+  // change is touched.
   view.querySelector('#poll-add-day')?.addEventListener('change', (event) => {
-    const day = event.target.value;
-    if (!choiceOfDay(day, getLanguage())) return;
+    const day = typedDay(event.target.value);
+    if (!day) return;
     snapshot();
     if (!state.newPollDays.includes(day)) state.newPollDays = [...state.newPollDays, day].sort();
-    render();
+    showNewPollDays();
   });
 
   view.querySelectorAll('[data-toggle-day]').forEach((chip) => {
@@ -10984,12 +11011,12 @@ function bindNewPoll() {
     });
   });
 
-  view.querySelectorAll('[data-drop-day]').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      snapshot();
-      state.newPollDays = state.newPollDays.filter((day) => day !== chip.dataset.dropDay);
-      render();
-    });
+  view.querySelector('#poll-days')?.addEventListener('click', (event) => {
+    const chip = event.target.closest('[data-drop-day]');
+    if (!chip) return;
+    snapshot();
+    state.newPollDays = state.newPollDays.filter((day) => day !== chip.dataset.dropDay);
+    render();
   });
 
   form.addEventListener('submit', (event) => {
@@ -11148,7 +11175,21 @@ function bindPoll(poll) {
   view.querySelectorAll('[data-choice-day]').forEach((button) => {
     button.addEventListener('click', () => pickDay(button.dataset.choiceDay));
   });
-  view.querySelector('#new-choice-day')?.addEventListener('change', (event) => pickDay(event.target.value));
+  // The calendar is not redrawn under the finger: iOS closes it the moment
+  // its field is rebuilt. The day is kept, and the hour opened or closed.
+  view.querySelector('#new-choice-day')?.addEventListener('change', (event) => {
+    const day = typedDay(event.target.value);
+    if (event.target.value && !day) return;
+    if (day) pickedDays[poll.id] = day;
+    else {
+      delete pickedDays[poll.id];
+      delete pickedHours[poll.id];
+    }
+    const hour = view.querySelector('#new-choice-at');
+    if (!hour) return;
+    hour.disabled = !day;
+    if (!day) hour.value = '';
+  });
   view.querySelector('#new-choice-at')?.addEventListener('change', (event) => {
     pickedHours[poll.id] = event.target.value;
   });

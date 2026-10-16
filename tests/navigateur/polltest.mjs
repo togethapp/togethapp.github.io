@@ -159,7 +159,10 @@ const soon = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d
 await page.goto('http://localhost:8099/dist/marque-points.html#/polls/new');
 await page.waitForSelector('#new-poll');
 await page.fill('#poll-question', 'Quel soir pour le ciné ?');
+await page.evaluate(() => { window.dayField = document.querySelector('#poll-add-day'); });
 await page.fill('#poll-add-day', soon(10));
+check('le calendrier reste ouvert : son champ n’est pas reconstruit',
+  await page.evaluate(() => document.querySelector('#poll-add-day') === window.dayField));
 await page.fill('#poll-add-day', soon(11));
 await page.fill('#poll-add-day', soon(9));
 await page.waitForSelector('[data-drop-day]');

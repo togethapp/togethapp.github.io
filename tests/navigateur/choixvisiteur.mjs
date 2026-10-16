@@ -52,7 +52,10 @@ await her.waitForTimeout(600);
 check('une case de mots, un jour, une heure', (await her.locator('#new-choice').count()) === 1
   && (await her.locator('#new-choice-day').count()) === 1 && (await her.locator('#new-choice-at').count()) === 1);
 check('l’heure attend un jour', await her.locator('#new-choice-at').isDisabled());
+await her.evaluate(() => { window.dayField = document.querySelector('#new-choice-day'); });
 await her.fill('#new-choice-day', '2026-10-11');
+check('le calendrier reste ouvert : son champ n’est pas reconstruit',
+  await her.evaluate(() => document.querySelector('#new-choice-day') === window.dayField));
 await her.waitForTimeout(400);
 check('le jour choisi rend l’heure possible', !(await her.locator('#new-choice-at').isDisabled()));
 await her.click('#add-choice button[type=submit]');
