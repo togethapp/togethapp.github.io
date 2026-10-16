@@ -1134,6 +1134,31 @@ select.field-pill {
    plainly not for touching. */
 .vote--other { opacity: 0.45; border-style: dashed; }
 .vote--other.vote--yes { opacity: 0.6; border-style: solid; }
+/* No name chosen yet: every cell waits, and says so. */
+.vote--locked { opacity: 0.5; border-style: dashed; cursor: not-allowed; }
+.vote--locked.vote--yes { opacity: 0.65; border-style: solid; }
+
+/* « Je suis » while nobody is chosen: framed, the one thing to do first. A
+   tap on the grid makes it pulse (askWhoFirst in view-polls.js). */
+.iam--needed {
+  padding: 8px 10px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-soft) 70%, transparent);
+}
+
+.iam--needed > .muted { color: var(--accent); font-weight: 650; }
+.iam--nudge { animation: iam-nudge 0.5s var(--ease) 2; }
+
+@keyframes iam-nudge {
+  50% { box-shadow: 0 0 0 3px var(--ring), 0 0 24px var(--glow); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iam--nudge { animation: none; box-shadow: 0 0 0 3px var(--ring); }
+}
+
+.poll-ask { color: var(--accent); font-weight: 600; }
 
 
 

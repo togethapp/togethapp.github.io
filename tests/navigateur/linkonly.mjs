@@ -72,6 +72,8 @@ const paul = await device('Paul', { me: 'Paul' });
 await paul.goto(`http://localhost:8099/dist/marque-points.html${link.slice(link.indexOf('#'))}`);
 await paul.waitForSelector('.votes', { timeout: 15000 });
 check('Paul l’ouvre par le lien', /voisins/.test(await text(paul, 'h1')));
+await paul.locator('[data-me]').first().click();
+await paul.waitForTimeout(200);
 await paul.locator('.votes tbody tr').first().locator('.vote').first().click();
 await paul.waitForTimeout(800);
 const back = await me.waitForFunction(() => document.querySelectorAll('.vote--yes').length >= 1, null, { timeout: 15000 }).then(() => true).catch(() => false);

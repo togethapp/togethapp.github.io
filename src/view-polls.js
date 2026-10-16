@@ -263,6 +263,12 @@ export function pollView(poll, { solo = false } = {}) {
   // the day, who comes, and what hangs off it.
   const fixed = isEvent(poll);
 
+  // Nobody ticks before saying who they are: until a name is chosen above,
+  // no cell votes — a thumb landing on the grid would otherwise tick for
+  // whoever's column it hit, and settle who this device is on the way. A tap
+  // there points at the names instead (see bindPoll), so it stays a button.
+  const locked = !me && !closed;
+
   const cellHtml = (option, person) => {
     const yes = voteOf(poll, person.id, option.id) === 'yes';
     // Once this device has said who it answers for, the other columns are out
@@ -272,8 +278,9 @@ export function pollView(poll, { solo = false } = {}) {
     const others = Boolean(me) && person.id !== me;
     return `
       <td class="${person.id === me ? 'votes__mine' : ''}">
-        <button type="button" class="vote ${yes ? 'vote--yes' : 'vote--none'} ${others ? 'vote--other' : ''}"
+        <button type="button" class="vote ${yes ? 'vote--yes' : 'vote--none'} ${others ? 'vote--other' : ''} ${locked ? 'vote--locked' : ''}"
                 data-vote="${escapeHtml(person.id)}|${escapeHtml(option.id)}" ${closed || others ? 'disabled' : ''}
+                ${locked ? 'aria-disabled="true"' : ''}
                 aria-pressed="${yes ? 'true' : 'false'}"
                 aria-label="${escapeHtml(`${person.name} — ${choiceLabel(option)}`)}">
           ${yes ? VOTE_MARK.yes : ''}
@@ -325,7 +332,7 @@ export function pollView(poll, { solo = false } = {}) {
 
     ${
       poll.people.length && !fixed
-        ? `<div class="row">
+        ? `<div class="row iam ${locked ? 'iam--needed' : ''}" data-iam>
              <span class="muted small">${escapeHtml(t('polls.iAm'))}</span>
              ${poll.people
                .map(
@@ -393,11 +400,15 @@ export function pollView(poll, { solo = false } = {}) {
                </tbody>
              </table>
            </div>
-           <p class="muted small">${escapeHtml(
-             me && !closed
-               ? t('polls.answeringAs', { name: poll.people.find((person) => person.id === me)?.name || '' })
-               : t('polls.tapHint'),
-           )}</p>`
+           ${
+             locked
+               ? `<p class="small poll-ask">${escapeHtml(t('polls.pickFirst'))}</p>`
+               : `<p class="muted small">${escapeHtml(
+                 me && !closed
+                   ? t('polls.answeringAs', { name: poll.people.find((person) => person.id === me)?.name || '' })
+                   : t('polls.tapHint'),
+               )}</p>`
+           }`
         : `<p class="muted small">${escapeHtml(poll.people.length ? t('polls.addChoices') : t('polls.addPeople'))}</p>`
     }
 
@@ -1175,20 +1186,36 @@ function showMyColumn({ always = false } = {}) {
   box.scrollTo({ left: Math.max(0, start), behavior });
 }
 
+/**
+ * A tap on the grid before any name is chosen: the names above light up, and
+ * come into sight if the page had scrolled them away.
+ */
+function askWhoFirst() {
+  const names = view.querySelector('[data-iam]');
+  if (!names) return;
+  names.classList.remove('iam--nudge');
+  // Read the layout between the two, so the same light plays again on a
+  // second tap rather than being merged into the first.
+  names.getBoundingClientRect();
+  names.classList.add('iam--nudge');
+  const still = matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  names.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+}
+
 export function bindPoll(poll) {
   view.querySelectorAll('[data-vote]').forEach((button) => {
     button.addEventListener('click', () => {
       const [personId, optionId] = button.dataset.vote.split('|');
-      // The screen already refuses; this refuses too, whatever the screen did.
       const answeringAs = state.prefs.voter?.[poll.id];
-      if (answeringAs && answeringAs !== personId) return;
+      // No name chosen yet: the tap asks for one rather than voting.
+      if (!answeringAs) {
+        askWhoFirst();
+        return;
+      }
+      // The screen already refuses; this refuses too, whatever the screen did.
+      if (answeringAs !== personId) return;
       const next = setVote(poll, personId, optionId, nextValue(voteOf(poll, personId, optionId)));
       if (next === poll) return;
-      // Remember who this device answers as, so its column stands out.
-      if (!state.prefs.voter?.[poll.id]) {
-        state.prefs = { ...state.prefs, voter: { ...state.prefs.voter, [poll.id]: personId } };
-        savePrefs(state.prefs);
-      }
       replacePoll(next);
     });
   });

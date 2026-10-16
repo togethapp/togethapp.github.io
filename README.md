@@ -375,6 +375,10 @@ du « quel soir ? », et choisir une chose parmi plusieurs, c'est la même grill
 avec une seule coche dedans. Donc pas de type de sondage à choisir avant de
 poser la question.
 
+- **D'abord son prénom**, sous « Je suis », ensuite les cases : tant qu'aucun
+  prénom n'est choisi, la grille ne coche rien (une case touchée fait
+  s'allumer les prénoms), puis seule la colonne choisie se coche — pas de vote
+  dans la colonne d'à côté par erreur. Un autre prénom se choisit d'un toucher.
 - On touche une case pour dire « dispo », on la retouche pour l'enlever. **Ne
   pas avoir répondu n'est pas un non** — le compte dit combien ont répondu.
 - Une jauge horizontale classe les choix par nombre de personnes dispo ; à

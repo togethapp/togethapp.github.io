@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v13" />
-    <meta name="app-build" content="80511734" />
+    <meta name="app-build" content="53f85ca7" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -1153,6 +1153,31 @@ select.field-pill {
    plainly not for touching. */
 .vote--other { opacity: 0.45; border-style: dashed; }
 .vote--other.vote--yes { opacity: 0.6; border-style: solid; }
+/* No name chosen yet: every cell waits, and says so. */
+.vote--locked { opacity: 0.5; border-style: dashed; cursor: not-allowed; }
+.vote--locked.vote--yes { opacity: 0.65; border-style: solid; }
+
+/* « Je suis » while nobody is chosen: framed, the one thing to do first. A
+   tap on the grid makes it pulse (askWhoFirst in view-polls.js). */
+.iam--needed {
+  padding: 8px 10px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-soft) 70%, transparent);
+}
+
+.iam--needed > .muted { color: var(--accent); font-weight: 650; }
+.iam--nudge { animation: iam-nudge 0.5s var(--ease) 2; }
+
+@keyframes iam-nudge {
+  50% { box-shadow: 0 0 0 3px var(--ring), 0 0 24px var(--glow); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iam--nudge { animation: none; box-shadow: 0 0 0 3px var(--ring); }
+}
+
+.poll-ask { color: var(--accent); font-weight: 600; }
 
 
 
@@ -2925,6 +2950,7 @@ const STRINGS = {
     'polls.count': 'Oui',
     'polls.iAm': 'Je suis :',
     'polls.tapHint': 'Choisissez votre prénom, puis cochez ce qui vous va.',
+    'polls.pickFirst': 'Pour voter, choisissez d’abord votre prénom ci-dessus : les cases s’ouvrent ensuite.',
     'polls.anyDay': 'Sans jour précis',
     'polls.daysOffered': '{count} {count|jour proposé|jours proposés}',
     'polls.choicesOffered': '{count} {count|choix proposé|choix proposés}',
@@ -4044,6 +4070,7 @@ const STRINGS = {
     'polls.count': 'Yes',
     'polls.iAm': 'I am:',
     'polls.tapHint': 'Choose your name, then tick what works for you.',
+    'polls.pickFirst': 'To vote, first choose your name above: the boxes open then.',
     'polls.anyDay': 'Any day',
     'polls.daysOffered': '{count} {count|day offered|days offered}',
     'polls.choicesOffered': '{count} {count|choice offered|choices offered}',
@@ -10866,6 +10893,12 @@ function pollView(poll, { solo = false } = {}) {
   // the day, who comes, and what hangs off it.
   const fixed = isEvent(poll);
 
+  // Nobody ticks before saying who they are: until a name is chosen above,
+  // no cell votes — a thumb landing on the grid would otherwise tick for
+  // whoever's column it hit, and settle who this device is on the way. A tap
+  // there points at the names instead (see bindPoll), so it stays a button.
+  const locked = !me && !closed;
+
   const cellHtml = (option, person) => {
     const yes = voteOf(poll, person.id, option.id) === 'yes';
     // Once this device has said who it answers for, the other columns are out
@@ -10875,8 +10908,9 @@ function pollView(poll, { solo = false } = {}) {
     const others = Boolean(me) && person.id !== me;
     return `
       <td class="${person.id === me ? 'votes__mine' : ''}">
-        <button type="button" class="vote ${yes ? 'vote--yes' : 'vote--none'} ${others ? 'vote--other' : ''}"
+        <button type="button" class="vote ${yes ? 'vote--yes' : 'vote--none'} ${others ? 'vote--other' : ''} ${locked ? 'vote--locked' : ''}"
                 data-vote="${escapeHtml(person.id)}|${escapeHtml(option.id)}" ${closed || others ? 'disabled' : ''}
+                ${locked ? 'aria-disabled="true"' : ''}
                 aria-pressed="${yes ? 'true' : 'false'}"
                 aria-label="${escapeHtml(`${person.name} — ${choiceLabel(option)}`)}">
           ${yes ? VOTE_MARK.yes : ''}
@@ -10928,7 +10962,7 @@ function pollView(poll, { solo = false } = {}) {
 
     ${
       poll.people.length && !fixed
-        ? `<div class="row">
+        ? `<div class="row iam ${locked ? 'iam--needed' : ''}" data-iam>
              <span class="muted small">${escapeHtml(t('polls.iAm'))}</span>
              ${poll.people
                .map(
@@ -10996,11 +11030,15 @@ function pollView(poll, { solo = false } = {}) {
                </tbody>
              </table>
            </div>
-           <p class="muted small">${escapeHtml(
-             me && !closed
-               ? t('polls.answeringAs', { name: poll.people.find((person) => person.id === me)?.name || '' })
-               : t('polls.tapHint'),
-           )}</p>`
+           ${
+             locked
+               ? `<p class="small poll-ask">${escapeHtml(t('polls.pickFirst'))}</p>`
+               : `<p class="muted small">${escapeHtml(
+                 me && !closed
+                   ? t('polls.answeringAs', { name: poll.people.find((person) => person.id === me)?.name || '' })
+                   : t('polls.tapHint'),
+               )}</p>`
+           }`
         : `<p class="muted small">${escapeHtml(poll.people.length ? t('polls.addChoices') : t('polls.addPeople'))}</p>`
     }
 
@@ -11778,20 +11816,36 @@ function showMyColumn({ always = false } = {}) {
   box.scrollTo({ left: Math.max(0, start), behavior });
 }
 
+/**
+ * A tap on the grid before any name is chosen: the names above light up, and
+ * come into sight if the page had scrolled them away.
+ */
+function askWhoFirst() {
+  const names = view.querySelector('[data-iam]');
+  if (!names) return;
+  names.classList.remove('iam--nudge');
+  // Read the layout between the two, so the same light plays again on a
+  // second tap rather than being merged into the first.
+  names.getBoundingClientRect();
+  names.classList.add('iam--nudge');
+  const still = matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  names.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+}
+
 function bindPoll(poll) {
   view.querySelectorAll('[data-vote]').forEach((button) => {
     button.addEventListener('click', () => {
       const [personId, optionId] = button.dataset.vote.split('|');
-      // The screen already refuses; this refuses too, whatever the screen did.
       const answeringAs = state.prefs.voter?.[poll.id];
-      if (answeringAs && answeringAs !== personId) return;
+      // No name chosen yet: the tap asks for one rather than voting.
+      if (!answeringAs) {
+        askWhoFirst();
+        return;
+      }
+      // The screen already refuses; this refuses too, whatever the screen did.
+      if (answeringAs !== personId) return;
       const next = setVote(poll, personId, optionId, nextValue(voteOf(poll, personId, optionId)));
       if (next === poll) return;
-      // Remember who this device answers as, so its column stands out.
-      if (!state.prefs.voter?.[poll.id]) {
-        state.prefs = { ...state.prefs, voter: { ...state.prefs.voter, [poll.id]: personId } };
-        savePrefs(state.prefs);
-      }
       replacePoll(next);
     });
   });

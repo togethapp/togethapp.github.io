@@ -52,8 +52,23 @@ check('et une colonne par personne', (await page.locator('.votes thead th').coun
 check('les puces des choix sont nettoyées',
   (await page.locator('.votes tbody th').allTextContents()).map((s) => s.trim()).includes('Samedi 13'));
 
-// répondre en touchant les cases
+// répondre : d'abord son prénom, puis les cases
 const cell = (row, person) => page.locator('.votes tbody tr').nth(row).locator('.vote').nth(person);
+check('sans prénom choisi, les cases attendent',
+  (await cell(0, 0).getAttribute('aria-disabled')) === 'true' && (await page.locator('[data-iam].iam--needed').count()) === 1);
+check('et la page dit de choisir d’abord son prénom',
+  /choisissez d’abord votre prénom/.test(await page.locator('.poll-ask').textContent()));
+// Un pouce qui tombe sur la grille, dans la colonne d'Alice (forcé : la case
+// se dit désactivée, mais un doigt la touche quand même).
+await cell(0, 1).click({ force: true });
+await page.waitForTimeout(250);
+check('une case touchée sans prénom ne coche rien', (await page.locator('.vote--yes').count()) === 0);
+check('elle fait s’allumer les prénoms', (await page.locator('[data-iam].iam--nudge').count()) === 1);
+check('et ne décide pas qui je suis', (await page.locator('[data-me].chip--on').count()) === 0);
+await page.locator('[data-me]', { hasText: 'Gui' }).click();
+await page.waitForTimeout(200);
+check('le prénom choisi, les cases s’ouvrent',
+  (await cell(0, 0).getAttribute('aria-disabled')) === null && (await page.locator('[data-iam].iam--needed').count()) === 0);
 await cell(0, 0).click();            // Gui : oui sur la 1re ligne
 await page.waitForTimeout(250);
 check('une case touchée se coche', (await cell(0, 0).textContent()).trim() === '✓',
@@ -135,7 +150,9 @@ check('le sondage s’ouvre ailleurs avec les réponses déjà données',
   (await other.locator('.vote--yes').count()) === 4,
   String(await other.locator('.vote--yes').count()));
 
-// Bob répond de son côté
+// Bob répond de son côté — son prénom d'abord
+await other.locator('[data-me]', { hasText: 'Bob' }).click();
+await other.waitForTimeout(200);
 await other.locator('.votes tbody tr').nth(0).locator('.vote').nth(2).click();
 await other.waitForTimeout(400);
 const arrived = await page.waitForFunction(
@@ -178,6 +195,8 @@ await page.waitForSelector('.votes');
 check('pas de réglage de date en tête tant que rien n’est tranché',
   !(await page.locator('#poll-day').isVisible()) && (await page.locator('#poll-date-by-hand').count()) === 1);
 check('rien à retenir avant le premier vote', (await page.locator('[data-retain]').count()) === 0);
+await page.locator('[data-me]').first().click();
+await page.waitForTimeout(200);
 await page.locator('.votes tbody tr').nth(1).locator('.vote').first().click();
 await page.waitForSelector('[data-retain]');
 await page.click('[data-retain]');

@@ -107,6 +107,8 @@ await page.waitForFunction(() => /^#\/poll\//.test(location.hash) && document.qu
 const quand = (await polls()).find((p) => p.whenFor === lac.id);
 check('un sondage avec les trois jours de l’événement', quand && quand.options.length === 3, JSON.stringify(quand?.options));
 const gui = quand.people.find((p) => p.name === 'Gui');
+await page.click(`[data-me="${gui.id}"]`);
+await page.waitForTimeout(150);
 await page.click(`[data-vote="${gui.id}|${quand.options[1].id}"]`);
 await page.waitForSelector('[data-retain]');
 await page.click('[data-retain]');
@@ -184,6 +186,8 @@ check('et 🎯 dans l’arbre', /🎯 Ciné ou piscine/.test(await text('.chain-
 await page.goto(`${B}#/poll/${cine.id}`);
 await page.waitForSelector('.votes');
 const moi = cine.people.find((p) => p.name === 'Gui') || cine.people[0];
+await page.click(`[data-me="${moi.id}"]`);
+await page.waitForTimeout(150);
 await page.click(`[data-vote="${moi.id}|${cine.options[0].id}"]`);
 await page.waitForSelector('#poll-close');
 await page.click('#poll-close');
@@ -205,8 +209,10 @@ await page.evaluate((poll) => {
   const all = JSON.parse(localStorage.getItem('marque-points:polls:v1'));
   localStorage.setItem('marque-points:polls:v1', JSON.stringify([...all, { ...poll, owned: true }]));
 }, sorties);
-await page.goto(`${B}#/poll/${sorties.id}`);
-await page.reload();
+// A load of its own, not a jump within the page: a jump looks for the poll in
+// what the page already holds, asks the database, hears of nothing, and
+// leaves for the list — sometimes before a reload could come.
+await page.goto(`${B}?n=sorties#/poll/${sorties.id}`);
 await page.waitForSelector('#add-choice');
 check('les choix se calent sur les jours de l’événement', (await page.locator('#add-choice [data-choice-day]').count()) === 4);
 const ajoute = async (jour, quoi) => {
@@ -226,6 +232,8 @@ let sondage = await byTitle('Que faire là-bas ?');
 check('chaque choix garde son jour', sondage.options.map((o) => o.day).join() === [d2, d2, d3].join(), JSON.stringify(sondage.options));
 const votant = sondage.people[0];
 const [choixKayak, , choixLac] = sondage.options;
+await page.click(`[data-me="${votant.id}"]`);
+await page.waitForTimeout(150);
 await page.click(`[data-vote="${votant.id}|${choixKayak.id}"]`);
 await page.click(`[data-vote="${votant.id}|${choixLac.id}"]`);
 await page.waitForSelector('.votes__leader');
