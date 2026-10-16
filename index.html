@@ -5,7 +5,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v14" />
-    <meta name="app-build" content="23c4b638" />
+    <meta name="app-build" content="9d9c2567" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -28,6 +28,9 @@
         if (prefs.theme === 'light' || prefs.theme === 'dark') root.dataset.theme = prefs.theme;
         if (prefs.look === 'classic' || prefs.look === 'calm') root.dataset.look = prefs.look;
         if (/^(cyan|violet|green|amber|pink|blue)$/.test(prefs.accent || '')) root.dataset.accent = prefs.accent;
+        // The phone's bar takes the page's colour from the start, too.
+        const ground = getComputedStyle(root).getPropertyValue('--bg').trim();
+        if (ground) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', ground);
       } catch {
         // No storage, or nothing readable in it: the app's own look.
       }

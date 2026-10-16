@@ -20628,7 +20628,7 @@ const LOOK_ACCENTS = ['cyan', 'violet', 'green', 'amber', 'pink', 'blue'];
 /** Each style's own colour, the one shown under « Celle du style ». */
 const LOOK_OWN_ACCENT = { holo: 'cyan', classic: 'amber', calm: 'blue' };
 
-/** Night is the app's own; light is a choice, made here or with the moon. */
+/** Night is the app's own; light is a choice, made here or with the round button at the top. */
 function lookIsDark() {
   return state.prefs.theme !== 'light';
 }
@@ -24277,6 +24277,8 @@ window.addEventListener('hashchange', () => {
 window.addEventListener('storage', (event) => {
   if (event.key && !event.key.startsWith('marque-points:')) return;
   state.prefs = loadPrefs();
+  // The look chosen over there, here too.
+  applyLook();
   state.games = loadGames();
   state.lists = loadLists();
   state.polls = loadPolls();

@@ -111,6 +111,31 @@ await page.click('[data-pick-look="holo"]');
 await settle();
 check('retour à l’hologramme : plus rien d’écrit pour le style', !(await root()).look && (await token('--bg')) === '#050b16');
 
+// Un autre onglet de l'app change le style : celui-ci suit, sans rechargement.
+const other = await context.newPage();
+await other.goto(`${B}#/settings`);
+await other.waitForSelector('[data-pick-look]');
+await other.click('[data-pick-look="classic"]');
+await page.waitForTimeout(400);
+check('un autre onglet change le style : celui-ci suit', (await root()).look === 'classic', JSON.stringify(await root()));
+await other.click('[data-pick-look="holo"]');
+await page.waitForTimeout(400);
+await other.close();
+
+// Rechargé en clair : la barre du téléphone a la bonne couleur dès l'en-tête.
+await page.click('[data-pick-theme="light"]');
+await settle();
+await page.goto(`${B}?n=3#/settings`, { waitUntil: 'commit' });
+const bar = await page.evaluate(() => new Promise((resolve) => {
+  const read = () => document.querySelector('meta[name="theme-color"]')?.getAttribute('content');
+  if (document.readyState === 'loading') document.addEventListener('readystatechange', () => resolve(read()), { once: true });
+  else resolve(read());
+}));
+check('rechargé en clair, la barre du téléphone est claire d’emblée', bar === '#eaf1f8', bar);
+await page.waitForSelector('[data-pick-theme]');
+await page.click('[data-pick-theme="dark"]');
+await settle();
+
 // En anglais, les mêmes choix.
 await page.click('#lang-toggle');
 await settle();

@@ -3605,6 +3605,8 @@ window.addEventListener('hashchange', () => {
 window.addEventListener('storage', (event) => {
   if (event.key && !event.key.startsWith('marque-points:')) return;
   state.prefs = loadPrefs();
+  // The look chosen over there, here too.
+  applyLook();
   state.games = loadGames();
   state.lists = loadLists();
   state.polls = loadPolls();
