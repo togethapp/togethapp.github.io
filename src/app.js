@@ -2933,15 +2933,20 @@ function applyStaticText() {
   });
 }
 
+/**
+ * Night is the app's own look, whatever the phone's setting; light is a
+ * choice, made with the moon button and kept. The bar the phone draws above
+ * the page takes the same colour as the page.
+ */
 function applyTheme() {
   const theme = state.prefs.theme;
   if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
   else delete document.documentElement.dataset.theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', currentThemeIsDark() ? '#050b16' : '#eaf1f8');
 }
 
 function currentThemeIsDark() {
-  if (state.prefs.theme) return state.prefs.theme === 'dark';
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+  return state.prefs.theme !== 'light';
 }
 
 function bindChrome() {

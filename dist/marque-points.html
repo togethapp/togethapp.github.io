@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v13" />
-    <meta name="app-build" content="b41c016f" />
+    <meta name="app-build" content="80511734" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -14,65 +14,69 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="description" content="Compteur de points, listes et sondages partagés, pour la famille et les amis." />
     <title>Together</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23b8761a'/><circle cx='25' cy='32' r='12.5' fill='none' stroke='%23fdf6ea' stroke-width='4.2'/><circle cx='39' cy='32' r='12.5' fill='none' stroke='%23fdf6ea' stroke-width='4.2'/></svg>" />
-    <meta name="theme-color" content="#b8761a" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23071427'/><circle cx='25' cy='32' r='12.5' fill='none' stroke='%235ff3ff' stroke-width='4.2'/><circle cx='39' cy='32' r='12.5' fill='none' stroke='%235ff3ff' stroke-width='4.2'/></svg>" />
+    <meta name="theme-color" content="#050b16" />
     <style>
 /* ---------------------------------------------------------------- tokens --- */
+/*
+ * The look: a hologram — night blue, cyan light, thin lines, glass, small
+ * capitals in an instrument face. Night is the app's own look, whatever the
+ * phone's setting; the moon button gives the same language on ice. Every
+ * colour that carries words is checked against its background: 4.5:1 at
+ * least, in both.
+ */
 :root {
-  --bg: #f6f4ef;
-  --surface: #ffffff;
-  --surface-alt: #f0ece3;
-  --border: #ded7c9;
-  --text: #241f18;
-  --muted: #6d6458;
-  --accent: #b8761a;
-  --accent-text: #ffffff;
-  --accent-soft: #fbf0dc;
-  --good: #2f7d4f;
-  --bad: #b2372c;
-  --shadow: 0 1px 2px rgb(36 31 24 / 6%), 0 4px 14px rgb(36 31 24 / 5%);
-  --shadow-lift: 0 2px 4px rgb(36 31 24 / 7%), 0 12px 28px rgb(36 31 24 / 10%);
-  --ring: color-mix(in srgb, var(--accent) 28%, transparent);
-  --radius: 18px;
-  --radius-sm: 12px;
+  --bg: #050b16;
+  --surface: #0b1728;
+  --surface-alt: #102036;
+  --border: #1c3350;
+  --text: #e3f3ff;
+  --muted: #8aa5c1;
+  --accent: #5ff3ff;
+  --accent-text: #021019;
+  --accent-soft: #0b2a38;
+  --good: #46f0a0;
+  --bad: #ff5f7e;
+  /* Light itself: the halo round what glows, the grid on the glass, the
+     haze from the top, the glass of the bars, a field to type in. */
+  --glow: rgb(95 243 255 / 28%);
+  --grid: rgb(95 243 255 / 4%);
+  --haze: rgb(40 110 190 / 30%);
+  --glass: rgb(5 11 22 / 74%);
+  --field: #07111f;
+  --scrim: rgb(2 6 14 / 72%);
+  --shadow: 0 1px 2px rgb(0 0 0 / 50%), 0 8px 24px rgb(0 0 0 / 35%);
+  --shadow-lift: 0 0 0 1px rgb(95 243 255 / 22%), 0 12px 30px rgb(0 0 0 / 45%), 0 0 22px rgb(95 243 255 / 12%);
+  --ring: rgb(95 243 255 / 30%);
+  --hud: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --radius: 16px;
+  --radius-sm: 11px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: #17150f;
-    --surface: #211e17;
-    --surface-alt: #2b2720;
-    --border: #3b362c;
-    --text: #f2ede2;
-    --muted: #a49a89;
-    --accent: #e0a33f;
-    --accent-text: #201a10;
-    --accent-soft: #332b1c;
-    --good: #66bd86;
-    --bad: #e4796b;
-    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 6px 18px rgb(0 0 0 / 25%);
-    --shadow-lift: 0 2px 4px rgb(0 0 0 / 45%), 0 14px 32px rgb(0 0 0 / 38%);
-    color-scheme: dark;
-  }
-}
-
-:root[data-theme='dark'] {
-  --bg: #17150f;
-  --surface: #211e17;
-  --surface-alt: #2b2720;
-  --border: #3b362c;
-  --text: #f2ede2;
-  --muted: #a49a89;
-  --accent: #e0a33f;
-  --accent-text: #201a10;
-  --accent-soft: #332b1c;
-  --good: #66bd86;
-  --bad: #e4796b;
-  --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 6px 18px rgb(0 0 0 / 25%);
-  --shadow-lift: 0 2px 4px rgb(0 0 0 / 45%), 0 14px 32px rgb(0 0 0 / 38%);
   color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #eaf1f8;
+  --surface: #ffffff;
+  --surface-alt: #eef4fa;
+  --border: #cddcea;
+  --text: #0a1626;
+  --muted: #4c6176;
+  --accent: #00718c;
+  --accent-text: #ffffff;
+  --accent-soft: #dcf2f8;
+  --good: #0b7d4c;
+  --bad: #c8233f;
+  --glow: rgb(0 113 140 / 16%);
+  --grid: rgb(0 90 140 / 5%);
+  --haze: rgb(120 200 240 / 35%);
+  --glass: rgb(255 255 255 / 78%);
+  --field: #f7fafd;
+  --scrim: rgb(10 22 38 / 40%);
+  --shadow: 0 1px 2px rgb(10 30 60 / 6%), 0 6px 18px rgb(10 30 60 / 7%);
+  --shadow-lift: 0 0 0 1px rgb(0 113 140 / 22%), 0 12px 28px rgb(10 30 60 / 12%);
+  --ring: rgb(0 113 140 / 22%);
+  color-scheme: light;
 }
 
 /* ------------------------------------------------------------------ base --- */
@@ -84,9 +88,14 @@ html, body { min-height: 100%; }
 
 body {
   margin: 0;
-  background: var(--bg);
-  /* A faint warm light from the top: the page has depth without a picture. */
-  background-image: radial-gradient(120% 60% at 50% -10%, var(--accent-soft) 0%, transparent 60%);
+  background-color: var(--bg);
+  /* A haze of light from the top over a faint grid: the page is the glass
+     the hologram stands on. */
+  background-image:
+    radial-gradient(120% 60% at 50% -10%, var(--haze) 0%, transparent 60%),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: auto, 32px 32px, 32px 32px;
   background-attachment: fixed;
   color: var(--text);
   font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -101,7 +110,7 @@ body {
 ::selection { background: var(--ring); }
 
 h1, h2, h3 { line-height: 1.2; margin: 0; letter-spacing: -0.015em; }
-h1 { font-size: 1.65rem; font-weight: 750; letter-spacing: -0.025em; }
+h1 { font-size: 1.65rem; font-weight: 750; letter-spacing: -0.025em; text-shadow: 0 0 28px var(--glow); }
 h2 { font-size: 1.15rem; font-weight: 700; }
 h3 { font-size: 1rem; }
 p { margin: 0; }
@@ -138,10 +147,23 @@ a { color: inherit; }
   /* The plain colour first: a Safari without color-mix() would otherwise
      leave this sticky bar transparent over the scrolling page. */
   background: var(--surface);
-  background: color-mix(in srgb, var(--surface) 78%, transparent);
-  -webkit-backdrop-filter: saturate(1.6) blur(14px);
-  backdrop-filter: saturate(1.6) blur(14px);
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(1.4) blur(16px);
+  backdrop-filter: saturate(1.4) blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+
+/* A thread of light along the bar's lower edge, brightest in the middle. */
+.app-bar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent) 50%, transparent);
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .app-bar__brand {
@@ -152,10 +174,26 @@ a { color: inherit; }
   min-width: 0;
 }
 
-.app-bar__brand strong { display: block; font-size: 1.1rem; font-weight: 750; letter-spacing: -0.02em; }
+/* The name in the instrument face, spaced out like a display's — less so
+   on a narrow phone, where the buttons beside it need the room. */
+.app-bar__brand strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--hud);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 380px) {
+  .app-bar__brand strong { font-size: 0.8rem; letter-spacing: 0.08em; }
+}
 .app-bar__brand small { display: block; color: var(--muted); font-size: 0.75rem; }
 /* The mark: two tokens side by side, in the accent, at the size of a word. */
-.app-bar__logo { display: flex; flex: none; color: var(--accent); }
+.app-bar__logo { display: flex; flex: none; color: var(--accent); filter: drop-shadow(0 0 6px var(--glow)); }
 .app-bar__actions { display: flex; gap: 6px; flex: none; }
 
 .icon-button {
@@ -170,7 +208,7 @@ a { color: inherit; }
   cursor: pointer;
 }
 
-.icon-button:hover { background: var(--surface-alt); }
+.icon-button:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); box-shadow: 0 0 12px var(--glow); }
 .icon-button:active { transform: scale(0.94); }
 /* Drawn, not a character: a glyph like ◐ or ⟳ depends on the fonts a
    computer has, and shows as a dot, or nothing, on many of them. */
@@ -199,12 +237,55 @@ a { color: inherit; }
   gap: 12px;
 }
 
+/* A section's title reads like a display's: small capitals in the
+   instrument face, after a tick of light. */
+.section__head h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--hud);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.section__head h2::before {
+  content: '';
+  flex: none;
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
 .card {
+  position: relative;
   background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, var(--surface)), var(--surface) 45%);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 18px;
+}
+
+/* Every panel carries a short tick of light on its top edge, like a
+   display's: the mark of the look, on cards and on the cards one taps. */
+.card::before,
+.game-card::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 18px;
+  width: 22px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  opacity: 0.85;
+  pointer-events: none;
 }
 
 .stack { display: grid; gap: 12px; }
@@ -225,33 +306,36 @@ a { color: inherit; }
   padding: 0 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: var(--surface-alt);
   color: var(--text);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
 }
 
-.button:hover { background: var(--surface-alt); }
+.button:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: 0 0 14px var(--glow); }
 .button:active:not(:disabled) { transform: scale(0.97); }
 
+/* The one thing to do on a screen is lit from inside. */
 .button--primary {
   background: var(--accent);
-  background-image: linear-gradient(180deg, rgb(255 255 255 / 14%), rgb(255 255 255 / 0%));
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 26%), rgb(255 255 255 / 0%) 60%);
   border-color: var(--accent);
   color: var(--accent-text);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 10%), 0 4px 12px color-mix(in srgb, var(--accent) 22%, transparent);
+  font-weight: 700;
+  box-shadow: 0 0 20px var(--glow), 0 4px 14px rgb(0 0 0 / 22%);
 }
 
 .button--primary:hover {
+  border-color: var(--accent);
   background-color: var(--accent);
-  filter: brightness(1.06);
-  box-shadow: 0 2px 4px rgb(0 0 0 / 10%), 0 8px 20px color-mix(in srgb, var(--accent) 36%, transparent);
+  filter: brightness(1.08);
+  box-shadow: 0 0 30px var(--glow), 0 6px 18px rgb(0 0 0 / 25%);
 }
 .button--danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--border)); }
-.button--ghost { background: transparent; border-color: transparent; box-shadow: none; }
-.button--ghost:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); }
+.button--ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--accent); }
+.button--ghost:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); border-color: transparent; }
 .button--block { width: 100%; }
 .button--small { min-height: 36px; padding: 0 12px; font-size: 0.85rem; }
 
@@ -259,6 +343,11 @@ a { color: inherit; }
 label { display: grid; gap: 6px; font-size: 0.85rem; font-weight: 550; }
 
 input[type='text'],
+input[type='email'],
+input[type='search'],
+input[type='tel'],
+input[type='url'],
+input[type='password'],
 input[type='number'],
 input[type='date'],
 input[type='time'],
@@ -269,15 +358,15 @@ textarea {
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: var(--field);
   color: var(--text);
   font: inherit;
   transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 
-:where(input[type='text'], input[type='number'], input[type='date'], input[type='time'], input[type='email'], select, textarea):focus {
+:where(input[type='text'], input[type='email'], input[type='search'], input[type='tel'], input[type='url'], input[type='password'], input[type='number'], input[type='date'], input[type='time'], select, textarea):focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px var(--ring);
+  box-shadow: 0 0 0 3px var(--ring), 0 0 18px var(--glow);
   outline: none;
 }
 
@@ -352,7 +441,7 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
   display: grid;
   gap: 2px;
   padding: 12px;
-  border: 1px dashed var(--border);
+  border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--border));
   border-radius: var(--radius);
   text-align: center;
 }
@@ -360,9 +449,11 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
 .code-box__label { font-size: 0.8rem; font-weight: 550; }
 
 .code-box__value {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--hud);
   font-size: 1.8rem;
   letter-spacing: 0.18em;
+  color: var(--accent);
+  text-shadow: 0 0 14px var(--glow);
 }
 
 .code-input {
@@ -382,7 +473,8 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
 
 /* Le même code, mais à lire et à recopier plutôt qu'à saisir. */
 .code-shown {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--hud);
+  color: var(--accent);
   font-size: 1.1rem;
   letter-spacing: 0.14em;
   font-weight: 650;
@@ -399,6 +491,7 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
 }
 
 /* One person knocking, or one device already in: who on one side, what to do
@@ -470,10 +563,12 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
   gap: 4px;
   width: 100%;
   text-align: left;
+  position: relative;
   padding: 15px 18px;
-  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 4%, var(--surface)), var(--surface) 55%);
   box-shadow: var(--shadow);
   color: inherit;
   font: inherit;
@@ -490,22 +585,27 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
 .game-card__meta { color: var(--muted); font-size: 0.82rem; }
 /* The event a card belongs to: the thread that ties it to the rest. */
 .game-card__event { color: var(--accent); font-weight: 600; }
-.game-card--on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.game-card--on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), 0 0 18px var(--glow); }
 .event-when { margin: 2px 0 0; }
 
 .pill {
   display: inline-block;
   padding: 2px 9px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 0.72rem;
-  font-weight: 650;
+  font-family: var(--hud);
+  font-size: 0.68rem;
+  font-weight: 600;
   letter-spacing: 0.02em;
+  /* Whole, beside a title that wraps around it rather than through it. */
+  white-space: nowrap;
 }
 
-.pill--done { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
-.pill--late { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
+/* The word a shade nearer the text than its tint, to stay readable on it. */
+.pill--done { border-color: color-mix(in srgb, var(--good) 40%, transparent); background: color-mix(in srgb, var(--good) 14%, transparent); color: color-mix(in srgb, var(--good) 85%, var(--text)); }
+.pill--late { border-color: color-mix(in srgb, var(--bad) 40%, transparent); background: color-mix(in srgb, var(--bad) 14%, transparent); color: color-mix(in srgb, var(--bad) 85%, var(--text)); }
 
 /* ------------------------------------------------------------- dashboard --- */
 /*
@@ -522,7 +622,7 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
 
 .tile {
   padding: 8px 2px;
-  border: 0;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-alt);
   color: inherit;
@@ -531,9 +631,9 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
 }
 
 button.tile { cursor: pointer; }
-button.tile:hover { background: var(--accent-soft); }
+button.tile:hover { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 
-.tile__value { display: block; font-size: 1.3rem; font-weight: 700; line-height: 1.15; }
+.tile__value { display: block; font-family: var(--hud); font-size: 1.25rem; font-weight: 700; line-height: 1.2; color: var(--accent); text-shadow: 0 0 12px var(--glow); }
 .tile__label { display: block; color: var(--muted); font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* One line of someone's file: what it is on the left, where it stands on the right. */
@@ -630,7 +730,7 @@ table.scores td:first-child {
   background: var(--surface);
 }
 
-table.scores thead th { color: var(--muted); font-size: 0.78rem; font-weight: 650; }
+table.scores thead th { color: var(--muted); font-family: var(--hud); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
 table.scores tbody tr:hover td { background: var(--surface-alt); }
 table.scores tbody tr:hover td:first-child { background: var(--surface-alt); }
 table.scores tfoot td { font-weight: 700; border-bottom: none; }
@@ -807,7 +907,7 @@ table.scores .meta-cell { color: var(--muted); }
   padding: 6px 12px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
   color: var(--text);
   font: inherit;
   font-size: 0.85rem;
@@ -818,7 +918,7 @@ table.scores .meta-cell { color: var(--muted); }
   .chip:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
 }
 .chip:active { transform: scale(0.96); }
-.chip--on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+.chip--on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 650; box-shadow: 0 0 12px var(--glow); }
 
 .row--tight { flex-wrap: nowrap; gap: 8px; }
 .row--tight input { flex: 1; }
@@ -837,8 +937,9 @@ table.scores .meta-cell { color: var(--muted); }
   grid-auto-flow: column;
   gap: 2px;
   padding: 3px;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--surface-alt);
+  background: color-mix(in srgb, var(--surface-alt) 85%, transparent);
 }
 
 .segmented__option {
@@ -873,9 +974,9 @@ table.scores .meta-cell { color: var(--muted); }
 
 .segmented__option[aria-current="true"],
 .segmented__option[aria-pressed="true"] {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.16);
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 12px var(--glow);
 }
 
 /* --------------------------------------------------------------- pill form -- */
@@ -1046,18 +1147,16 @@ select.field-pill {
   cursor: pointer;
 }
 
-.vote--yes { border-color: #2f7d4f; background: #e7f3ec; color: #1e5c39; }
+.vote--yes { border-color: #2bd88a; background: #0c2a1f; color: #7dffc0; box-shadow: 0 0 10px rgb(70 240 160 / 20%); }
 .vote[disabled] { cursor: default; opacity: 0.75; }
 /* The others' cells, while this device answers for someone: still readable,
    plainly not for touching. */
 .vote--other { opacity: 0.45; border-style: dashed; }
 .vote--other.vote--yes { opacity: 0.6; border-style: solid; }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .vote--yes { border-color: #4a9a6a; background: #17301f; color: #8fd3a8; }
-}
 
-:root[data-theme="dark"] .vote--yes { border-color: #4a9a6a; background: #17301f; color: #8fd3a8; }
+
+:root[data-theme="light"] .vote--yes { border-color: #0b7d4c; background: #e3f6ec; color: #0b5e3a; box-shadow: none; }
 
 /* ------------------------------------------------------------------ solo --- */
 /*
@@ -1101,7 +1200,8 @@ body.solo .app-bar__brand { cursor: default; }
   height: 100%;
   /* Anchored square on the baseline, rounded at the end the data reaches. */
   border-radius: 0 4px 4px 0;
-  background: var(--accent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, transparent), var(--accent));
+  box-shadow: 0 0 10px var(--glow);
   transition: width 0.25s ease;
 }
 .gauge__count {
@@ -1137,11 +1237,11 @@ body.solo .app-bar__brand { cursor: default; }
      la page — sur un écran de 320. */
   grid-template-columns: repeat(2, minmax(0, 1fr)) 76px repeat(2, minmax(0, 1fr));
   align-items: stretch;
-  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-top: 1px solid var(--border);
   background: var(--surface);
-  background: color-mix(in srgb, var(--surface) 93%, transparent);
-  -webkit-backdrop-filter: saturate(1.6) blur(16px);
-  backdrop-filter: saturate(1.6) blur(16px);
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(1.4) blur(18px);
+  backdrop-filter: saturate(1.4) blur(18px);
   /* The iPhone's home bar: the tabs sit above it, the colour runs under it. */
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -1192,7 +1292,7 @@ body:not(.solo) .view {
 
 /* The current tab's icon sits on a soft pill of the accent. */
 .tab .tab__icon { padding: 2px 6px; width: 38px; max-width: 100%; height: 28px; border-radius: 999px; box-sizing: border-box; }
-.tab[aria-current="page"] .tab__icon { background: var(--accent-soft); }
+.tab[aria-current="page"] .tab__icon { background: var(--accent-soft); filter: drop-shadow(0 0 6px var(--glow)); }
 .tab:active .tab__icon { transform: scale(0.92); }
 
 .tabs__new {
@@ -1217,8 +1317,8 @@ body:not(.solo) .view {
 
 .tabs__new svg { width: 28px; height: 28px; stroke-width: 2.4; }
 .tabs__new {
-  background-image: linear-gradient(160deg, rgb(255 255 255 / 22%), rgb(255 255 255 / 0%) 60%);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent), 0 2px 4px rgb(0 0 0 / 15%);
+  background-image: linear-gradient(160deg, rgb(255 255 255 / 30%), rgb(255 255 255 / 0%) 60%);
+  box-shadow: 0 0 24px var(--glow), 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent), 0 4px 14px rgb(0 0 0 / 30%);
 }
 .tabs__new:hover { filter: brightness(1.06); }
 .tabs__new:active { transform: scale(0.94); }
@@ -1240,13 +1340,14 @@ body:not(.solo) .view {
 .dialog {
   width: min(560px, calc(100vw - 32px));
   padding: 20px;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
+  box-shadow: var(--shadow-lift);
 }
 
-.dialog::backdrop { background: rgb(0 0 0 / 45%); }
+.dialog::backdrop { background: var(--scrim); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
 
 .dialog textarea {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -1385,26 +1486,17 @@ body:not(.solo) .view {
 
 /* ----------------------------------------------------------------- ideas --- */
 :root {
+  --ink-red: #ff6b81;
+  --ink-blue: #6cb8ff;
+  --ink-green: #5dffb0;
+  --ink-orange: #ffb35c;
+}
+
+:root[data-theme='light'] {
   --ink-red: #c0392b;
   --ink-blue: #2463b8;
   --ink-green: #2f7d4f;
   --ink-orange: #d9790f;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --ink-red: #ef7b6c;
-    --ink-blue: #7fb0f2;
-    --ink-green: #6cc58e;
-    --ink-orange: #f0a64b;
-  }
-}
-
-:root[data-theme='dark'] {
-  --ink-red: #ef7b6c;
-  --ink-blue: #7fb0f2;
-  --ink-green: #6cc58e;
-  --ink-orange: #f0a64b;
 }
 
 .idea-add { margin: 4px 0 14px; }
@@ -1434,7 +1526,7 @@ body:not(.solo) .view {
   cursor: pointer;
 }
 
-.idea-card:hover { border-color: var(--accent); }
+.idea-card:hover { border-color: var(--accent); box-shadow: var(--shadow-lift); }
 
 .idea-card__text {
   display: -webkit-box;
@@ -19482,7 +19574,7 @@ const HOLO_FONT = 'ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, m
  * from the ones the page has already thrown away.
  */
 const holoState = {
-  yaw: 0.6, pitch: 0.5, zoom: 1, clock: 0, still: null, picked: null, full: false, introduced: false, instance: 0,
+  yaw: 0.6, pitch: 0.5, zoom: 1, clock: 0, still: null, picked: null, full: false, introAt: null, instance: 0,
   sprites: null, stars: null,
 };
 
@@ -19653,9 +19745,10 @@ function bindHolo() {
   const fullButton = panel.querySelector('#holo-full');
   const hint = panel.querySelector('#holo-hint');
   const card = panel.querySelector('#holo-card');
-  // The first time Home shows it, the documents fly out to their orbits.
-  const introStart = holoState.introduced || reduced ? null : performance.now();
-  holoState.introduced = true;
+  // The first time Home shows it, the documents fly out to their orbits —
+  // once a visit, carried on by any redrawing that comes in the middle.
+  if (holoState.introAt === null) holoState.introAt = reduced ? -Infinity : performance.now();
+  const introStart = holoState.introAt;
   if (holoState.full) document.body.classList.add('holo-open');
 
   let dirty = true;
@@ -19715,7 +19808,7 @@ function bindHolo() {
     context.clearRect(0, 0, width, height);
 
     const full = holoState.full;
-    const intro = introStart === null ? 1 : Math.min(1, (now - introStart) / 1400);
+    const intro = Math.min(1, Math.max(0, (now - introStart) / 1400));
     const spread = 1 - (1 - intro) ** 3;
     const camera = { yaw: holoState.yaw, pitch: holoState.pitch };
     const unit = (full ? Math.min(width * 0.52, height * 0.45) * holoState.zoom : Math.min(width * 0.44, height * 0.6));
@@ -20209,7 +20302,7 @@ function bindHolo() {
       size = nowSize;
       dirty = true;
     }
-    const animating = moving || (introStart !== null && now - introStart < 1500) || (picked && !reduced);
+    const animating = moving || now - introStart < 1500 || (picked && !reduced);
     if (!dirty && !animating) return;
     if (!dirty && !holoState.full && now - drawnAt < 32) return;
     dirty = false;
@@ -23121,15 +23214,20 @@ function applyStaticText() {
   });
 }
 
+/**
+ * Night is the app's own look, whatever the phone's setting; light is a
+ * choice, made with the moon button and kept. The bar the phone draws above
+ * the page takes the same colour as the page.
+ */
 function applyTheme() {
   const theme = state.prefs.theme;
   if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
   else delete document.documentElement.dataset.theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', currentThemeIsDark() ? '#050b16' : '#eaf1f8');
 }
 
 function currentThemeIsDark() {
-  if (state.prefs.theme) return state.prefs.theme === 'dark';
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+  return state.prefs.theme !== 'light';
 }
 
 function bindChrome() {

@@ -15,8 +15,8 @@ et inviter. **Réglages** : votre prénom, vos données, la version. Une page
 web, aucune dépendance, aucun build.
 
 <p>
-  <img src="docs/screenshot-light.png" alt="Une partie de Papayoo en thème clair" width="45%" />
-  <img src="docs/screenshot-dark.png" alt="La même partie en thème sombre" width="45%" />
+  <img src="docs/screenshot-dark.png" alt="Une partie de Papayoo en thème nuit" width="45%" />
+  <img src="docs/screenshot-light.png" alt="La même partie en thème clair" width="45%" />
 </p>
 
 ## Ce que ça fait — les parties
@@ -115,8 +115,8 @@ web, aucune dépendance, aucun build.
 - **Correction** : on clique sur une ligne du tableau pour modifier ou supprimer
   une manche, *Annuler la dernière manche* défait la saisie précédente, et
   *Renommer* corrige un nom mal saisi sans toucher aux scores.
-- **Ça marche sur téléphone**, hors ligne, en français ou en anglais, en thème
-  clair ou sombre. Les parties sont enregistrées dans le navigateur, et
+- **Ça marche sur téléphone**, hors ligne, en français ou en anglais, avec un
+  look d'hologramme : thème nuit par défaut, thème clair au bouton lune. Les parties sont enregistrées dans le navigateur, et
   exportables en JSON pour sauvegarder ou changer d'appareil.
 
 ## Ce que ça fait — les listes

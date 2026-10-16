@@ -44,7 +44,7 @@ const HOLO_FONT = 'ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, m
  * from the ones the page has already thrown away.
  */
 const holoState = {
-  yaw: 0.6, pitch: 0.5, zoom: 1, clock: 0, still: null, picked: null, full: false, introduced: false, instance: 0,
+  yaw: 0.6, pitch: 0.5, zoom: 1, clock: 0, still: null, picked: null, full: false, introAt: null, instance: 0,
   sprites: null, stars: null,
 };
 
@@ -215,9 +215,10 @@ export function bindHolo() {
   const fullButton = panel.querySelector('#holo-full');
   const hint = panel.querySelector('#holo-hint');
   const card = panel.querySelector('#holo-card');
-  // The first time Home shows it, the documents fly out to their orbits.
-  const introStart = holoState.introduced || reduced ? null : performance.now();
-  holoState.introduced = true;
+  // The first time Home shows it, the documents fly out to their orbits —
+  // once a visit, carried on by any redrawing that comes in the middle.
+  if (holoState.introAt === null) holoState.introAt = reduced ? -Infinity : performance.now();
+  const introStart = holoState.introAt;
   if (holoState.full) document.body.classList.add('holo-open');
 
   let dirty = true;
@@ -277,7 +278,7 @@ export function bindHolo() {
     context.clearRect(0, 0, width, height);
 
     const full = holoState.full;
-    const intro = introStart === null ? 1 : Math.min(1, (now - introStart) / 1400);
+    const intro = Math.min(1, Math.max(0, (now - introStart) / 1400));
     const spread = 1 - (1 - intro) ** 3;
     const camera = { yaw: holoState.yaw, pitch: holoState.pitch };
     const unit = (full ? Math.min(width * 0.52, height * 0.45) * holoState.zoom : Math.min(width * 0.44, height * 0.6));
@@ -771,7 +772,7 @@ export function bindHolo() {
       size = nowSize;
       dirty = true;
     }
-    const animating = moving || (introStart !== null && now - introStart < 1500) || (picked && !reduced);
+    const animating = moving || now - introStart < 1500 || (picked && !reduced);
     if (!dirty && !animating) return;
     if (!dirty && !holoState.full && now - drawnAt < 32) return;
     dirty = false;
