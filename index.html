@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
-    <meta name="app-version" content="v13" />
-    <meta name="app-build" content="53f85ca7" />
+    <meta name="app-version" content="v14" />
+    <meta name="app-build" content="23c4b638" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -18,6 +18,20 @@
     <meta name="theme-color" content="#050b16" />
     <link rel="apple-touch-icon" href="icons/icon-180.png" />
     <link rel="stylesheet" href="styles.css" />
+    <!-- Before the first paint: the style, colour and theme chosen in the
+         settings, so the page does not flash the hologram first. view-look.js
+         writes the same attributes once the app has loaded. -->
+    <script id="early-look">
+      try {
+        const prefs = JSON.parse(localStorage.getItem('marque-points:prefs:v1')) || {};
+        const root = document.documentElement;
+        if (prefs.theme === 'light' || prefs.theme === 'dark') root.dataset.theme = prefs.theme;
+        if (prefs.look === 'classic' || prefs.look === 'calm') root.dataset.look = prefs.look;
+        if (/^(cyan|violet|green|amber|pink|blue)$/.test(prefs.accent || '')) root.dataset.accent = prefs.accent;
+      } catch {
+        // No storage, or nothing readable in it: the app's own look.
+      }
+    </script>
   </head>
   <body>
     <header class="app-bar">

@@ -82,6 +82,7 @@ import {
   bindInstall, installFirstHtml, installOfferHtml, installReminderHtml, phoneToInstall, startInstall,
 } from './view-install.js';
 import { holoHtml, bindHolo } from './view-holo.js';
+import { applyLook, bindLook, lookHtml, lookIsDark } from './view-look.js';
 import { swipeable } from './swipe.js';
 import { prefillOf, withoutPrefill } from './prefill.js';
 export const view = document.getElementById('view');
@@ -1545,6 +1546,7 @@ function settingsView() {
   return `
     ${flashHtml()}
     ${meHtml()}
+    ${lookHtml()}
     ${accountHtml()}
     ${dataHtml()}`;
 }
@@ -2933,28 +2935,15 @@ function applyStaticText() {
   });
 }
 
-/**
- * Night is the app's own look, whatever the phone's setting; light is a
- * choice, made with the moon button and kept. The bar the phone draws above
- * the page takes the same colour as the page.
- */
-function applyTheme() {
-  const theme = state.prefs.theme;
-  if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
-  else delete document.documentElement.dataset.theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', currentThemeIsDark() ? '#050b16' : '#eaf1f8');
-}
-
-function currentThemeIsDark() {
-  return state.prefs.theme !== 'light';
-}
-
 function bindChrome() {
   document.getElementById('create')?.addEventListener('click', openCreateMenu);
+  // Night or light, from any page; the settings say the same, so on that page
+  // they are drawn again to show it. See view-look.js for the rest.
   document.getElementById('theme-toggle').addEventListener('click', () => {
-    state.prefs = { ...state.prefs, theme: currentThemeIsDark() ? 'light' : 'dark' };
+    state.prefs = { ...state.prefs, theme: lookIsDark() ? 'light' : 'dark' };
     savePrefs(state.prefs);
-    applyTheme();
+    applyLook();
+    if (route().name === 'settings') render();
   });
 
   // One button for "bring me what the others have done", on every screen: the
@@ -3331,6 +3320,7 @@ export function render() {
     view.innerHTML = settingsView();
     bindOverview();
     bindAccount();
+    bindLook(view);
   } else if (current.name === 'groups') {
     view.innerHTML = groupsView();
     bindOverview();
@@ -3591,7 +3581,7 @@ function connectToStore() {
 
 setLanguage(state.prefs.lang || detectLanguage());
 applyStaticText();
-applyTheme();
+applyLook();
 bindChrome();
 followTrail();
 window.addEventListener('hashchange', () => {

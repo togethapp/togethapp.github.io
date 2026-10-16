@@ -86,9 +86,11 @@ guide en français.
   horizontale ; votes fusionnés case par case (`{v, at}`), dans l'app et dans la
   base ; un sondage clos ne prend plus de votes. Visiteurs : vue seule
   (`#/poll/<id>/solo`), sans navigation.
-- **Look « hologramme »** (octobre 2026) : nuit par défaut quel que soit le
-  réglage du téléphone, clair au bouton lune ; couleurs dans les variables en
-  tête de `styles.css` (contrastes ≥ 4,5:1 dans les deux thèmes). En tête de
+- **Apparence** (octobre 2026) : style « hologramme » par défaut, nuit quel
+  que soit le réglage du téléphone ; Réglages → Apparence (`view-look.js`) :
+  styles Classique / Épuré, six couleurs, nuit/clair, en attributs `data-look`,
+  `data-accent`, `data-theme` lus par les variables en tête de `styles.css`
+  (contrastes ≥ 4,5:1 partout, `tests/contrast.test.js`). En tête de
   l'Accueil, la vue d'ensemble 3D (`holo.js`, `view-holo.js`), sans personnes.
 - **Ce qui est supprimé ne revient pas** : table `marque_points_gone` ; l'app
   retire sa copie quand la base répond « document supprime ».

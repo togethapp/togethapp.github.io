@@ -18,7 +18,10 @@ import { groupsByName, groupFilter, setGroupFilter, shownDocs, OUTSIDE_GROUPS } 
 import { t } from './i18n.js';
 import { holoGraph, holoOrbits, holoOrbitPoint, holoPositions, holoProject, holoTurn, holoHash } from './holo.js';
 
-/** Neon on night: one colour per kind, and cyan for the stars. */
+/**
+ * Neon on night: one colour per kind, and for the stars the light of the
+ * style or colour chosen in the settings (`--holo-hue`, read when drawing).
+ */
 const HOLO_COLOURS = {
   group: '#5ff3ff',
   outside: '#8f98c2',
@@ -128,10 +131,11 @@ function holoRgba(hex, alpha) {
 
 /**
  * A glow and a core for each colour, drawn once: stamping a small picture is
- * far cheaper, sixty times a second, than painting a gradient.
+ * far cheaper, sixty times a second, than painting a gradient. Drawn again
+ * only when the stars' light changes.
  */
-function holoSprites() {
-  if (holoState.sprites) return holoState.sprites;
+function holoSprites(colours) {
+  if (holoState.sprites?.group?.hue === colours.group) return holoState.sprites;
   const make = (colour, core) => {
     const sprite = document.createElement('canvas');
     sprite.width = 64;
@@ -153,8 +157,8 @@ function holoSprites() {
     paint.fillRect(0, 0, 64, 64);
     return sprite;
   };
-  holoState.sprites = Object.fromEntries(Object.entries(HOLO_COLOURS).map(([kind, colour]) => [
-    kind, { glow: make(colour, false), core: make(colour, true) },
+  holoState.sprites = Object.fromEntries(Object.entries(colours).map(([kind, colour]) => [
+    kind, { glow: make(colour, false), core: make(colour, true), hue: colour },
   ]));
   holoState.sprites.link = { glow: make('#ff8af0', false), core: make('#ff8af0', true) };
   holoState.sprites.order = { glow: make('#ffd166', false), core: make('#ffd166', true) };
@@ -209,7 +213,11 @@ export function bindHolo() {
   const reduced = holoReduced();
   if (holoState.still === null) holoState.still = reduced;
   let picked = nodes.get(holoState.picked) || null;
-  const sprites = holoSprites();
+  // The stars and the table take the light of the chosen style or colour.
+  const hue = getComputedStyle(document.documentElement).getPropertyValue('--holo-hue').trim();
+  const colours = { ...HOLO_COLOURS, group: /^#[0-9a-f]{6}$/i.test(hue) ? hue : HOLO_COLOURS.group };
+  const light = (alpha) => holoRgba(colours.group, alpha);
+  const sprites = holoSprites(colours);
   const stars = holoStars();
   const spin = panel.querySelector('#holo-spin');
   const fullButton = panel.querySelector('#holo-full');
@@ -319,16 +327,16 @@ export function bindHolo() {
       return { x: cx + Math.cos(angle) * radius, y, z: cz + Math.sin(angle) * radius };
     });
     context.lineWidth = 1;
-    context.strokeStyle = 'rgba(95,243,255,0.16)';
+    context.strokeStyle = light(0.16);
     context.globalAlpha = 1;
     for (const radius of [0.4, 0.8, 1.2]) path3d(circle(radius * (0.6 + 0.4 * spread), 72));
-    context.strokeStyle = 'rgba(95,243,255,0.08)';
+    context.strokeStyle = light(0.08);
     for (let i = 0; i < 12; i += 1) {
       const angle = (i / 12) * Math.PI * 2;
       path3d([0.4, 1.2].map((r) => ({ x: Math.cos(angle) * r, y: HOLO_FLOOR, z: Math.sin(angle) * r })));
     }
     const rim = clock * 0.00004;
-    context.strokeStyle = 'rgba(95,243,255,0.28)';
+    context.strokeStyle = light(0.28);
     for (let i = 0; i < 48; i += 1) {
       const angle = rim + (i / 48) * Math.PI * 2;
       const inner = i % 4 ? 1.31 : 1.27;
@@ -337,11 +345,11 @@ export function bindHolo() {
     const sweep = clock * 0.0007;
     for (let i = 0; i < 14; i += 1) {
       const angle = sweep - i * 0.035;
-      context.strokeStyle = `rgba(95,243,255,${0.12 * (1 - i / 14)})`;
+      context.strokeStyle = light(0.12 * (1 - i / 14));
       path3d([0.12, 1.2].map((r) => ({ x: Math.cos(angle) * r, y: HOLO_FLOOR, z: Math.sin(angle) * r })));
     }
     if (intro < 1) {
-      context.strokeStyle = `rgba(95,243,255,${0.6 * (1 - intro)})`;
+      context.strokeStyle = light(0.6 * (1 - intro));
       context.lineWidth = 2;
       path3d(circle(0.2 + 1.2 * spread, 72));
       context.lineWidth = 1;
@@ -358,7 +366,7 @@ export function bindHolo() {
       const steps = ring.depth ? 28 : 64;
       const far = orbits.scale * spread;
       const ringLit = lit && lit.has(ring.centre);
-      context.strokeStyle = `rgba(95,243,255,${(ring.depth ? 0.1 : 0.14) * (lit && !ringLit ? 0.4 : 1) * (ringLit ? 2.2 : 1)})`;
+      context.strokeStyle = light((ring.depth ? 0.1 : 0.14) * (lit && !ringLit ? 0.4 : 1) * (ringLit ? 2.2 : 1));
       path3d(Array.from({ length: steps + 1 }, (_, i) => {
         const offset = holoOrbitPoint(ring, (i / steps) * Math.PI * 2);
         return { x: centre.x + offset.x * far, y: centre.y + offset.y * far, z: centre.z + offset.z * far };
@@ -370,7 +378,7 @@ export function bindHolo() {
       const point = at.get(hub.id);
       const top = screen.get(hub.id);
       const base = project({ x: point.x, y: HOLO_FLOOR, z: point.z });
-      const colour = HOLO_COLOURS[hub.type];
+      const colour = colours[hub.type];
       const beam = context.createLinearGradient(top.x, top.y, base.x, base.y);
       beam.addColorStop(0, holoRgba(colour, 0.5));
       beam.addColorStop(1, holoRgba(colour, 0.04));
@@ -420,7 +428,7 @@ export function bindHolo() {
       const b = screen.get(picked.around);
       if (a && b) {
         context.globalAlpha = 0.8;
-        context.strokeStyle = holoRgba(HOLO_COLOURS[picked.kind] || HOLO_COLOURS.group, 0.9);
+        context.strokeStyle = holoRgba(colours[picked.kind] || colours.group, 0.9);
         context.setLineDash([4, 3]);
         context.beginPath();
         context.moveTo(a.x, a.y);
@@ -440,7 +448,7 @@ export function bindHolo() {
       const fog = Math.max(0.45, Math.min(1, 1 - (one.depth + 0.3) * 0.35));
       const dim = lit && !lit.has(node.id) ? 0.2 : 1;
       const sprite = sprites[node.kind] || sprites.group;
-      const colour = HOLO_COLOURS[node.kind] || HOLO_COLOURS.group;
+      const colour = colours[node.kind] || colours.group;
       if (node.star) {
         const radius = unit * 0.07 * one.scale * (1 + Math.min(0.7, node.count * 0.05));
         one.radius = radius;
@@ -503,10 +511,10 @@ export function bindHolo() {
         const x = one.x + one.radius + 14;
         const y = one.y - one.radius - 8;
         const box = tag(words, x, y, {
-          colour: '#d8fbff', border: holoRgba(HOLO_COLOURS[node.type], 0.6), size: 10, width, alpha: dim, must: true,
+          colour: '#d8fbff', border: holoRgba(colours[node.type], 0.6), size: 10, width, alpha: dim, must: true,
         });
         context.globalAlpha = 0.6 * dim;
-        context.strokeStyle = holoRgba(HOLO_COLOURS[node.type], 0.8);
+        context.strokeStyle = holoRgba(colours[node.type], 0.8);
         context.beginPath();
         context.moveTo(one.x + (box.left > one.x ? 1 : -1) * one.radius * 0.8, one.y - one.radius * 0.6);
         context.lineTo(box.left > one.x ? box.left : box.left + box.wide, box.top + box.high);
@@ -519,7 +527,7 @@ export function bindHolo() {
       const text = holoLabel(node);
       const words = text.length > 22 ? `${text.slice(0, 21)}…` : text;
       tag(words, one.x + one.radius + 6, one.y + 6, {
-        colour: HOLO_COLOURS[node.kind] || '#ffffff', size: 9.5, width, alpha: node.id === picked?.id ? 1 : 0.85 * dim,
+        colour: colours[node.kind] || '#ffffff', size: 9.5, width, alpha: node.id === picked?.id ? 1 : 0.85 * dim,
         must: node.id === picked?.id,
       });
     }
@@ -607,7 +615,7 @@ export function bindHolo() {
       if (links) meta.push(t('holo.links', { count: links }));
       if (picked.done) meta.push(t('holo.done'));
     }
-    card.style.setProperty('--holo-kind', HOLO_COLOURS[picked.kind] || HOLO_COLOURS.group);
+    card.style.setProperty('--holo-kind', colours[picked.kind] || colours.group);
     card.innerHTML = `
       <span class="holo__kind">${escapeHtml(t(`holo.kind.${picked.kind}`))}</span>
       <strong class="holo__name">${escapeHtml(holoLabel(picked))}</strong>
