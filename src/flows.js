@@ -5,7 +5,9 @@
  * - a board's ideas become lines of the list it goes with;
  * - a board's ideas become the choices of a poll, to vote on them;
  * - what a closed poll chose becomes a line of the list it goes with;
- * - a line ticked becomes an expense of the account it goes with;
+ * - a line ticked becomes an expense of the account it goes with — or of
+ *   any account in its chain: a list and an account of the same event need
+ *   no link for that;
  * - whoever joins an event comes into its lists and accounts.
  *
  * What came from where is written on what it made — `from: { doc, part }` on
@@ -27,8 +29,8 @@ import { addPerson } from './people.js';
 import { sameName } from './stats.js';
 import { touch } from './stamp.js';
 import {
-  relationsOf, kindOf, isEventDoc, isLive, isDone, parentId, descendantsOf, dayNow, topEventOf, programmeOf, eventDays,
-  isActivity,
+  relationsOf, kindOf, isEventDoc, isLive, isDone, parentId, ancestorsOf, descendantsOf, dayNow, topEventOf, programmeOf,
+  eventDays, isActivity,
 } from './dashboard.js';
 
 /** The things of one kind a document is linked to, whichever way. */
@@ -115,6 +117,19 @@ export function addWinner(list, poll, option, language = 'fr') {
 }
 
 /* -------------------------------------------------- a line → an account --- */
+
+/**
+ * The accounts a list writes its ticked lines into: those it is linked to,
+ * then every account of its chain — from the top of it, the event mostly,
+ * however far down either hangs. Being of the same event is enough.
+ */
+export function accountsFor(list, all) {
+  const top = ancestorsOf(list, all)[0] || list;
+  const chain = [top, ...descendantsOf(top, all)]
+    .filter((one) => one.id !== list.id && isLive(one) && kindOf(one) === 'spend');
+  const linked = related(list, all, 'spend');
+  return [...linked, ...chain.filter((one) => !linked.some((other) => other.id === one.id))];
+}
 
 /** The lines of a list already written in an account. */
 export function spentItems(spend, list) {

@@ -716,14 +716,18 @@ export function eventLinkHtml(document_) {
   const icon = (one) => (isEventDoc(one) ? '📅' : one.forActivity ? '🎯' : { list: '☑️', poll: '🗳️', spend: '💶', board: '💡', game: '🃏' }[kindOf(one)] || '•');
   const kindTitle = (one) => t(isEventDoc(one) ? 'chain.kind.event' : `chain.kind.${kindOf(one) || 'game'}`);
   const byRelation = new Map(relations.map((one) => [one.document.id, one]));
-  // How this page and another are linked, said beside the other one.
+  // How another one stands to this page, in one pill beside it, said of it:
+  // to do first — done or not —, coming after, or going with it.
   const badge = (one) => {
     const relation = byRelation.get(one.id);
     if (!relation) return '';
-    const done = relation.kind === 'waits' ? isDone(one) : null;
-    return `<span class="pill chain-map__link">${escapeHtml(t(`relate.${relation.kind}`))}</span>${
-      done === null ? '' : `<span class="pill ${done ? 'pill--done' : 'pill--late'}">${escapeHtml(t(done ? 'relate.isDone' : 'relate.notDone'))}</span>`
-    }`;
+    if (relation.kind !== 'waits') {
+      return `<span class="pill chain-map__link">${escapeHtml(t(relation.kind === 'with' ? 'relate.with' : 'relate.comesAfter'))}</span>`;
+    }
+    const done = isDone(one);
+    if (done === null) return `<span class="pill chain-map__link">${escapeHtml(t('relate.comesFirst'))}</span>`;
+    return `<span class="pill ${done ? 'pill--done' : 'pill--late'}">${done ? '✓' : '⏳'} ${escapeHtml(t('relate.comesFirst'))}<span
+      class="visually-hidden"> (${escapeHtml(t(done ? 'relate.isDone' : 'relate.notDone'))})</span></span>`;
   };
   const label = (one) => {
     const waits = waitingOn(one, all);

@@ -7,7 +7,7 @@
  */
 
 import {
-  appLink, chainLabel, chainOf, documentTitle, escapeHtml, everything, flash, formatDate, formatDay, isBusy,
+  appLink, chainLabel, chainLabelShort, chainOf, documentTitle, escapeHtml, everything, flash, formatDate, formatDay, isBusy,
   liveCoversGroups, lookForUpdate, navigate, pullAny, render, state, view,
 } from './app.js';
 import { knocking, showsGate } from './view-join.js';
@@ -147,52 +147,73 @@ export function openGatherDialog(target) {
 }
 
 /**
- * Link a document to another, across the chain: what goes with it, what must
- * be done before it, what comes after. The links it has already come first,
- * each with a way to undo it; then the way to link, then with what.
+ * Link a document to another, across the chain. The links it has already come
+ * first, each said as a sentence, with a way to undo it; then what to link it
+ * to; then how, in sentences naming both — « Courses » se fait après « Quel
+ * vin ? » — never one that would make an order go round in a circle.
  */
 export function openRelateDialog(document_) {
   const dialog = makeDialog();
-  let kind = 'with';
+  let target = null;
+  // A link as it reads from here, whichever side holds it.
+  const sentence = (kind, other) => t(`relate.says.${kind}`, { name: chainLabelShort(document_), other: chainLabelShort(other) });
+  const fromHere = { with: 'with', waits: 'after', unblocks: 'before' };
   const draw = () => {
     const all = everything();
     const relations = relationsOf(document_, all);
-    const targets = linkTargets(document_, all, kind);
+    const targets = linkTargets(document_, all, 'with');
+    const ways = target
+      ? ['with', 'before', 'after'].filter((kind) => linkTargets(document_, all, kind).some((one) => one.id === target.id))
+      : [];
+    const close = `<button type="button" class="button button--ghost" data-relate-close>${escapeHtml(t('action.close'))}</button>`;
     dialog.innerHTML = `
       <div class="stack">
         <h2>${escapeHtml(t('relate.title', { name: documentTitle(document_) }))}</h2>
-        <p class="muted small">${escapeHtml(t('relate.hint'))}</p>
         ${
-          relations.length
-            ? `<span class="muted small">${escapeHtml(t('relate.current'))}</span>
-               <ul class="relate-list">${relations.map((one) => `
-                 <li class="relate-list__row">
-                   <span><span class="pill">${escapeHtml(t(`relate.${one.kind}`))}</span> ${escapeHtml(chainLabel(one.document))}</span>
-                   <button type="button" class="button button--small button--ghost" data-unrelate="${escapeHtml(one.document.id)}">${escapeHtml(t('relate.undo'))}</button>
-                 </li>`).join('')}</ul>`
-            : ''
+          target
+            ? `<span class="muted small">${escapeHtml(t('relate.how'))}</span>
+               ${
+                 ways.length
+                   ? `<div class="game-list">${ways.map((kind) => `
+                       <button type="button" class="game-card" data-relate-kind="${kind}">
+                         <span class="game-card__title">${escapeHtml(sentence(kind, target))}</span>
+                       </button>`).join('')}</div>`
+                   : `<p class="muted small">${escapeHtml(t('relate.nothing'))}</p>`
+               }
+               <div class="row">
+                 <button type="button" class="button" data-relate-back>${escapeHtml(t('relate.back'))}</button>
+                 ${close}
+               </div>`
+            : `<p class="muted small">${escapeHtml(t('relate.hint'))}</p>
+               ${
+                 relations.length
+                   ? `<span class="muted small">${escapeHtml(t('relate.current'))}</span>
+                      <ul class="relate-list">${relations.map((one) => `
+                        <li class="relate-list__row">
+                          <span>${escapeHtml(sentence(fromHere[one.kind], one.document))}</span>
+                          <button type="button" class="button button--small button--ghost" data-unrelate="${escapeHtml(one.document.id)}">${escapeHtml(t('relate.undo'))}</button>
+                        </li>`).join('')}</ul>`
+                   : ''
+               }
+               <span class="muted small">${escapeHtml(t('relate.pick'))}</span>
+               ${targets.length ? candidatesHtml(targets, { attr: 'data-relate-to' }) : `<p class="muted small">${escapeHtml(t('relate.nothing'))}</p>`}
+               <div class="row">${close}</div>`
         }
-        <span class="muted small">${escapeHtml(t('relate.how'))}</span>
-        <div class="row row--chips" role="group" aria-label="${escapeHtml(t('relate.how'))}">${['with', 'after', 'before'].map((one) => `
-          <button type="button" class="chip ${one === kind ? 'chip--on' : ''}" data-relate-kind="${one}"
-                  aria-pressed="${one === kind ? 'true' : 'false'}">${escapeHtml(t(`relate.kind.${one}`))}</button>`).join('')}
-        </div>
-        <span class="muted small">${escapeHtml(t('relate.pick'))}</span>
-        ${targets.length ? candidatesHtml(targets, { attr: 'data-relate-to' }) : `<p class="muted small">${escapeHtml(t('relate.nothing'))}</p>`}
-        <div class="row">
-          <button type="button" class="button button--ghost" data-relate-close>${escapeHtml(t('action.close'))}</button>
-        </div>
       </div>`;
     dialog.querySelector('[data-relate-close]').addEventListener('click', () => dialog.close());
-    dialog.querySelectorAll('[data-relate-kind]').forEach((node) => {
-      node.addEventListener('click', () => {
-        kind = node.dataset.relateKind;
-        draw();
-      });
+    dialog.querySelector('[data-relate-back]')?.addEventListener('click', () => {
+      target = null;
+      draw();
     });
     dialog.querySelectorAll('[data-relate-to]').forEach((node) => {
       node.addEventListener('click', () => {
-        const target = targets.find((one) => one.id === node.dataset.relateTo);
+        target = targets.find((one) => one.id === node.dataset.relateTo) || null;
+        draw();
+      });
+    });
+    dialog.querySelectorAll('[data-relate-kind]').forEach((node) => {
+      node.addEventListener('click', () => {
+        const kind = node.dataset.relateKind;
         dialog.close();
         if (!target) return;
         const fresh = everything().find((one) => one.id === document_.id) || document_;

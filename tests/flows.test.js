@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  related, ideasFor, addIdea, pollFromIdeas, winnersOf, winnerOffers, addWinner, spentItems, spendFromLine,
+  related, ideasFor, addIdea, pollFromIdeas, winnersOf, winnerOffers, addWinner, accountsFor, spentItems, spendFromLine,
   unblockedNow, missingGoers, addGoers,
 } from '../src/flows.js';
 import { linkTo, attach, parentId, relationsOf } from '../src/dashboard.js';
 import { createList, addItems, assignItem, toggleItem, mergeLists } from '../src/lists.js';
 import { createPoll, createEvent, addOptions, setVote, setClosed } from '../src/polls.js';
-import { createSpend, balances } from '../src/spends.js';
+import { createSpend, balances, archiveSpend } from '../src/spends.js';
 import { createBoard, addCard, editCardText } from '../src/ideas.js';
 
 const g = { groupId: 'mifa', shared: true };
@@ -84,6 +84,25 @@ test('une ligne cochée devient une dépense, payée par qui l’avait', () => {
   const sans = spendFromLine(spend, list, list.items[1], 3, 'gui');
   assert.equal(sans.people.length, 2, 'le prénom se retrouve, casse ignorée');
   assert.equal(balances(sans).reduce((s, r) => s + r.balance, 0), 0);
+});
+
+test('les lignes cochées vont aux comptes liés, et à ceux du même événement sans lien', () => {
+  const event = { ...createEvent({ name: 'Raclette', date: '2026-10-24' }), ...g };
+  const ski = attach({ ...createEvent({ name: 'Ski', date: '2026-10-25' }), ...g }, event.id);
+  const list = attach({ ...createList({ name: 'Location' }), ...g }, ski.id);
+  const compte = attach({ ...createSpend({ name: 'Compte' }), ...g }, event.id);
+  const ailleurs = { ...createEvent({ name: 'Anniversaire', date: '2026-11-02' }), ...g };
+  const autre = attach({ ...createSpend({ name: 'Cadeau' }), ...g }, ailleurs.id);
+  const coloc = linkTo({ ...createSpend({ name: 'Coloc' }), ...g }, list.id, 'with');
+  const range = attach({ ...archiveSpend(createSpend({ name: 'Vieux' })), ...g }, event.id);
+  const all = [event, ski, list, compte, ailleurs, autre, coloc, range];
+  assert.deepEqual(accountsFor(list, all).map((one) => one.id), [coloc.id, compte.id],
+    'le compte lié d’abord, puis celui de l’événement, même pour une activité ; pas un autre événement, pas un rangé');
+  assert.deepEqual(accountsFor(linkTo(list, compte.id, 'with'), all).map((one) => one.id), [compte.id, coloc.id], 'jamais deux fois');
+  const seule = { ...createList({ name: 'Seule' }), ...g };
+  assert.deepEqual(accountsFor(seule, [...all, seule]), [], 'hors de toute chaîne et sans lien : aucun');
+  const dessous = attach({ ...createList({ name: 'Dessous' }), ...g }, autre.id);
+  assert.deepEqual(accountsFor(dessous, [...all, dessous]).map((one) => one.id), [autre.id], 'rattachée au compte même');
 });
 
 test('ce qui vient d’être débloqué', () => {

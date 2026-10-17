@@ -261,11 +261,15 @@ La chaîne est un arbre : chaque élément n'a qu'un seul « parent ». Mais les
 choses ne se suivent pas qu'en ligne droite : la liste de courses attend que le
 sondage « quel vin ? » soit clos, le compte va avec la liste, la soirée jeux
 vient après la raclette. **Plus d'actions → Lier à…**, sur tout élément (les
-événements compris), dit l'une de trois choses :
+événements compris) : on choisit d'abord l'autre élément, puis l'une de trois
+phrases qui les nomment tous les deux :
 
-- **Va avec** : ils vont ensemble, sans ordre ;
-- **Vient après** : cet élément attend l'autre ;
-- **Vient avant** : l'autre attend celui-ci.
+- « Courses » **va avec** « Compte » : ils vont ensemble, sans ordre ;
+- « Courses » **se fait avant** « Quel vin ? » : l'autre attend celui-ci ;
+- « Courses » **se fait après** « Quel vin ? » : celui-ci attend l'autre.
+
+Une liste et un compte du même événement n'ont pas besoin de lien : les lignes
+cochées vont déjà au compte (voir *Liste → compte* plus bas).
 
 Seulement dans le même groupe ; l'ordre ne tourne jamais en rond (rien
 n'attend, même de loin, ce qui l'attend). La même fenêtre montre les liens
@@ -276,8 +280,9 @@ déjà faits, chacun avec **Défaire**.
   compte qui attend la liste). Un élément qui attend quelque chose de pas
   encore fait porte ⏳.
 - **Dans l'arbre même**, à côté de chaque élément lié à la page où l'on est,
-  une pastille dit comment : **Va avec**, **Attend** (suivie de « fait » ou
-  « pas encore fait »), **Débloque**. Ce qui est lié hors de la chaîne se range
+  une seule pastille dit ce qu'il est pour elle : **✓ À faire avant** (en
+  vert, c'est fait), **⏳ À faire avant** (pas encore fait), **Vient après**,
+  **Va avec**. Ce qui est lié hors de la chaîne se range
   sous l'arbre, dans **Lié, hors de la chaîne** (ou **Liens** quand la page
   n'a pas de chaîne). Sur les cartes : « ⏳ Attend « … » ».
 - **Fait**, c'est : un sondage clos ou tranché, un événement passé, une liste
@@ -335,8 +340,9 @@ d'une touche, sans rien faire tout seuls (deux téléphones le feraient deux foi
   tableau, au même endroit de la chaîne.
 - **Sondage clos → liste** : ce qu'il a choisi (égalités comprises) est
   proposé à la liste liée, sur la liste comme sur le sondage.
-- **Liste → compte** : les lignes cochées d'une liste liée à un compte sont
-  proposées au compte ; on tape le montant, on choisit qui a payé (celui à qui
+- **Liste → compte** : les lignes cochées d'une liste sont proposées aux
+  comptes liés à elle, et à ceux de sa chaîne — ceux du même événement, sans
+  lien à faire ; on tape le montant, on choisit qui a payé (celui à qui
   la ligne était confiée, d'office ; il entre dans le compte s'il n'y est pas),
   et la dépense est pour tout le monde.
 - **Événement → listes et comptes** : l'événement dit qui vient et manque dans

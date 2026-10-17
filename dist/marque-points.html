@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="15905c5e" />
+    <meta name="app-build" content="d45d44ea" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -3200,22 +3200,23 @@ const STRINGS = {
     'chain.kind.game': 'Partie',
     'relate.button': 'Lier à…',
     'relate.title': 'Lier « {name} »',
-    'relate.hint': 'Au-delà de la chaîne : dire ce qui va avec, ce qui doit être fait avant, ce qui vient après. Seulement dans le même groupe.',
+    'relate.hint': 'Dire ce qui se fait avant ou après, ou ce qui va avec. Seulement dans le même groupe. Inutile entre une liste et un compte du même événement : les lignes cochées vont déjà au compte.',
     'relate.current': 'Déjà lié',
     'relate.undo': 'Défaire',
     'relate.how': 'Comment ?',
-    'relate.kind.with': 'Va avec',
-    'relate.kind.after': 'Vient après',
-    'relate.kind.before': 'Vient avant',
+    'relate.says.with': '«\u00a0{name}\u00a0» va avec «\u00a0{other}\u00a0»',
+    'relate.says.before': '«\u00a0{name}\u00a0» se fait avant «\u00a0{other}\u00a0»',
+    'relate.says.after': '«\u00a0{name}\u00a0» se fait après «\u00a0{other}\u00a0»',
+    'relate.back': 'Choisir autre chose',
     'relate.pick': 'Avec quoi ?',
-    'relate.nothing': 'Rien d’autre à lier de cette façon dans ce groupe.',
+    'relate.nothing': 'Rien d’autre à lier dans ce groupe.',
     'relate.done': 'Lié à « {name} ».',
     'relate.undone': 'Lien avec « {name} » défait.',
     'relate.map': 'Liens',
     'relate.outside': 'Lié, hors de la chaîne',
     'relate.with': 'Va avec',
-    'relate.waits': 'Attend',
-    'relate.unblocks': 'Débloque',
+    'relate.comesFirst': 'À faire avant',
+    'relate.comesAfter': 'Vient après',
     'relate.isDone': 'fait',
     'relate.notDone': 'pas encore fait',
     'relate.waiting': '⏳ Attend « {name} »',
@@ -4386,22 +4387,23 @@ const STRINGS = {
     'chain.kind.game': 'Game',
     'relate.button': 'Link to…',
     'relate.title': 'Link “{name}”',
-    'relate.hint': 'Beyond the chain: say what goes with it, what must be done first, what comes next. Only within the same group.',
+    'relate.hint': 'Say what comes before or after, or what goes with it. Only within the same group. No need between a list and an account of the same event: ticked lines already go to the account.',
     'relate.current': 'Already linked',
     'relate.undo': 'Undo',
     'relate.how': 'How?',
-    'relate.kind.with': 'Goes with',
-    'relate.kind.after': 'Comes after',
-    'relate.kind.before': 'Comes before',
+    'relate.says.with': '“{name}” goes with “{other}”',
+    'relate.says.before': '“{name}” comes before “{other}”',
+    'relate.says.after': '“{name}” comes after “{other}”',
+    'relate.back': 'Pick something else',
     'relate.pick': 'With what?',
-    'relate.nothing': 'Nothing else to link this way in this group.',
+    'relate.nothing': 'Nothing else to link in this group.',
     'relate.done': 'Linked to “{name}”.',
     'relate.undone': 'Link with “{name}” undone.',
     'relate.map': 'Links',
     'relate.outside': 'Linked, outside the chain',
     'relate.with': 'Goes with',
-    'relate.waits': 'Waits for',
-    'relate.unblocks': 'Unblocks',
+    'relate.comesFirst': 'Comes first',
+    'relate.comesAfter': 'Comes after',
     'relate.isDone': 'done',
     'relate.notDone': 'not done yet',
     'relate.waiting': '⏳ Waits for “{name}”',
@@ -9522,7 +9524,9 @@ function skyMoonLine(phase) {
  * - a board's ideas become lines of the list it goes with;
  * - a board's ideas become the choices of a poll, to vote on them;
  * - what a closed poll chose becomes a line of the list it goes with;
- * - a line ticked becomes an expense of the account it goes with;
+ * - a line ticked becomes an expense of the account it goes with — or of
+ *   any account in its chain: a list and an account of the same event need
+ *   no link for that;
  * - whoever joins an event comes into its lists and accounts.
  *
  * What came from where is written on what it made — `from: { doc, part }` on
@@ -9625,6 +9629,19 @@ function addWinner(list, poll, option, language = 'fr') {
 }
 
 /* -------------------------------------------------- a line → an account --- */
+
+/**
+ * The accounts a list writes its ticked lines into: those it is linked to,
+ * then every account of its chain — from the top of it, the event mostly,
+ * however far down either hangs. Being of the same event is enough.
+ */
+function accountsFor(list, all) {
+  const top = ancestorsOf(list, all)[0] || list;
+  const chain = [top, ...descendantsOf(top, all)]
+    .filter((one) => one.id !== list.id && isLive(one) && kindOf(one) === 'spend');
+  const linked = related(list, all, 'spend');
+  return [...linked, ...chain.filter((one) => !linked.some((other) => other.id === one.id))];
+}
 
 /** The lines of a list already written in an account. */
 function spentItems(spend, list) {
@@ -12942,14 +12959,18 @@ function eventLinkHtml(document_) {
   const icon = (one) => (isEventDoc(one) ? '📅' : one.forActivity ? '🎯' : { list: '☑️', poll: '🗳️', spend: '💶', board: '💡', game: '🃏' }[kindOf(one)] || '•');
   const kindTitle = (one) => t(isEventDoc(one) ? 'chain.kind.event' : `chain.kind.${kindOf(one) || 'game'}`);
   const byRelation = new Map(relations.map((one) => [one.document.id, one]));
-  // How this page and another are linked, said beside the other one.
+  // How another one stands to this page, in one pill beside it, said of it:
+  // to do first — done or not —, coming after, or going with it.
   const badge = (one) => {
     const relation = byRelation.get(one.id);
     if (!relation) return '';
-    const done = relation.kind === 'waits' ? isDone(one) : null;
-    return `<span class="pill chain-map__link">${escapeHtml(t(`relate.${relation.kind}`))}</span>${
-      done === null ? '' : `<span class="pill ${done ? 'pill--done' : 'pill--late'}">${escapeHtml(t(done ? 'relate.isDone' : 'relate.notDone'))}</span>`
-    }`;
+    if (relation.kind !== 'waits') {
+      return `<span class="pill chain-map__link">${escapeHtml(t(relation.kind === 'with' ? 'relate.with' : 'relate.comesAfter'))}</span>`;
+    }
+    const done = isDone(one);
+    if (done === null) return `<span class="pill chain-map__link">${escapeHtml(t('relate.comesFirst'))}</span>`;
+    return `<span class="pill ${done ? 'pill--done' : 'pill--late'}">${done ? '✓' : '⏳'} ${escapeHtml(t('relate.comesFirst'))}<span
+      class="visually-hidden"> (${escapeHtml(t(done ? 'relate.isDone' : 'relate.notDone'))})</span></span>`;
   };
   const label = (one) => {
     const waits = waitingOn(one, all);
@@ -18316,52 +18337,73 @@ function openGatherDialog(target) {
 }
 
 /**
- * Link a document to another, across the chain: what goes with it, what must
- * be done before it, what comes after. The links it has already come first,
- * each with a way to undo it; then the way to link, then with what.
+ * Link a document to another, across the chain. The links it has already come
+ * first, each said as a sentence, with a way to undo it; then what to link it
+ * to; then how, in sentences naming both — « Courses » se fait après « Quel
+ * vin ? » — never one that would make an order go round in a circle.
  */
 function openRelateDialog(document_) {
   const dialog = makeDialog();
-  let kind = 'with';
+  let target = null;
+  // A link as it reads from here, whichever side holds it.
+  const sentence = (kind, other) => t(`relate.says.${kind}`, { name: chainLabelShort(document_), other: chainLabelShort(other) });
+  const fromHere = { with: 'with', waits: 'after', unblocks: 'before' };
   const draw = () => {
     const all = everything();
     const relations = relationsOf(document_, all);
-    const targets = linkTargets(document_, all, kind);
+    const targets = linkTargets(document_, all, 'with');
+    const ways = target
+      ? ['with', 'before', 'after'].filter((kind) => linkTargets(document_, all, kind).some((one) => one.id === target.id))
+      : [];
+    const close = `<button type="button" class="button button--ghost" data-relate-close>${escapeHtml(t('action.close'))}</button>`;
     dialog.innerHTML = `
       <div class="stack">
         <h2>${escapeHtml(t('relate.title', { name: documentTitle(document_) }))}</h2>
-        <p class="muted small">${escapeHtml(t('relate.hint'))}</p>
         ${
-          relations.length
-            ? `<span class="muted small">${escapeHtml(t('relate.current'))}</span>
-               <ul class="relate-list">${relations.map((one) => `
-                 <li class="relate-list__row">
-                   <span><span class="pill">${escapeHtml(t(`relate.${one.kind}`))}</span> ${escapeHtml(chainLabel(one.document))}</span>
-                   <button type="button" class="button button--small button--ghost" data-unrelate="${escapeHtml(one.document.id)}">${escapeHtml(t('relate.undo'))}</button>
-                 </li>`).join('')}</ul>`
-            : ''
+          target
+            ? `<span class="muted small">${escapeHtml(t('relate.how'))}</span>
+               ${
+                 ways.length
+                   ? `<div class="game-list">${ways.map((kind) => `
+                       <button type="button" class="game-card" data-relate-kind="${kind}">
+                         <span class="game-card__title">${escapeHtml(sentence(kind, target))}</span>
+                       </button>`).join('')}</div>`
+                   : `<p class="muted small">${escapeHtml(t('relate.nothing'))}</p>`
+               }
+               <div class="row">
+                 <button type="button" class="button" data-relate-back>${escapeHtml(t('relate.back'))}</button>
+                 ${close}
+               </div>`
+            : `<p class="muted small">${escapeHtml(t('relate.hint'))}</p>
+               ${
+                 relations.length
+                   ? `<span class="muted small">${escapeHtml(t('relate.current'))}</span>
+                      <ul class="relate-list">${relations.map((one) => `
+                        <li class="relate-list__row">
+                          <span>${escapeHtml(sentence(fromHere[one.kind], one.document))}</span>
+                          <button type="button" class="button button--small button--ghost" data-unrelate="${escapeHtml(one.document.id)}">${escapeHtml(t('relate.undo'))}</button>
+                        </li>`).join('')}</ul>`
+                   : ''
+               }
+               <span class="muted small">${escapeHtml(t('relate.pick'))}</span>
+               ${targets.length ? candidatesHtml(targets, { attr: 'data-relate-to' }) : `<p class="muted small">${escapeHtml(t('relate.nothing'))}</p>`}
+               <div class="row">${close}</div>`
         }
-        <span class="muted small">${escapeHtml(t('relate.how'))}</span>
-        <div class="row row--chips" role="group" aria-label="${escapeHtml(t('relate.how'))}">${['with', 'after', 'before'].map((one) => `
-          <button type="button" class="chip ${one === kind ? 'chip--on' : ''}" data-relate-kind="${one}"
-                  aria-pressed="${one === kind ? 'true' : 'false'}">${escapeHtml(t(`relate.kind.${one}`))}</button>`).join('')}
-        </div>
-        <span class="muted small">${escapeHtml(t('relate.pick'))}</span>
-        ${targets.length ? candidatesHtml(targets, { attr: 'data-relate-to' }) : `<p class="muted small">${escapeHtml(t('relate.nothing'))}</p>`}
-        <div class="row">
-          <button type="button" class="button button--ghost" data-relate-close>${escapeHtml(t('action.close'))}</button>
-        </div>
       </div>`;
     dialog.querySelector('[data-relate-close]').addEventListener('click', () => dialog.close());
-    dialog.querySelectorAll('[data-relate-kind]').forEach((node) => {
-      node.addEventListener('click', () => {
-        kind = node.dataset.relateKind;
-        draw();
-      });
+    dialog.querySelector('[data-relate-back]')?.addEventListener('click', () => {
+      target = null;
+      draw();
     });
     dialog.querySelectorAll('[data-relate-to]').forEach((node) => {
       node.addEventListener('click', () => {
-        const target = targets.find((one) => one.id === node.dataset.relateTo);
+        target = targets.find((one) => one.id === node.dataset.relateTo) || null;
+        draw();
+      });
+    });
+    dialog.querySelectorAll('[data-relate-kind]').forEach((node) => {
+      node.addEventListener('click', () => {
+        const kind = node.dataset.relateKind;
         dialog.close();
         if (!target) return;
         const fresh = everything().find((one) => one.id === document_.id) || document_;
@@ -20077,8 +20119,8 @@ function offerButton(attr, value, label) {
 
 /**
  * On a list, what the things it is linked to offer: ideas from a board, what
- * a closed poll chose, and — to an account — the lines ticked and not yet
- * written there.
+ * a closed poll chose, and — to an account, linked or of the same event — the
+ * lines ticked and not yet written there.
  */
 function listFlowsHtml(list) {
   const all = everything();
@@ -20093,7 +20135,7 @@ function listFlowsHtml(list) {
     blocks.push(offersHtml(t('flows.chosenIn', { name: documentTitle(poll) }),
       offers.map((one) => offerButton('data-flow-winner', `${poll.id}|${one.option.id}`, choiceLabel(one.option)))));
   }
-  for (const spend of related(list, all, 'spend')) {
+  for (const spend of accountsFor(list, all)) {
     const spent = spentItems(spend, list);
     const ticked = list.items.filter((item) => item.done && !spent.has(item.id)).slice(0, 12);
     blocks.push(offersHtml(t('flows.toAccount', { name: documentTitle(spend) }),

@@ -106,25 +106,36 @@ await page.goto(`${B}#/list/${courses.id}`);
 await page.waitForSelector('.lines');
 await more();
 await page.click('#view [data-relate-doc]');
-await page.waitForSelector('dialog[open] [data-relate-kind]');
-await page.click('dialog[open] [data-relate-kind="after"]');
-await page.waitForSelector('dialog[open] [data-relate-kind="after"][aria-pressed="true"]');
+await page.waitForSelector('dialog[open] [data-relate-to]');
 const liables = await page.locator('dialog[open] [data-relate-to]').allTextContents();
 check('on peut lier la liste à ce qui est hors de sa chaîne, même l’événement',
   liables.some((s) => /Raclette/.test(s)) && !liables.some((s) => /copains/.test(s)), liables.join(' | '));
 await page.locator('dialog[open] [data-relate-to]', { hasText: 'Raclette' }).click();
+await page.waitForSelector('dialog[open] [data-relate-kind]');
+const ways = (await page.locator('dialog[open] [data-relate-kind]').allTextContents()).map((s) => s.replace(/\s+/g, ' ').trim());
+check('puis comment, en phrases qui les nomment toutes les deux',
+  JSON.stringify(ways) === JSON.stringify(['« Courses » va avec « Raclette »', '« Courses » se fait avant « Raclette »', '« Courses » se fait après « Raclette »']),
+  ways.join(' | '));
+await page.click('dialog[open] [data-relate-back]');
+await page.waitForSelector('dialog[open] [data-relate-to]');
+check('« Choisir autre chose » ramène à la liste', (await page.locator('dialog[open] [data-relate-kind]').count()) === 0);
+await page.locator('dialog[open] [data-relate-to]', { hasText: 'Raclette' }).click();
+await page.click('dialog[open] [data-relate-kind="after"]');
 await page.waitForFunction(() => /Lié, hors de la chaîne/.test(document.querySelector('#view .chain-map')?.textContent || ''));
 check('le lien est gardé sur la liste', JSON.stringify((await stored('lists', courses.id)).links) === JSON.stringify([{ id: raclette.id, kind: 'after' }]));
-check('le plan dit ce qu’elle attend', /Raclette.*Attend/.test(await text('#view .chain-map__links')), await text('#view .chain-map__links'));
+check('le plan dit ce qu’il faut faire avant', /Raclette.*⏳ À faire avant/.test(await text('#view .chain-map__links')), await text('#view .chain-map__links'));
+check('en une seule pastille', (await page.locator('#view .chain-map__links .pill').count()) === 1);
 check('et, dans l’arbre, la liste porte ⏳', (await page.locator('#view .chain-map__tree [aria-current="page"] .chain-map__wait').count()) === 1);
-check('et que ce n’est pas encore fait', /pas encore fait/.test(await text('#view .chain-map__links')));
+check('et que ce n’est pas encore fait, pour qui ne voit pas la couleur', /pas encore fait/.test(await text('#view .chain-map__links .pill--late')));
 await page.goto(`${B}#/poll/${raclette.id}`);
 await page.waitForSelector('#event-parts');
-check('l’événement voit ce qu’il débloque', /Courses.*Débloque/.test(await text('#view .chain-map__links')), await text('#view .chain-map'));
+check('l’événement voit ce qui vient après', /Courses.*Vient après/.test(await text('#view .chain-map__links')), await text('#view .chain-map'));
 await more();
 check('un événement se lie aussi', (await page.locator('#view [data-relate-doc]').count()) === 1);
 await page.click('#view [data-relate-doc]');
 await page.waitForSelector('dialog[open] [data-unrelate]');
+check('le lien déjà fait se dit en phrase, depuis l’événement',
+  /« Raclette » se fait avant « Courses »/.test(await text('dialog[open] .relate-list')), await text('dialog[open] .relate-list'));
 await page.click('dialog[open] [data-unrelate]');
 await page.waitForFunction(() => !document.querySelector('dialog[open] [data-unrelate]'));
 check('défait depuis l’autre côté, le lien part de la liste', (await stored('lists', courses.id)).links.length === 0);

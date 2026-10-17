@@ -1,6 +1,7 @@
 /**
  * Ce que les éléments liés font l'un pour l'autre : des idées à la liste, des
- * idées au sondage, du sondage clos à la liste, de la liste cochée au compte ;
+ * idées au sondage, du sondage clos à la liste, de la liste cochée au compte
+ * (lié, ou du même événement) ;
  * ceux qui viennent à l'événement entrent dans ses listes ; l'Accueil dit ce
  * qui est débloqué. Et l'appui long, partout où un élément s'ouvre.
  */
@@ -28,12 +29,14 @@ vin = setVote(setVote(vin, vin.people[0].id, vin.options[0].id, 'yes'), vin.peop
 vin = setClosed(vin, true);
 const courses = linkTo(linkTo(attach({ ...addItems(createList({ name: 'Courses', names: ['Gui', 'Alice'] }), 'Pain'), ...g }, raclette.id), menu.id, 'with'), vin.id, 'after');
 const compte = linkTo({ ...createSpend({ name: 'Compte', names: ['Gui'] }), ...g }, courses.id, 'with');
+// Of the same event, with no link: the list's ticked lines still go to it.
+const cagnotte = attach({ ...createSpend({ name: 'Cagnotte', names: ['Gui', 'Alice', 'Paul'] }), ...g }, raclette.id);
 
 const seed = {
   'marque-points:prefs:v1': { me: 'Gui', groups: [{ id: 'grp_famille', name: 'Mifa', key: 'la-cle-famille', admits: true }] },
   'marque-points:remote:v1': { url: 'http://127.0.0.1:8123', key: 'test-anon-key' },
   'marque-points:polls:v1': [raclette, vin], 'marque-points:lists:v1': [courses],
-  'marque-points:boards:v1': [menu], 'marque-points:spends:v1': [compte],
+  'marque-points:boards:v1': [menu], 'marque-points:spends:v1': [compte, cagnotte],
 };
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
@@ -76,13 +79,15 @@ const pain = (await stored('lists', courses.id)).items.find((i) => i.text === 'P
 await page.click(`[data-tick="${pain.id}"]`);
 await page.waitForSelector('.flows [data-flow-spend]');
 check('cochée, la ligne est proposée au compte lié', /Cochées, pas encore dans « Compte ».*Pain/.test(await text('.flows')));
-await page.click('.flows [data-flow-spend]');
+check('et au compte du même événement, sans lien', /Cochées, pas encore dans « Cagnotte ».*Pain/.test(await text('.flows')), await text('.flows'));
+await page.click(`.flows [data-flow-spend^="${compte.id}|"]`);
 await page.waitForSelector('dialog[open] #flow-amount');
 await page.fill('dialog[open] #flow-amount', '3,20');
 await page.click('dialog[open] [data-flow-payer="Alice"]');
 check('le montant reste quand on choisit qui a payé', (await page.inputValue('dialog[open] #flow-amount')) === '3,20');
 await page.click('dialog[open] #flow-spend-ok');
-await page.waitForFunction(() => !document.querySelector('.flows [data-flow-spend]'));
+await page.waitForFunction((id) => !document.querySelector(`.flows [data-flow-spend^="${id}|"]`), compte.id);
+check('la Cagnotte la propose toujours', (await page.locator(`.flows [data-flow-spend^="${cagnotte.id}|"]`).count()) === 1);
 const spend = await stored('spends', compte.id);
 check('la dépense est écrite, payée par Alice, entrée dans le compte',
   spend.lines.length === 1 && spend.lines[0].amount === 320 && spend.people.find((p) => p.id === spend.lines[0].by)?.name === 'Alice', JSON.stringify(spend.lines));
