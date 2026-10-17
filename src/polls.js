@@ -252,6 +252,32 @@ export function setOptionDay(poll, optionId, day, at) {
 }
 
 /**
+ * The day of its event a poll is about — « Raclette ou pizza ? » for the
+ * Saturday —, or null: about the whole event. Its new choices take that day.
+ */
+export function pollDay(poll) {
+  return isDayText(poll?.onDay) ? poll.onDay : null;
+}
+
+/**
+ * Set the day a poll is about, or null for the whole event. The choices on the
+ * day it was about move with it, without their hour once dayless; one pinned
+ * to another day by hand stays there, and so does a day to vote on.
+ */
+export function setPollDay(poll, day) {
+  const kept = isDayText(day) ? String(day) : null;
+  const was = pollDay(poll);
+  if (kept === was) return poll;
+  const follows = (option) => Boolean(String(option.text || '').trim()) && !isDayChoice(option) && optionDay(option) === was;
+  const options = poll.options.map((option) => {
+    if (!follows(option)) return option;
+    const { day: _day, at: _at, ...rest } = option;
+    return { ...rest, ...pinOf(kept, option.at), updatedAt: later(option.updatedAt) };
+  });
+  return touch(poll, { onDay: kept, options });
+}
+
+/**
  * The choices grouped by the day they are done on, days in order and the rest
  * last — days to vote on among them: they are what that group decides. One
  * group of everything when no choice is done on a day.

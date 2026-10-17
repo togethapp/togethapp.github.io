@@ -11,6 +11,7 @@ import {
 } from '../src/flows.js';
 import {
   createEvent, createPoll, addOptions, setVote, setClosed, choiceText, setPollDate, setOptionDay, optionsByDay, tally, mergePolls,
+  pollDay, setPollDay, addChoice,
 } from '../src/polls.js';
 import { createList } from '../src/lists.js';
 import { createBoard, addCard, editCardText } from '../src/ideas.js';
@@ -161,6 +162,27 @@ test('des choix calés chacun sur un jour : un gagnant par jour, à son jour', (
   const loose = setOptionDay(moved, rando.id, null);
   assert.equal('day' in loose.options[1], false, 'décalé : plus de jour');
   assert.equal(mergePolls(quoi, loose).options[1].day, undefined, 'le jour suit la dernière écriture du choix');
+});
+
+test('le jour d’un sondage : choisi à la création, ses choix le suivent', () => {
+  const annecy = weekend();
+  let poll = attach({ ...createPoll({ question: 'Raclette ou pizza ?', names: ['Gui'] }), ...g }, annecy.id);
+  poll = addOptions(poll, 'Raclette');
+  poll = setPollDay(poll, '2026-10-10');
+  assert.equal(pollDay(poll), '2026-10-10');
+  assert.equal(poll.options[0].day, '2026-10-10', 'les choix déjà là prennent le jour du sondage');
+  assert.equal(setPollDay(poll, '2026-10-10'), poll, 'rien ne change, même objet');
+
+  poll = addChoice(poll, { text: 'Pizza', day: pollDay(poll), at: '20:00' });
+  poll = addChoice(poll, { day: '2026-10-11' });
+  poll = setOptionDay(poll, poll.options[0].id, '2026-10-09');
+  poll = setPollDay(poll, '2026-10-11');
+  assert.deepEqual(poll.options.map((o) => [o.day, o.at]), [['2026-10-09', undefined], ['2026-10-11', '20:00'], ['2026-10-11', undefined]],
+    'la pizza suit le sondage, avec son heure ; la raclette déplacée à la main et le jour à voter restent');
+  poll = setPollDay(poll, null);
+  assert.equal(pollDay(poll), null, 'tout l’événement');
+  assert.equal('day' in poll.options[1] || 'at' in poll.options[1], false, 'sans jour, plus d’heure');
+  assert.equal(mergePolls(poll, setPollDay(poll, '2026-10-10')).onDay, '2026-10-10', 'le jour voyage');
 });
 
 test('un sondage sous un événement qui retient un jour fait une activité à part, nommée d’après le choix', () => {
