@@ -27,7 +27,11 @@ base).
 
 App web installable (PWA), sans dépendance ni framework : modules ES dans
 `src/`, un seul fichier livré dans `dist/`, publiée sur GitHub Pages par
-`.github/workflows/pages.yml` à chaque fusion sur main. Base partagée
+`.github/workflows/pages.yml` à chaque fusion sur main, à
+https://togethapp.github.io/ (organisation `togethapp`, dépôt
+`togethapp.github.io`). L'ancienne adresse, `wjrnj9zy72-design.github.io/Code`,
+est un relais (dépôt `wjrnj9zy72-design.github.io`, copie dans `relais/`) qui
+renvoie les anciens liens et emporte les données du téléphone (`src/move.js`). Base partagée
 facultative : Supabase (supabase.com), appelée uniquement par des fonctions
 RPC `security definer` ; la table n'est jamais exposée.
 

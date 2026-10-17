@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="5035bddf" />
+    <meta name="app-build" content="a6451f78" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -3037,6 +3037,12 @@ const STRINGS = {
     'tab.home': 'Accueil',
     'tab.groups': 'Groupes',
     'tab.settings': 'Réglages',
+    'move.title': 'Together a déménagé',
+    'move.done': 'Vous êtes à sa nouvelle adresse, et tout a suivi : {groups} {groups|groupe|groupes} et {documents} {documents|document|documents}.',
+    'move.homeScreen': 'Ajoutez cette adresse à l’écran d’accueil (bouton Partager → « Sur l’écran d’accueil »), puis supprimez l’ancienne icône. Les notifications se réactivent dans les Réglages.',
+    'move.ask': 'Ce lien apporte des données d’une autre adresse : {groups} {groups|groupe|groupes} et {documents} {documents|document|documents}. Ne les reprenez que si vous venez de l’ancienne adresse de Together.',
+    'move.take': 'Les reprendre',
+    'move.failed': 'Les données de l’ancienne adresse n’ont pas pu être enregistrées sur cet appareil.',
     'look.title': 'Apparence',
     'look.style': 'Style',
     'look.holo': 'Hologramme',
@@ -4213,6 +4219,12 @@ const STRINGS = {
     'tab.home': 'Home',
     'tab.groups': 'Groups',
     'tab.settings': 'Settings',
+    'move.title': 'Together has moved',
+    'move.done': 'You are at its new address, and everything came along: {groups} {groups|group|groups} and {documents} {documents|document|documents}.',
+    'move.homeScreen': 'Add this address to your home screen (Share button → “Add to Home Screen”), then delete the old icon. Notifications are turned back on in Settings.',
+    'move.ask': 'This link brings data from another address: {groups} {groups|group|groups} and {documents} {documents|document|documents}. Only take it if you come from Together’s old address.',
+    'move.take': 'Take it',
+    'move.failed': 'The data from the old address could not be saved on this device.',
     'look.title': 'Appearance',
     'look.style': 'Style',
     'look.holo': 'Hologram',
@@ -11365,6 +11377,177 @@ function setLink(location, setId) {
 function setIdFrom(pasted) {
   const found = String(pasted || '').trim().match(/#\/set\/([A-Za-z0-9_.~:@+-]+)/);
   return found ? found[1] : null;
+}
+
+  // ---- src/move.js -----------------------------------------------------
+/**
+ * Moving house. Together changed address, and a phone keeps what it knows of
+ * an app under the address it was opened at: at the new one, it starts with
+ * nothing — no group, no key, no document. The page left at the old address
+ * (relais/) hands over what this phone kept there, in the link that brings it
+ * here, after the `#` that never leaves the phone; takeMove() puts it in place
+ * before the app reads anything.
+ *
+ * Who may hand data over is the old address itself: a link of the same shape
+ * from anywhere else — someone's message, a page that sends here — is shown
+ * for what it is and asked about first, never taken in silence.
+ */
+
+/** The address Together had: the only one whose hand-over is taken without asking. */
+const MOVE_FROM = ['https://wjrnj9zy72-design.github.io/'];
+
+/** `#/move/<what was kept>/<where it was going>`. */
+const MOVE_ROUTE = /^#\/move\/([^/]*)(?:\/(.*))?$/;
+
+const MOVE_PREFIX = 'marque-points:';
+
+/**
+ * What never moves: the account's session (signing in again is one code
+ * away), a database other than the app's own (the app knows its own, and a
+ * link must not point it at another), and the old address's own note.
+ */
+const MOVE_LEFT = new Set(['marque-points:account:v1', 'marque-points:remote:v1', 'marque-points:moved']);
+
+/** What this phone kept of Together, as the old address sends it: everything but what never moves. */
+function moveKept(storage) {
+  const kept = {};
+  for (let index = 0; index < storage.length; index += 1) {
+    const name = storage.key(index);
+    if (name && name.startsWith(MOVE_PREFIX) && !MOVE_LEFT.has(name)) kept[name] = storage.getItem(name);
+  }
+  return kept;
+}
+
+/** Text fit for an address: the entries as JSON, in UTF-8, in URL-safe base64. */
+function moveEncode(entries) {
+  let binary = '';
+  for (const byte of new TextEncoder().encode(JSON.stringify(entries))) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** The entries back, or null for anything that is not a hand-over: only text values, under Together's keys. */
+function moveDecode(text) {
+  try {
+    const binary = atob(String(text).replace(/-/g, '+').replace(/_/g, '/'));
+    const parsed = JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0))));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const entries = Object.entries(parsed).filter(([name, value]) => name.startsWith(MOVE_PREFIX) && !MOVE_LEFT.has(name) && typeof value === 'string');
+    return Object.fromEntries(entries);
+  } catch {
+    return null;
+  }
+}
+
+const moveIsObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const moveWithIds = (value) => Array.isArray(value) && value.every((item) => moveIsObject(item) && typeof item.id === 'string');
+const moveOfText = (value) => Array.isArray(value) && value.every((item) => typeof item === 'string');
+
+/** Two values of one place: what is here stays, what came fills the gaps. */
+function moveFill(here, came) {
+  if (moveWithIds(here) && moveWithIds(came)) {
+    const known = new Set(here.map((item) => item.id));
+    return [...here, ...came.filter((item) => !known.has(item.id))];
+  }
+  if (moveOfText(here) && moveOfText(came)) return [...new Set([...here, ...came])];
+  if (moveIsObject(here) && moveIsObject(came)) {
+    const filled = { ...here };
+    for (const [name, value] of Object.entries(came)) {
+      if (!(name in here)) filled[name] = value;
+      else if (moveWithIds(here[name]) && moveWithIds(value)) filled[name] = moveFill(here[name], value);
+      else if (moveIsObject(here[name]) && moveIsObject(value)) filled[name] = { ...value, ...here[name] };
+    }
+    return filled;
+  }
+  return here;
+}
+
+/**
+ * What to write, given what is here and what came. Nothing here is lost or
+ * changed: a key not here is taken whole; the documents not here are added
+ * beside those that are; the preferences not set here — a name, groups and
+ * their keys, the right to organise a poll — are added to those that are.
+ */
+function moveMerge(here, came) {
+  const writes = {};
+  for (const [name, value] of Object.entries(came)) {
+    if (here[name] == null) {
+      writes[name] = value;
+      continue;
+    }
+    try {
+      const filled = JSON.stringify(moveFill(JSON.parse(here[name]), JSON.parse(value)));
+      if (filled !== here[name]) writes[name] = filled;
+    } catch {
+      // Not JSON on one side or the other: what is here stays.
+    }
+  }
+  return writes;
+}
+
+/** How much came: groups and documents, to say so — or to ask about it. */
+function moveCount(entries) {
+  const count = (name) => {
+    try {
+      const value = JSON.parse(entries[name] || 'null');
+      return Array.isArray(value) ? value.length : 0;
+    } catch {
+      return 0;
+    }
+  };
+  let groups = 0;
+  try {
+    groups = (JSON.parse(entries['marque-points:prefs:v1'] || 'null')?.groups || []).length;
+  } catch {
+    groups = 0;
+  }
+  const documents = ['games', 'lists', 'polls', 'spends', 'boards'].reduce((sum, kind) => sum + count(`marque-points:${kind}:v1`), 0);
+  return { groups, documents };
+}
+
+/** Write what came into what is here. */
+function moveInto(storage, came) {
+  const here = {};
+  for (let index = 0; index < storage.length; index += 1) {
+    const name = storage.key(index);
+    if (name) here[name] = storage.getItem(name);
+  }
+  for (const [name, value] of Object.entries(moveMerge(here, came))) storage.setItem(name, value);
+}
+
+/**
+ * On arriving, before the app reads anything: a hand-over in the address is
+ * taken in — at once when it comes from the old address, else kept aside for
+ * the app to ask about (`asking`) — and the address goes back to where the
+ * link was going. Returns what happened, or null when nothing was handed over.
+ */
+function takeMove({ location, history, storage, aside, referrer = '', from = MOVE_FROM }) {
+  const found = String(location.hash || '').match(MOVE_ROUTE);
+  if (!found) return null;
+  const came = moveDecode(found[1]);
+  let then = '';
+  try {
+    then = decodeURIComponent(found[2] || '');
+  } catch {
+    then = '';
+  }
+  // Where the link was going, and nothing of what it carried left in sight.
+  history.replaceState(null, '', `${location.pathname}${location.search}${/^#\//.test(then) ? then : ''}`);
+  if (!came || !Object.keys(came).length) return { status: 'empty' };
+  const counts = moveCount(came);
+  if (!from.some((origin) => String(referrer).startsWith(origin))) {
+    try {
+      aside.setItem('marque-points:arriving', JSON.stringify(came));
+    } catch {
+      return { status: 'empty' };
+    }
+    return { status: 'asking', ...counts };
+  }
+  try {
+    moveInto(storage, came);
+  } catch {
+    return { status: 'failed' };
+  }
+  return { status: 'moved', ...counts };
 }
 
   // ---- src/prefill.js --------------------------------------------------
@@ -24569,7 +24752,19 @@ function tellKnock(ticket) {
 
 
 
+
 const view = document.getElementById('view');
+
+// Together moved address: what this phone kept at the old one may arrive in
+// the address. It is put in place here, before anything below reads the
+// storage (src/move.js); the app says so once it is on screen.
+const arrival = (() => {
+  try {
+    return takeMove({ location, history, storage: localStorage, aside: sessionStorage, referrer: document.referrer });
+  } catch {
+    return null;
+  }
+})();
 
 const state = {
   games: loadGames(),
@@ -24800,6 +24995,51 @@ function appLink() {
 
 function flash(message, kind = 'info') {
   state.flash = { message, kind, shownAt: null };
+}
+
+/**
+ * Arrived from the old address: say that everything came along, and how to
+ * keep the new address at hand. A hand-over that did not come from the old
+ * address is asked about first, and taken in only on a yes (src/move.js).
+ */
+async function welcomeMove(arrival) {
+  if (arrival?.status === 'moved') {
+    const dialog = makeDialog();
+    dialog.innerHTML = `
+      <div class="stack" id="move-welcome">
+        <h2>${escapeHtml(t('move.title'))}</h2>
+        <p>${escapeHtml(t('move.done', { groups: arrival.groups, documents: arrival.documents }))}</p>
+        <p class="muted small">${escapeHtml(t('move.homeScreen'))}</p>
+        <div class="row"><button type="button" class="button button--primary" data-move-ok>${escapeHtml(t('action.close'))}</button></div>
+      </div>`;
+    dialog.querySelector('[data-move-ok]').addEventListener('click', () => dialog.close());
+    dialog.showModal();
+    return;
+  }
+  if (arrival?.status === 'failed') {
+    flash(t('move.failed'), 'error');
+    render();
+    return;
+  }
+  if (arrival?.status !== 'asking') return;
+  let came = null;
+  try {
+    came = JSON.parse(sessionStorage.getItem('marque-points:arriving'));
+    sessionStorage.removeItem('marque-points:arriving');
+  } catch {
+    came = null;
+  }
+  if (!came) return;
+  const taken = await ask(t('move.ask', { groups: arrival.groups, documents: arrival.documents }), { confirmLabel: t('move.take') });
+  if (!taken) return;
+  try {
+    moveInto(localStorage, came);
+  } catch {
+    flash(t('move.failed'), 'error');
+    render();
+    return;
+  }
+  location.reload();
 }
 
 /**
@@ -26095,6 +26335,7 @@ adoptOlderGames();
 offerMeInForms();
 startInstall();
 render();
+void welcomeMove(arrival);
 // What happened while the app was closed, learnt on opening it rather than left
 // waiting for someone to press a button: a knock answered, a key cut off.
 if (state.remote) {

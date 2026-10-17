@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Together a déménagé</title>
+    <script>
+      // Together lived here, under /Code/; it lives at NEW now. Whatever is
+      // asked of the old address lands on this page — GitHub's « not found »
+      // page of this site, and its front page — and goes on to the same place
+      // at the new address. The first time, it takes along what this phone
+      // kept of Together, which the new address cannot read: it travels after
+      // the `#`, the part of an address that never leaves the phone, and the
+      // app takes it in on arriving (src/move.js). `?encore` sends it again.
+      const NEW = 'https://togethapp.github.io/';
+      const PREFIX = 'marque-points:';
+      const LEFT = ['marque-points:account:v1', 'marque-points:remote:v1', 'marque-points:moved'];
+      const page = location.pathname.replace(/^\/Code(?=\/|$)/, '').replace(/^\//, '');
+      let carried = '';
+      try {
+        if (!localStorage.getItem(PREFIX + 'moved') || /[?&]encore\b/.test(location.search)) {
+          const kept = {};
+          for (let index = 0; index < localStorage.length; index += 1) {
+            const name = localStorage.key(index);
+            if (name && name.startsWith(PREFIX) && !LEFT.includes(name)) kept[name] = localStorage.getItem(name);
+          }
+          if (Object.keys(kept).length) {
+            let binary = '';
+            for (const byte of new TextEncoder().encode(JSON.stringify(kept))) binary += String.fromCharCode(byte);
+            carried = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            localStorage.setItem(PREFIX + 'moved', String(Date.now()));
+          }
+        }
+      } catch {
+        carried = '';
+      }
+      location.replace(carried
+        ? `${NEW}#/move/${carried}/${encodeURIComponent(location.hash)}`
+        : `${NEW}${page}${/[?&]encore\b/.test(location.search) ? '' : location.search}${location.hash}`);
+    </script>
+  </head>
+  <body>
+    <p>Together a déménagé : <a href="https://togethapp.github.io/">togethapp.github.io</a></p>
+  </body>
+</html>

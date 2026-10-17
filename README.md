@@ -783,6 +783,29 @@ pas depuis un `file://` — c'est précisément ce que le fichier unique résout
 Pour jouer avec le téléphone pendant que l'ordinateur sert l'appli, ouvrez
 `http://<ip-locale-de-l-ordinateur>:8080` depuis le même réseau Wi-Fi.
 
+### Son adresse, et le déménagement
+
+L'app est publiée sur **https://togethapp.github.io/** (organisation GitHub
+`togethapp`, dépôt `togethapp.github.io`). Elle a d'abord vécu à
+`https://wjrnj9zy72-design.github.io/Code/`, qui n'est plus qu'un **relais** :
+le dépôt `wjrnj9zy72-design.github.io` du compte personnel, dont `relais/`
+garde la copie de référence.
+
+- Un ancien lien — un sondage envoyé avant, l'icône de l'écran d'accueil —
+  arrive au relais et repart au même endroit de la nouvelle adresse.
+- Un téléphone garde ce qu'il sait d'une app sous l'adresse où il l'a ouverte :
+  à la nouvelle, il partirait de rien. La première fois, le relais emporte donc
+  ses groupes, clés, droits d'organisateur et documents, dans le lien, après le
+  `#` (la partie d'une adresse qui ne quitte jamais le téléphone), et l'app les
+  reprend en arrivant (`src/move.js`) : sans rien demander quand ils viennent de
+  l'ancienne adresse, après une question sinon. Ce qui est déjà là n'est jamais
+  écrasé. La session du compte reste là-bas : on se reconnecte d'un code. Les
+  notifications se réactivent dans les Réglages, et l'app s'ajoute de nouveau à
+  l'écran d'accueil depuis la nouvelle adresse.
+- L'ancien service worker est remplacé par un dernier (`relais/Code/sw.js`) qui
+  vide les caches et s'en va : sans lui, une app installée continuerait
+  d'ouvrir sa vieille version.
+
 ## Tests
 
 ```bash
