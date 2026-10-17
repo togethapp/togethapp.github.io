@@ -223,18 +223,28 @@ await page.evaluate((poll) => {
 // leaves for the list — sometimes before a reload could come.
 await page.goto(`${B}?n=sorties#/poll/${sorties.id}`);
 await page.waitForSelector('#add-choice');
-check('les choix se calent sur les jours de l’événement', (await page.locator('#add-choice [data-choice-day]').count()) === 4);
-const ajoute = async (jour, quoi) => {
-  await page.click(`#add-choice [data-choice-day="${jour}"]`);
-  await page.waitForSelector(`#add-choice [data-choice-day="${jour}"].chip--on`);
+check('pas de jour à choisir pour chaque choix', (await page.locator('#add-choice [data-choice-day]').count()) === 0
+  && (await page.locator('#add-choice #new-choice-at').count()) === 0);
+await page.click('#poll-change-day');
+await page.waitForSelector('dialog[open] [data-poll-day]');
+check('l’organisateur fixe le jour du sondage', (await page.locator('dialog[open] [data-poll-day]').count()) === 4);
+await page.click(`dialog[open] [data-poll-day="${d2}"]`);
+await page.waitForSelector('#add-choice #new-choice-at');
+const ajoute = async (quoi) => {
   await page.fill('#new-choice', quoi);
   await page.press('#new-choice', 'Enter');
   await page.waitForFunction((q) => [...document.querySelectorAll('.votes tbody th')].some((th) => th.textContent.includes(q)), quoi);
 };
-await ajoute(d2, 'Kayak');
-await ajoute(d2, 'Rando');
-await ajoute(d3, 'Lac');
-check('le jour choisi reste pour le choix suivant', await page.locator(`#add-choice [data-choice-day="${d3}"].chip--on`).count() === 1);
+await ajoute('Kayak');
+await ajoute('Rando');
+await ajoute('Lac');
+// Exception : un choix mis à un autre jour, à la main.
+const lacId = (await byTitle('Que faire là-bas ?')).options[2].id;
+await page.click(`[data-option="${lacId}"]`);
+await page.waitForSelector('dialog[open] [data-choice-day]');
+await page.click(`dialog[open] [data-choice-day="${d3}"]`);
+await page.click('dialog[open] #choice-save');
+await page.waitForFunction(() => document.querySelectorAll('.votes tr.votes__day').length === 2);
 const grille = await text('.votes tbody');
 check('la grille range les choix par jour', (await page.locator('.votes tr.votes__day').count()) === 2 && /Kayak.*Rando.*Lac/.test(grille), grille);
 let sondage = await byTitle('Que faire là-bas ?');

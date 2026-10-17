@@ -138,6 +138,7 @@ export const state = {
   newPollDays: [],
   // One hour for all the picked days, when the evening has one.
   newPollAt: '',
+  newPollOnDay: '',
   newPollPeople: ['', ''],
   // Names typed so far, so switching preset does not wipe them.
   newGameNames: ['', '', ''],
