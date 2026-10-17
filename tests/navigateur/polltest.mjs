@@ -136,11 +136,23 @@ check('et c’est bien celui-là',
   /Samedi 13/.test(await page.locator('.votes__leader').first().textContent()),
   (await page.locator('.votes__leader').first().textContent()).trim());
 
-// partager, répondre depuis un autre appareil
+// partager, répondre depuis un autre appareil — sur un téléphone, qui a sa
+// feuille de partage
+await page.evaluate(() => { window.__shared = []; navigator.share = async (data) => { window.__shared.push(data); }; });
 await page.click('#poll-share');
 await page.waitForSelector('#export-dialog[open]', { timeout: 15000 });
-const link = await page.inputValue('#export-text');
-check('le lien pointe vers le sondage', /#\/poll\/v_/.test(link), link);
+const message = await page.inputValue('#export-text');
+const link = message.slice(message.indexOf('http'));
+check('le message commence par le titre du sondage', message.startsWith('Quel soir pour la raclette ?\n'), message);
+check('nomme Together', /sur Together/.test(message), message);
+check('et finit par le lien du sondage', /^https?:\/\/\S+#\/poll\/v_[^/\s]+\/solo$/.test(link), link);
+const scanned = await page.locator('#export-qr svg').count();
+check('le code à scanner est là', scanned === 1);
+await page.click('#export-send');
+await page.waitForTimeout(200);
+const sent = await page.evaluate(() => window.__shared);
+check('« Envoyer » passe le message entier, son lien une seule fois',
+  sent.length === 1 && sent[0].text === message && !sent[0].url && sent[0].title === 'Together', JSON.stringify(sent));
 await page.click('#export-close');
 
 const other = await device('autre');

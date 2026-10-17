@@ -1471,11 +1471,20 @@ export function bindPoll(poll) {
       replacePoll(current);
     }
 
+    // A message, not a bare link: a link's preview can only say « a poll »,
+    // since what follows its `#` never leaves the phone — so the title goes
+    // in the message, above the link. The code carries the link alone.
+    const link = pollLink(location, current.id);
+    const dated = isEvent(current) || Boolean(current.date);
+    // An event says its day after its name: « Raclette — vendredi 12 … ».
+    const named = [eventName(current) || pollTitle(current), current.date ? whenText(current, { long: true }) : ''].filter(Boolean).join(' — ');
     showCopyDialog({
-      title: t('polls.shareTitle'),
-      hint: t('polls.shareHint'),
-      text: pollLink(location, current.id),
+      title: t(dated ? 'events.share' : 'polls.shareTitle'),
+      hint: t(dated ? 'events.shareHint' : 'polls.shareHint'),
+      text: t(dated ? 'events.shareText' : 'polls.shareText', { title: dated ? named : pollTitle(current), link }),
       qr: true,
+      qrText: link,
+      send: true,
     });
   });
 }

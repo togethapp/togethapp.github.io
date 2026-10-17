@@ -3799,9 +3799,12 @@ const STRINGS = {
     'polls.nudgeHint': 'Un message prêt à envoyer à ceux qui n’ont pas encore répondu.',
     'polls.nudgeText': '{question}\n{count|Il manque encore la réponse de|Il manque encore les réponses de} {names}. Cochez ce qui vous va ici : {link}',
     'actions.more': 'Plus d’actions',
-    'polls.shareTitle': 'Lien vers ce sondage',
+    'polls.shareTitle': 'Partager le sondage',
     'polls.shareHint':
-      'Scannez le code, ou envoyez le lien : la personne répond de son côté, et le compte se met à jour ici.',
+      'Envoyez ce message — le titre du sondage et son lien —, ou faites scanner le code : la personne répond de son côté, et le compte se met à jour ici.',
+    'polls.shareText': '{title}\nCochez ce qui vous va sur Together : {link}',
+    'events.shareHint': 'Envoyez ce message, ou faites scanner le code : chacun y retrouve le jour, qui vient et ce qui s’y rattache.',
+    'events.shareText': '{title}\nSur Together : {link}',
     'polls.loading': 'Ouverture du sondage…',
     'polls.countLine': '{yes} dispo sur {total}',
     'tab.lists': 'Listes',
@@ -4962,9 +4965,12 @@ const STRINGS = {
     'polls.nudgeHint': 'A message ready to send to those who have not answered yet.',
     'polls.nudgeText': '{question}\nStill waiting for {names}. Tick what suits you here: {link}',
     'actions.more': 'More actions',
-    'polls.shareTitle': 'Link to this poll',
+    'polls.shareTitle': 'Share the poll',
     'polls.shareHint':
-      'Scan the code, or send the link: they answer on their side, and the count updates here.',
+      'Send this message — the poll’s title and its link —, or let them scan the code: they answer on their side, and the count updates here.',
+    'polls.shareText': '{title}\nTick what suits you on Together: {link}',
+    'events.shareHint': 'Send this message, or let them scan the code: everyone finds the day, who is coming and what goes with it.',
+    'events.shareText': '{title}\nOn Together: {link}',
     'polls.loading': 'Opening the poll…',
     'polls.countLine': '{yes} of {total} available',
     'tab.lists': 'Lists',
@@ -13396,11 +13402,20 @@ function bindPoll(poll) {
       replacePoll(current);
     }
 
+    // A message, not a bare link: a link's preview can only say « a poll »,
+    // since what follows its `#` never leaves the phone — so the title goes
+    // in the message, above the link. The code carries the link alone.
+    const link = pollLink(location, current.id);
+    const dated = isEvent(current) || Boolean(current.date);
+    // An event says its day after its name: « Raclette — vendredi 12 … ».
+    const named = [eventName(current) || pollTitle(current), current.date ? whenText(current, { long: true }) : ''].filter(Boolean).join(' — ');
     showCopyDialog({
-      title: t('polls.shareTitle'),
-      hint: t('polls.shareHint'),
-      text: pollLink(location, current.id),
+      title: t(dated ? 'events.share' : 'polls.shareTitle'),
+      hint: t(dated ? 'events.shareHint' : 'polls.shareHint'),
+      text: t(dated ? 'events.shareText' : 'polls.shareText', { title: dated ? named : pollTitle(current), link }),
       qr: true,
+      qrText: link,
+      send: true,
     });
   });
 }
@@ -16846,13 +16861,17 @@ function showCopyDialog({
     document.body.append(dialog);
 
     dialog.querySelector('#export-close').addEventListener('click', () => dialog.close());
-    // Sending hands over the link. For a lot that is the whole point — its
-    // code travels by another route — and for an invitation the code is in
-    // the link already, on purpose.
+    // Sending hands over what the box holds. A bare link goes as a link: for
+    // a lot that is the whole point — its code travels by another route — and
+    // for an invitation the code is in the link already, on purpose. A
+    // message goes whole, as text: it carries its link, and handed it again
+    // as `url`, iOS and Android would add it a second time (see shareMessage).
     dialog.querySelector('#export-send').addEventListener('click', async () => {
-      const url = dialog.querySelector('#export-text').value;
+      const content = dialog.querySelector('#export-text').value.trim();
       try {
-        await navigator.share({ title: t('app.title'), text: t('shareSet.text'), url });
+        await navigator.share(/\s/.test(content)
+          ? { title: t('app.title'), text: content }
+          : { title: t('app.title'), text: t('shareSet.text'), url: content });
       } catch {
         // Cancelled, or refused: the text and its code are still on screen.
       }

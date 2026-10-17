@@ -10,9 +10,17 @@
     <title>Une partie en cours · Together</title>
     <meta name="description" content="Touchez le lien pour suivre les scores et ajouter des manches." />
     <meta property="og:site_name" content="Together" />
-    <meta property="og:title" content="Une partie en cours" />
+    <meta property="og:title" content="Together · une partie en cours" />
     <meta property="og:description" content="Touchez le lien pour suivre les scores et ajouter des manches." />
     <meta property="og:type" content="website" />
+    <!-- The picture under the link, named in full as previews want it:
+         @SITE@ becomes the site's address when it is published
+         (.github/workflows/pages.yml). -->
+    <meta property="og:image" content="@SITE@/icons/apercu.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Together — sondages, listes, comptes et parties, en famille et entre amis" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="theme-color" content="#b8761a" />
     <script>location.replace('./' + location.search + location.hash);</script>
   </head>

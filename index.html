@@ -5,7 +5,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="92bc6786" />
+    <meta name="app-build" content="5035bddf" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -13,6 +13,18 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="description" content="Compteur de points, listes et sondages partagés, pour la famille et les amis." />
     <title>Together</title>
+    <meta property="og:site_name" content="Together" />
+    <meta property="og:title" content="Together" />
+    <meta property="og:description" content="Compteur de points, listes et sondages partagés, pour la famille et les amis." />
+    <meta property="og:type" content="website" />
+    <!-- The picture under the link, named in full as previews want it:
+         @SITE@ becomes the site's address when it is published
+         (.github/workflows/pages.yml). -->
+    <meta property="og:image" content="@SITE@/icons/apercu.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Together — sondages, listes, comptes et parties, en famille et entre amis" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23071427'/><circle cx='25' cy='32' r='12.5' fill='none' stroke='%235ff3ff' stroke-width='4.2'/><circle cx='39' cy='32' r='12.5' fill='none' stroke='%235ff3ff' stroke-width='4.2'/></svg>" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#050b16" />

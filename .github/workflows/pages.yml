@@ -35,16 +35,20 @@ jobs:
       - name: Tests
         run: npm test
 
+      # enablement active Pages si ce n'est pas déjà fait, au lieu d'échouer.
+      - id: pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
       - name: Rassembler le site
         run: |
           mkdir -p site
           cp *.html styles.css manifest.webmanifest sw.js site/
           cp -r src icons dist site/
-
-      # enablement active Pages si ce n'est pas déjà fait, au lieu d'échouer.
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
+          # L'image des aperçus de lien veut une adresse complète : celle du
+          # site, que GitHub donne à l'étape d'avant, prend la place de @SITE@.
+          sed -i "s#@SITE@#${{ steps.pages.outputs.base_url }}#g" site/*.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

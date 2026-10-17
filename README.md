@@ -418,7 +418,12 @@ poser la question.
   comme leur jour (`choiceWhen`).
 - **Clore** le sondage fige les réponses ; on peut le rouvrir.
 - **Partager** comme le reste : un lien, un code QR, chacun répond de son côté,
-  et les réponses de chacun arrivent sans écraser celles des autres.
+  et les réponses de chacun arrivent sans écraser celles des autres. Le message
+  envoyé commence par le titre du sondage (« Quel soir pour la raclette ? »),
+  puis « Cochez ce qui vous va sur Together » et le lien — un événement donne
+  son nom et son jour ; sur téléphone, **Envoyer** l'ouvre dans Messenger,
+  WhatsApp… L'aperçu du lien, lui, ne peut pas connaître le titre (ce qui suit
+  le `#` ne quitte jamais le téléphone) : il montre « Together » et son image.
 
 ## Ce que ça fait — par groupe, et par personne
 
