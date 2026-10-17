@@ -397,6 +397,8 @@ poser la question.
   prénom n'est choisi, la grille ne coche rien (une case touchée fait
   s'allumer les prénoms), puis seule la colonne choisie se coche — pas de vote
   dans la colonne d'à côté par erreur. Un autre prénom se choisit d'un toucher.
+  Le prénom de l'appareil (Réglages → Moi) est choisi d'office quand le
+  sondage le compte : on coche ses jours dès l'ouverture.
 - On touche une case pour dire « dispo », on la retouche pour l'enlever. **Ne
   pas avoir répondu n'est pas un non** — le compte dit combien ont répondu.
 - Une jauge horizontale classe les choix par nombre de personnes dispo ; à

@@ -11489,8 +11489,21 @@ function gaugeHtml(poll) {
     </section>`;
 }
 
+/**
+ * Who this device answers for in a poll: the name chosen under « Je suis »;
+ * or, none chosen yet, this device's own first name (Réglages → Moi) when the
+ * poll asks it. Whoever made a poll is in it, and their taps on its days
+ * ticked nothing until they had picked their own name.
+ */
+function voterOf(poll) {
+  const chosen = state.prefs.voter?.[poll.id];
+  if (poll.people.some((person) => person.id === chosen)) return chosen;
+  const mine = sameName(myName());
+  return (mine && poll.people.find((person) => sameName(person.name) === mine)?.id) || null;
+}
+
 function pollView(poll, { solo = false } = {}) {
-  const me = state.prefs.voter?.[poll.id] || null;
+  const me = voterOf(poll);
   // Solo: a visitor from a link, with the app's chrome gone too. Guest: anyone
   // who is not the organiser — a visitor, or another member of the group — and
   // who is therefore shown the voting and nothing else.
@@ -12444,7 +12457,7 @@ function bindPoll(poll) {
   view.querySelectorAll('[data-vote]').forEach((button) => {
     button.addEventListener('click', () => {
       const [personId, optionId] = button.dataset.vote.split('|');
-      const answeringAs = state.prefs.voter?.[poll.id];
+      const answeringAs = voterOf(poll);
       // No name chosen yet: the tap asks for one rather than voting.
       if (!answeringAs) {
         askWhoFirst();
@@ -12460,7 +12473,9 @@ function bindPoll(poll) {
 
   view.querySelectorAll('[data-me]').forEach((chip) => {
     chip.addEventListener('click', () => {
-      const chosen = state.prefs.voter?.[poll.id] === chip.dataset.me ? null : chip.dataset.me;
+      // A tap chooses, and never takes back: one's own name, already chosen
+      // for one, would otherwise go at the very tap meant to answer with it.
+      const chosen = chip.dataset.me;
       state.prefs = { ...state.prefs, voter: { ...state.prefs.voter, [poll.id]: chosen } };
       savePrefs(state.prefs);
       render();

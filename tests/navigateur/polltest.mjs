@@ -204,6 +204,38 @@ await page.waitForTimeout(400);
 check('retenir le jour le fixe', (await page.inputValue('#poll-day')) === soon(11), await page.inputValue('#poll-day'));
 check('et clôt le sondage', await page.locator('.vote').first().isDisabled());
 
+// Un appareil qui a un prénom (Réglages → Moi), dans un sondage qui le
+// compte : sa colonne est la sienne d'emblée, et ses jours se cochent du
+// premier toucher — sans quoi le sondage qu'on vient de créer ne cochait rien.
+const zoe = await (await browser.newContext({ viewport: { width: 430, height: 950 }, locale: 'fr-FR' })).newPage();
+zoe.on('pageerror', (e) => errors.push(`zoé: ${e.message}`));
+await zoe.addInitScript(() => {
+  if (!localStorage.getItem('marque-points:prefs:v1')) localStorage.setItem('marque-points:prefs:v1', JSON.stringify({ me: 'Zoé' }));
+});
+await zoe.goto('http://localhost:8099/dist/marque-points.html#/polls/new');
+await zoe.waitForSelector('#new-poll');
+await zoe.fill('#poll-question', 'Quel soir ?');
+await zoe.fill('#poll-choices', 'Lundi\nMardi');
+check('son prénom ouvre la liste des personnes', (await zoe.inputValue('[data-person-index="0"]')) === 'Zoé');
+await zoe.fill('[data-person-index="1"]', 'Alice');
+await zoe.click('#new-poll button[type=submit]');
+await zoe.waitForSelector('.votes');
+const zoeCell = (row, person) => zoe.locator('.votes tbody tr').nth(row).locator('.vote').nth(person);
+check('son prénom est déjà choisi sous « Je suis »', (await zoe.locator('[data-me].chip--on').allTextContents()).map((s) => s.trim()).join() === 'Zoé');
+check('et sa colonne s’ouvre seule', (await zoeCell(0, 0).getAttribute('aria-disabled')) === null && await zoeCell(0, 1).isDisabled());
+await zoeCell(0, 0).click();
+await zoe.waitForTimeout(250);
+check('un jour touché se coche du premier coup', (await zoeCell(0, 0).textContent()).trim() === '✓');
+await zoe.locator('[data-me]', { hasText: 'Zoé' }).click();
+await zoe.waitForTimeout(200);
+check('retoucher son prénom le garde choisi', (await zoe.locator('[data-me].chip--on').allTextContents()).map((s) => s.trim()).join() === 'Zoé');
+await zoeCell(1, 0).click();
+await zoe.waitForTimeout(250);
+check('et les cases se cochent toujours', (await zoeCell(1, 0).textContent()).trim() === '✓');
+await zoe.locator('[data-me]', { hasText: 'Alice' }).click();
+await zoe.waitForTimeout(200);
+check('un autre prénom se choisit d’un toucher', (await zoeCell(0, 1).getAttribute('aria-disabled')) === null && await zoeCell(0, 0).isDisabled());
+
 // les deux autres onglets n'ont pas bougé
 await page.click('[data-tab="home"]'); await page.click('.segmented--kinds [data-goto="#/lists"]');
 await page.waitForSelector('[data-goto="#/lists/new"]');
