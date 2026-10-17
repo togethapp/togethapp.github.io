@@ -16,7 +16,11 @@
  */
 
 import { addItems } from './lists.js';
-import { createPoll, createEvent, addOptions, addDays, tally, goers, choiceText, voteOf, optionDay } from './polls.js';
+import {
+  createPoll, createEvent, addOptions, addDays, tally, goers, choiceText, voteOf, optionDay, setClosed, setPollDate, isEvent,
+  isDayChoice,
+} from './polls.js';
+import { eventName } from './ics.js';
 import { addSpend } from './spends.js';
 import { cardsInOrder } from './ideas.js';
 import { addPerson } from './people.js';
@@ -24,6 +28,7 @@ import { sameName } from './stats.js';
 import { touch } from './stamp.js';
 import {
   relationsOf, kindOf, isEventDoc, isLive, isDone, parentId, descendantsOf, dayNow, topEventOf, programmeOf, eventDays,
+  isActivity,
 } from './dashboard.js';
 
 /** The things of one kind a document is linked to, whichever way. */
@@ -281,6 +286,53 @@ export function activitiesOnClose(poll, all) {
   return [...byDay.values()]
     .filter((group) => group.length === 1 && !group[0].made)
     .map(([choice]) => activityFromChoice(event, poll, choice.option));
+}
+
+/**
+ * A poll under an event settling on a day: the activity is an element of its
+ * own, named after what was chosen — « Raclette », not « Raclette ou pizza
+ * samedi soir ? » —, and the poll stays a poll, closed, where it was.
+ *
+ * What was chosen is `option` when given, else the poll's one favourite. The
+ * name is `name` when given; else that choice's words, unless the choice is
+ * only a day — it says when, not what; else the question's (« Quand le
+ * karaoké ? » → Karaoké).
+ *
+ * Returns `{ activity, poll }`, or null when the poll is under no event, asks
+ * when an activity is (it dates that activity instead), or already made it.
+ */
+export function settleAsActivity(poll, all, { option = null, date, at = null, until = null, name = '' } = {}) {
+  if (!poll || isEvent(poll) || poll.whenFor || !date) return null;
+  const undated = setPollDate(poll, null);
+  const event = topEventOf(undated, all);
+  if (!event || event.id === poll.id) return null;
+  const { leaders } = tally(poll);
+  const chosen = option || (leaders.length === 1 ? poll.options.find((one) => one.id === leaders[0]) || null : null);
+  if (madeFrom(event, all, poll.id, chosen?.id || null)) return null;
+  const words = chosen && !isDayChoice(chosen, poll.createdAt) ? oneLine(chosen.text) : '';
+  const keen = chosen
+    ? (poll.people || []).filter((person) => voteOf(poll, person.id, chosen.id) === 'yes').map((person) => person.name)
+    : [];
+  const made = activityFor(event, {
+    name: oneLine(name) || words || eventName(poll),
+    date,
+    at,
+    names: keen.length ? keen : goers(poll),
+    from: { doc: poll.id, part: chosen?.id || null },
+  });
+  const activity = until ? setPollDate(made, made.date, made.at, until) : made;
+  return { activity, poll: undated.closedAt ? undated : setClosed(undated, true) };
+}
+
+/**
+ * A poll that became an activity itself, before activities were elements of
+ * their own: dated, under an event. Splitting it makes the activity and
+ * leaves the poll a closed poll, as settleAsActivity() does. Null for
+ * anything else.
+ */
+export function splitPollActivity(poll, all) {
+  if (!isActivity(poll, all) || isEvent(poll) || poll.whenFor) return null;
+  return settleAsActivity(poll, all, { date: poll.date, at: poll.at || null, until: poll.until || null });
 }
 
 /** The polls of an event still choosing an activity: open, marked. */

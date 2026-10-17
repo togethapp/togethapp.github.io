@@ -10,7 +10,7 @@
  */
 
 import {
-  askForText, chainLabel, chainOf, documentHref, documentTitle, escapeHtml, everything, flash, formatDayLong, navigate,
+  askForText, chainLabel, chainLabelShort, chainOf, documentHref, documentTitle, escapeHtml, everything, flash, formatDayLong, navigate,
   render, state, whenText,
 } from './app.js';
 import { persistPoll, replacePoll, signed, choiceLabel } from './view-polls.js';
@@ -33,8 +33,24 @@ import { getLanguage } from './i18n.js';
 import {
   related, ideasFor, addIdea, pollFromIdeas, winnersOf, winnerOffers, addWinner, spentItems, spendFromLine,
   unblockedNow, missingGoers, addGoers, activityFor, ideaActivities, choiceActivities, whenPoll, activityFromChoice,
-  activityVotes,
+  activityVotes, settleAsActivity, splitPollActivity,
 } from './flows.js';
+
+/**
+ * A poll under an event settled on a day: the activity it makes, kept as an
+ * element of its own, and the poll, closed. False when it makes none, for
+ * the poll to take the day itself.
+ */
+export function settlePollActivity(poll, how) {
+  const settled = settleAsActivity(poll, everything(), how);
+  if (!settled) return false;
+  const made = organise(signed(settled.activity));
+  state.polls = [...state.polls, made];
+  persistPoll(made);
+  flash(t('activity.made', { name: documentTitle(made), event: chainLabelShort(byId(made.parent) || made) }));
+  replacePoll(settled.poll);
+  return true;
+}
 
 /** One document by id, whatever its kind. */
 function byId(id) {
@@ -379,6 +395,12 @@ export function activityHeadHtml(activity) {
       <p class="small">${escapeHtml(t('activity.of', { name: documentTitle(event), when: whenText(event, { long: true }) }))}</p>
       ${outsideEvent(activity, event) ? `<p class="small late">${escapeHtml(t('activity.outside'))}</p>` : ''}
       ${
+        isOrganiser(activity) && splitPollActivity(activity, all)
+          ? `<p class="small">${escapeHtml(t('activity.splitHint'))}</p>
+             <div class="row"><button type="button" class="button button--small" data-flow-split>${escapeHtml(t('activity.split', { name: documentTitle(splitPollActivity(activity, all).activity) }))}</button></div>`
+          : ''
+      }
+      ${
         activity.date
           ? ''
           : `<span class="small">${escapeHtml(t('activity.pickDay'))}</span>
@@ -515,6 +537,19 @@ export function bindFlows(root) {
       if (!activity) return;
       flash(t('activity.dayKept', { day: formatDayLong(node.dataset.activitySetDay) }));
       replacePoll(setPollDate(activity, node.dataset.activitySetDay, activity.at || null, null));
+    });
+  });
+  root.querySelectorAll('[data-flow-split]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const poll = owner(node);
+      const split = poll && splitPollActivity(poll, everything());
+      if (!split) return;
+      const made = organise(signed(split.activity));
+      state.polls = [...state.polls, made];
+      persistPoll(made);
+      replacePoll(split.poll, { redraw: false });
+      flash(t('activity.made', { name: documentTitle(made), event: chainLabelShort(byId(made.parent) || made) }));
+      navigate(documentHref(made));
     });
   });
   root.querySelectorAll('[data-flow-when]').forEach((node) => {

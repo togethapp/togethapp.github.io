@@ -5,7 +5,7 @@
  * un événement qui devient l'activité d'un autre.
  */
 import { chromium } from 'playwright';
-import { createEvent, createPoll, addOptions, setVote, setClosed } from '../../src/polls.js';
+import { createEvent, createPoll, addOptions, addDays, setVote, setClosed, setPollDate } from '../../src/polls.js';
 import { createBoard, addCard, editCardText } from '../../src/ideas.js';
 import { attach } from '../../src/dashboard.js';
 
@@ -27,11 +27,20 @@ quoi = setClosed(setVote(quoi, quoi.people[0].id, quoi.options[0].id, 'yes'), tr
 quoi = { ...quoi, forActivity: true };
 const sorties = { ...attach({ ...createPoll({ question: 'Que faire là-bas ?', names: ['Gui'] }), ...g }, annecy.id), forActivity: true };
 
+// Avant les activités à part entière : un sondage daté sous l'événement, qui
+// tenait lieu d'activité ; et un sondage dont les choix ont un jour, à retenir.
+let ancien = attach({ ...addOptions(createPoll({ question: 'Raclette ou pizza le samedi soir ?', names: ['Gui'] }), 'Raclette\nPizza'), ...g }, annecy.id);
+ancien = setClosed(setPollDate(setVote(ancien, ancien.people[0].id, ancien.options[0].id, 'yes'), d2, '20:00'), true);
+const soir = attach({ ...addOptions(createPoll({ question: 'Fondue ou crêpes ?', names: ['Gui'] }), 'Fondue\nCrêpes'), ...g }, annecy.id);
+let karaokeQuand = attach({ ...createPoll({ question: 'Quand le karaoké ?', names: ['Gui'] }), ...g }, annecy.id);
+karaokeQuand = addDays(karaokeQuand, [d3], '21:00');
+karaokeQuand = setVote(karaokeQuand, karaokeQuand.people[0].id, karaokeQuand.options[0].id, 'yes');
+
 const seed = {
   'marque-points:prefs:v1': { me: 'Gui', groups: [{ id: 'grp_famille', name: 'Mifa', key: 'la-cle-famille', admits: true }],
-    organiser: { [annecy.id]: 'a'.repeat(32), [resto.id]: 'b'.repeat(32), [quoi.id]: 'c'.repeat(32) } },
+    organiser: { [annecy.id]: 'a'.repeat(32), [resto.id]: 'b'.repeat(32), [quoi.id]: 'c'.repeat(32), [ancien.id]: 'd'.repeat(32), [soir.id]: 'e'.repeat(32), [karaokeQuand.id]: 'f'.repeat(32) } },
   'marque-points:remote:v1': { url: 'http://127.0.0.1:8123', key: 'test-anon-key' },
-  'marque-points:polls:v1': [{ ...annecy, owned: true }, { ...resto, owned: true }, { ...quoi, owned: true }],
+  'marque-points:polls:v1': [{ ...annecy, owned: true }, { ...resto, owned: true }, { ...quoi, owned: true }, { ...soir, owned: true }, { ...karaokeQuand, owned: true }],
   'marque-points:boards:v1': [idees],
 };
 
@@ -249,6 +258,53 @@ const kayakFait = faits.find((p) => p.title === 'Kayak');
 const lacFait = faits.find((p) => p.title === 'Lac');
 check('clos : chaque gagnant au programme, à son jour', kayakFait?.date === d2 && lacFait?.date === d3 && lacFait.parent === annecy.id,
   JSON.stringify([kayakFait?.date, lacFait?.date]));
+
+/* --- Activités à part entière ------------------------------------------- */
+
+await page.evaluate((one) => {
+  const all = JSON.parse(localStorage.getItem('marque-points:polls:v1'));
+  localStorage.setItem('marque-points:polls:v1', JSON.stringify([...all, one]));
+}, { ...ancien, owned: true });
+await page.goto(`${B}#/poll/${ancien.id}`);
+await page.reload();
+await page.waitForSelector('[data-flow-split]');
+check('le sondage qui tenait lieu d’activité propose de la séparer', (await text('[data-flow-split]')).includes('Raclette'));
+await page.click('[data-flow-split]');
+await page.waitForFunction((id) => JSON.parse(localStorage.getItem('marque-points:polls:v1')).some((p) => p.from?.doc === id), ancien.id);
+const separee = (await polls()).find((p) => p.from?.doc === ancien.id);
+const ancienApres = (await polls()).find((p) => p.id === ancien.id);
+check('séparée : l’activité « Raclette » à part, à son jour, sous l’événement',
+  separee?.title === 'Raclette' && separee.date === d2 && separee.at === '20:00' && separee.parent === annecy.id, JSON.stringify(separee));
+check('séparée : le sondage reste un sondage, sans jour', ancienApres.date === null && Boolean(ancienApres.closedAt));
+await page.waitForSelector('#poll-share');
+check('on arrive sur l’activité, qui se partage comme une activité', (await text('#poll-share')) === 'Partager l’activité');
+
+await page.goto(`${B}#/poll/${soir.id}`);
+await page.waitForSelector('[data-me]');
+await page.click(`[data-me="${soir.people[0].id}"]`);
+await page.waitForTimeout(150);
+await page.click(`[data-vote="${soir.people[0].id}|${soir.options[0].id}"]`);
+await page.waitForTimeout(150);
+await more();
+await page.fill('#poll-day', d3);
+await page.fill('#poll-hour', '19:30');
+await page.click('#poll-date-save');
+await page.waitForFunction((id) => JSON.parse(localStorage.getItem('marque-points:polls:v1')).some((p) => p.from?.doc === id), soir.id);
+const fondue = (await polls()).find((p) => p.from?.doc === soir.id);
+const soirApres = (await polls()).find((p) => p.id === soir.id);
+check('dater à la main un sondage sous un événement fait l’activité « Fondue » à part',
+  fondue?.title === 'Fondue' && fondue.date === d3 && fondue.at === '19:30' && fondue.parent === annecy.id, JSON.stringify(fondue));
+check('le sondage daté à la main reste un sondage, clos, sans jour', soirApres.date === null && Boolean(soirApres.closedAt));
+
+await page.goto(`${B}#/poll/${karaokeQuand.id}`);
+await page.waitForSelector('[data-retain]');
+await page.click('[data-retain]');
+await page.waitForFunction((id) => JSON.parse(localStorage.getItem('marque-points:polls:v1')).some((p) => p.from?.doc === id), karaokeQuand.id);
+const karaoke = (await polls()).find((p) => p.from?.doc === karaokeQuand.id);
+const karaokeApres = (await polls()).find((p) => p.id === karaokeQuand.id);
+check('retenir le jour d’un sondage sous un événement fait l’activité à part, nommée d’après la question',
+  /karaoké/i.test(karaoke?.title || '') && karaoke.date === d3 && karaoke.at === '21:00' && karaoke.parent === annecy.id, JSON.stringify(karaoke));
+check('le sondage retenu est clos, sans jour', karaokeApres.date === null && Boolean(karaokeApres.closedAt));
 
 check('aucune erreur', errors.length === 0, errors.join(' | '));
 await browser.close();
