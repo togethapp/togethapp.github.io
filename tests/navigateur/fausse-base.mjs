@@ -80,6 +80,10 @@ const NOTIFIED = []; // ce que la fonction « notifier » a reçu
 const VAPID_PUBLIC = 'BA3xkPq8MXN8qJ3wk_0BrivFfuUnIdGzFWzitn3FfhXJyS5nAgjhs3xLrV-TvwrlAz6OYo_vwuqCGf6w7SIYtlw';
 const port = Number(process.env.PORT) || 8123;
 const old = process.env.OLD === '1';
+// La fonction « notifier » : en place ('ok'), absente ('absent' : NONOTIFIER=1,
+// une base d'avant) ou sans les tables de la base ('database') — une suite en
+// change par /__notifier?mode=….
+let notifierMode = old || process.env.NONOTIFIER === '1' ? 'absent' : 'ok';
 
 const server = createServer(async (req, res) => {
   const send = (status, body) => {
@@ -92,10 +96,22 @@ const server = createServer(async (req, res) => {
     res.end(body === undefined ? '' : JSON.stringify(body));
   };
   const raise = (message) => send(400, { code: 'P0001', message });
+  // Comme Supabase pour une fonction qui n'existe pas : un 404 sans en-têtes
+  // CORS, préflight compris. La page n'en lit rien : le navigateur dit
+  // seulement que la requête a échoué, comme sans réseau.
+  if (req.url === '/functions/v1/notifier' && notifierMode === 'absent') {
+    res.writeHead(404, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ code: 'NOT_FOUND', message: 'Requested function was not found' }));
+    return;
+  }
   if (req.method === 'OPTIONS') return send(204);
+  // Pour les tests : ce que la fonction « notifier » a reçu, et les abonnements ;
+  // ?mode=… la met en place, l'enlève ou lui retire la base.
+  if (req.url.startsWith('/__notifier')) {
+    notifierMode = new URL(req.url, 'http://x').searchParams.get('mode') || notifierMode;
+    return send(200, { calls: NOTIFIED, subscriptions: PUSH });
+  }
   // Pour les tests : le code que l'e-mail aurait porté.
-  // Pour les tests : ce que la fonction « notifier » a reçu, et les abonnements.
-  if (req.url === '/__notifier') return send(200, { calls: NOTIFIED, subscriptions: PUSH });
   if (req.url.startsWith('/__code?')) {
     return send(200, { code: CODES.get(new URL(req.url, 'http://x').searchParams.get('email')) ?? null });
   }
@@ -109,7 +125,8 @@ const server = createServer(async (req, res) => {
   // La fonction « notifier », réduite à ce qu'elle reçoit : chiffrer et envoyer
   // est l'affaire de tests/notifier.test.js et tests/webpush.test.js.
   if (req.url === '/functions/v1/notifier') {
-    if (old || process.env.NONOTIFIER === '1') return send(404, { message: 'Function not found' });
+    // Ce que répond la vraie quand la base lui refuse ses fonctions.
+    if (notifierMode === 'database') return send(502, { status: 'error', message: 'database unreachable' });
     NOTIFIED.push(at);
     if (at.action === 'key') return send(200, { status: 'ok', key: VAPID_PUBLIC });
     return send(200, { status: 'ok', sent: 0 });
@@ -319,9 +336,10 @@ const server = createServer(async (req, res) => {
   }
   if (fn === 'marque_points_push_subscribe') {
     const group = GROUPS.get(at.p_key);
-    if (!group || closed(at.p_key)) return send(200, { status: 'unknown' });
+    if (!group) return send(200, { status: 'unknown' });
+    if (closed(at.p_key)) return send(200, { status: 'account' });
     // Comme la base : les services d'envoi des navigateurs, et rien d'autre.
-    if (!/^https:\/\/(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|([a-z0-9-]+\.)*push\.apple\.com|([a-z0-9-]+\.)*notify\.windows\.com)\/\S+$/
+    if (!/^https:\/\/(fcm\.googleapis\.com|android\.googleapis\.com|updates\.push\.services\.mozilla\.com|([a-z0-9-]+\.)*push\.apple\.com|([a-z0-9-]+\.)*notify\.windows\.com)\/\S+$/
       .test(String(at.p_endpoint ?? ''))) return raise('abonnement invalide');
     const kept = PUSH.filter((one) => !(one.endpoint === at.p_endpoint && one.group === group.id));
     PUSH.length = 0;

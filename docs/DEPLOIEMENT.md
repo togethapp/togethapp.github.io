@@ -3162,16 +3162,39 @@ fonction elle-même au premier appel, et gardée dans la base
 (`marque_points_push_vapid`, que la page ne lit jamais). La fonction lit les
 abonnements avec la clé de service que Supabase donne à toute Edge Function.
 
+### 2 bis. Vérifier le déploiement en dix secondes
+
+Ouvrez cette adresse dans un navigateur, **sans rien après** :
+
+```
+https://<votre-projet>.supabase.co/functions/v1/notifier
+```
+
+| ce que vous lisez | ce que cela veut dire |
+| --- | --- |
+| `{"status":"error","message":"POST only"}` | la fonction tourne, et le JWT est bien désactivé — tout va bien |
+| un JSON parlant d'*authorization* ou de *JWT* | la vérification du JWT est restée active : revoyez le point 4 ci-dessus |
+| *Requested function was not found* (une erreur 404) | la fonction n'est pas déployée, ou pas sous le nom `notifier` |
+
 ### 3. Essayer
 
 Sur un téléphone, **l'app posée sur l'écran d'accueil** (sur iPhone, c'est
 obligatoire : Safari seul ne reçoit pas de notifications ; iOS 16.4 ou plus) :
 Réglages → Notifications → **Activer les notifications** → Autoriser. Puis,
 depuis un autre appareil du groupe, créez un sondage : le téléphone sonne.
+Sur un ordinateur (Windows, Mac), Edge, Chrome et Firefox les reçoivent
+directement, sans installer l'app.
+
+Si l'activation échoue, l'app dit pourquoi, sous le bouton : la fonction pas
+en place (point 2), la base sans ses tables (le SQL du point 1), ou un
+navigateur que son service d'envoi refuse (Brave sans le service de Google, un
+réseau d'entreprise, un VPN). Le « Détail », en petit, est ce que le navigateur
+ou la base a répondu : c'est lui qu'il faut transmettre si rien de cela ne
+colle.
 
 Ce qu'une notification contient (le nom du groupe, le titre du document, la
-date) est chiffré pour le téléphone qui la reçoit : le service d'envoi
-(Apple, Google, Mozilla) ne la lit pas.
+date) est chiffré pour l'appareil qui la reçoit : le service d'envoi
+(Apple, Google, Microsoft, Mozilla) ne la lit pas.
 
 ## Étape 11 — Les changements en direct (rien à faire, en principe)
 

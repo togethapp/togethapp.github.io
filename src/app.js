@@ -89,6 +89,9 @@ export const state = {
   poll: null,
   // Changes heard as they happen, when the database announces them: live.js.
   live: null,
+  // Why turning notifications on failed, shown in their section until the next
+  // try: { reason, detail } (view-notify.js).
+  notifyProblem: null,
   // The set of games being fetched, so a redraw does not start a second fetch.
   openingSet: null,
   // The same, for a shared list opened from its link.
