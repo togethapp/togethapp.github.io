@@ -31,7 +31,7 @@ import {
 } from './dashboard.js';
 import { getLanguage } from './i18n.js';
 import {
-  related, ideasFor, addIdea, pollFromIdeas, winnersOf, winnerOffers, addWinner, spentItems, spendFromLine,
+  related, ideasFor, addIdea, pollFromIdeas, winnersOf, winnerOffers, addWinner, accountsFor, spentItems, spendFromLine,
   unblockedNow, missingGoers, addGoers, activityFor, ideaActivities, choiceActivities, whenPoll, activityFromChoice,
   activityVotes, settleAsActivity, splitPollActivity,
 } from './flows.js';
@@ -75,8 +75,8 @@ function offerButton(attr, value, label) {
 
 /**
  * On a list, what the things it is linked to offer: ideas from a board, what
- * a closed poll chose, and — to an account — the lines ticked and not yet
- * written there.
+ * a closed poll chose, and — to an account, linked or of the same event — the
+ * lines ticked and not yet written there.
  */
 export function listFlowsHtml(list) {
   const all = everything();
@@ -91,7 +91,7 @@ export function listFlowsHtml(list) {
     blocks.push(offersHtml(t('flows.chosenIn', { name: documentTitle(poll) }),
       offers.map((one) => offerButton('data-flow-winner', `${poll.id}|${one.option.id}`, choiceLabel(one.option)))));
   }
-  for (const spend of related(list, all, 'spend')) {
+  for (const spend of accountsFor(list, all)) {
     const spent = spentItems(spend, list);
     const ticked = list.items.filter((item) => item.done && !spent.has(item.id)).slice(0, 12);
     blocks.push(offersHtml(t('flows.toAccount', { name: documentTitle(spend) }),
