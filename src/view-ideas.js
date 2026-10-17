@@ -10,6 +10,7 @@ import {
   askForText, escapeHtml, flash, flashHtml, formatDate, groupChipsHtml, isBusy, isHidden, kindsHtml,
   liveQuiet, navigate, render, state, stopWatching, view,
   attachedHtml, chainButtonsHtml,
+  backButtonHtml, hintHtml, newButtonHtml,
 } from './app.js';
 import { docTopic } from './live.js';
 import { actionsHtml, eventLinkHtml, eventTagHtml, keptElsewhere, pushFailed, shareBarHtml, whenAbsent } from './view-polls.js';
@@ -77,9 +78,7 @@ export function ideasView() {
   return `
     ${flashHtml()}
     ${kindsHtml('ideas')}
-    <button type="button" class="button button--primary button--block" data-goto="#/ideas/new">
-      + ${escapeHtml(t('ideas.new'))}
-    </button>
+    ${newButtonHtml('#/ideas/new', t('ideas.new'), live.length > 0)}
     ${groupChipsHtml()}
 
     <section class="section">
@@ -88,10 +87,11 @@ export function ideasView() {
         live.length
           ? `<div class="game-list">${live.map(swipeable(boardCardHtml)).join('')}</div>
              <p class="muted small">${escapeHtml(t('ideas.swipeHint'))}</p>`
-          : `<p class="muted small">${escapeHtml(t('ideas.none'))}</p>`
+          : hintHtml('ideas', t('ideas.none'))
       }
       ${hiddenByGroupHtml(state.boards)}
     </section>
+    ${live.length && live.length <= 2 ? hintHtml('ideas', t('hint.ideas')) : ''}
 
     ${archivedHtml(sorted, swipeable(boardCardHtml))}`;
 }
@@ -99,11 +99,9 @@ export function ideasView() {
 export function newBoardView() {
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/ideas')}
       <h1>${escapeHtml(t('ideas.new'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/ideas" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     <form id="new-board" class="card stack">
@@ -179,7 +177,8 @@ export function boardView(board) {
   const cards = cardsInOrder(board);
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/ideas')}
       <div>
         <h1>${escapeHtml(boardTitle(board))}</h1>
         <p class="muted small">
@@ -187,9 +186,6 @@ export function boardView(board) {
           ${board.shared ? ` · ${escapeHtml(t('lists.sharedMark'))}` : ''}
         </p>
       </div>
-      <button type="button" class="button button--small button--ghost" data-goto="#/ideas" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     ${eventLinkHtml(board)}

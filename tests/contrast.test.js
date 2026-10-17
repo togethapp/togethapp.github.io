@@ -215,3 +215,18 @@ test('the colour the settings call the style’s own is the one the style has', 
   for (const name of ['classic', 'calm', 'astro']) assert.equal(owns[name], accentOf(looks[name][0]), name);
   for (const season of ['spring', 'summer', 'autumn', 'winter']) assert.equal(seasons[season], accentOf(looks[`seasons/${season}`][0]), season);
 });
+
+/* --- the people's initials -------------------------------------------------- */
+
+// A person's initial, on a card, sits on a disc of one of the colours one may
+// choose, in its night shade whatever the theme (app.js, peopleHtml).
+test('a person’s initial reads at 4.5:1 on every colour a face may take', () => {
+  const start = css.indexOf('\n.face {');
+  assert.ok(start >= 0, 'the faces’ rule is not found');
+  const ink = css.slice(start, css.indexOf('\n}', start + 1)).match(/\n\s*color:\s*(#[0-9a-f]{6})/i)?.[1];
+  assert.ok(ink, 'the faces have no ink of their own');
+  for (const name of accents) {
+    const ratio = contrast(ink, night[`night-${name}`]);
+    assert.ok(ratio >= 4.5, `an initial on --night-${name} is ${ratio.toFixed(2)}:1`);
+  }
+});

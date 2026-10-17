@@ -55,7 +55,7 @@ const hintEn = await p2.locator('#export-hint').textContent();
 check('le texte explique ce que reçoit la personne (en anglais ici)',
   hintEn.includes('their own games'), hintEn);
 await p2.click('#export-close');
-await p2.click('#lang-toggle');
+await p2.click('[data-pick-lang="fr"]');
 await p2.click('#share-app');
 await p2.waitForSelector('#export-dialog[open]');
 const hintFr = await p2.locator('#export-hint').textContent();

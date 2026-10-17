@@ -11,6 +11,7 @@ import {
   attachedHtml, chainButtonsHtml, chainLabel, chainLabelShort, chainOf, documentHref, escapeHtml, everything, flash,
   flashHtml, formatDate, formatDay, formatDayLong, gameCardHtml, gameTitle, groupChipsHtml, isBusy, isHidden,
   kindsHtml, liveQuiet, navigate, pollHome, render, route, signature, state, stopWatching, view, whenText,
+  backButtonHtml, hintHtml, markTouched, newButtonHtml,
 } from './app.js';
 import { docTopic } from './live.js';
 import { openEventMenu } from './view-home.js';
@@ -81,6 +82,19 @@ function cardWhenText(poll) {
   return t(days === count ? 'polls.daysOffered' : 'polls.choicesOffered', { count });
 }
 
+/**
+ * Who has answered, at a glance: a dot per person, filled once they have —
+ * beside the words, which say the same for whoever cannot see them. Past
+ * eight people the eight dots fill in proportion, so a big poll stays a
+ * small gauge.
+ */
+function answeredDotsHtml(answered, total) {
+  if (!total) return '';
+  const dots = Math.min(total, 8);
+  const filled = total <= 8 ? answered : Math.round((answered / total) * 8);
+  return `<span class="dots" aria-hidden="true">${Array.from({ length: dots }, (_, index) => `<i class="${index < filled ? 'dots__on' : ''}"></i>`).join('')}</span>`;
+}
+
 export function pollCardHtml(poll) {
   const { answered, leaders, ranked } = tally(poll);
   const leading = ranked.find((row) => leaders.includes(row.option.id));
@@ -90,6 +104,7 @@ export function pollCardHtml(poll) {
         ${escapeHtml(pollTitle(poll))}
         ${poll.forActivity ? `<span class="pill pill--activity">🎯 ${escapeHtml(t('activity.pollPill'))}</span>` : ''}
         <span class="pill ${poll.closedAt ? 'pill--done' : ''}">
+          ${poll.closedAt ? '' : answeredDotsHtml(answered, poll.people.length)}
           ${escapeHtml(poll.closedAt ? t('polls.closed') : t('polls.answered', { count: answered, total: poll.people.length }))}
         </span>
       </span>
@@ -117,9 +132,7 @@ export function pollsView() {
   return `
     ${flashHtml()}
     ${kindsHtml('polls')}
-    <button type="button" class="button button--primary button--block" data-goto="#/polls/new">
-      + ${escapeHtml(t('polls.new'))}
-    </button>
+    ${newButtonHtml('#/polls/new', t('polls.new'), live.length > 0)}
     ${groupChipsHtml()}
 
     <section class="section">
@@ -127,10 +140,11 @@ export function pollsView() {
       ${
         open.length
           ? `<div class="game-list">${open.map(swipeable(pollCardHtml, isOrganiser)).join('')}</div>`
-          : `<p class="muted small">${escapeHtml(t('polls.none'))}</p>`
+          : hintHtml('polls', t('polls.none'))
       }
       ${hiddenByGroupHtml(state.polls)}
     </section>
+    ${open.length && live.length <= 2 ? hintHtml('polls', t('hint.polls')) : ''}
 
     ${
       closed.length
@@ -148,11 +162,9 @@ export function newPollView() {
   const suggestions = [...new Set([myName(), ...recentPeople(state.polls), ...recentPeople(state.lists), ...recentNames(state.games)].filter(Boolean))].slice(0, 12);
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/polls')}
       <h1>${escapeHtml(t('polls.new'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/polls" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     <form id="new-poll" class="card stack">
@@ -237,7 +249,7 @@ function gaugeHtml(poll) {
             const said = t('polls.countLine', { yes: row.yes, total });
             return `
               <li class="gauge__row ${lead ? 'gauge__row--lead' : ''}" title="${escapeHtml(`${choiceLabel(row.option)} — ${said}`)}">
-                <span class="gauge__label">${escapeHtml(choiceLabel(row.option))}</span>
+                <span class="gauge__label">${lead ? leadMark() : ''}${escapeHtml(choiceLabel(row.option))}</span>
                 <span class="gauge__track" aria-hidden="true">
                   <span class="gauge__fill" style="width: ${share}%"></span>
                 </span>
@@ -304,7 +316,8 @@ export function pollView(poll, { solo = false } = {}) {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${solo ? '' : backButtonHtml(pollHome(poll))}
       <div>
         <h1>${escapeHtml(pollTitle(poll))}</h1>
         <p class="muted small">
@@ -319,13 +332,6 @@ export function pollView(poll, { solo = false } = {}) {
         ${poll.date ? `<p class="event-when"><strong>${escapeHtml(whenText(poll, { long: true }))}</strong></p>` : ''}
         ${signedByHtml(poll)}
       </div>
-      ${
-        solo
-          ? ''
-          : `<button type="button" class="button button--small button--ghost" data-goto="${pollHome(poll)}" data-back>
-               ${escapeHtml(t('action.back'))}
-             </button>`
-      }
     </div>
 
     ${guest ? '' : eventLinkHtml(poll)}
@@ -394,6 +400,7 @@ export function pollView(poll, { solo = false } = {}) {
                        </tr>` : `
                        <tr class="${leaders.includes(row.option.id) ? 'votes__leader' : ''}">
                          <th scope="row">
+                           ${leaders.includes(row.option.id) ? leadMark() : ''}
                            ${
                              guest
                                ? `${dayMark(poll, row.option)}${escapeHtml(rowLabel(poll, row.option))}${
@@ -548,8 +555,18 @@ export function choiceLabel(option) {
   return `${words} · ${[formatDayLong(day), option.at].filter(Boolean).join(' ')}`;
 }
 
-/** 📅 before a day to vote on, inside its label so the two wrap as one. */
-const dayMark = (poll, option) => (dayOfOption(poll, option) ? '<span class="choice-day" aria-hidden="true">📅</span>' : '');
+/** The choice most can make, crowned in the grid — and named for whoever cannot see the crown. */
+const leadMark = () => `<svg class="crown" viewBox="0 0 24 24" role="img" aria-label="${escapeHtml(t('polls.ahead'))}"><path d="M4 18 3 8l5 4 4-7 4 7 5-4-1 10z"/></svg>`;
+
+/**
+ * A day and an hour, as line icons in the hand of the tab bar's: the emoji
+ * 📅 🕗 they replace came out in colour, unlike anything around them.
+ */
+const DAY_ICON = '<svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></svg>';
+const HOUR_ICON = '<svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/></svg>';
+
+/** The day icon before a day to vote on, inside its label so the two wrap as one. */
+const dayMark = (poll, option) => (dayOfOption(poll, option) ? `<span class="choice-day" aria-hidden="true">${DAY_ICON}</span>` : '');
 
 /** A choice in the grid: under its day's heading when it is done on one. */
 function rowLabel(poll, option) {
@@ -588,11 +605,11 @@ function addChoiceHtml(poll) {
       ${
         event
           ? `<div class="row row--tight">
-               <span class="small" id="poll-on-day">📅 ${escapeHtml(day ? t('polls.onDay', { day: formatDayLong(day) }) : t('polls.wholeEvent'))}</span>
+               <span class="small" id="poll-on-day">${DAY_ICON}${escapeHtml(day ? t('polls.onDay', { day: formatDayLong(day) }) : t('polls.wholeEvent'))}</span>
                ${isOrganiser(poll) ? `<button type="button" class="button button--small button--ghost" id="poll-change-day">${escapeHtml(t('polls.changeDay'))}</button>` : ''}
              </div>`
           : `<label class="small add-day">
-               ${escapeHtml(t('polls.pickDay'))}
+               <span>${DAY_ICON}${escapeHtml(t('polls.pickDay'))}</span>
                <input type="date" id="new-choice-day" value="${escapeHtml(day)}" />
              </label>`
       }
@@ -600,7 +617,7 @@ function addChoiceHtml(poll) {
         event && !day
           ? ''
           : `<label class="small add-day">
-               ${escapeHtml(t('polls.pickHour'))}
+               <span>${HOUR_ICON}${escapeHtml(t('polls.pickHour'))}</span>
                <input type="time" id="new-choice-at" value="${escapeHtml(day ? hour : '')}" ${day ? '' : 'disabled'} />
              </label>`
       }
@@ -1019,11 +1036,11 @@ function newPollDaysHtml() {
       }
       <div class="row row--tight">
         <label class="small add-day">
-          ${escapeHtml(t(eventDaysOf.length ? 'polls.addOtherDay' : 'polls.addDay'))}
+          <span>${DAY_ICON}${escapeHtml(t(eventDaysOf.length ? 'polls.addOtherDay' : 'polls.addDay'))}</span>
           <input type="date" id="poll-add-day" />
         </label>
         <label class="small add-day" id="poll-add-at-label" ${picked.length ? '' : 'hidden'}>
-          ${escapeHtml(t('polls.daysHour'))}
+          <span>${HOUR_ICON}${escapeHtml(t('polls.daysHour'))}</span>
           <input type="time" id="poll-add-at" value="${escapeHtml(state.newPollAt || '')}" />
         </label>
       </div>
@@ -1255,6 +1272,7 @@ export function bindPoll(poll) {
       if (answeringAs !== personId) return;
       const next = setVote(poll, personId, optionId, nextValue(voteOf(poll, personId, optionId)));
       if (next === poll) return;
+      markTouched(`[data-vote="${CSS.escape(button.dataset.vote)}"]`);
       replacePoll(next);
     });
   });
@@ -1578,12 +1596,12 @@ function openChoiceDialog(poll, optionId) {
           ? `<span class="small">${escapeHtml(t('polls.choiceDay'))}</span>
              ${dayChipsHtml(event, day, { attr: 'data-choice-day', noneLabel: t('polls.anyDay') })}`
           : `<label class="small add-day">
-               ${escapeHtml(t('polls.pickDay'))}
+               <span>${DAY_ICON}${escapeHtml(t('polls.pickDay'))}</span>
                <input type="date" id="choice-day" value="${escapeHtml(day)}" />
              </label>`
       }
       <label class="small add-day">
-        ${escapeHtml(t('polls.pickHour'))}
+        <span>${HOUR_ICON}${escapeHtml(t('polls.pickHour'))}</span>
         <input type="time" id="choice-at" value="${escapeHtml(when?.at || '')}" />
       </label>
       <div class="row">

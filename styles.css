@@ -45,6 +45,10 @@
   --accent-pink: var(--night-pink);
   --accent: var(--accent-cyan);
   --holo-hue: var(--night-cyan);
+  /* The night inside the 3D view on Home, which stays night whatever the
+     theme: each style's own, so the view belongs to the page around it. */
+  --holo-ground: #081329;
+  --holo-deep: #03060d;
   --accent-text: #04101a;
   /* Made from the colour, so that any colour sits on any style. */
   --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--surface));
@@ -139,6 +143,8 @@
   --bad: #e4796b;
   --accent: var(--accent-amber);
   --holo-hue: var(--night-amber);
+  --holo-ground: #211e17;
+  --holo-deep: #0b0a07;
   --glow: transparent;
   --grid: transparent;
   --haze: color-mix(in srgb, var(--accent) 10%, transparent);
@@ -193,6 +199,8 @@
   --bad: #f2737f;
   --accent: var(--accent-blue);
   --holo-hue: var(--night-blue);
+  --holo-ground: #1a1b1e;
+  --holo-deep: #08090a;
   --glow: transparent;
   --grid: transparent;
   --haze: transparent;
@@ -248,6 +256,8 @@
   --bad: #ff7d95;
   --accent: var(--accent-violet);
   --holo-hue: var(--night-violet);
+  --holo-ground: #0e1230;
+  --holo-deep: #04050e;
   --grid: transparent;
   --haze: color-mix(in srgb, var(--accent) 12%, transparent);
   --glass: rgb(6 8 23 / 78%);
@@ -346,6 +356,8 @@
   --bad: #ff8a9b;
   --accent: var(--accent-pink);
   --holo-hue: var(--night-pink);
+  --holo-ground: #131f17;
+  --holo-deep: #060a07;
   --haze: color-mix(in srgb, var(--night-green) 10%, transparent);
   --glass: rgb(12 20 15 / 84%);
   --field: #101a13;
@@ -379,6 +391,8 @@
   --bad: #ff8a7a;
   --accent: var(--accent-amber);
   --holo-hue: var(--night-amber);
+  --holo-ground: #0d1d2c;
+  --holo-deep: #040a10;
   --haze: color-mix(in srgb, var(--night-amber) 12%, transparent);
   --glass: rgb(7 20 32 / 84%);
   --field: #0a1825;
@@ -412,6 +426,8 @@
   --bad: #f08470;
   --accent: var(--accent-orange);
   --holo-hue: var(--night-orange);
+  --holo-ground: #201811;
+  --holo-deep: #0a0705;
   --haze: color-mix(in srgb, var(--night-orange) 11%, transparent);
   --glass: rgb(21 15 11 / 84%);
   --field: #1a130d;
@@ -445,6 +461,8 @@
   --bad: #ff8094;
   --accent: var(--accent-blue);
   --holo-hue: var(--night-blue);
+  --holo-ground: #101b2b;
+  --holo-deep: #050910;
   --haze: color-mix(in srgb, var(--night-blue) 13%, transparent);
   --glass: rgb(9 17 29 / 84%);
   --field: #0c1624;
@@ -1006,21 +1024,21 @@ a { color: inherit; }
   padding: 18px;
 }
 
-/* Every panel carries a short tick of light on its top edge, like a
-   display's: the mark of the look, on cards and on the cards one taps. */
+/* Every panel catches the light along its top edge, brightest in the middle
+   and gone before the corners, like a pane of glass lit from above: the mark
+   of the look, on cards and on the cards one taps. (A short tick at the left
+   corner did this before, and read as a stray mark rather than a light.) */
 .card::before,
 .game-card::before {
   content: '';
   display: var(--tick);
   position: absolute;
   top: -1px;
-  left: 18px;
-  width: 22px;
-  height: 2px;
-  border-radius: 0 0 2px 2px;
-  background: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
-  opacity: 0.85;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent) 50%, transparent);
+  opacity: 0.7;
   pointer-events: none;
 }
 
@@ -1028,6 +1046,45 @@ a { color: inherit; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .row--tight { gap: 6px; }
 .spread { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+/*
+ * A page's head: the way back first, where phones put it — an arrow before
+ * the title, the size of a finger, level with the title's first line — then
+ * the title and what is said under it.
+ */
+.spread.page-head { justify-content: flex-start; align-items: flex-start; gap: 4px; }
+.page-head > :not(.back-button) { flex: 1; min-width: 0; }
+
+.back-button {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin: -4px 0 0 -10px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.back-button svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (hover: hover) {
+  .back-button:hover { background: var(--accent-soft); }
+}
+.back-button:active { transform: scale(0.92); }
+.back-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .muted { color: var(--muted); }
 .small { font-size: 0.82rem; }
 .center { text-align: center; }
@@ -1052,6 +1109,18 @@ a { color: inherit; }
 
 .button:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: 0 0 14px var(--glow); }
 .button:active:not(:disabled) { transform: scale(0.97); }
+
+/* « + New … » on a tab that already holds something: the "+" in the bar
+   below makes anything from anywhere, so this one steps back — soft, in the
+   colour, as wide as its words (app.js, newButtonHtml). */
+.button--new {
+  justify-self: start;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: none;
+}
 
 /* The one thing to do on a screen is lit from inside. */
 .button--primary {
@@ -1133,7 +1202,71 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
   font-size: 0.9rem;
 }
 
-.checkbox input { width: 20px; height: 20px; min-height: 0; accent-color: var(--accent); }
+.checkbox input { width: 20px; height: 20px; min-height: 0; }
+
+/*
+ * Boxes to tick and dots to choose, drawn in the look's own colours: the
+ * phone's came out as grey squares on the night styles. The box draws its
+ * tick itself, and the one just touched pops it in (`.touched`, set by
+ * app.js for the redraw that follows a touch) — not every ticked box on
+ * every redraw.
+ */
+:where(input[type='checkbox'], input[type='radio']) {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  margin: 0;
+  border: 2px solid color-mix(in srgb, var(--accent) 70%, var(--border));
+  border-radius: 7px;
+  background: var(--field);
+  cursor: pointer;
+  transition: background-color 0.16s var(--ease), border-color 0.16s var(--ease), box-shadow 0.16s var(--ease);
+}
+
+:where(input[type='radio']) { border-radius: 50%; }
+
+:where(input[type='checkbox'])::before {
+  content: '';
+  width: 52%;
+  height: 28%;
+  border: solid var(--accent-text);
+  border-width: 0 0 2px 2px;
+  transform: translateY(-18%) rotate(-45deg) scale(0);
+  transition: transform 0.18s var(--ease);
+}
+
+:where(input[type='radio'])::before {
+  content: '';
+  width: 44%;
+  height: 44%;
+  border-radius: 50%;
+  background: var(--accent-text);
+  transform: scale(0);
+  transition: transform 0.18s var(--ease);
+}
+
+:where(input[type='checkbox'], input[type='radio']):checked {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--glow);
+}
+
+:where(input[type='checkbox']):checked::before { transform: translateY(-18%) rotate(-45deg) scale(1); }
+:where(input[type='radio']):checked::before { transform: scale(1); }
+:where(input[type='checkbox'], input[type='radio']):disabled { opacity: 0.5; cursor: default; }
+:where(input[type='checkbox'], input[type='radio']):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  input[type='checkbox'].touched:checked::before { animation: tick-pop 0.34s var(--ease); }
+}
+
+@keyframes tick-pop {
+  0% { transform: translateY(-18%) rotate(-45deg) scale(0); }
+  60% { transform: translateY(-18%) rotate(-45deg) scale(1.25); }
+  100% { transform: translateY(-18%) rotate(-45deg) scale(1); }
+}
 
 /*
  * A row one chooses in a list: a radio or a checkbox beside a label that may
@@ -1153,7 +1286,6 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
   height: 20px;
   min-height: 0;
   margin-top: 1px;
-  accent-color: var(--accent);
 }
 
 .stack--tight { gap: 8px; }
@@ -1338,6 +1470,24 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
   /* Whole, beside a title that wraps around it rather than through it. */
   white-space: nowrap;
 }
+
+/* Who has answered a poll, a dot each, filled once they have. */
+.dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-right: 5px;
+  vertical-align: 0;
+}
+
+.dots > i {
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+.dots > .dots__on { background: currentColor; opacity: 1; }
 
 /* The word a shade nearer the text than its tint, to stay readable on it. */
 .pill--done { border-color: color-mix(in srgb, var(--good) 40%, transparent); background: color-mix(in srgb, var(--good) 14%, transparent); color: color-mix(in srgb, var(--good) 85%, var(--text)); }
@@ -1538,6 +1688,109 @@ table.scores .meta-cell { color: var(--muted); }
   .score-row { grid-template-columns: 1fr 88px; }
 }
 
+/* -------------------------------------------------------------- arriving --- */
+/*
+ * A new screen comes in gently: its parts rise a little and fade in, one
+ * after the other. app.js marks the view on a new screen only — a redraw of
+ * the same one (a vote, the others' changes coming in) stays still, or every
+ * change would make the page twitch. The box holding the 3D view only fades:
+ * a rising box would carry the view's full screen along with it. A vote just
+ * cast pulses once (`.touched`, see app.js). Nothing moves when the phone
+ * asks for less movement.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .view--arrive > * { animation: arrive 0.34s var(--ease) backwards; }
+  .view--arrive > :has(.holo) { animation-name: arrive-fade; }
+  .view--arrive > :nth-child(2) { animation-delay: 0.03s; }
+  .view--arrive > :nth-child(3) { animation-delay: 0.06s; }
+  .view--arrive > :nth-child(4) { animation-delay: 0.09s; }
+  .view--arrive > :nth-child(5) { animation-delay: 0.12s; }
+  .view--arrive > :nth-child(6) { animation-delay: 0.15s; }
+  .view--arrive > :nth-child(7) { animation-delay: 0.18s; }
+  .view--arrive > :nth-child(n + 8) { animation-delay: 0.21s; }
+
+  .vote.touched { animation: vote-pulse 0.42s var(--ease); }
+}
+
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+@keyframes arrive-fade {
+  from { opacity: 0; }
+}
+
+@keyframes vote-pulse {
+  40% { transform: scale(1.16); box-shadow: 0 0 0 6px var(--ring); }
+}
+
+/* ---------------------------------------------------------------- people --- */
+/*
+ * The people on a card: their initials on discs of their colour, a few
+ * overlapping, before their names (app.js, peopleHtml). The discs keep their
+ * night shades in both themes, and the initial is in a dark ink on all of
+ * them (tests/contrast.test.js).
+ */
+.people { display: flex; align-items: center; gap: 8px; }
+
+.faces { display: inline-flex; flex: none; }
+
+.face {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--face);
+  color: #0a1626;
+  font-size: 0.64rem;
+  font-style: normal;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.face + .face { margin-left: -7px; }
+.face::before { content: attr(data-initial); }
+.face--more { background: var(--surface-alt); color: var(--muted); }
+
+/* ------------------------------------------------------------------ hint --- */
+/*
+ * A word of help where a page would otherwise end in a dark field: a light
+ * drawing in the colour, and a sentence in the quiet ink (app.js, hintHtml).
+ * Framed by a dashed line, like a place left to fill.
+ */
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+.hint__art {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.8;
+}
+
+.hint__fill { fill: var(--accent); stroke: none; }
+
+.hint__text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 /* ----------------------------------------------------------------- lines --- */
 /*
  * A line in a list: a box to tick, the text, and who it is for. The three are
@@ -1574,10 +1827,10 @@ table.scores .meta-cell { color: var(--muted); }
 }
 
 .line__tick input {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   min-height: 0;
-  accent-color: var(--accent);
+  border-radius: 8px;
 }
 
 .line__text {
@@ -1604,7 +1857,30 @@ table.scores .meta-cell { color: var(--muted); }
   cursor: pointer;
 }
 
-.line__who--nobody { color: var(--muted); border-style: dashed; }
+/* Nobody yet: a small « + » to say who takes it, quieter still once done. */
+.line__who--nobody {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.line__who--nobody svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+@media (hover: hover) {
+  .line__who--nobody:hover { border-color: var(--accent); color: var(--accent); }
+}
+.line--done .line__who--nobody { opacity: 0.6; }
 
 .line--done .line__text { color: var(--muted); text-decoration: line-through; }
 
@@ -1638,6 +1914,12 @@ table.scores .meta-cell { color: var(--muted); }
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* A line of money has no box to tick: what it was takes the room, and what it
+   cost stands at the far right, a size up — the figure is what one looks for. */
+.line--money { grid-template-columns: 1fr auto; padding-left: 14px; }
+.line--money .line__amount { padding-right: 6px; font-size: 1.05rem; text-align: right; }
+.line--money:not(.line--repay) .line__amount { font-weight: 700; }
 
 .chip {
   padding: 6px 12px;
@@ -1691,21 +1973,43 @@ table.scores .meta-cell { color: var(--muted); }
 }
 
 /* The home page's kinds: six words on a phone's width, so each takes only
-   the room its word needs, and the row may scroll rather than wrap. */
+   the room its word needs, and the words at both ends stand clear of the
+   rounded ends rather than in their curve, where they looked cut. With a
+   larger text the row may not fit: it scrolls rather than wraps, and fades
+   on the side that hides more (app.js marks it). */
 .segmented--kinds {
   grid-auto-columns: auto;
+  padding: 3px 6px;
   overflow-x: auto;
   scrollbar-width: none;
 }
 
+.segmented--kinds::-webkit-scrollbar { display: none; }
+
 .segmented--kinds .segmented__option {
-  padding: 8px 2px;
-  font-size: 0.74rem;
+  padding: 8px 3px;
+  font-size: 0.72rem;
   white-space: nowrap;
 }
 
 @media (max-width: 340px) {
-  .segmented--kinds .segmented__option { padding: 8px 1px; font-size: 0.64rem; }
+  .segmented--kinds { padding: 3px 4px; }
+  .segmented--kinds .segmented__option { padding: 8px 2px; font-size: 0.68rem; }
+}
+
+.segmented--kinds.fade-end {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+}
+
+.segmented--kinds.fade-start {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 32px);
+  mask-image: linear-gradient(90deg, transparent, #000 32px);
+}
+
+.segmented--kinds.fade-start.fade-end {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
 }
 
 .segmented__option[aria-current="true"],
@@ -1790,7 +2094,7 @@ select.field-pill {
 }
 
 .split-row:not(:last-child) { border-bottom: 1px solid var(--border); }
-.split-row input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; accent-color: var(--accent); }
+.split-row input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; }
 
 /* The balances tab once nothing is left to settle: a plain state deserves a
    plain, good-news answer rather than an empty section. */
@@ -1830,6 +2134,20 @@ select.field-pill {
 .votes tbody tr { border-top: 1px solid var(--border); }
 
 .votes__leader { background: var(--accent-soft); }
+
+/* The choice most can make: a crown before it, and its count in the colour. */
+.crown {
+  width: 15px;
+  height: 15px;
+  margin-right: 4px;
+  vertical-align: -2px;
+  fill: color-mix(in srgb, var(--accent) 30%, transparent);
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.votes__leader .votes__score { color: var(--accent); font-weight: 750; }
 
 /*
  * With a dozen people across, the grid scrolls sideways — and without this the
@@ -2245,6 +2563,20 @@ body:not(.solo) .view {
 /* Picking a day for a poll's choices, under the box of choices. */
 .add-day { max-width: 16em; }
 .choice-day { margin-right: 0.3em; }
+.choice-day .icon-inline { margin-right: 0; }
+
+/* A day, an hour: small line icons in the colour, before their words. */
+.icon-inline {
+  width: 1.15em;
+  height: 1.15em;
+  margin-right: 0.35em;
+  vertical-align: -0.2em;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .choice-drop { padding: 0 0.5em; min-height: 0; margin-left: 0.2em; }
 
 /* The first opening: what the app is for, a name, and where to begin. */
@@ -2517,8 +2849,8 @@ body:not(.solo) .view {
   isolation: isolate;
   border: 1px solid color-mix(in srgb, var(--holo-hue) 22%, transparent);
   border-radius: var(--radius);
-  background: radial-gradient(120% 90% at 50% -10%, color-mix(in srgb, var(--holo-hue) 18%, #081329) 0%, #081329 45%, #03060d 100%);
-  box-shadow: 0 10px 30px rgb(0 30 70 / 28%), inset 0 0 50px color-mix(in srgb, var(--holo-hue) 6%, transparent);
+  background: radial-gradient(120% 90% at 50% -10%, color-mix(in srgb, var(--holo-hue) 18%, var(--holo-ground)) 0%, var(--holo-ground) 45%, var(--holo-deep) 100%);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 30%), inset 0 0 50px color-mix(in srgb, var(--holo-hue) 6%, transparent);
   color: var(--holo-ink);
   font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 }
@@ -2622,7 +2954,7 @@ body:not(.solo) .view {
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--holo-hue) 35%, transparent);
   border-radius: 10px;
-  background: rgb(6 16 32 / 60%);
+  background: color-mix(in srgb, var(--holo-ground) 60%, transparent);
   color: var(--holo-ink);
   cursor: pointer;
   -webkit-backdrop-filter: blur(6px);
@@ -2684,7 +3016,7 @@ body:not(.solo) .view {
   border: 1px solid color-mix(in srgb, var(--holo-hue) 30%, transparent);
   border-left: 3px solid var(--holo-kind, var(--holo-hue));
   border-radius: 10px;
-  background: rgb(4 12 26 / 82%);
+  background: color-mix(in srgb, var(--holo-deep) 82%, transparent);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   box-shadow: 0 0 18px color-mix(in srgb, var(--holo-hue) 14%, transparent);

@@ -9,6 +9,7 @@ import {
   askForText, escapeHtml, flash, flashHtml, formatDate, formatDay, groupChipsHtml, kindsHtml, navigate, render,
   state, view,
   attachedHtml, chainButtonsHtml, adoptGame,
+  backButtonHtml, hintHtml, markTouched, newButtonHtml, peopleHtml,
 } from './app.js';
 import {
   actionsHtml, eventLinkHtml, eventTagHtml, keptElsewhere, openSignatureDialog, pushFailed, pushMerged, shareBarHtml, signed,
@@ -53,7 +54,6 @@ function personName(list, who) {
 
 export function listCardHtml(list) {
   const { done, total } = progress(list);
-  const people = list.people.map((person) => person.name).join(' · ');
   const late = list.items.filter((item) => isLate(item)).length;
   return `
     <button type="button" class="game-card" data-goto="#/list/${escapeHtml(list.id)}">
@@ -63,7 +63,7 @@ export function listCardHtml(list) {
           ${escapeHtml(total ? t('lists.progress', { done, total }) : t('lists.empty'))}
         </span>
       </span>
-      ${people ? `<span class="game-card__meta">${escapeHtml(people)}</span>` : ''}
+      ${peopleHtml(list.people.map((person) => person.name))}
       <span class="game-card__meta">
         ${escapeHtml(formatDate(list.updatedAt))}${
           late ? ` — <span class="late">${escapeHtml(t('lists.late', { count: late }))}</span>` : ''
@@ -83,9 +83,7 @@ export function listsView() {
   return `
     ${flashHtml()}
     ${kindsHtml('lists')}
-    <button type="button" class="button button--primary button--block" data-goto="#/lists/new">
-      + ${escapeHtml(t('lists.new'))}
-    </button>
+    ${newButtonHtml('#/lists/new', t('lists.new'), live.length > 0)}
     ${groupChipsHtml()}
 
     <section class="section">
@@ -93,10 +91,11 @@ export function listsView() {
       ${
         open.length
           ? `<div class="game-list">${open.map(swipeable(listCardHtml)).join('')}</div>`
-          : `<p class="muted small">${escapeHtml(t('lists.none'))}</p>`
+          : hintHtml('lists', t('lists.none'))
       }
       ${hiddenByGroupHtml(state.lists)}
     </section>
+    ${open.length && live.length <= 2 ? hintHtml('lists', t('hint.lists')) : ''}
 
     ${
       finished.length
@@ -144,11 +143,9 @@ export function newListView() {
   ].filter(Boolean))].slice(0, 12);
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/lists')}
       <h1>${escapeHtml(t('lists.new'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/lists" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     ${
@@ -250,9 +247,16 @@ function listItemHtml(list, item) {
             : ''
         }
       </button>
-      <button type="button" class="line__who ${who ? '' : 'line__who--nobody'}" data-assign="${escapeHtml(item.id)}">
-        ${escapeHtml(who || t('lists.nobody'))}
-      </button>`,
+      ${
+        // Who takes it, once someone does. Until then a small « + » — the
+        // same « À prendre » on every line said nothing and filled the list.
+        who
+          ? `<button type="button" class="line__who" data-assign="${escapeHtml(item.id)}">${escapeHtml(who)}</button>`
+          : `<button type="button" class="line__who line__who--nobody" data-assign="${escapeHtml(item.id)}"
+                     aria-label="${escapeHtml(t('lists.nobody'))}" title="${escapeHtml(t('lists.assignTitle'))}">
+               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg>
+             </button>`
+      }`,
     { kind: 'item', tag: 'li', bodyClass: `line ${item.done ? 'line--done' : ''}` });
 }
 
@@ -271,7 +275,8 @@ export function listView(list) {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/lists')}
       <div>
         <h1>${escapeHtml(listTitle(list))}</h1>
         <p class="muted small">
@@ -280,9 +285,6 @@ export function listView(list) {
         </p>
         ${signedByHtml(list)}
       </div>
-      <button type="button" class="button button--small button--ghost" data-goto="#/lists" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     ${eventLinkHtml(list)}
@@ -316,6 +318,7 @@ export function listView(list) {
         ? linesHtml(list, shown)
         : `<p class="muted small">${escapeHtml(list.items.length ? t('lists.nothingHere') : t('lists.addFirst'))}</p>`
     }
+    ${list.items.length <= 2 ? hintHtml('lists', t('hint.list')) : ''}
 
     ${listFlowsHtml(list)}
 
@@ -503,7 +506,10 @@ export function bindList(list) {
   });
 
   view.querySelectorAll('[data-tick]').forEach((box) => {
-    box.addEventListener('change', () => replaceList(toggleItem(list, box.dataset.tick)));
+    box.addEventListener('change', () => {
+      markTouched(`[data-tick="${CSS.escape(box.dataset.tick)}"]`);
+      replaceList(toggleItem(list, box.dataset.tick));
+    });
   });
 
   view.querySelectorAll('[data-assign]').forEach((button) => {

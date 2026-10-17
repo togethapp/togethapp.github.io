@@ -108,6 +108,9 @@ export const state = {
   // The screens walked through to get here, oldest first, without loops: what
   // "Back" returns to. See followTrail().
   trail: [],
+  // The control just touched, as a selector, to be found again in the redraw
+  // its touch causes: see markTouched().
+  touched: null,
   // The new-list form's draft, kept across re-renders like the new-game one:
   // adding a person must not throw away the lines already typed.
   newListName: '',
@@ -508,6 +511,97 @@ export function flashHtml() {
 }
 
 /**
+ * « + New … » at the head of a tab. The "+" in the bar below makes anything
+ * from anywhere, so on a tab that already holds something this one steps
+ * back — small and soft — and it is lit, full width, only on an empty tab,
+ * where it is the one thing to do.
+ */
+export function newButtonHtml(target, label, quiet) {
+  return `<button type="button" class="button ${quiet ? 'button--small button--new' : 'button--primary button--block'}" data-goto="${escapeHtml(target)}">
+      + ${escapeHtml(label)}
+    </button>`;
+}
+
+/** The colours a person's initial may take: the eight one may choose, in their night shades. */
+const FACE_COLOURS = ['red', 'orange', 'amber', 'green', 'cyan', 'blue', 'violet', 'pink'];
+
+/**
+ * A person's colour, from their name: Alice is the same colour on every card
+ * and every device, without anything to store or to agree on.
+ */
+function faceColour(name) {
+  let hash = 0;
+  for (const char of name.trim().toLowerCase()) hash = (hash * 31 + char.codePointAt(0)) % 1000003;
+  return FACE_COLOURS[hash % FACE_COLOURS.length];
+}
+
+/**
+ * The people on a card: their initials in colour, a few overlapping, then
+ * their names — a card reads as who it is with before it is read at all.
+ * The initials are drawn by the style (data-initial), so the card's words
+ * stay the names and nothing else.
+ */
+export function peopleHtml(names) {
+  const named = names.map((name) => String(name || '').trim()).filter(Boolean);
+  if (!named.length) return '';
+  const shown = named.slice(0, 4);
+  const faces = shown
+    .map((name) => `<i class="face" style="--face: var(--night-${faceColour(name)})" data-initial="${escapeHtml(Array.from(name)[0].toUpperCase())}"></i>`)
+    .join('');
+  const more = named.length > shown.length ? `<i class="face face--more" data-initial="+${named.length - shown.length}"></i>` : '';
+  return `
+    <span class="game-card__meta people">
+      <span class="faces" aria-hidden="true">${faces}${more}</span>
+      <span>${escapeHtml(named.join(' · '))}</span>
+    </span>`;
+}
+
+/**
+ * Light drawings for the words of help, one per kind of thing, in the same
+ * hand as the tab bar's icons: lines of the colour, nothing filled but the
+ * pips of a die.
+ */
+const HINT_ART = {
+  lists: '<rect x="14" y="10" width="36" height="46" rx="6"/><path d="M21 23l3 3 6-6M21 35l3 3 6-6M34 24h9M34 36h9M21 47h22"/>',
+  polls: '<rect x="10" y="14" width="44" height="40" rx="6"/><path d="M10 25h44M22 9v9M42 9v9M24 39l6 6 11-12"/>',
+  games: '<g transform="rotate(-8 32 32)"><rect x="14" y="14" width="36" height="36" rx="8"/>'
+    + '<g class="hint__fill"><circle cx="24" cy="24" r="2.6"/><circle cx="40" cy="24" r="2.6"/><circle cx="32" cy="32" r="2.6"/>'
+    + '<circle cx="24" cy="40" r="2.6"/><circle cx="40" cy="40" r="2.6"/></g></g>',
+  spends: '<path d="M18 8h28v48l-4.7-3.5-4.6 3.5-4.7-3.5-4.7 3.5-4.6-3.5L18 56z"/><path d="M25 20h14M25 29h14M25 38h8"/>',
+  ideas: '<path d="M24 40c-4-3.2-7-7.6-7-13a15 15 0 0 1 30 0c0 5.4-3 9.8-7 13v5H24z"/>'
+    + '<path d="M25 51h14M28 56h8M32 4v3M9 27H6M58 27h-3M15 11l2 2M49 11l-2 2"/>',
+  agenda: '<rect x="10" y="14" width="44" height="40" rx="6"/><path d="M10 25h44M22 9v9M42 9v9"/>'
+    + '<path d="M32 31l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/>',
+};
+
+/**
+ * A word of help where a page would otherwise be a dark field: an empty tab,
+ * a tab with only one or two things on it, an account with a first expense.
+ * What the page is for, or what to do next, beside a light drawing; the call
+ * sites drop it once the page has enough on it to say so by itself.
+ */
+export function hintHtml(art, text) {
+  return `
+    <div class="hint">
+      <svg class="hint__art" viewBox="0 0 64 64" aria-hidden="true">${HINT_ART[art] || HINT_ART.lists}</svg>
+      <p class="hint__text">${escapeHtml(text)}</p>
+    </div>`;
+}
+
+/**
+ * The way back, before a page's title: an arrow where phones put it, as big
+ * as a finger, named « Retour » for whoever cannot see it. It goes back to the
+ * screen one came from (data-back, see backTarget()), or to `target` when
+ * there is none — a link just opened.
+ */
+export function backButtonHtml(target) {
+  const label = escapeHtml(t('action.back'));
+  return `<button type="button" class="back-button" data-goto="${escapeHtml(target)}" data-back aria-label="${label}" title="${label}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+  </button>`;
+}
+
+/**
  * The group pastilles, shown above the lists, the polls and the games.
  *
  * From two groups on: with one, there is nothing to choose between, and a row
@@ -573,7 +667,7 @@ export function gameCardHtml(game) {
           ${status.finished ? escapeHtml(t('game.finished')) : escapeHtml(t('home.rounds', { count: game.rounds.length }))}
         </span>
       </span>
-      <span class="game-card__meta">${escapeHtml(game.players.map((p) => p.name).join(' · '))}</span>
+      ${peopleHtml(game.players.map((p) => p.name))}
       <span class="game-card__meta">${escapeHtml(formatDate(game.updatedAt))}${line ? ` — ${escapeHtml(line)}` : ''}</span>
       ${eventTagHtml(game)}
     </button>`;
@@ -698,9 +792,7 @@ function homeView() {
   return `
     ${flashHtml()}
     ${kindsHtml('games')}
-    <button type="button" class="button button--primary button--block" data-goto="#/new">
-      + ${escapeHtml(t('action.newGame'))}
-    </button>
+    ${newButtonHtml('#/new', t('action.newGame'), mine.some(isLive))}
     ${groupChipsHtml()}
     ${
       mine.length
@@ -722,10 +814,11 @@ function homeView() {
       ${
         ongoing.length
           ? `<div class="game-list">${ongoing.map(swipeable(gameCardHtml)).join('')}</div>`
-          : `<p class="muted small">${escapeHtml(t('home.empty'))}</p>`
+          : hintHtml('games', t('home.empty'))
       }
       ${hiddenByGroupHtml(state.games)}
     </section>
+    ${ongoing.length && live.length <= 2 ? hintHtml('games', t('hint.games')) : ''}
 
     ${
       finished.length
@@ -785,15 +878,15 @@ function bindChrome() {
       failed ? 'error' : 'info');
     render();
   });
+}
 
-  document.getElementById('lang-toggle').addEventListener('click', () => {
-    const next = getLanguage() === 'fr' ? 'en' : 'fr';
-    setLanguage(next);
-    state.prefs = { ...state.prefs, lang: next };
-    savePrefs(state.prefs);
-    applyStaticText();
-    render();
-  });
+/** Speak `lang` from now on, on this device: chosen in Réglages (view-look.js). */
+export function switchLanguage(lang) {
+  setLanguage(lang);
+  state.prefs = { ...state.prefs, lang: getLanguage() };
+  savePrefs(state.prefs);
+  applyStaticText();
+  render();
 }
 
 /* ----------------------------------------------------------------- render --- */
@@ -1219,6 +1312,60 @@ export function render() {
   });
 
   restoreScrolls(kept);
+  fadeKinds();
+  showTouched();
+  arrive();
+}
+
+/**
+ * The kinds on Home fit a phone's width; with a larger text they may not, and
+ * the row scrolls. A fade on the side that hides more says there is more, and
+ * the kind on show is brought into view rather than left behind the edge.
+ */
+function fadeKinds() {
+  view.querySelectorAll('.segmented--kinds').forEach((row) => {
+    const mark = () => {
+      const more = row.scrollWidth - row.clientWidth;
+      row.classList.toggle('fade-start', more > 1 && row.scrollLeft > 1);
+      row.classList.toggle('fade-end', more > 1 && row.scrollLeft < more - 1);
+    };
+    const on = row.querySelector('[aria-current="true"]');
+    if (on && row.scrollWidth > row.clientWidth) {
+      const left = on.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft;
+      row.scrollLeft = Math.max(0, left - (row.clientWidth - on.offsetWidth) / 2);
+    }
+    mark();
+    row.addEventListener('scroll', mark, { passive: true });
+  });
+}
+
+/**
+ * Name the control just touched — a box ticked, a vote cast — so that the
+ * redraw this touch causes can show it answering: the tick pops in, the vote
+ * pulses (styles.css, `.touched`). Only that one, and only once: every box
+ * replaying its tick on each redraw would be noise.
+ */
+export function markTouched(selector) {
+  state.touched = selector;
+}
+
+function showTouched() {
+  if (!state.touched) return;
+  view.querySelector(state.touched)?.classList.add('touched');
+  state.touched = null;
+}
+
+/**
+ * A new screen comes in gently, its parts one after the other (styles.css,
+ * `.view--arrive`); a screen redrawn in place — a vote, a refresh from the
+ * others — does not, or every change would make the page twitch. The style
+ * says nothing moves when the phone asks for less movement.
+ */
+let shownHash = null;
+function arrive() {
+  const here = hereHash();
+  view.classList.toggle('view--arrive', here !== shownHash);
+  shownHash = here;
 }
 
 /**

@@ -13,7 +13,7 @@
  * Calls back into app.js and the other views only from inside functions.
  */
 
-import { escapeHtml, flash, flashHtml, render, state, view } from './app.js';
+import { backButtonHtml, escapeHtml, flash, flashHtml, render, state, view } from './app.js';
 import { ask } from './view-games.js';
 import { CONTACT } from './config.js';
 import {
@@ -369,9 +369,9 @@ export function privacyView() {
   const contact = String(CONTACT || '').trim();
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/settings')}
       <h1>${escapeHtml(t('privacy.title'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/settings" data-back>${escapeHtml(t('action.back'))}</button>
     </div>
     <p class="lead">${escapeHtml(t('privacy.intro'))}</p>
     ${block('privacy.deviceTitle', 'privacy.device')}

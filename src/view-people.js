@@ -8,6 +8,7 @@
 import {
   askForText, escapeHtml, flash, flashHtml, formatDate, formatDay, gameTitle, groupChipsHtml, navigate, presetLabel,
   render, route, state,
+  backButtonHtml,
 } from './app.js';
 import { personFile } from './dashboard.js';
 import { getPreset } from './games.js';
@@ -105,11 +106,9 @@ export async function renameEverywhere(before) {
 export function personView(who) {
   const file = personFile(state, who);
   const head = (title, tail) => `
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
       ${title}
-      <button type="button" class="button button--small button--ghost" data-goto="#/" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
     ${tail}`;
 
@@ -254,9 +253,9 @@ export function statsView() {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/games')}
       <h1>${escapeHtml(t('stats.title'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/games" data-back>${escapeHtml(t('action.back'))}</button>
     </div>
     ${groupChipsHtml()}
 
