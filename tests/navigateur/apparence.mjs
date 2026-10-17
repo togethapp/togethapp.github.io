@@ -1,13 +1,16 @@
 /**
- * Réglages → Apparence : un style (Hologramme, Classique, Épuré), une couleur
- * (celle du style, ou une des six), nuit ou clair. Le choix s'applique tout
- * de suite, reste après un rechargement — avant même que l'app ne démarre —,
- * et le bouton rond du haut dit la même chose que les réglages.
+ * Réglages → Apparence : un style (Hologramme, Classique, Épuré, Astronomie,
+ * Saisons), une couleur (celle du style, ou une des huit), un fond (celui du
+ * style, étoiles, aurore, saison, confettis), nuit ou clair. Le choix
+ * s'applique tout de suite, reste après un rechargement — avant même que
+ * l'app ne démarre —, et le bouton rond du haut dit la même chose que les
+ * réglages. Un téléphone qui demande moins d'animations a un fond immobile.
  *
  * SHOTS=<dossier> : y laisse des captures, pour regarder.
  */
 import { chromium } from 'playwright';
 import { createList, addItems } from '../../src/lists.js';
+import { skySeason } from '../../src/sky.js';
 
 const results = [];
 const check = (n, ok, d = '') => results.push({ n, ok, d });
@@ -40,17 +43,25 @@ await page.goto(`${B}#/settings`);
 await page.waitForSelector('[data-pick-look]');
 
 check('une section Apparence dans les réglages', /Apparence/.test(await page.locator('#view').textContent()));
-check('trois styles, huit couleurs, deux thèmes',
-  (await page.locator('[data-pick-look]').count()) === 3 && (await page.locator('[data-pick-accent]').count()) === 8
-  && (await page.locator('[data-pick-theme]').count()) === 2);
+check('cinq styles, huit couleurs, cinq fonds, deux thèmes',
+  (await page.locator('[data-pick-look]').count()) === 5 && (await page.locator('[data-pick-accent]').count()) === 8
+  && (await page.locator('[data-pick-decor]').count()) === 5 && (await page.locator('[data-pick-theme]').count()) === 2);
 const dots = await page.locator('.tint__dot').evaluateAll((nodes) => nodes.map((n) => getComputedStyle(n).backgroundColor));
 check('huit couleurs différentes : celle du style n’est pas montrée deux fois', new Set(dots).size === 8, dots.join(' '));
-check('d’origine : hologramme, sa couleur, la nuit',
-  await pressed('[data-pick-look="holo"]') && await pressed('[data-pick-accent=""]') && await pressed('[data-pick-theme="dark"]'));
+check('d’origine : hologramme, sa couleur, son fond, la nuit',
+  await pressed('[data-pick-look="holo"]') && await pressed('[data-pick-accent=""]') && await pressed('[data-pick-decor=""]')
+  && await pressed('[data-pick-theme="dark"]'));
 check('et la couleur choisie est nommée', /Cyan — celle du style/.test(await page.locator('#look-colour-name').textContent()));
 const line = await page.locator('.tint').evaluateAll((nodes) => new Set(nodes.map((n) => Math.round(n.getBoundingClientRect().top))).size);
 check('les huit tiennent sur une ligne', line === 1, String(line));
-check('et rien d’écrit sur la page', JSON.stringify(await root()) === '{}', JSON.stringify(await root()));
+const season = skySeason();
+const { season: written, ...rest } = await root();
+check('et rien d’écrit sur la page, que la saison du jour', JSON.stringify(rest) === '{}' && written === season, JSON.stringify(await root()));
+const decorOf = () => page.locator('.decor').evaluate((n) => ({
+  shown: getComputedStyle(n).display !== 'none',
+  moving: getComputedStyle(n, '::before').animationName,
+}));
+check('et rien ne bouge derrière la page', !(await decorOf()).shown);
 check('le fond de nuit de l’hologramme', (await token('--bg')) === '#050b16', await token('--bg'));
 if (SHOTS) await page.screenshot({ path: `${SHOTS}/apparence-holo.png`, fullPage: true });
 
@@ -124,6 +135,77 @@ await page.click('[data-pick-look="holo"]');
 await settle();
 check('retour à l’hologramme : plus rien d’écrit pour le style', !(await root()).look && (await token('--bg')) === '#050b16');
 
+// Astronomie : le ciel de nuit, ses étoiles qui scintillent, la lune du soir.
+await page.click('[data-pick-look="astro"]');
+await settle();
+check('Astronomie s’applique, avec son ciel', (await root()).look === 'astro' && (await root()).decor === 'stars'
+  && (await token('--bg')) === '#060817', JSON.stringify(await root()));
+check('sa couleur à elle : le violet', (await token('--accent')) === '#b9a0ff', await token('--accent'));
+check('des étoiles qui scintillent derrière la page', (await decorOf()).shown && (await decorOf()).moving === 'decor-twinkle',
+  JSON.stringify(await decorOf()));
+check('la lune y est, dans sa phase du soir',
+  (await page.evaluate(() => document.documentElement.style.getPropertyValue('--moon'))).startsWith('url("data:image/svg+xml'));
+const star = await page.locator('.section__head h2').first().evaluate((n) => getComputedStyle(n, '::before').clipPath);
+check('ses titres suivent une petite étoile', /polygon/.test(star), star);
+check('les réglages parlent de la lune', /lune/.test(await page.locator('#look-decor-about').textContent()));
+if (SHOTS) await page.screenshot({ path: `${SHOTS}/apparence-astronomie.png`, fullPage: true });
+
+// Saisons : les couleurs et le fond de la saison du jour.
+const SEASON = {
+  spring: ['#ff85dc', 'printemps'], summer: ['#f2b14d', 'été'], autumn: ['#ff8a3d', 'automne'], winter: ['#7ab8ff', 'hiver'],
+}[season];
+await page.click('[data-pick-look="seasons"]');
+await settle();
+check('Saisons suit le calendrier', (await root()).look === 'seasons' && (await root()).season === season
+  && (await root()).decor === 'season', JSON.stringify(await root()));
+check('avec la couleur de la saison', (await token('--accent')) === SEASON[0], await token('--accent'));
+check('et la saison qui passe derrière la page', (await decorOf()).shown && (await decorOf()).moving !== 'none', JSON.stringify(await decorOf()));
+check('les réglages disent laquelle', (await page.locator('#look-decor-about').textContent()).includes(SEASON[1]));
+check('sa couleur est celle que montrent les réglages',
+  /celle du style/.test(await page.locator('#look-colour-name').textContent()) && await pressed('[data-pick-accent=""]'));
+if (SHOTS) await page.screenshot({ path: `${SHOTS}/apparence-saisons.png`, fullPage: true });
+
+// Un fond choisi passe avant celui du style, et revient avant l'app.
+await page.click('[data-pick-decor="confetti"]');
+await settle();
+check('des confettis plutôt que la saison', (await root()).decor === 'confetti' && /decor-fall/.test((await decorOf()).moving),
+  JSON.stringify(await decorOf()));
+await page.goto(`${B}?n=4#/settings`, { waitUntil: 'commit' });
+const early2 = await page.evaluate(() => new Promise((resolve) => {
+  const read = () => ({ ...document.documentElement.dataset });
+  if (document.readyState === 'loading') document.addEventListener('readystatechange', () => resolve(read()), { once: true });
+  else resolve(read());
+}));
+check('après un rechargement, le fond et la saison sont là d’emblée',
+  early2.look === 'seasons' && early2.decor === 'confetti' && early2.season === season, JSON.stringify(early2));
+await page.waitForSelector('[data-pick-decor]');
+await page.click('[data-pick-decor=""]');
+await settle();
+check('« Celui du style » rend la saison', (await root()).decor === 'season');
+await page.click('[data-pick-decor="aurora"]');
+await settle();
+check('l’aurore', (await root()).decor === 'aurora' && (await decorOf()).moving === 'decor-aurora-a', JSON.stringify(await decorOf()));
+await page.click('[data-pick-decor=""]');
+await settle();
+await page.click('[data-pick-look="holo"]');
+await settle();
+check('l’hologramme garde sa grille, sans rien qui bouge', !(await root()).decor && !(await decorOf()).shown);
+
+// Un téléphone qui demande moins d'animations : le ciel est là, immobile.
+const still = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'fr-FR', reducedMotion: 'reduce' });
+const quiet = await still.newPage();
+await quiet.addInitScript(() => localStorage.setItem('marque-points:prefs:v1', JSON.stringify({ me: 'Gui', look: 'astro' })));
+await quiet.goto(`${B}#/settings`);
+await quiet.waitForSelector('[data-pick-look]');
+const sky = await quiet.locator('.decor').evaluate((n) => ({
+  shown: getComputedStyle(n).display !== 'none',
+  moving: getComputedStyle(n, '::before').animationName,
+  meteor: getComputedStyle(n.querySelector('i')).opacity,
+}));
+check('moins d’animations : les étoiles sans scintiller, ni étoile filante', sky.shown && sky.moving === 'none' && sky.meteor === '0',
+  JSON.stringify(sky));
+await still.close();
+
 // Un autre onglet de l'app change le style : celui-ci suit, sans rechargement.
 const other = await context.newPage();
 await other.goto(`${B}#/settings`);
@@ -152,7 +234,8 @@ await settle();
 // En anglais, les mêmes choix.
 await page.click('#lang-toggle');
 await settle();
-check('en anglais', /Appearance/.test(await page.locator('#view').textContent()) && /Hologram/.test(await page.locator('#view').textContent()));
+check('en anglais', /Appearance/.test(await page.locator('#view').textContent()) && /Hologram/.test(await page.locator('#view').textContent())
+  && /Astronomy/.test(await page.locator('#view').textContent()) && /Background/.test(await page.locator('#view').textContent()));
 
 check('aucune erreur de script', errors.length === 0, errors.join(' | '));
 await browser.close();

@@ -128,13 +128,18 @@ web, aucune dépendance, aucun build.
 - **Correction** : on clique sur une ligne du tableau pour modifier ou supprimer
   une manche, *Annuler la dernière manche* défait la saisie précédente, et
   *Renommer* corrige un nom mal saisi sans toucher aux scores.
-- **Ça marche sur téléphone**, hors ligne, en français ou en anglais, avec un
-  apparence au choix dans **Réglages → Apparence** : trois styles (Hologramme,
-  le style de l'app ; Classique, papier chaud et ambre ; Épuré, gris et plat),
-  huit couleurs, du rouge au rose (celle du style est l'une d'elles, cochée
-  d'origine), nuit (par défaut) ou clair — aussi au bouton rond du haut. Gardé
-  sur l'appareil, appliqué avant le premier affichage. Les parties sont
-  enregistrées dans le navigateur, et
+- **Ça marche sur téléphone**, hors ligne, en français ou en anglais, avec une
+  apparence au choix dans **Réglages → Apparence** : cinq styles (Hologramme,
+  le style de l'app ; Classique, papier chaud et ambre ; Épuré, gris et plat ;
+  Astronomie, un ciel de nuit — une carte du ciel en clair —, titres en
+  capitales d'atlas ; Saisons, aux couleurs de la saison du calendrier), huit
+  couleurs, du rouge au rose (celle du style est l'une d'elles, cochée
+  d'origine), un fond qui bouge — celui du style, des étoiles (avec la lune
+  telle qu'elle est ce soir et une étoile filante de temps en temps), une
+  aurore, la saison (pétales, lucioles, feuilles, neige) ou des confettis,
+  immobile si le téléphone demande moins d'animations —, nuit (par défaut) ou
+  clair — aussi au bouton rond du haut. Gardé sur l'appareil, appliqué avant le
+  premier affichage. Les parties sont enregistrées dans le navigateur, et
   exportables en JSON pour sauvegarder ou changer d'appareil.
 
 ## Ce que ça fait — les listes

@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
-    <meta name="app-version" content="v14" />
-    <meta name="app-build" content="da7080cf" />
+    <meta name="app-version" content="v15" />
+    <meta name="app-build" content="92bc6786" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -18,16 +18,24 @@
     <meta name="theme-color" content="#050b16" />
     <link rel="apple-touch-icon" href="icons/icon-180.png" />
     <link rel="stylesheet" href="styles.css" />
-    <!-- Before the first paint: the style, colour and theme chosen in the
-         settings, so the page does not flash the hologram first. view-look.js
-         writes the same attributes once the app has loaded. -->
+    <!-- Before the first paint: the style, colour, theme and background chosen
+         in the settings, and the season of the day, so the page does not
+         flash the hologram first. view-look.js writes the same attributes once
+         the app has loaded (and src/sky.js tells the seasons the same way). -->
     <script id="early-look">
       try {
-        const prefs = JSON.parse(localStorage.getItem('marque-points:prefs:v1')) || {};
         const root = document.documentElement;
+        const now = new Date();
+        const day = (now.getMonth() + 1) * 100 + now.getDate();
+        root.dataset.season = day >= 1221 || day < 320 ? 'winter' : day < 621 ? 'spring' : day < 922 ? 'summer' : 'autumn';
+        const prefs = JSON.parse(localStorage.getItem('marque-points:prefs:v1')) || {};
         if (prefs.theme === 'light' || prefs.theme === 'dark') root.dataset.theme = prefs.theme;
-        if (prefs.look === 'classic' || prefs.look === 'calm') root.dataset.look = prefs.look;
+        if (/^(classic|calm|astro|seasons)$/.test(prefs.look || '')) root.dataset.look = prefs.look;
         if (/^(red|orange|amber|green|cyan|blue|violet|pink)$/.test(prefs.accent || '')) root.dataset.accent = prefs.accent;
+        // The background chosen, or the style's own: the sky, the season.
+        const decor = /^(stars|aurora|season|confetti)$/.test(prefs.decor || '') ? prefs.decor
+          : prefs.look === 'astro' ? 'stars' : prefs.look === 'seasons' ? 'season' : '';
+        if (decor) root.dataset.decor = decor;
         // The phone's bar takes the page's colour from the start, too.
         const ground = getComputedStyle(root).getPropertyValue('--bg').trim();
         if (ground) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', ground);
@@ -37,6 +45,11 @@
     </script>
   </head>
   <body>
+    <!-- What moves behind the page when a background is chosen — the sky, an
+         aurora, the season, confetti: drawn by styles.css (« backgrounds »),
+         the two children for the moon and a shooting star. -->
+    <div class="decor" aria-hidden="true"><i></i><i></i></div>
+
     <header class="app-bar">
       <a class="app-bar__brand" href="#/">
         <span class="app-bar__logo" aria-hidden="true">

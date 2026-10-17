@@ -44,7 +44,7 @@ import { bindFlows } from './view-flows.js';
 import { bindAccount, privacyView, syncAccount } from './view-account.js';
 import { bindInstall, startInstall } from './view-install.js';
 import { bindHolo } from './view-holo.js';
-import { applyLook, bindLook, lookIsDark } from './view-look.js';
+import { applyLook, bindLook, lookIsDark, refreshSky } from './view-look.js';
 import { swipeable } from './swipe.js';
 import { prefillOf, withoutPrefill } from './prefill.js';
 import { createLive, docTopic, groupTopic, liveUrl } from './live.js';
@@ -1463,6 +1463,12 @@ window.addEventListener('hashchange', () => {
   // not been seen yet follows, so that nothing is lost on the way.
   if (state.flash?.shownAt) state.flash = null;
   render();
+});
+
+// Coming back to the app, perhaps days later: the season and the moon move
+// on, and Réglages, which names the season, says the new one.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && refreshSky() && route().name === 'settings') render();
 });
 
 /**
