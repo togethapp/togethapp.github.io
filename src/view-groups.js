@@ -201,14 +201,18 @@ export function openRelateDialog(document_) {
         }
       </div>`;
     dialog.querySelector('[data-relate-close]').addEventListener('click', () => dialog.close());
+    // Each step replaces the last: the focus goes on with the reader.
     dialog.querySelector('[data-relate-back]')?.addEventListener('click', () => {
+      const was = target;
       target = null;
       draw();
+      [...dialog.querySelectorAll('[data-relate-to]')].find((one) => one.dataset.relateTo === was?.id)?.focus();
     });
     dialog.querySelectorAll('[data-relate-to]').forEach((node) => {
       node.addEventListener('click', () => {
         target = targets.find((one) => one.id === node.dataset.relateTo) || null;
         draw();
+        dialog.querySelector('[data-relate-kind], [data-relate-back]')?.focus();
       });
     });
     dialog.querySelectorAll('[data-relate-kind]').forEach((node) => {

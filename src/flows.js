@@ -29,8 +29,8 @@ import { addPerson } from './people.js';
 import { sameName } from './stats.js';
 import { touch } from './stamp.js';
 import {
-  relationsOf, kindOf, isEventDoc, isLive, isDone, parentId, ancestorsOf, descendantsOf, dayNow, topEventOf, programmeOf,
-  eventDays, isActivity,
+  relationsOf, kindOf, isEventDoc, isLive, isDone, parentId, ancestorsOf, descendantsOf, eventOf, dayNow, topEventOf,
+  programmeOf, eventDays, isActivity,
 } from './dashboard.js';
 
 /** The things of one kind a document is linked to, whichever way. */
@@ -120,13 +120,20 @@ export function addWinner(list, poll, option, language = 'fr') {
 
 /**
  * The accounts a list writes its ticked lines into: those it is linked to,
- * then every account of its chain — from the top of it, the event mostly,
- * however far down either hangs. Being of the same event is enough.
+ * then the accounts of its chain, however far down either hangs — being of
+ * the same event is enough. Of its own event and of those above it only: a
+ * weekend's shopping list is not for the account of one of its activities,
+ * but the activity's list is for the weekend's account.
  */
 export function accountsFor(list, all) {
-  const top = ancestorsOf(list, all)[0] || list;
-  const chain = [top, ...descendantsOf(top, all)]
-    .filter((one) => one.id !== list.id && isLive(one) && kindOf(one) === 'spend');
+  const above = ancestorsOf(list, all);
+  const events = new Set(above.filter(isEventDoc).map((one) => one.id));
+  const top = above[0] || list;
+  const chain = [top, ...descendantsOf(top, all)].filter((one) => {
+    if (one.id === list.id || !isLive(one) || kindOf(one) !== 'spend') return false;
+    const event = eventOf(one, all);
+    return !event || events.has(event.id);
+  });
   const linked = related(list, all, 'spend');
   return [...linked, ...chain.filter((one) => !linked.some((other) => other.id === one.id))];
 }

@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="d45d44ea" />
+    <meta name="app-build" content="9666139c" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -9632,13 +9632,20 @@ function addWinner(list, poll, option, language = 'fr') {
 
 /**
  * The accounts a list writes its ticked lines into: those it is linked to,
- * then every account of its chain — from the top of it, the event mostly,
- * however far down either hangs. Being of the same event is enough.
+ * then the accounts of its chain, however far down either hangs — being of
+ * the same event is enough. Of its own event and of those above it only: a
+ * weekend's shopping list is not for the account of one of its activities,
+ * but the activity's list is for the weekend's account.
  */
 function accountsFor(list, all) {
-  const top = ancestorsOf(list, all)[0] || list;
-  const chain = [top, ...descendantsOf(top, all)]
-    .filter((one) => one.id !== list.id && isLive(one) && kindOf(one) === 'spend');
+  const above = ancestorsOf(list, all);
+  const events = new Set(above.filter(isEventDoc).map((one) => one.id));
+  const top = above[0] || list;
+  const chain = [top, ...descendantsOf(top, all)].filter((one) => {
+    if (one.id === list.id || !isLive(one) || kindOf(one) !== 'spend') return false;
+    const event = eventOf(one, all);
+    return !event || events.has(event.id);
+  });
   const linked = related(list, all, 'spend');
   return [...linked, ...chain.filter((one) => !linked.some((other) => other.id === one.id))];
 }
@@ -18391,14 +18398,18 @@ function openRelateDialog(document_) {
         }
       </div>`;
     dialog.querySelector('[data-relate-close]').addEventListener('click', () => dialog.close());
+    // Each step replaces the last: the focus goes on with the reader.
     dialog.querySelector('[data-relate-back]')?.addEventListener('click', () => {
+      const was = target;
       target = null;
       draw();
+      [...dialog.querySelectorAll('[data-relate-to]')].find((one) => one.dataset.relateTo === was?.id)?.focus();
     });
     dialog.querySelectorAll('[data-relate-to]').forEach((node) => {
       node.addEventListener('click', () => {
         target = targets.find((one) => one.id === node.dataset.relateTo) || null;
         draw();
+        dialog.querySelector('[data-relate-kind], [data-relate-back]')?.focus();
       });
     });
     dialog.querySelectorAll('[data-relate-kind]').forEach((node) => {

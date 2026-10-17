@@ -95,10 +95,18 @@ test('les lignes cochées vont aux comptes liés, et à ceux du même événemen
   const autre = attach({ ...createSpend({ name: 'Cadeau' }), ...g }, ailleurs.id);
   const coloc = linkTo({ ...createSpend({ name: 'Coloc' }), ...g }, list.id, 'with');
   const range = attach({ ...archiveSpend(createSpend({ name: 'Vieux' })), ...g }, event.id);
-  const all = [event, ski, list, compte, ailleurs, autre, coloc, range];
-  assert.deepEqual(accountsFor(list, all).map((one) => one.id), [coloc.id, compte.id],
-    'le compte lié d’abord, puis celui de l’événement, même pour une activité ; pas un autre événement, pas un rangé');
-  assert.deepEqual(accountsFor(linkTo(list, compte.id, 'with'), all).map((one) => one.id), [compte.id, coloc.id], 'jamais deux fois');
+  const resto = attach({ ...createEvent({ name: 'Resto', date: '2026-10-25' }), ...g }, event.id);
+  const addition = attach({ ...createSpend({ name: 'Addition' }), ...g }, resto.id);
+  const forfait = attach({ ...createSpend({ name: 'Forfaits' }), ...g }, ski.id);
+  const all = [event, ski, list, compte, ailleurs, autre, coloc, range, resto, addition, forfait];
+  assert.deepEqual(accountsFor(list, all).map((one) => one.id).sort(), [coloc.id, compte.id, forfait.id].sort(),
+    'le compte lié, celui de son activité et celui de l’événement ; pas une autre activité, un autre événement, un rangé');
+  assert.equal(accountsFor(list, all)[0].id, coloc.id, 'le compte lié d’abord');
+  const apporter = attach({ ...createList({ name: 'À apporter' }), ...g }, event.id);
+  assert.deepEqual(accountsFor(apporter, [...all, apporter]).map((one) => one.id), [compte.id],
+    'la liste du week-end ne va pas aux comptes de ses activités');
+  assert.deepEqual(accountsFor(linkTo(list, compte.id, 'with'), all).map((one) => one.id).sort(), [coloc.id, compte.id, forfait.id].sort(),
+    'jamais deux fois');
   const seule = { ...createList({ name: 'Seule' }), ...g };
   assert.deepEqual(accountsFor(seule, [...all, seule]), [], 'hors de toute chaîne et sans lien : aucun');
   const dessous = attach({ ...createList({ name: 'Dessous' }), ...g }, autre.id);

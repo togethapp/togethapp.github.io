@@ -341,8 +341,9 @@ d'une touche, sans rien faire tout seuls (deux téléphones le feraient deux foi
 - **Sondage clos → liste** : ce qu'il a choisi (égalités comprises) est
   proposé à la liste liée, sur la liste comme sur le sondage.
 - **Liste → compte** : les lignes cochées d'une liste sont proposées aux
-  comptes liés à elle, et à ceux de sa chaîne — ceux du même événement, sans
-  lien à faire ; on tape le montant, on choisit qui a payé (celui à qui
+  comptes liés à elle, et à ceux de son événement, sans lien à faire (pour une
+  activité, aussi au compte de l'événement qui la porte ; mais la liste d'un
+  week-end ne va pas au compte d'une de ses activités) ; on tape le montant, on choisit qui a payé (celui à qui
   la ligne était confiée, d'office ; il entre dans le compte s'il n'y est pas),
   et la dépense est pour tout le monde.
 - **Événement → listes et comptes** : l'événement dit qui vient et manque dans

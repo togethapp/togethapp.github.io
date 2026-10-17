@@ -32,7 +32,11 @@ function documents(where) {
   poll = setVote(poll, poll.people[0].id, poll.options[0].id, true);
   const event = { ...createEvent({ name: TAG, names: [TAG, ATTR], date: inDays(4), at: '19:00' }), ...where };
   list.parent = event.id;
-  let spend = { ...createSpend({ name: ATTR, names: [TAG, ATTR] }), ...where };
+  // A line ticked, an account of the same event, a poll linked: the list
+  // offers the line to the account, and its links read as sentences.
+  list.items[0] = { ...list.items[0], done: true };
+  list.links = [{ id: poll.id, kind: 'after' }];
+  let spend = { ...createSpend({ name: ATTR, names: [TAG, ATTR] }), ...where, parent: event.id };
   spend = addSpend(spend, { text: TAG, amount: 4200, by: spend.people[0].id, forWhom: spend.people.map((p) => p.id) });
   const game = { ...createGame({ presetId: 'papayoo', names: [TAG, ATTR, END] }), name: TAG, ...where };
   let board = { ...createBoard({ name: TAG }), ...where };
@@ -70,6 +74,15 @@ async function tour(label, seed, docs) {
   let n = 0;
   const caught = [];
   let shownAsText = 0;
+  const look = () => page.evaluate(() => ({
+    ran: window.__pieges || 0,
+    // L'app n'écrit jamais d'attribut on… : en trouver un, c'est une injection.
+    handlers: [...document.querySelectorAll('*')].filter((node) => [...node.attributes].some((a) => /^on/i.test(a.name)))
+      .map((node) => node.outerHTML.slice(0, 80)),
+    images: document.querySelectorAll('img[src="x"]').length,
+    scripts: [...document.scripts].filter((s) => /__pieges/.test(s.textContent)).length,
+    text: document.body.innerText.includes('<img src=x'),
+  }));
   for (const hash of routesOf(docs)) {
     n += 1;
     await page.goto(`${B}?n=${n}${hash}`);
@@ -77,20 +90,28 @@ async function tour(label, seed, docs) {
     // Tout ce qui se replie s'ouvre, pour que le piège soit bien à l'écran.
     await page.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));
     await page.waitForTimeout(250);
-    const facts = await page.evaluate(() => ({
-      ran: window.__pieges || 0,
-      // L'app n'écrit jamais d'attribut on… : en trouver un, c'est une injection.
-      handlers: [...document.querySelectorAll('*')].filter((node) => [...node.attributes].some((a) => /^on/i.test(a.name)))
-        .map((node) => node.outerHTML.slice(0, 80)),
-      images: document.querySelectorAll('img[src="x"]').length,
-      scripts: [...document.scripts].filter((s) => /__pieges/.test(s.textContent)).length,
-      text: document.body.innerText.includes('<img src=x'),
-    }));
+    const facts = await look();
     if (facts.ran || facts.handlers.length || facts.images || facts.scripts) caught.push(`${hash} ${JSON.stringify(facts)}`);
     if (facts.text) shownAsText += 1;
   }
   check(`${label} : aucun piège ne s’exécute ni ne s’insère, sur ${n} écrans`, caught.length === 0, caught.join(' | ').slice(0, 400));
   check(`${label} : les noms piégés se lisent comme du texte`, shownAsText >= 8, `${shownAsText} écrans`);
+
+  // Sur la liste : la ligne cochée proposée au compte de l'événement ; puis
+  // « Lier à… », dont les phrases nomment les deux éléments, piégés tous deux.
+  await page.goto(`${B}?n=${n + 1}#/list/${docs.list.id}`);
+  await page.waitForSelector('.flows [data-flow-spend]');
+  const offered = await look();
+  await page.evaluate(() => document.querySelectorAll('#view details').forEach((d) => { d.open = true; }));
+  await page.click('#view [data-relate-doc]');
+  await page.waitForSelector('dialog[open] .relate-list');
+  const linked = await look();
+  await page.locator('dialog[open] [data-relate-to]').first().click();
+  await page.waitForSelector('dialog[open] [data-relate-kind]');
+  const sentences = await look();
+  const bad = [['offre au compte', offered], ['liens déjà faits', linked], ['phrases', sentences]]
+    .filter(([, facts]) => facts.ran || facts.handlers.length || facts.images || facts.scripts || !facts.text);
+  check(`${label} : l’offre au compte et les phrases de « Lier à… » restent du texte`, bad.length === 0, JSON.stringify(bad).slice(0, 400));
   await page.context().close();
 }
 
