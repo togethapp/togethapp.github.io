@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="f29aae66" />
+    <meta name="app-build" content="3d18f0ef" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -3279,6 +3279,7 @@ const STRINGS = {
     'activity.organise': 'L’organiser pendant « {name} »',
     'activity.onProgramme': 'Programme : {items}',
     'activity.attach': 'En faire une activité de…',
+    'activity.share': 'Partager l’activité',
     'activity.attachHint': 'Sous un autre événement, il en devient une activité : au programme, avec sa propre chaîne.',
     'account.delete': 'Supprimer mon compte',
     'account.deleteConfirm': 'Supprimer votre compte ? Votre adresse, votre prénom et vos droits gardés sur le compte sont effacés. Cet appareil reste dans ses groupes, sans compte.',
@@ -4462,6 +4463,7 @@ const STRINGS = {
     'activity.organise': 'Organise it during “{name}”',
     'activity.onProgramme': 'Programme: {items}',
     'activity.attach': 'Make it an activity of…',
+    'activity.share': 'Share the activity',
     'activity.attachHint': 'Under another event, it becomes one of its activities: on the programme, with its own chain.',
     'account.delete': 'Delete my account',
     'account.deleteConfirm': 'Delete your account? Your address, your name and the rights kept on the account are erased. This device stays in its groups, without an account.',
@@ -12511,7 +12513,7 @@ function pollView(poll, { solo = false } = {}) {
     ${guest ? '' : inGroupHtml(poll)}
 
     ${guest ? '' : shareBarHtml(`
-      ${state.remote ? `<button type="button" class="button button--primary" id="poll-share">${escapeHtml(t(fixed ? 'events.share' : 'polls.share'))}</button>` : ''}
+      ${state.remote ? `<button type="button" class="button button--primary" id="poll-share">${escapeHtml(t(isActivity(poll, everything()) ? 'activity.share' : fixed || poll.date ? 'events.share' : 'polls.share'))}</button>` : ''}
       ${state.remote && !fixed && !closed && answered < poll.people.length && poll.options.length
         ? `<button type="button" class="button" id="poll-nudge">${escapeHtml(t('polls.nudge'))}</button>`
         : ''}`)}
@@ -13651,7 +13653,7 @@ function bindPoll(poll) {
     // An event says its day after its name: « Raclette — vendredi 12 … ».
     const named = [eventName(current) || pollTitle(current), current.date ? whenText(current, { long: true }) : ''].filter(Boolean).join(' — ');
     showCopyDialog({
-      title: t(dated ? 'events.share' : 'polls.shareTitle'),
+      title: t(isActivity(current, everything()) ? 'activity.share' : dated ? 'events.share' : 'polls.shareTitle'),
       hint: t(dated ? 'events.shareHint' : 'polls.shareHint'),
       text: t(dated ? 'events.shareText' : 'polls.shareText', { title: dated ? named : pollTitle(current), link }),
       qr: true,

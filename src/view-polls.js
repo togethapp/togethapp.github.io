@@ -339,7 +339,7 @@ export function pollView(poll, { solo = false } = {}) {
     ${guest ? '' : inGroupHtml(poll)}
 
     ${guest ? '' : shareBarHtml(`
-      ${state.remote ? `<button type="button" class="button button--primary" id="poll-share">${escapeHtml(t(fixed ? 'events.share' : 'polls.share'))}</button>` : ''}
+      ${state.remote ? `<button type="button" class="button button--primary" id="poll-share">${escapeHtml(t(isActivity(poll, everything()) ? 'activity.share' : fixed || poll.date ? 'events.share' : 'polls.share'))}</button>` : ''}
       ${state.remote && !fixed && !closed && answered < poll.people.length && poll.options.length
         ? `<button type="button" class="button" id="poll-nudge">${escapeHtml(t('polls.nudge'))}</button>`
         : ''}`)}
@@ -1479,7 +1479,7 @@ export function bindPoll(poll) {
     // An event says its day after its name: « Raclette — vendredi 12 … ».
     const named = [eventName(current) || pollTitle(current), current.date ? whenText(current, { long: true }) : ''].filter(Boolean).join(' — ');
     showCopyDialog({
-      title: t(dated ? 'events.share' : 'polls.shareTitle'),
+      title: t(isActivity(current, everything()) ? 'activity.share' : dated ? 'events.share' : 'polls.shareTitle'),
       hint: t(dated ? 'events.shareHint' : 'polls.shareHint'),
       text: t(dated ? 'events.shareText' : 'polls.shareText', { title: dated ? named : pollTitle(current), link }),
       qr: true,
