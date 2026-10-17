@@ -252,8 +252,21 @@ function gaugeHtml(poll) {
     </section>`;
 }
 
+/**
+ * Who this device answers for in a poll: the name chosen under « Je suis »;
+ * or, none chosen yet, this device's own first name (Réglages → Moi) when the
+ * poll asks it. Whoever made a poll is in it, and their taps on its days
+ * ticked nothing until they had picked their own name.
+ */
+function voterOf(poll) {
+  const chosen = state.prefs.voter?.[poll.id];
+  if (poll.people.some((person) => person.id === chosen)) return chosen;
+  const mine = sameName(myName());
+  return (mine && poll.people.find((person) => sameName(person.name) === mine)?.id) || null;
+}
+
 export function pollView(poll, { solo = false } = {}) {
-  const me = state.prefs.voter?.[poll.id] || null;
+  const me = voterOf(poll);
   // Solo: a visitor from a link, with the app's chrome gone too. Guest: anyone
   // who is not the organiser — a visitor, or another member of the group — and
   // who is therefore shown the voting and nothing else.
@@ -1207,7 +1220,7 @@ export function bindPoll(poll) {
   view.querySelectorAll('[data-vote]').forEach((button) => {
     button.addEventListener('click', () => {
       const [personId, optionId] = button.dataset.vote.split('|');
-      const answeringAs = state.prefs.voter?.[poll.id];
+      const answeringAs = voterOf(poll);
       // No name chosen yet: the tap asks for one rather than voting.
       if (!answeringAs) {
         askWhoFirst();
@@ -1223,7 +1236,9 @@ export function bindPoll(poll) {
 
   view.querySelectorAll('[data-me]').forEach((chip) => {
     chip.addEventListener('click', () => {
-      const chosen = state.prefs.voter?.[poll.id] === chip.dataset.me ? null : chip.dataset.me;
+      // A tap chooses, and never takes back: one's own name, already chosen
+      // for one, would otherwise go at the very tap meant to answer with it.
+      const chosen = chip.dataset.me;
       state.prefs = { ...state.prefs, voter: { ...state.prefs.voter, [poll.id]: chosen } };
       savePrefs(state.prefs);
       render();
@@ -1456,11 +1471,20 @@ export function bindPoll(poll) {
       replacePoll(current);
     }
 
+    // A message, not a bare link: a link's preview can only say « a poll »,
+    // since what follows its `#` never leaves the phone — so the title goes
+    // in the message, above the link. The code carries the link alone.
+    const link = pollLink(location, current.id);
+    const dated = isEvent(current) || Boolean(current.date);
+    // An event says its day after its name: « Raclette — vendredi 12 … ».
+    const named = [eventName(current) || pollTitle(current), current.date ? whenText(current, { long: true }) : ''].filter(Boolean).join(' — ');
     showCopyDialog({
-      title: t('polls.shareTitle'),
-      hint: t('polls.shareHint'),
-      text: pollLink(location, current.id),
+      title: t(dated ? 'events.share' : 'polls.shareTitle'),
+      hint: t(dated ? 'events.shareHint' : 'polls.shareHint'),
+      text: t(dated ? 'events.shareText' : 'polls.shareText', { title: dated ? named : pollTitle(current), link }),
       qr: true,
+      qrText: link,
+      send: true,
     });
   });
 }

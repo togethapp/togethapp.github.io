@@ -27,7 +27,11 @@ base).
 
 App web installable (PWA), sans dépendance ni framework : modules ES dans
 `src/`, un seul fichier livré dans `dist/`, publiée sur GitHub Pages par
-`.github/workflows/pages.yml` à chaque fusion sur main. Base partagée
+`.github/workflows/pages.yml` à chaque fusion sur main, à
+https://togethapp.github.io/ (organisation `togethapp`, dépôt
+`togethapp.github.io`). L'ancienne adresse, `wjrnj9zy72-design.github.io/Code`,
+est un relais (dépôt `wjrnj9zy72-design.github.io`, copie dans `relais/`) qui
+renvoie les anciens liens et emporte les données du téléphone (`src/move.js`). Base partagée
 facultative : Supabase (supabase.com), appelée uniquement par des fonctions
 RPC `security definer` ; la table n'est jamais exposée.
 
@@ -91,10 +95,14 @@ guide en français.
   (`#/poll/<id>/solo`), sans navigation.
 - **Apparence** (octobre 2026) : style « hologramme » par défaut, nuit quel
   que soit le réglage du téléphone ; Réglages → Apparence (`view-look.js`) :
-  styles Classique / Épuré, huit couleurs (celle du style en fait partie,
-  pas de pastille à part : elle doublait une couleur), nuit/clair, en
-  attributs `data-look`, `data-accent`, `data-theme` lus par les variables en
-  tête de `styles.css` (contrastes ≥ 4,5:1 partout, `tests/contrast.test.js`).
+  styles Classique / Épuré / Astronomie / Saisons (suit le calendrier,
+  `src/sky.js`), huit couleurs (celle du style en fait partie, pas de
+  pastille à part : elle doublait une couleur), un fond qui bouge (étoiles et
+  lune du soir, aurore, saison, confettis ; immobile si le téléphone demande
+  moins d'animations), nuit/clair, en attributs `data-look`, `data-accent`,
+  `data-decor`, `data-season`, `data-theme` lus par les variables en tête de
+  `styles.css` (contrastes ≥ 4,5:1 partout, fonds compris :
+  `tests/contrast.test.js`).
   En tête de l'Accueil, la vue d'ensemble 3D (`holo.js`, `view-holo.js`),
   sans personnes.
 - **Ce qui est supprimé ne revient pas** : table `marque_points_gone` ; l'app

@@ -558,7 +558,25 @@ test('each kind of sent link has its page, titled for the preview, that hands ov
   for (const [page, title] of [['sondage', 'sondage'], ['liste', 'liste'], ['partie', 'partie'], ['invitation', 'invitation']]) {
     const html = readFileSync(new URL(`../${page}.html`, import.meta.url), 'utf8');
     assert.match(html, new RegExp(`<meta property="og:title" content="[^"]*${title}`, 'i'), `${page}: its preview says what it is`);
+    assert.match(html, /<meta property="og:title" content="Together /, `${page}: and that it is Together`);
+    assert.match(html, /<meta property="og:image" content="@SITE@\/icons\/apercu\.jpg" \/>/, `${page}: with Together's picture`);
     assert.match(html, /location\.replace\('\.\/' \+ location\.search \+ location\.hash\)/, `${page}: and opens the app at the same #…`);
   }
   assert.match(workflow, /cp \*\.html /, 'and the pages are published with the app');
+});
+
+test('a sent link shows Together’s picture, named in full when the site is published', async () => {
+  const { readFileSync, statSync } = await import('node:fs');
+  const app = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(app, /<meta property="og:image" content="@SITE@\/icons\/apercu\.jpg" \/>/, 'the app itself, shared, shows it too');
+  // Under the 300 KB some messaging apps allow for a preview's picture.
+  const picture = statSync(new URL('../icons/apercu.jpg', import.meta.url));
+  assert.ok(picture.size > 0 && picture.size < 300 * 1024, String(picture.size));
+  // Previews want a full address, which only GitHub knows: the step that
+  // configures the site gives it, and the pages gathered take it.
+  const workflow = readFileSync(new URL('../.github/workflows/pages.yml', import.meta.url), 'utf8');
+  const known = workflow.search(/id: pages\s+uses: actions\/configure-pages/);
+  const written = workflow.indexOf('sed -i "s#@SITE@#${{ steps.pages.outputs.base_url }}#g" site/*.html');
+  assert.ok(known >= 0 && written > known, 'the address is known before it is written into the pages');
+  assert.ok(written > workflow.indexOf('cp *.html'), 'and written once the pages are gathered');
 });

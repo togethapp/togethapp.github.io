@@ -33,7 +33,7 @@ import {
   adoptBoard, bindBoard, bindNewBoard, boardCardHtml, boardTitle, boardView, getBoard, ideasView, newBoardView,
   pullBoard, watchBoard,
 } from './view-ideas.js';
-import { bindGame, bindNewGame, gameView, makeDialog, newGameView } from './view-games.js';
+import { ask, bindGame, bindNewGame, gameView, makeDialog, newGameView } from './view-games.js';
 import {
   bindDocSwipes, bindEventChips, bindHome, catchUpAll, catchUpQuietly, catchUpWith, checkAllPendings, copyToGroup,
   groupFilter, groups, groupsByName, hiddenByGroupHtml, offerMeInForms, openAttachDialog, openGatherDialog,
@@ -44,7 +44,7 @@ import { bindFlows } from './view-flows.js';
 import { bindAccount, privacyView, syncAccount } from './view-account.js';
 import { bindInstall, startInstall } from './view-install.js';
 import { bindHolo } from './view-holo.js';
-import { applyLook, bindLook, lookIsDark } from './view-look.js';
+import { applyLook, bindLook, lookIsDark, refreshSky } from './view-look.js';
 import { swipeable } from './swipe.js';
 import { prefillOf, withoutPrefill } from './prefill.js';
 import { createLive, docTopic, groupTopic, liveUrl } from './live.js';
@@ -52,8 +52,20 @@ import { bindNotify, syncPush, tell, tellKnock } from './view-notify.js';
 import { bindOverview, groupsView, groupView, openCreateMenu, overviewView, settingsView } from './view-home.js';
 import { backView, bindBack, bindJoin, joinView, showsGate, watchGate, watchPending } from './view-join.js';
 import { personView, renameEverywhere, statsView } from './view-people.js';
+import { moveInto, takeMove } from './move.js';
 
 export const view = document.getElementById('view');
+
+// Together moved address: what this phone kept at the old one may arrive in
+// the address. It is put in place here, before anything below reads the
+// storage (src/move.js); the app says so once it is on screen.
+const arrival = (() => {
+  try {
+    return takeMove({ location, history, storage: localStorage, aside: sessionStorage, referrer: document.referrer });
+  } catch {
+    return null;
+  }
+})();
 
 export const state = {
   games: loadGames(),
@@ -284,6 +296,51 @@ export function appLink() {
 
 export function flash(message, kind = 'info') {
   state.flash = { message, kind, shownAt: null };
+}
+
+/**
+ * Arrived from the old address: say that everything came along, and how to
+ * keep the new address at hand. A hand-over that did not come from the old
+ * address is asked about first, and taken in only on a yes (src/move.js).
+ */
+async function welcomeMove(arrival) {
+  if (arrival?.status === 'moved') {
+    const dialog = makeDialog();
+    dialog.innerHTML = `
+      <div class="stack" id="move-welcome">
+        <h2>${escapeHtml(t('move.title'))}</h2>
+        <p>${escapeHtml(t('move.done', { groups: arrival.groups, documents: arrival.documents }))}</p>
+        <p class="muted small">${escapeHtml(t('move.homeScreen'))}</p>
+        <div class="row"><button type="button" class="button button--primary" data-move-ok>${escapeHtml(t('action.close'))}</button></div>
+      </div>`;
+    dialog.querySelector('[data-move-ok]').addEventListener('click', () => dialog.close());
+    dialog.showModal();
+    return;
+  }
+  if (arrival?.status === 'failed') {
+    flash(t('move.failed'), 'error');
+    render();
+    return;
+  }
+  if (arrival?.status !== 'asking') return;
+  let came = null;
+  try {
+    came = JSON.parse(sessionStorage.getItem('marque-points:arriving'));
+    sessionStorage.removeItem('marque-points:arriving');
+  } catch {
+    came = null;
+  }
+  if (!came) return;
+  const taken = await ask(t('move.ask', { groups: arrival.groups, documents: arrival.documents }), { confirmLabel: t('move.take') });
+  if (!taken) return;
+  try {
+    moveInto(localStorage, came);
+  } catch {
+    flash(t('move.failed'), 'error');
+    render();
+    return;
+  }
+  location.reload();
 }
 
 /**
@@ -1465,6 +1522,12 @@ window.addEventListener('hashchange', () => {
   render();
 });
 
+// Coming back to the app, perhaps days later: the season and the moon move
+// on, and Réglages, which names the season, says the new one.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && refreshSky() && route().name === 'settings') render();
+});
+
 /**
  * Another tab of the same app changed what is kept on this device. Take it in:
  * two tabs each holding their own idea of the keys, and the last one to write
@@ -1573,6 +1636,7 @@ adoptOlderGames();
 offerMeInForms();
 startInstall();
 render();
+void welcomeMove(arrival);
 // What happened while the app was closed, learnt on opening it rather than left
 // waiting for someone to press a button: a knock answered, a key cut off.
 if (state.remote) {

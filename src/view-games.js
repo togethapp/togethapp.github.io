@@ -609,13 +609,17 @@ export function showCopyDialog({
     document.body.append(dialog);
 
     dialog.querySelector('#export-close').addEventListener('click', () => dialog.close());
-    // Sending hands over the link. For a lot that is the whole point — its
-    // code travels by another route — and for an invitation the code is in
-    // the link already, on purpose.
+    // Sending hands over what the box holds. A bare link goes as a link: for
+    // a lot that is the whole point — its code travels by another route — and
+    // for an invitation the code is in the link already, on purpose. A
+    // message goes whole, as text: it carries its link, and handed it again
+    // as `url`, iOS and Android would add it a second time (see shareMessage).
     dialog.querySelector('#export-send').addEventListener('click', async () => {
-      const url = dialog.querySelector('#export-text').value;
+      const content = dialog.querySelector('#export-text').value.trim();
       try {
-        await navigator.share({ title: t('app.title'), text: t('shareSet.text'), url });
+        await navigator.share(/\s/.test(content)
+          ? { title: t('app.title'), text: content }
+          : { title: t('app.title'), text: t('shareSet.text'), url: content });
       } catch {
         // Cancelled, or refused: the text and its code are still on screen.
       }

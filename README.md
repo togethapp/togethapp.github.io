@@ -128,13 +128,18 @@ web, aucune dépendance, aucun build.
 - **Correction** : on clique sur une ligne du tableau pour modifier ou supprimer
   une manche, *Annuler la dernière manche* défait la saisie précédente, et
   *Renommer* corrige un nom mal saisi sans toucher aux scores.
-- **Ça marche sur téléphone**, hors ligne, en français ou en anglais, avec un
-  apparence au choix dans **Réglages → Apparence** : trois styles (Hologramme,
-  le style de l'app ; Classique, papier chaud et ambre ; Épuré, gris et plat),
-  huit couleurs, du rouge au rose (celle du style est l'une d'elles, cochée
-  d'origine), nuit (par défaut) ou clair — aussi au bouton rond du haut. Gardé
-  sur l'appareil, appliqué avant le premier affichage. Les parties sont
-  enregistrées dans le navigateur, et
+- **Ça marche sur téléphone**, hors ligne, en français ou en anglais, avec une
+  apparence au choix dans **Réglages → Apparence** : cinq styles (Hologramme,
+  le style de l'app ; Classique, papier chaud et ambre ; Épuré, gris et plat ;
+  Astronomie, un ciel de nuit — une carte du ciel en clair —, titres en
+  capitales d'atlas ; Saisons, aux couleurs de la saison du calendrier), huit
+  couleurs, du rouge au rose (celle du style est l'une d'elles, cochée
+  d'origine), un fond qui bouge — celui du style, des étoiles (avec la lune
+  telle qu'elle est ce soir et une étoile filante de temps en temps), une
+  aurore, la saison (pétales, lucioles, feuilles, neige) ou des confettis,
+  immobile si le téléphone demande moins d'animations —, nuit (par défaut) ou
+  clair — aussi au bouton rond du haut. Gardé sur l'appareil, appliqué avant le
+  premier affichage. Les parties sont enregistrées dans le navigateur, et
   exportables en JSON pour sauvegarder ou changer d'appareil.
 
 ## Ce que ça fait — les listes
@@ -397,6 +402,8 @@ poser la question.
   prénom n'est choisi, la grille ne coche rien (une case touchée fait
   s'allumer les prénoms), puis seule la colonne choisie se coche — pas de vote
   dans la colonne d'à côté par erreur. Un autre prénom se choisit d'un toucher.
+  Le prénom de l'appareil (Réglages → Moi) est choisi d'office quand le
+  sondage le compte : on coche ses jours dès l'ouverture.
 - On touche une case pour dire « dispo », on la retouche pour l'enlever. **Ne
   pas avoir répondu n'est pas un non** — le compte dit combien ont répondu.
 - Une jauge horizontale classe les choix par nombre de personnes dispo ; à
@@ -411,7 +418,12 @@ poser la question.
   comme leur jour (`choiceWhen`).
 - **Clore** le sondage fige les réponses ; on peut le rouvrir.
 - **Partager** comme le reste : un lien, un code QR, chacun répond de son côté,
-  et les réponses de chacun arrivent sans écraser celles des autres.
+  et les réponses de chacun arrivent sans écraser celles des autres. Le message
+  envoyé commence par le titre du sondage (« Quel soir pour la raclette ? »),
+  puis « Cochez ce qui vous va sur Together » et le lien — un événement donne
+  son nom et son jour ; sur téléphone, **Envoyer** l'ouvre dans Messenger,
+  WhatsApp… L'aperçu du lien, lui, ne peut pas connaître le titre (ce qui suit
+  le `#` ne quitte jamais le téléphone) : il montre « Together » et son image.
 
 ## Ce que ça fait — par groupe, et par personne
 
@@ -770,6 +782,29 @@ pas depuis un `file://` — c'est précisément ce que le fichier unique résout
 
 Pour jouer avec le téléphone pendant que l'ordinateur sert l'appli, ouvrez
 `http://<ip-locale-de-l-ordinateur>:8080` depuis le même réseau Wi-Fi.
+
+### Son adresse, et le déménagement
+
+L'app est publiée sur **https://togethapp.github.io/** (organisation GitHub
+`togethapp`, dépôt `togethapp.github.io`). Elle a d'abord vécu à
+`https://wjrnj9zy72-design.github.io/Code/`, qui n'est plus qu'un **relais** :
+le dépôt `wjrnj9zy72-design.github.io` du compte personnel, dont `relais/`
+garde la copie de référence.
+
+- Un ancien lien — un sondage envoyé avant, l'icône de l'écran d'accueil —
+  arrive au relais et repart au même endroit de la nouvelle adresse.
+- Un téléphone garde ce qu'il sait d'une app sous l'adresse où il l'a ouverte :
+  à la nouvelle, il partirait de rien. La première fois, le relais emporte donc
+  ses groupes, clés, droits d'organisateur et documents, dans le lien, après le
+  `#` (la partie d'une adresse qui ne quitte jamais le téléphone), et l'app les
+  reprend en arrivant (`src/move.js`) : sans rien demander quand ils viennent de
+  l'ancienne adresse, après une question sinon. Ce qui est déjà là n'est jamais
+  écrasé. La session du compte reste là-bas : on se reconnecte d'un code. Les
+  notifications se réactivent dans les Réglages, et l'app s'ajoute de nouveau à
+  l'écran d'accueil depuis la nouvelle adresse.
+- L'ancien service worker est remplacé par un dernier (`relais/Code/sw.js`) qui
+  vide les caches et s'en va : sans lui, une app installée continuerait
+  d'ouvrir sa vieille version.
 
 ## Tests
 

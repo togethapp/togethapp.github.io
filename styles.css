@@ -6,9 +6,12 @@
  * - a style, `data-look`: none for the hologram, the app's own look (night
  *   blue, cyan light, glass, small capitals in an instrument face);
  *   `classic`, the first look (warm paper, amber, nothing that glows);
- *   `calm` (greys, flat);
+ *   `calm` (greys, flat); `astro`, the sky (a night of stars, or a star
+ *   chart on paper, titles in an old atlas's capitals); `seasons`, which
+ *   follows the calendar, with the season in `data-season`;
  * - `data-accent`, a colour chosen over the style's own;
- * - `data-theme="light"` for light; night otherwise, whatever the phone says.
+ * - `data-theme="light"` for light; night otherwise, whatever the phone says;
+ * - `data-decor`, what moves behind the page (see « backgrounds » below).
  *
  * Every colour that carries words reaches 4.5:1 against its ground, in every
  * style, colour and theme: tests/contrast.test.js reads these blocks.
@@ -54,6 +57,14 @@
   --glass: rgb(5 11 22 / 74%);
   --field: #07111f;
   --scrim: rgb(2 6 14 / 72%);
+  /* The backgrounds behind the page (data-decor): how much of its colour a
+     piece shows — a star, a flake, a leaf, a confetti —, a glow — an aurora,
+     a nebula —, and the moon; and the colour of stars and snow. Each style
+     sets them as strong as its words allow (tests/contrast.test.js). */
+  --decor-piece: 36%;
+  --decor-glow: 20%;
+  --decor-moon: 11%;
+  --decor-light: #ffffff;
   --shadow: 0 1px 2px rgb(0 0 0 / 50%), 0 8px 24px rgb(0 0 0 / 35%);
   --shadow-lift: 0 0 0 1px var(--ring), 0 12px 30px rgb(0 0 0 / 45%), 0 0 22px var(--glow);
   /* What makes the hologram one: the instrument face, small capitals spaced
@@ -105,6 +116,11 @@
   --glass: rgb(255 255 255 / 78%);
   --field: #f7fafd;
   --scrim: rgb(10 22 38 / 40%);
+  /* On light, the night shades of the colours, which are light themselves,
+     and stars and snow in a soft ink — the moon too, drawn as a line. */
+  --decor-piece: 55%;
+  --decor-glow: 12%;
+  --decor-light: #8394b8;
   --shadow: 0 1px 2px rgb(10 30 60 / 6%), 0 6px 18px rgb(10 30 60 / 7%);
   --shadow-lift: 0 0 0 1px var(--ring), 0 12px 28px rgb(10 30 60 / 12%);
   color-scheme: light;
@@ -129,6 +145,7 @@
   --glass: rgb(23 21 15 / 82%);
   --field: #1c1a14;
   --scrim: rgb(0 0 0 / 55%);
+  --decor-glow: 15%;
   --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 6px 18px rgb(0 0 0 / 25%);
   --shadow-lift: 0 2px 4px rgb(0 0 0 / 45%), 0 14px 32px rgb(0 0 0 / 38%);
   --hud: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -217,6 +234,238 @@
   --shadow-lift: 0 0 0 1px var(--border), 0 6px 16px rgb(0 0 0 / 8%);
 }
 
+/* Astronomie: the sky at night, violet like a nebula, titles in the spaced
+   capitals of an old atlas after a small star; in light, a star chart on
+   paper. Its background is the sky (data-decor="stars"). */
+:root[data-look='astro'] {
+  --bg: #060817;
+  --surface: #0e1230;
+  --surface-alt: #151a3d;
+  --border: #262c58;
+  --text: #eef0ff;
+  --muted: #a9b0da;
+  --good: #5fe8a8;
+  --bad: #ff7d95;
+  --accent: var(--accent-violet);
+  --holo-hue: var(--night-violet);
+  --grid: transparent;
+  --haze: color-mix(in srgb, var(--accent) 12%, transparent);
+  --glass: rgb(6 8 23 / 78%);
+  --field: #0a0d26;
+  --scrim: rgb(2 3 12 / 74%);
+  --decor-piece: 40%;
+  --decor-glow: 24%;
+  --decor-moon: 15%;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --hud: var(--serif);
+  --hud-case: uppercase;
+  --hud-spacing: 0.16em;
+  --section-size: 0.8rem;
+  --section-weight: 600;
+  --section-color: var(--accent);
+  --brand-font: var(--serif);
+  --brand-size: 1.02rem;
+  --brand-spacing: 0.22em;
+  --brand-case: uppercase;
+  --tick: none;
+  --thread: 0.35;
+  --sheen: 3%;
+}
+
+:root[data-look='astro'][data-theme='light'] {
+  --bg: #f3efe3;
+  --surface: #ffffff;
+  --surface-alt: #f2ecdd;
+  --border: #dcd3bf;
+  --text: #161a3a;
+  --muted: #565b7c;
+  --good: #1d7346;
+  --bad: #b3263a;
+  --haze: transparent;
+  --glass: rgb(243 239 227 / 86%);
+  --field: #ffffff;
+  --scrim: rgb(22 26 58 / 40%);
+  --decor-piece: 55%;
+  --decor-glow: 12%;
+  --shadow: 0 1px 2px rgb(22 26 58 / 7%), 0 6px 18px rgb(22 26 58 / 7%);
+  --shadow-lift: 0 0 0 1px var(--ring), 0 12px 28px rgb(22 26 58 / 12%);
+}
+
+/* Astronomie's titles follow a small star rather than a tick of light. */
+:root[data-look='astro'] .section__head h2::before {
+  display: block;
+  width: 11px;
+  height: 11px;
+  border-radius: 0;
+  box-shadow: none;
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+}
+
+/* Saisons: the season's colours, from the calendar — `data-season`, written
+   with the style (view-look.js, and index.html before the first paint).
+   Plain titles, a tint of the season on the panels; its background is the
+   season itself (data-decor="season"). The seasons are written with
+   :where(), which weighs nothing, so that a colour chosen in the settings
+   still wins over the season's own. */
+:root[data-look='seasons'] {
+  --glow: transparent;
+  --grid: transparent;
+  --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 6px 18px rgb(0 0 0 / 25%);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 45%), 0 14px 32px rgb(0 0 0 / 38%);
+  --hud: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --hud-case: none;
+  --hud-spacing: 0em;
+  --section-size: 1.12rem;
+  --section-weight: 750;
+  --section-color: var(--text);
+  --brand-font: inherit;
+  --brand-size: 1.08rem;
+  --brand-spacing: -0.01em;
+  --brand-case: none;
+  --tick: none;
+  --thread: 0;
+  --sheen: 6%;
+  --radius: 18px;
+  --radius-sm: 12px;
+}
+
+:root[data-look='seasons'][data-theme='light'] {
+  --shadow: 0 1px 2px rgb(30 25 20 / 6%), 0 4px 14px rgb(30 25 20 / 6%);
+  --shadow-lift: 0 2px 4px rgb(30 25 20 / 8%), 0 12px 28px rgb(30 25 20 / 10%);
+}
+
+/* Spring: blossom on fresh green. */
+:root[data-look='seasons']:where([data-season='spring']) {
+  --bg: #0c140f;
+  --surface: #131f17;
+  --surface-alt: #1a291f;
+  --border: #2b3d31;
+  --text: #f0faf2;
+  --muted: #a7bfad;
+  --good: #7be0a2;
+  --bad: #ff8a9b;
+  --accent: var(--accent-pink);
+  --holo-hue: var(--night-pink);
+  --haze: color-mix(in srgb, var(--night-green) 10%, transparent);
+  --glass: rgb(12 20 15 / 84%);
+  --field: #101a13;
+  --scrim: rgb(0 0 0 / 58%);
+}
+
+:root[data-look='seasons'][data-theme='light']:where([data-season='spring']) {
+  --bg: #f3f8ef;
+  --surface: #ffffff;
+  --surface-alt: #ecf3e6;
+  --border: #d3e0cb;
+  --text: #142118;
+  --muted: #506352;
+  --good: #1c7444;
+  --bad: #b92c4a;
+  --haze: color-mix(in srgb, var(--night-pink) 14%, transparent);
+  --glass: rgb(243 248 239 / 86%);
+  --field: #ffffff;
+  --scrim: rgb(0 0 0 / 40%);
+}
+
+/* Summer: sunshine over a warm night, or sand. */
+:root[data-look='seasons']:where([data-season='summer']) {
+  --bg: #071420;
+  --surface: #0d1d2c;
+  --surface-alt: #13273a;
+  --border: #22394f;
+  --text: #f2f7fb;
+  --muted: #a4b8ca;
+  --good: #66dca0;
+  --bad: #ff8a7a;
+  --accent: var(--accent-amber);
+  --holo-hue: var(--night-amber);
+  --haze: color-mix(in srgb, var(--night-amber) 12%, transparent);
+  --glass: rgb(7 20 32 / 84%);
+  --field: #0a1825;
+  --scrim: rgb(0 0 0 / 58%);
+}
+
+:root[data-look='seasons'][data-theme='light']:where([data-season='summer']) {
+  --bg: #fdf6e6;
+  --surface: #ffffff;
+  --surface-alt: #f7eed8;
+  --border: #e8d9b6;
+  --text: #22201a;
+  --muted: #615946;
+  --good: #23764a;
+  --bad: #b8352c;
+  --haze: color-mix(in srgb, var(--night-amber) 22%, transparent);
+  --glass: rgb(253 246 230 / 86%);
+  --field: #ffffff;
+  --scrim: rgb(0 0 0 / 40%);
+}
+
+/* Autumn: russet leaves on brown. */
+:root[data-look='seasons']:where([data-season='autumn']) {
+  --bg: #150f0b;
+  --surface: #201811;
+  --surface-alt: #2a2017;
+  --border: #3e3022;
+  --text: #f7ede1;
+  --muted: #bca892;
+  --good: #73cf8f;
+  --bad: #f08470;
+  --accent: var(--accent-orange);
+  --holo-hue: var(--night-orange);
+  --haze: color-mix(in srgb, var(--night-orange) 11%, transparent);
+  --glass: rgb(21 15 11 / 84%);
+  --field: #1a130d;
+  --scrim: rgb(0 0 0 / 58%);
+}
+
+:root[data-look='seasons'][data-theme='light']:where([data-season='autumn']) {
+  --bg: #f8f0e5;
+  --surface: #ffffff;
+  --surface-alt: #f3e8d8;
+  --border: #e2d3bd;
+  --text: #2b1e13;
+  --muted: #6c5844;
+  --good: #2f7a4c;
+  --bad: #b13a2a;
+  --haze: color-mix(in srgb, var(--night-orange) 16%, transparent);
+  --glass: rgb(248 240 229 / 86%);
+  --field: #ffffff;
+  --scrim: rgb(0 0 0 / 42%);
+}
+
+/* Winter: ice blue on a long night, or on snow. */
+:root[data-look='seasons']:where([data-season='winter']) {
+  --bg: #09111d;
+  --surface: #101b2b;
+  --surface-alt: #172537;
+  --border: #26374d;
+  --text: #eef6ff;
+  --muted: #a4b6cb;
+  --good: #6fd9a0;
+  --bad: #ff8094;
+  --accent: var(--accent-blue);
+  --holo-hue: var(--night-blue);
+  --haze: color-mix(in srgb, var(--night-blue) 13%, transparent);
+  --glass: rgb(9 17 29 / 84%);
+  --field: #0c1624;
+  --scrim: rgb(0 0 0 / 60%);
+}
+
+:root[data-look='seasons'][data-theme='light']:where([data-season='winter']) {
+  --bg: #eef3f8;
+  --surface: #ffffff;
+  --surface-alt: #e9f0f6;
+  --border: #d2dde8;
+  --text: #0f1b2a;
+  --muted: #4c5d70;
+  --good: #17734a;
+  --bad: #bd2f43;
+  --haze: color-mix(in srgb, var(--night-blue) 18%, transparent);
+  --glass: rgb(238 243 248 / 86%);
+  --field: #ffffff;
+  --scrim: rgb(0 0 0 / 38%);
+}
+
 /* A colour chosen in the settings wins over the style's own. The red is a
    vermilion, warmer than the red of errors and of « Supprimer » (--bad). */
 :root[data-accent='red'] { --accent: var(--accent-red); --holo-hue: var(--night-red); }
@@ -279,6 +528,342 @@ a { color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   :where(.button, .chip, .icon-button, .game-card, .card-button, .tab, .tabs__new) { transition: none; }
+}
+
+/* ----------------------------------------------------------- backgrounds --- */
+/*
+ * Something alive behind the page — the sky, an aurora, the season, confetti —
+ * chosen under « Fond » in Réglages → Apparence, or brought by the style
+ * (Astronomie the sky, Saisons the season): `data-decor` on the root, and
+ * `data-season` from the calendar. Drawn on a layer of its own behind
+ * everything (.decor, index.html, with two children for the moon and a
+ * shooting star), in the night shades of the colours made faint by
+ * --decor-piece, --decor-glow and --decor-moon: tests/contrast.test.js checks
+ * that words standing on the strongest of them still read, in every style and
+ * theme.
+ * Slow; and still, for a phone that asks for less motion.
+ */
+.decor { display: none; }
+
+:root[data-decor] .decor {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  contain: strict;
+  pointer-events: none;
+  /* The colours of the pieces, and of the glows. */
+  --p-red: color-mix(in srgb, var(--night-red) var(--decor-piece), transparent);
+  --p-orange: color-mix(in srgb, var(--night-orange) var(--decor-piece), transparent);
+  --p-amber: color-mix(in srgb, var(--night-amber) var(--decor-piece), transparent);
+  --p-green: color-mix(in srgb, var(--night-green) var(--decor-piece), transparent);
+  --p-cyan: color-mix(in srgb, var(--night-cyan) var(--decor-piece), transparent);
+  --p-blue: color-mix(in srgb, var(--night-blue) var(--decor-piece), transparent);
+  --p-violet: color-mix(in srgb, var(--night-violet) var(--decor-piece), transparent);
+  --p-pink: color-mix(in srgb, var(--night-pink) var(--decor-piece), transparent);
+  --p-light: color-mix(in srgb, var(--decor-light) var(--decor-piece), transparent);
+  --p-firefly: color-mix(in srgb, color-mix(in srgb, var(--night-amber) 55%, var(--night-green)) var(--decor-piece), transparent);
+  --g-own: color-mix(in srgb, var(--holo-hue) var(--decor-glow), transparent);
+  --g-violet: color-mix(in srgb, color-mix(in srgb, var(--holo-hue) 50%, var(--night-violet)) var(--decor-glow), transparent);
+  --g-green: color-mix(in srgb, color-mix(in srgb, var(--holo-hue) 50%, var(--night-green)) var(--decor-glow), transparent);
+  --g-moon: color-mix(in srgb, var(--decor-light) var(--decor-moon), transparent);
+}
+
+.decor::before,
+.decor::after,
+.decor > i {
+  content: '';
+  position: absolute;
+  inset: 0;
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+}
+
+/* The style's own pattern and haze give way: under a background, the page's
+   ground is its plain colour, the one tests/contrast.test.js reads. */
+:root[data-decor] body { background-image: none; }
+
+/* The bars' glass would blur a page that moves at every frame: over a
+   background, they take the page's own colour instead, plainly. */
+:root[data-decor] :is(.app-bar, .tabs) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--bg);
+}
+
+/* What falls is a layer one tile taller than the screen, moved down by one
+   tile again and again: --tile is the size of its pattern, --drift how far
+   it goes left meanwhile (a tile, or nothing; the layer is that much wider),
+   and it sways a little on the way (wider still by the sway, both sides). */
+.decor::before,
+.decor::after { --tile: 0px; --drift: 0px; }
+
+@keyframes decor-fall { to { transform: translate(var(--drift), var(--tile)); } }
+@keyframes decor-sway { from { translate: -10px 0; } to { translate: 10px 0; } }
+@keyframes decor-twinkle { from { opacity: 0.45; } }
+
+:root:is([data-decor='confetti'], [data-decor='season']) .decor::before,
+:root:is([data-decor='confetti'], [data-decor='season']) .decor::after {
+  top: calc(-1 * var(--tile));
+  left: -12px;
+  right: calc(min(0px, var(--drift)) - 12px);
+  -webkit-mask-size: var(--tile) var(--tile);
+  mask-size: var(--tile) var(--tile);
+}
+
+/* Stars: two fields that twinkle out of step, a shooting star now and then —
+   and the moon, in tonight's phase (--moon and --moon-line, drawn by
+   view-look.js from src/sky.js), in front of the stars, hiding those behind
+   it as the real one does: no star is ever drawn over it. */
+:root[data-decor='stars'] .decor::before,
+:root[data-decor='stars'] .decor::after { background-color: var(--p-light); }
+
+:root[data-decor='stars'] .decor::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Ccircle cx='8.3' cy='19.8' r='0.9'/%3E%3Ccircle cx='221.4' cy='196.3' r='1.3'/%3E%3Ccircle cx='57.4' cy='229.5' r='1.1'/%3E%3Ccircle cx='198.4' cy='6.2' r='1.1'/%3E%3Ccircle cx='124.5' cy='106.3' r='1.3'/%3E%3Ccircle cx='7' cy='150.8' r='0.9'/%3E%3Ccircle cx='115.6' cy='15.6' r='0.7'/%3E%3Ccircle cx='122' cy='184' r='1.1'/%3E%3Ccircle cx='205.8' cy='108.4' r='1.3'/%3E%3Ccircle cx='67.7' cy='141.2' r='0.9'/%3E%3Ccircle cx='35.1' cy='86.9' r='1.3'/%3E%3Ccircle cx='173.3' cy='57.7' r='0.7'/%3E%3Ccircle cx='174.6' cy='175.9' r='0.7'/%3E%3Ccircle cx='71.1' cy='47' r='0.7'/%3E%3Ccircle cx='47.2' cy='187.8' r='0.7'/%3E%3Cpath d='M158.4 226.8Q158.4 230.4 162 230.4Q158.4 230.4 158.4 234Q158.4 230.4 154.8 230.4Q158.4 230.4 158.4 226.8Z'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Ccircle cx='18.2' cy='14.2' r='0.5'/%3E%3Ccircle cx='163.4' cy='133.1' r='0.5'/%3E%3Ccircle cx='19.5' cy='141.5' r='0.7'/%3E%3Ccircle cx='127.1' cy='27.4' r='0.5'/%3E%3Ccircle cx='84.8' cy='92.2' r='0.7'/%3E%3Ccircle cx='91.6' cy='158' r='0.7'/%3E%3Ccircle cx='4.8' cy='69.1' r='0.7'/%3E%3Ccircle cx='76.3' cy='24.2' r='0.5'/%3E%3Ccircle cx='138.7' cy='76.8' r='0.5'/%3E%3Ccircle cx='32.7' cy='95' r='0.7'/%3E%3Ccircle cx='53.7' cy='59.5' r='0.7'/%3E%3Ccircle cx='131.5' cy='150.5' r='0.5'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Ccircle cx='8.3' cy='19.8' r='0.9'/%3E%3Ccircle cx='221.4' cy='196.3' r='1.3'/%3E%3Ccircle cx='57.4' cy='229.5' r='1.1'/%3E%3Ccircle cx='198.4' cy='6.2' r='1.1'/%3E%3Ccircle cx='124.5' cy='106.3' r='1.3'/%3E%3Ccircle cx='7' cy='150.8' r='0.9'/%3E%3Ccircle cx='115.6' cy='15.6' r='0.7'/%3E%3Ccircle cx='122' cy='184' r='1.1'/%3E%3Ccircle cx='205.8' cy='108.4' r='1.3'/%3E%3Ccircle cx='67.7' cy='141.2' r='0.9'/%3E%3Ccircle cx='35.1' cy='86.9' r='1.3'/%3E%3Ccircle cx='173.3' cy='57.7' r='0.7'/%3E%3Ccircle cx='174.6' cy='175.9' r='0.7'/%3E%3Ccircle cx='71.1' cy='47' r='0.7'/%3E%3Ccircle cx='47.2' cy='187.8' r='0.7'/%3E%3Cpath d='M158.4 226.8Q158.4 230.4 162 230.4Q158.4 230.4 158.4 234Q158.4 230.4 154.8 230.4Q158.4 230.4 158.4 226.8Z'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Ccircle cx='18.2' cy='14.2' r='0.5'/%3E%3Ccircle cx='163.4' cy='133.1' r='0.5'/%3E%3Ccircle cx='19.5' cy='141.5' r='0.7'/%3E%3Ccircle cx='127.1' cy='27.4' r='0.5'/%3E%3Ccircle cx='84.8' cy='92.2' r='0.7'/%3E%3Ccircle cx='91.6' cy='158' r='0.7'/%3E%3Ccircle cx='4.8' cy='69.1' r='0.7'/%3E%3Ccircle cx='76.3' cy='24.2' r='0.5'/%3E%3Ccircle cx='138.7' cy='76.8' r='0.5'/%3E%3Ccircle cx='32.7' cy='95' r='0.7'/%3E%3Ccircle cx='53.7' cy='59.5' r='0.7'/%3E%3Ccircle cx='131.5' cy='150.5' r='0.5'/%3E%3C/svg%3E");
+  -webkit-mask-size: 240px 240px, 170px 170px;
+  mask-size: 240px 240px, 170px 170px;
+  animation: decor-twinkle 4s ease-in-out infinite alternate;
+}
+
+:root[data-decor='stars'] .decor::after {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='330' height='330'%3E%3Ccircle cx='168.7' cy='174.5' r='1.2'/%3E%3Ccircle cx='22.8' cy='26.1' r='1.8'/%3E%3Ccircle cx='300.1' cy='320.2' r='1.2'/%3E%3Ccircle cx='12.1' cy='305.2' r='1.2'/%3E%3Ccircle cx='243.1' cy='13.6' r='1.8'/%3E%3Ccircle cx='311' cy='137.5' r='1.8'/%3E%3Ccircle cx='131' cy='306' r='1.8'/%3E%3Ccircle cx='13.7' cy='185.2' r='1.8'/%3E%3Cpath d='M117.4 54.5Q117.4 59.3 122.2 59.3Q117.4 59.3 117.4 64.1Q117.4 59.3 112.6 59.3Q117.4 59.3 117.4 54.5Z'/%3E%3Cpath d='M254.3 216.4Q254.3 221.2 259.1 221.2Q254.3 221.2 254.3 226Q254.3 221.2 249.5 221.2Q254.3 221.2 254.3 216.4Z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='330' height='330'%3E%3Ccircle cx='168.7' cy='174.5' r='1.2'/%3E%3Ccircle cx='22.8' cy='26.1' r='1.8'/%3E%3Ccircle cx='300.1' cy='320.2' r='1.2'/%3E%3Ccircle cx='12.1' cy='305.2' r='1.2'/%3E%3Ccircle cx='243.1' cy='13.6' r='1.8'/%3E%3Ccircle cx='311' cy='137.5' r='1.8'/%3E%3Ccircle cx='131' cy='306' r='1.8'/%3E%3Ccircle cx='13.7' cy='185.2' r='1.8'/%3E%3Cpath d='M117.4 54.5Q117.4 59.3 122.2 59.3Q117.4 59.3 117.4 64.1Q117.4 59.3 112.6 59.3Q117.4 59.3 117.4 54.5Z'/%3E%3Cpath d='M254.3 216.4Q254.3 221.2 259.1 221.2Q254.3 221.2 254.3 226Q254.3 221.2 249.5 221.2Q254.3 221.2 254.3 216.4Z'/%3E%3C/svg%3E");
+  -webkit-mask-size: 330px 330px;
+  mask-size: 330px 330px;
+  animation: decor-twinkle 5.5s ease-in-out -2.5s infinite alternate;
+}
+
+:root[data-decor='stars'] .decor > i:first-child {
+  inset: auto;
+  top: 16%;
+  right: 4%;
+  width: 120px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--decor-light), transparent);
+  opacity: 0;
+  animation: decor-meteor 13s ease-in 3s infinite;
+}
+
+@keyframes decor-meteor {
+  0%, 90% { opacity: 0; transform: rotate(-24deg) translateX(0); }
+  92% { opacity: 0.8; }
+  97%, 100% { opacity: 0; transform: rotate(-24deg) translateX(-280px); }
+}
+
+:root[data-decor='stars'] .decor > i:nth-child(2) {
+  inset: auto;
+  top: calc(env(safe-area-inset-top, 0px) + 78px);
+  right: 20px;
+  z-index: 1;
+  width: 54px;
+  height: 54px;
+  /* The disc, of the sky's own colour, in front of the stars. */
+  border-radius: 50%;
+  background: var(--bg);
+}
+
+:root[data-decor='stars'] .decor > i:nth-child(2)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--g-moon);
+  /* Nothing until the phase is drawn. */
+  -webkit-mask: var(--moon, linear-gradient(transparent, transparent)) center / contain no-repeat;
+  mask: var(--moon, linear-gradient(transparent, transparent)) center / contain no-repeat;
+}
+
+/* In light, a star chart: constellations one knows, in ink, standing still. */
+:root[data-decor='stars'][data-theme='light'] .decor::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='440' height='440'%3E%3Cpath d='M40 60L47 88M47 88L82 95M82 95L85.5 72.6M85.5 72.6L40 60M85.5 72.6L113.5 68.4M113.5 68.4L138 65.6M138 65.6L166 81M270 58L300 106M300 106L330 76M330 76L360 114.4M360 114.4L390 54.4M70 230L96.4 285M138.2 236.6L116.2 293.8M96.4 285L106.3 289.4M106.3 289.4L116.2 293.8M96.4 285L83.2 342.2M116.2 293.8L151.4 337.8M70 230L138.2 236.6M70 230L105.2 202.5M138.2 236.6L105.2 202.5M330 250L330 295.6M330 295.6L330 329.2M330 329.2L330 370M270 286L330 295.6M330 295.6L390 307.6' fill='none' stroke='%23000' stroke-width='.7' stroke-opacity='.55'/%3E%3Ccircle cx='40' cy='60' r='2.2'/%3E%3Ccircle cx='47' cy='88' r='2.1'/%3E%3Ccircle cx='82' cy='95' r='1.8'/%3E%3Ccircle cx='85.5' cy='72.6' r='1.5'/%3E%3Ccircle cx='113.5' cy='68.4' r='2'/%3E%3Ccircle cx='138' cy='65.6' r='2'/%3E%3Ccircle cx='166' cy='81' r='2'/%3E%3Ccircle cx='270' cy='58' r='1.9'/%3E%3Ccircle cx='300' cy='106' r='2'/%3E%3Ccircle cx='330' cy='76' r='1.8'/%3E%3Ccircle cx='360' cy='114.4' r='2.1'/%3E%3Ccircle cx='390' cy='54.4' r='1.7'/%3E%3Ccircle cx='70' cy='230' r='2.4'/%3E%3Ccircle cx='138.2' cy='236.6' r='2'/%3E%3Ccircle cx='96.4' cy='285' r='1.7'/%3E%3Ccircle cx='106.3' cy='289.4' r='1.7'/%3E%3Ccircle cx='116.2' cy='293.8' r='1.7'/%3E%3Ccircle cx='83.2' cy='342.2' r='1.8'/%3E%3Ccircle cx='151.4' cy='337.8' r='2.3'/%3E%3Ccircle cx='105.2' cy='202.5' r='1.2'/%3E%3Ccircle cx='330' cy='250' r='2.3'/%3E%3Ccircle cx='330' cy='295.6' r='1.9'/%3E%3Ccircle cx='330' cy='370' r='1.7'/%3E%3Ccircle cx='270' cy='286' r='1.6'/%3E%3Ccircle cx='390' cy='307.6' r='1.7'/%3E%3Ccircle cx='330' cy='329.2' r='1.3'/%3E%3Ccircle cx='294.4' cy='365.1' r='1'/%3E%3Ccircle cx='25.1' cy='184' r='0.8'/%3E%3Ccircle cx='36.5' cy='406.4' r='1'/%3E%3Ccircle cx='290.7' cy='142.4' r='1'/%3E%3Ccircle cx='251.4' cy='186.2' r='1'/%3E%3Ccircle cx='24.5' cy='312.4' r='1'/%3E%3Ccircle cx='368.9' cy='126.5' r='1'/%3E%3Ccircle cx='363.9' cy='337.6' r='1'/%3E%3Ccircle cx='417.4' cy='287' r='0.8'/%3E%3Ccircle cx='19.1' cy='78.7' r='0.6'/%3E%3Ccircle cx='307.8' cy='124.5' r='0.6'/%3E%3Ccircle cx='295' cy='284.5' r='1'/%3E%3Ccircle cx='357.6' cy='364.3' r='1'/%3E%3Ccircle cx='147' cy='169.7' r='0.8'/%3E%3Ccircle cx='33.5' cy='364.8' r='0.6'/%3E%3Ccircle cx='179.5' cy='23.6' r='0.8'/%3E%3Ccircle cx='387.2' cy='424.8' r='0.8'/%3E%3Ccircle cx='357' cy='236.5' r='0.8'/%3E%3Ccircle cx='68.7' cy='417.4' r='1'/%3E%3Ccircle cx='419.9' cy='356.4' r='0.6'/%3E%3Ccircle cx='349.6' cy='180.3' r='1'/%3E%3Ccircle cx='347.7' cy='401.9' r='0.8'/%3E%3Ccircle cx='163.8' cy='377.6' r='0.6'/%3E%3Ccircle cx='339.9' cy='168.1' r='1'/%3E%3Ccircle cx='51.1' cy='404.3' r='0.6'/%3E%3Ccircle cx='366.5' cy='234.3' r='1'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='440' height='440'%3E%3Cpath d='M40 60L47 88M47 88L82 95M82 95L85.5 72.6M85.5 72.6L40 60M85.5 72.6L113.5 68.4M113.5 68.4L138 65.6M138 65.6L166 81M270 58L300 106M300 106L330 76M330 76L360 114.4M360 114.4L390 54.4M70 230L96.4 285M138.2 236.6L116.2 293.8M96.4 285L106.3 289.4M106.3 289.4L116.2 293.8M96.4 285L83.2 342.2M116.2 293.8L151.4 337.8M70 230L138.2 236.6M70 230L105.2 202.5M138.2 236.6L105.2 202.5M330 250L330 295.6M330 295.6L330 329.2M330 329.2L330 370M270 286L330 295.6M330 295.6L390 307.6' fill='none' stroke='%23000' stroke-width='.7' stroke-opacity='.55'/%3E%3Ccircle cx='40' cy='60' r='2.2'/%3E%3Ccircle cx='47' cy='88' r='2.1'/%3E%3Ccircle cx='82' cy='95' r='1.8'/%3E%3Ccircle cx='85.5' cy='72.6' r='1.5'/%3E%3Ccircle cx='113.5' cy='68.4' r='2'/%3E%3Ccircle cx='138' cy='65.6' r='2'/%3E%3Ccircle cx='166' cy='81' r='2'/%3E%3Ccircle cx='270' cy='58' r='1.9'/%3E%3Ccircle cx='300' cy='106' r='2'/%3E%3Ccircle cx='330' cy='76' r='1.8'/%3E%3Ccircle cx='360' cy='114.4' r='2.1'/%3E%3Ccircle cx='390' cy='54.4' r='1.7'/%3E%3Ccircle cx='70' cy='230' r='2.4'/%3E%3Ccircle cx='138.2' cy='236.6' r='2'/%3E%3Ccircle cx='96.4' cy='285' r='1.7'/%3E%3Ccircle cx='106.3' cy='289.4' r='1.7'/%3E%3Ccircle cx='116.2' cy='293.8' r='1.7'/%3E%3Ccircle cx='83.2' cy='342.2' r='1.8'/%3E%3Ccircle cx='151.4' cy='337.8' r='2.3'/%3E%3Ccircle cx='105.2' cy='202.5' r='1.2'/%3E%3Ccircle cx='330' cy='250' r='2.3'/%3E%3Ccircle cx='330' cy='295.6' r='1.9'/%3E%3Ccircle cx='330' cy='370' r='1.7'/%3E%3Ccircle cx='270' cy='286' r='1.6'/%3E%3Ccircle cx='390' cy='307.6' r='1.7'/%3E%3Ccircle cx='330' cy='329.2' r='1.3'/%3E%3Ccircle cx='294.4' cy='365.1' r='1'/%3E%3Ccircle cx='25.1' cy='184' r='0.8'/%3E%3Ccircle cx='36.5' cy='406.4' r='1'/%3E%3Ccircle cx='290.7' cy='142.4' r='1'/%3E%3Ccircle cx='251.4' cy='186.2' r='1'/%3E%3Ccircle cx='24.5' cy='312.4' r='1'/%3E%3Ccircle cx='368.9' cy='126.5' r='1'/%3E%3Ccircle cx='363.9' cy='337.6' r='1'/%3E%3Ccircle cx='417.4' cy='287' r='0.8'/%3E%3Ccircle cx='19.1' cy='78.7' r='0.6'/%3E%3Ccircle cx='307.8' cy='124.5' r='0.6'/%3E%3Ccircle cx='295' cy='284.5' r='1'/%3E%3Ccircle cx='357.6' cy='364.3' r='1'/%3E%3Ccircle cx='147' cy='169.7' r='0.8'/%3E%3Ccircle cx='33.5' cy='364.8' r='0.6'/%3E%3Ccircle cx='179.5' cy='23.6' r='0.8'/%3E%3Ccircle cx='387.2' cy='424.8' r='0.8'/%3E%3Ccircle cx='357' cy='236.5' r='0.8'/%3E%3Ccircle cx='68.7' cy='417.4' r='1'/%3E%3Ccircle cx='419.9' cy='356.4' r='0.6'/%3E%3Ccircle cx='349.6' cy='180.3' r='1'/%3E%3Ccircle cx='347.7' cy='401.9' r='0.8'/%3E%3Ccircle cx='163.8' cy='377.6' r='0.6'/%3E%3Ccircle cx='339.9' cy='168.1' r='1'/%3E%3Ccircle cx='51.1' cy='404.3' r='0.6'/%3E%3Ccircle cx='366.5' cy='234.3' r='1'/%3E%3C/svg%3E");
+  -webkit-mask-size: 440px 440px;
+  mask-size: 440px 440px;
+  animation: none;
+}
+
+:root[data-decor='stars'][data-theme='light'] .decor::after,
+:root[data-decor='stars'][data-theme='light'] .decor > i:first-child { display: none; }
+
+/* The moon of a chart: its outline and the edge of its shadow, in ink. */
+:root[data-decor='stars'][data-theme='light'] .decor > i:nth-child(2)::before {
+  background-color: var(--p-light);
+  -webkit-mask-image: var(--moon-line, linear-gradient(transparent, transparent));
+  mask-image: var(--moon-line, linear-gradient(transparent, transparent));
+}
+
+/* Aurora: three veils of light, the colour of the moment and two of its
+   neighbours, drifting slowly across the sky — each in its own band of it.
+   A veil is 20vh high on each side of its middle, and the middles stay 30vh
+   apart at least: where two veils meet, both are faint enough that together
+   they never show more than one at its brightest — which the test checks. */
+:root[data-decor='aurora'] .decor::before,
+:root[data-decor='aurora'] .decor::after,
+:root[data-decor='aurora'] .decor > i:first-child {
+  inset: auto;
+  width: 150vw;
+  height: 40vh;
+}
+
+:root[data-decor='aurora'] .decor::before {
+  left: -40vw;
+  top: -4vh;
+  background: radial-gradient(closest-side, var(--g-own), transparent);
+  animation: decor-aurora-a 23s ease-in-out infinite alternate;
+}
+
+:root[data-decor='aurora'] .decor::after {
+  right: -50vw;
+  top: 32vh;
+  background: radial-gradient(closest-side, var(--g-violet), transparent);
+  animation: decor-aurora-b 29s ease-in-out infinite alternate;
+}
+
+:root[data-decor='aurora'] .decor > i:first-child {
+  left: -30vw;
+  bottom: -8vh;
+  background: radial-gradient(closest-side, var(--g-green), transparent);
+  animation: decor-aurora-c 35s ease-in-out infinite alternate;
+}
+
+/* Sideways as far as they like; up and down by 3vh, and grown by 5% at
+   most: the middles stay 30vh apart, and no veil reaches further than 21vh
+   from its own. */
+@keyframes decor-aurora-a {
+  from { transform: translate(-10vw, -3vh); }
+  to { transform: translate(16vw, 3vh) scale(1.05); }
+}
+
+@keyframes decor-aurora-b {
+  from { transform: translate(10vw, -3vh) scale(1.05); }
+  to { transform: translate(-18vw, 3vh); }
+}
+
+@keyframes decor-aurora-c {
+  from { transform: translate(-8vw, 3vh); }
+  to { transform: translate(14vw, -3vh) scale(1.05); }
+}
+
+/* Confetti, in every colour: each piece takes the colour of the band it
+   falls in. */
+:root[data-decor='confetti'] .decor::before {
+  --tile: 220px;
+  background-image: linear-gradient(90deg, var(--p-red) 0 12.5%, var(--p-orange) 0 25%, var(--p-amber) 0 37.5%, var(--p-green) 0 50%, var(--p-cyan) 0 62.5%, var(--p-blue) 0 75%, var(--p-violet) 0 87.5%, var(--p-pink) 0);
+  background-size: 220px 220px;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cpath d='M11.3 148q1.5-3 3 0t3 0t3 0' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' transform='rotate(40 15.8 148)'/%3E%3Ccircle cx='41.9' cy='27' r='2.6'/%3E%3Cpath d='M62.2 191.1q1.5-3 3 0t3 0t3 0' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' transform='rotate(140 66.7 191.1)'/%3E%3Cpath d='M96 9.4l3.4 5.8h-6.8z' transform='rotate(54 96 12.8)'/%3E%3Ccircle cx='125.7' cy='67.6' r='2.6'/%3E%3Crect x='144.6' y='166.9' width='9' height='3.6' rx='1' transform='rotate(49 149.1 168.7)'/%3E%3Crect x='177.9' y='102.2' width='9' height='3.6' rx='1' transform='rotate(44 182.4 104)'/%3E%3Crect x='200' y='205.3' width='9' height='3.6' rx='1' transform='rotate(69 204.5 207.1)'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cpath d='M11.3 148q1.5-3 3 0t3 0t3 0' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' transform='rotate(40 15.8 148)'/%3E%3Ccircle cx='41.9' cy='27' r='2.6'/%3E%3Cpath d='M62.2 191.1q1.5-3 3 0t3 0t3 0' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' transform='rotate(140 66.7 191.1)'/%3E%3Cpath d='M96 9.4l3.4 5.8h-6.8z' transform='rotate(54 96 12.8)'/%3E%3Ccircle cx='125.7' cy='67.6' r='2.6'/%3E%3Crect x='144.6' y='166.9' width='9' height='3.6' rx='1' transform='rotate(49 149.1 168.7)'/%3E%3Crect x='177.9' y='102.2' width='9' height='3.6' rx='1' transform='rotate(44 182.4 104)'/%3E%3Crect x='200' y='205.3' width='9' height='3.6' rx='1' transform='rotate(69 204.5 207.1)'/%3E%3C/svg%3E");
+  animation: decor-fall 17s linear infinite, decor-sway 3.5s ease-in-out infinite alternate;
+}
+
+:root[data-decor='confetti'] .decor::after {
+  --tile: 300px;
+  background-image: linear-gradient(90deg, var(--p-cyan) 0 12.5%, var(--p-pink) 0 25%, var(--p-green) 0 37.5%, var(--p-orange) 0 50%, var(--p-violet) 0 62.5%, var(--p-amber) 0 75%, var(--p-red) 0 87.5%, var(--p-blue) 0);
+  background-size: 300px 300px;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cpath d='M24.9 62.2l3.4 5.8h-6.8z' transform='rotate(26 24.9 65.6)'/%3E%3Cpath d='M59.6 209.3l3.4 5.8h-6.8z' transform='rotate(47 59.6 212.7)'/%3E%3Cpath d='M91.6 46.6q1.5-3 3 0t3 0t3 0' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' transform='rotate(126 96.1 46.6)'/%3E%3Cpath d='M134.4 89.4q1.5-3 3 0t3 0t3 0' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' transform='rotate(52 138.9 89.4)'/%3E%3Cpath d='M166.4 186.4l3.4 5.8h-6.8z' transform='rotate(96 166.4 189.8)'/%3E%3Crect x='201' y='250.6' width='9' height='3.6' rx='1' transform='rotate(157 205.5 252.4)'/%3E%3Crect x='231.3' y='101.6' width='9' height='3.6' rx='1' transform='rotate(158 235.8 103.4)'/%3E%3Cpath d='M281.1 154l3.4 5.8h-6.8z' transform='rotate(13 281.1 157.4)'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cpath d='M24.9 62.2l3.4 5.8h-6.8z' transform='rotate(26 24.9 65.6)'/%3E%3Cpath d='M59.6 209.3l3.4 5.8h-6.8z' transform='rotate(47 59.6 212.7)'/%3E%3Cpath d='M91.6 46.6q1.5-3 3 0t3 0t3 0' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' transform='rotate(126 96.1 46.6)'/%3E%3Cpath d='M134.4 89.4q1.5-3 3 0t3 0t3 0' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' transform='rotate(52 138.9 89.4)'/%3E%3Cpath d='M166.4 186.4l3.4 5.8h-6.8z' transform='rotate(96 166.4 189.8)'/%3E%3Crect x='201' y='250.6' width='9' height='3.6' rx='1' transform='rotate(157 205.5 252.4)'/%3E%3Crect x='231.3' y='101.6' width='9' height='3.6' rx='1' transform='rotate(158 235.8 103.4)'/%3E%3Cpath d='M281.1 154l3.4 5.8h-6.8z' transform='rotate(13 281.1 157.4)'/%3E%3C/svg%3E");
+  animation: decor-fall 25s linear infinite, decor-sway 4.5s ease-in-out -2s infinite alternate;
+}
+
+/* The season. Spring: petals carried down and across by the wind. */
+:root[data-decor='season'][data-season='spring'] .decor::before {
+  --tile: 220px;
+  --drift: -220px;
+  background-image: linear-gradient(90deg, var(--p-pink) 0 50%, var(--p-violet) 0);
+  background-size: 220px 220px;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(78.1 100.5) rotate(116) scale(1.4)'/%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(167.8 140.7) rotate(296) scale(1.2)'/%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(94.8 202.4) rotate(56) scale(1.1)'/%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(37.9 10.3) rotate(338) scale(1.4)'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(78.1 100.5) rotate(116) scale(1.4)'/%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(167.8 140.7) rotate(296) scale(1.2)'/%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(94.8 202.4) rotate(56) scale(1.1)'/%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(37.9 10.3) rotate(338) scale(1.4)'/%3E%3C/svg%3E");
+  animation: decor-fall 19s linear infinite, decor-sway 3s ease-in-out infinite alternate;
+}
+
+:root[data-decor='season'][data-season='spring'] .decor::after {
+  --tile: 320px;
+  --drift: -320px;
+  background-image: linear-gradient(90deg, var(--p-violet) 0 50%, var(--p-pink) 0);
+  background-size: 320px 320px;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(54.6 56.5) rotate(139) scale(1)'/%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(220.7 114.4) rotate(89) scale(1.1)'/%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(143.2 231) rotate(251) scale(1.1)'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(54.6 56.5) rotate(139) scale(1)'/%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(220.7 114.4) rotate(89) scale(1.1)'/%3E%3Cpath d='M0-3.5C1-5.5 4-5 3.6-1C3.3 2.5 1.2 5 0 5.5C-1.2 5-3.3 2.5-3.6-1C-4-5-1-5.5 0-3.5Z' transform='translate(143.2 231) rotate(251) scale(1.1)'/%3E%3C/svg%3E");
+  animation: decor-fall 26s linear infinite, decor-sway 4s ease-in-out -1.5s infinite alternate;
+}
+
+/* Summer: fireflies at night — golden pollen by day — wandering and
+   glowing in turn. */
+:root[data-decor='season'][data-season='summer'] .decor::before,
+:root[data-decor='season'][data-season='summer'] .decor::after {
+  inset: -40px;
+  animation: decor-wander 11s ease-in-out infinite, decor-twinkle 2.2s ease-in-out infinite alternate;
+}
+
+:root[data-decor='season'][data-season='summer'] .decor::before {
+  background:
+    radial-gradient(circle at 40px 60px, var(--p-firefly) 0 1.8px, transparent 7px),
+    radial-gradient(circle at 170px 120px, var(--p-firefly) 0 1.5px, transparent 6px),
+    radial-gradient(circle at 90px 210px, var(--p-firefly) 0 2px, transparent 8px);
+  background-size: 230px 250px;
+}
+
+:root[data-decor='season'][data-season='summer'] .decor::after {
+  background:
+    radial-gradient(circle at 250px 40px, var(--p-firefly) 0 1.6px, transparent 6px),
+    radial-gradient(circle at 60px 170px, var(--p-firefly) 0 2.2px, transparent 8px),
+    radial-gradient(circle at 210px 290px, var(--p-firefly) 0 1.5px, transparent 6px);
+  background-size: 310px 340px;
+  animation-duration: 14s, 3.1s;
+  animation-delay: -5s, -1.2s;
+}
+
+@keyframes decor-wander {
+  0%, 100% { transform: translate(0, 0); }
+  30% { transform: translate(16px, -22px); }
+  65% { transform: translate(-14px, -34px); }
+}
+
+/* Autumn: leaves, russet, orange and gold, falling and swaying. */
+:root[data-decor='season'][data-season='autumn'] .decor::before {
+  --tile: 260px;
+  background-image: linear-gradient(90deg, var(--p-red) 0 33.4%, var(--p-orange) 0 66.7%, var(--p-amber) 0);
+  background-size: 260px 260px;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cpath d='M0-7C5-4 5 3 0 7C-5 3-5-4 0-7ZM-.5 6.5h1v3h-1Z' transform='translate(18.1 97.5) rotate(2) scale(1)'/%3E%3Cpath d='M0-8 2-3 7-5 5 0 8 3 3 3 2 7.5 .6 5.6V9.5h-1.2V5.6L-2 7.5-3 3-8 3-5 0-7-5-2-3Z' transform='translate(121.4 35.2) rotate(236) scale(1.3)'/%3E%3Cpath d='M0-7C5-4 5 3 0 7C-5 3-5-4 0-7ZM-.5 6.5h1v3h-1Z' transform='translate(204.4 190.2) rotate(131) scale(1.2)'/%3E%3Cpath d='M0-7C5-4 5 3 0 7C-5 3-5-4 0-7ZM-.5 6.5h1v3h-1Z' transform='translate(136.8 147.9) rotate(156) scale(1.2)'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cpath d='M0-7C5-4 5 3 0 7C-5 3-5-4 0-7ZM-.5 6.5h1v3h-1Z' transform='translate(18.1 97.5) rotate(2) scale(1)'/%3E%3Cpath d='M0-8 2-3 7-5 5 0 8 3 3 3 2 7.5 .6 5.6V9.5h-1.2V5.6L-2 7.5-3 3-8 3-5 0-7-5-2-3Z' transform='translate(121.4 35.2) rotate(236) scale(1.3)'/%3E%3Cpath d='M0-7C5-4 5 3 0 7C-5 3-5-4 0-7ZM-.5 6.5h1v3h-1Z' transform='translate(204.4 190.2) rotate(131) scale(1.2)'/%3E%3Cpath d='M0-7C5-4 5 3 0 7C-5 3-5-4 0-7ZM-.5 6.5h1v3h-1Z' transform='translate(136.8 147.9) rotate(156) scale(1.2)'/%3E%3C/svg%3E");
+  animation: decor-fall 21s linear infinite, decor-sway 3.4s ease-in-out infinite alternate;
+}
+
+:root[data-decor='season'][data-season='autumn'] .decor::after {
+  --tile: 360px;
+  background-image: linear-gradient(90deg, var(--p-amber) 0 33.4%, var(--p-red) 0 66.7%, var(--p-orange) 0);
+  background-size: 360px 360px;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360'%3E%3Cpath d='M0-8 2-3 7-5 5 0 8 3 3 3 2 7.5 .6 5.6V9.5h-1.2V5.6L-2 7.5-3 3-8 3-5 0-7-5-2-3Z' transform='translate(33 238.1) rotate(32) scale(1)'/%3E%3Cpath d='M0-8 2-3 7-5 5 0 8 3 3 3 2 7.5 .6 5.6V9.5h-1.2V5.6L-2 7.5-3 3-8 3-5 0-7-5-2-3Z' transform='translate(160.8 265.5) rotate(246) scale(1.1)'/%3E%3Cpath d='M0-7C5-4 5 3 0 7C-5 3-5-4 0-7ZM-.5 6.5h1v3h-1Z' transform='translate(276.8 116) rotate(266) scale(1.2)'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360'%3E%3Cpath d='M0-8 2-3 7-5 5 0 8 3 3 3 2 7.5 .6 5.6V9.5h-1.2V5.6L-2 7.5-3 3-8 3-5 0-7-5-2-3Z' transform='translate(33 238.1) rotate(32) scale(1)'/%3E%3Cpath d='M0-8 2-3 7-5 5 0 8 3 3 3 2 7.5 .6 5.6V9.5h-1.2V5.6L-2 7.5-3 3-8 3-5 0-7-5-2-3Z' transform='translate(160.8 265.5) rotate(246) scale(1.1)'/%3E%3Cpath d='M0-7C5-4 5 3 0 7C-5 3-5-4 0-7ZM-.5 6.5h1v3h-1Z' transform='translate(276.8 116) rotate(266) scale(1.2)'/%3E%3C/svg%3E");
+  animation: decor-fall 15s linear infinite, decor-sway 4.2s ease-in-out -2s infinite alternate;
+}
+
+/* Winter: snow, fine and far, and nearer flakes falling faster. */
+:root[data-decor='season'][data-season='winter'] .decor::before,
+:root[data-decor='season'][data-season='winter'] .decor::after { background-color: var(--p-light); }
+
+:root[data-decor='season'][data-season='winter'] .decor::before {
+  --tile: 200px;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Ccircle cx='165.3' cy='101.6' r='1.2'/%3E%3Ccircle cx='10.9' cy='8.6' r='1.8'/%3E%3Ccircle cx='7.2' cy='178.1' r='1.2'/%3E%3Ccircle cx='105.5' cy='191.3' r='1.5'/%3E%3Ccircle cx='109.4' cy='19.7' r='1.8'/%3E%3Ccircle cx='57' cy='101.4' r='1.8'/%3E%3Ccircle cx='191.3' cy='19.9' r='1.2'/%3E%3Ccircle cx='187.1' cy='192' r='1.5'/%3E%3Ccircle cx='53.7' cy='40.2' r='1.2'/%3E%3Ccircle cx='109.2' cy='132.4' r='1.2'/%3E%3Ccircle cx='8.7' cy='87.7' r='1.8'/%3E%3Ccircle cx='60.5' cy='155.9' r='1.5'/%3E%3Ccircle cx='115.6' cy='68.4' r='1.2'/%3E%3Ccircle cx='162' cy='59.5' r='1.8'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Ccircle cx='165.3' cy='101.6' r='1.2'/%3E%3Ccircle cx='10.9' cy='8.6' r='1.8'/%3E%3Ccircle cx='7.2' cy='178.1' r='1.2'/%3E%3Ccircle cx='105.5' cy='191.3' r='1.5'/%3E%3Ccircle cx='109.4' cy='19.7' r='1.8'/%3E%3Ccircle cx='57' cy='101.4' r='1.8'/%3E%3Ccircle cx='191.3' cy='19.9' r='1.2'/%3E%3Ccircle cx='187.1' cy='192' r='1.5'/%3E%3Ccircle cx='53.7' cy='40.2' r='1.2'/%3E%3Ccircle cx='109.2' cy='132.4' r='1.2'/%3E%3Ccircle cx='8.7' cy='87.7' r='1.8'/%3E%3Ccircle cx='60.5' cy='155.9' r='1.5'/%3E%3Ccircle cx='115.6' cy='68.4' r='1.2'/%3E%3Ccircle cx='162' cy='59.5' r='1.8'/%3E%3C/svg%3E");
+  animation: decor-fall 22s linear infinite, decor-sway 4s ease-in-out infinite alternate;
+}
+
+:root[data-decor='season'][data-season='winter'] .decor::after {
+  --tile: 300px;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Ccircle cx='292.9' cy='86.1' r='2.2'/%3E%3Ccircle cx='103.8' cy='279.1' r='2.6'/%3E%3Ccircle cx='50.2' cy='41.2' r='2.2'/%3E%3Ccircle cx='258.9' cy='289.2' r='2.6'/%3E%3Ccircle cx='197.6' cy='176' r='2.6'/%3E%3Ccircle cx='14.6' cy='162.4' r='2.6'/%3E%3Ccircle cx='198.1' cy='48.2' r='2.6'/%3E%3Ccircle cx='9' cy='247.8' r='3'/%3E%3Cpath d='M0-5V5M-4.3-2.5 4.3 2.5M-4.3 2.5 4.3-2.5M-1.4-4.2 0-2.8 1.4-4.2M-1.4 4.2 0 2.8 1.4 4.2' fill='none' stroke='%23000' stroke-width='1.1' stroke-linecap='round' transform='translate(107.8 178.7) rotate(13)'/%3E%3Cpath d='M0-5V5M-4.3-2.5 4.3 2.5M-4.3 2.5 4.3-2.5M-1.4-4.2 0-2.8 1.4-4.2M-1.4 4.2 0 2.8 1.4 4.2' fill='none' stroke='%23000' stroke-width='1.1' stroke-linecap='round' transform='translate(278.2 167.7) rotate(27)'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Ccircle cx='292.9' cy='86.1' r='2.2'/%3E%3Ccircle cx='103.8' cy='279.1' r='2.6'/%3E%3Ccircle cx='50.2' cy='41.2' r='2.2'/%3E%3Ccircle cx='258.9' cy='289.2' r='2.6'/%3E%3Ccircle cx='197.6' cy='176' r='2.6'/%3E%3Ccircle cx='14.6' cy='162.4' r='2.6'/%3E%3Ccircle cx='198.1' cy='48.2' r='2.6'/%3E%3Ccircle cx='9' cy='247.8' r='3'/%3E%3Cpath d='M0-5V5M-4.3-2.5 4.3 2.5M-4.3 2.5 4.3-2.5M-1.4-4.2 0-2.8 1.4-4.2M-1.4 4.2 0 2.8 1.4 4.2' fill='none' stroke='%23000' stroke-width='1.1' stroke-linecap='round' transform='translate(107.8 178.7) rotate(13)'/%3E%3Cpath d='M0-5V5M-4.3-2.5 4.3 2.5M-4.3 2.5 4.3-2.5M-1.4-4.2 0-2.8 1.4-4.2M-1.4 4.2 0 2.8 1.4 4.2' fill='none' stroke='%23000' stroke-width='1.1' stroke-linecap='round' transform='translate(278.2 167.7) rotate(27)'/%3E%3C/svg%3E");
+  animation: decor-fall 13s linear infinite, decor-sway 5s ease-in-out -2.5s infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .decor::before,
+  .decor::after,
+  .decor > i { animation: none !important; }
+}
+
+@media print {
+  .decor { display: none !important; }
 }
 
 /* --------------------------------------------------------------- app bar --- */

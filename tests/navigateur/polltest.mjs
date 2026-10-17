@@ -136,11 +136,23 @@ check('et c’est bien celui-là',
   /Samedi 13/.test(await page.locator('.votes__leader').first().textContent()),
   (await page.locator('.votes__leader').first().textContent()).trim());
 
-// partager, répondre depuis un autre appareil
+// partager, répondre depuis un autre appareil — sur un téléphone, qui a sa
+// feuille de partage
+await page.evaluate(() => { window.__shared = []; navigator.share = async (data) => { window.__shared.push(data); }; });
 await page.click('#poll-share');
 await page.waitForSelector('#export-dialog[open]', { timeout: 15000 });
-const link = await page.inputValue('#export-text');
-check('le lien pointe vers le sondage', /#\/poll\/v_/.test(link), link);
+const message = await page.inputValue('#export-text');
+const link = message.slice(message.indexOf('http'));
+check('le message commence par le titre du sondage', message.startsWith('Quel soir pour la raclette ?\n'), message);
+check('nomme Together', /sur Together/.test(message), message);
+check('et finit par le lien du sondage', /^https?:\/\/\S+#\/poll\/v_[^/\s]+\/solo$/.test(link), link);
+const scanned = await page.locator('#export-qr svg').count();
+check('le code à scanner est là', scanned === 1);
+await page.click('#export-send');
+await page.waitForTimeout(200);
+const sent = await page.evaluate(() => window.__shared);
+check('« Envoyer » passe le message entier, son lien une seule fois',
+  sent.length === 1 && sent[0].text === message && !sent[0].url && sent[0].title === 'Together', JSON.stringify(sent));
 await page.click('#export-close');
 
 const other = await device('autre');
@@ -203,6 +215,38 @@ await page.click('[data-retain]');
 await page.waitForTimeout(400);
 check('retenir le jour le fixe', (await page.inputValue('#poll-day')) === soon(11), await page.inputValue('#poll-day'));
 check('et clôt le sondage', await page.locator('.vote').first().isDisabled());
+
+// Un appareil qui a un prénom (Réglages → Moi), dans un sondage qui le
+// compte : sa colonne est la sienne d'emblée, et ses jours se cochent du
+// premier toucher — sans quoi le sondage qu'on vient de créer ne cochait rien.
+const zoe = await (await browser.newContext({ viewport: { width: 430, height: 950 }, locale: 'fr-FR' })).newPage();
+zoe.on('pageerror', (e) => errors.push(`zoé: ${e.message}`));
+await zoe.addInitScript(() => {
+  if (!localStorage.getItem('marque-points:prefs:v1')) localStorage.setItem('marque-points:prefs:v1', JSON.stringify({ me: 'Zoé' }));
+});
+await zoe.goto('http://localhost:8099/dist/marque-points.html#/polls/new');
+await zoe.waitForSelector('#new-poll');
+await zoe.fill('#poll-question', 'Quel soir ?');
+await zoe.fill('#poll-choices', 'Lundi\nMardi');
+check('son prénom ouvre la liste des personnes', (await zoe.inputValue('[data-person-index="0"]')) === 'Zoé');
+await zoe.fill('[data-person-index="1"]', 'Alice');
+await zoe.click('#new-poll button[type=submit]');
+await zoe.waitForSelector('.votes');
+const zoeCell = (row, person) => zoe.locator('.votes tbody tr').nth(row).locator('.vote').nth(person);
+check('son prénom est déjà choisi sous « Je suis »', (await zoe.locator('[data-me].chip--on').allTextContents()).map((s) => s.trim()).join() === 'Zoé');
+check('et sa colonne s’ouvre seule', (await zoeCell(0, 0).getAttribute('aria-disabled')) === null && await zoeCell(0, 1).isDisabled());
+await zoeCell(0, 0).click();
+await zoe.waitForTimeout(250);
+check('un jour touché se coche du premier coup', (await zoeCell(0, 0).textContent()).trim() === '✓');
+await zoe.locator('[data-me]', { hasText: 'Zoé' }).click();
+await zoe.waitForTimeout(200);
+check('retoucher son prénom le garde choisi', (await zoe.locator('[data-me].chip--on').allTextContents()).map((s) => s.trim()).join() === 'Zoé');
+await zoeCell(1, 0).click();
+await zoe.waitForTimeout(250);
+check('et les cases se cochent toujours', (await zoeCell(1, 0).textContent()).trim() === '✓');
+await zoe.locator('[data-me]', { hasText: 'Alice' }).click();
+await zoe.waitForTimeout(200);
+check('un autre prénom se choisit d’un toucher', (await zoeCell(0, 1).getAttribute('aria-disabled')) === null && await zoeCell(0, 0).isDisabled());
 
 // les deux autres onglets n'ont pas bougé
 await page.click('[data-tab="home"]'); await page.click('.segmented--kinds [data-goto="#/lists"]');

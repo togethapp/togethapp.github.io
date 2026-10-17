@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
-    <meta name="app-version" content="v14" />
-    <meta name="app-build" content="5bb2a89b" />
+    <meta name="app-version" content="v15" />
+    <meta name="app-build" content="a6451f78" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -13,21 +13,41 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="description" content="Compteur de points, listes et sondages partagés, pour la famille et les amis." />
     <title>Together</title>
+    <meta property="og:site_name" content="Together" />
+    <meta property="og:title" content="Together" />
+    <meta property="og:description" content="Compteur de points, listes et sondages partagés, pour la famille et les amis." />
+    <meta property="og:type" content="website" />
+    <!-- The picture under the link, named in full as previews want it:
+         @SITE@ becomes the site's address when it is published
+         (.github/workflows/pages.yml). -->
+    <meta property="og:image" content="@SITE@/icons/apercu.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Together — sondages, listes, comptes et parties, en famille et entre amis" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23071427'/><circle cx='25' cy='32' r='12.5' fill='none' stroke='%235ff3ff' stroke-width='4.2'/><circle cx='39' cy='32' r='12.5' fill='none' stroke='%235ff3ff' stroke-width='4.2'/></svg>" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#050b16" />
     <link rel="apple-touch-icon" href="icons/icon-180.png" />
     <link rel="stylesheet" href="styles.css" />
-    <!-- Before the first paint: the style, colour and theme chosen in the
-         settings, so the page does not flash the hologram first. view-look.js
-         writes the same attributes once the app has loaded. -->
+    <!-- Before the first paint: the style, colour, theme and background chosen
+         in the settings, and the season of the day, so the page does not
+         flash the hologram first. view-look.js writes the same attributes once
+         the app has loaded (and src/sky.js tells the seasons the same way). -->
     <script id="early-look">
       try {
-        const prefs = JSON.parse(localStorage.getItem('marque-points:prefs:v1')) || {};
         const root = document.documentElement;
+        const now = new Date();
+        const day = (now.getMonth() + 1) * 100 + now.getDate();
+        root.dataset.season = day >= 1221 || day < 320 ? 'winter' : day < 621 ? 'spring' : day < 922 ? 'summer' : 'autumn';
+        const prefs = JSON.parse(localStorage.getItem('marque-points:prefs:v1')) || {};
         if (prefs.theme === 'light' || prefs.theme === 'dark') root.dataset.theme = prefs.theme;
-        if (prefs.look === 'classic' || prefs.look === 'calm') root.dataset.look = prefs.look;
+        if (/^(classic|calm|astro|seasons)$/.test(prefs.look || '')) root.dataset.look = prefs.look;
         if (/^(red|orange|amber|green|cyan|blue|violet|pink)$/.test(prefs.accent || '')) root.dataset.accent = prefs.accent;
+        // The background chosen, or the style's own: the sky, the season.
+        const decor = /^(stars|aurora|season|confetti)$/.test(prefs.decor || '') ? prefs.decor
+          : prefs.look === 'astro' ? 'stars' : prefs.look === 'seasons' ? 'season' : '';
+        if (decor) root.dataset.decor = decor;
         // The phone's bar takes the page's colour from the start, too.
         const ground = getComputedStyle(root).getPropertyValue('--bg').trim();
         if (ground) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', ground);
@@ -37,6 +57,11 @@
     </script>
   </head>
   <body>
+    <!-- What moves behind the page when a background is chosen — the sky, an
+         aurora, the season, confetti: drawn by styles.css (« backgrounds »),
+         the two children for the moon and a shooting star. -->
+    <div class="decor" aria-hidden="true"><i></i><i></i></div>
+
     <header class="app-bar">
       <a class="app-bar__brand" href="#/">
         <span class="app-bar__logo" aria-hidden="true">
