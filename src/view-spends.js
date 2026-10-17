@@ -9,6 +9,7 @@ import {
   askForText, escapeHtml, flash, flashHtml, formatDate, formatDay, groupChipsHtml, kindsHtml,
   navigate, render, state, view, whenText,
   attachedHtml, chainButtonsHtml,
+  backButtonHtml, hintHtml, newButtonHtml, peopleHtml,
 } from './app.js';
 import {
   actionsHtml, eventLinkHtml, eventTagHtml, getSpend, persistPoll, persistSpend, pollCardHtml, pollTitle,
@@ -61,7 +62,7 @@ export function spendCardHtml(spend) {
         ${escapeHtml(spendTitle(spend))}
         <span class="pill">${escapeHtml(money(spendTotal(spend), spend))}</span>
       </span>
-      <span class="game-card__meta">${escapeHtml(spend.people.map((person) => person.name).join(' · '))}</span>
+      ${peopleHtml(spend.people.map((person) => person.name))}
       <span class="game-card__meta">
         ${escapeHtml(formatDate(spend.updatedAt))} — <span class="${mine && mine.balance < 0 ? 'late' : ''}">${escapeHtml(line)}</span>
       </span>
@@ -94,9 +95,7 @@ export function agendaView() {
 
   return `
     ${flashHtml()}
-    <button type="button" class="button button--primary button--block" data-goto="#/agenda/new">
-      + ${escapeHtml(t('events.new'))}
-    </button>
+    ${newButtonHtml('#/agenda/new', t('events.new'), Boolean(dated.length || deciding.length))}
     ${groupChipsHtml()}
 
     ${
@@ -113,10 +112,11 @@ export function agendaView() {
       ${
         coming.length
           ? `<div class="game-list">${coming.map(swipeable(eventCardHtml, isOrganiser)).join('')}</div>`
-          : `<p class="muted small">${escapeHtml(t('events.none'))}</p>`
+          : hintHtml('agenda', t('events.none'))
       }
       ${hiddenByGroupHtml(state.polls.filter((poll) => poll.date))}
     </section>
+    ${coming.length && coming.length + deciding.length <= 2 ? hintHtml('agenda', t('hint.agenda')) : ''}
 
     ${
       past.length
@@ -141,9 +141,7 @@ export function spendsView() {
   return `
     ${flashHtml()}
     ${kindsHtml('spends')}
-    <button type="button" class="button button--primary button--block" data-goto="#/spends/new">
-      + ${escapeHtml(t('spends.new'))}
-    </button>
+    ${newButtonHtml('#/spends/new', t('spends.new'), live.length > 0)}
     ${groupChipsHtml()}
 
     <section class="section">
@@ -151,10 +149,11 @@ export function spendsView() {
       ${
         open.length
           ? `<div class="game-list">${open.map(swipeable(spendCardHtml)).join('')}</div>`
-          : `<p class="muted small">${escapeHtml(t('spends.none'))}</p>`
+          : hintHtml('spends', t('spends.none'))
       }
       ${hiddenByGroupHtml(state.spends)}
     </section>
+    ${open.length && live.length <= 2 ? hintHtml('spends', t('hint.spends')) : ''}
 
     ${
       done.length
@@ -185,7 +184,6 @@ export function eventCardHtml(poll) {
   if (polls.length) parts.push(t('count.polls', { count: polls.length }));
   if (boards.length) parts.push(t('count.boards', { count: boards.length }));
   if (games.length) parts.push(t('count.games', { count: games.length }));
-  const people = poll.people.map((person) => person.name).join(' · ');
   // What is on the programme, first things first: a card says what is coming.
   const programme = activities.slice(0, 3).map((one) => [one.date ? whenText(one) : '', eventName(one) || pollTitle(one)].filter(Boolean).join(' '));
   if (activities.length > 3) programme.push('…');
@@ -195,7 +193,7 @@ export function eventCardHtml(poll) {
         ${escapeHtml(eventName(poll) || pollTitle(poll))}
         <span class="pill">${escapeHtml(when)}</span>
       </span>
-      ${people ? `<span class="game-card__meta">${escapeHtml(people)}</span>` : ''}
+      ${peopleHtml(poll.people.map((person) => person.name))}
       ${parts.length ? `<span class="game-card__meta">${escapeHtml(parts.join(' · '))}</span>` : ''}
       ${programme.length ? `<span class="game-card__meta">${escapeHtml(t('activity.onProgramme', { items: programme.join(' · ') }))}</span>` : ''}
     </button>`;
@@ -209,11 +207,9 @@ export function newEventView() {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/agenda')}
       <h1>${escapeHtml(t('events.new'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/agenda" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     <form id="new-event" class="card stack">
@@ -347,11 +343,9 @@ export function newSpendView() {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/spends')}
       <h1>${escapeHtml(t('spends.new'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/spends" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     <form id="new-spend" class="card stack">
@@ -448,7 +442,7 @@ function spendLineHtml(spend, line) {
           <span class="line__due">${escapeHtml(t('spends.repayment'))}${line.day ? ` · ${escapeHtml(formatDay(line.day))}` : ''}</span>
         </button>
         <span class="line__amount">${escapeHtml(money(line.amount, spend))}</span>`,
-      { kind: 'line', tag: 'li', bodyClass: 'line line--repay' });
+      { kind: 'line', tag: 'li', bodyClass: 'line line--money line--repay' });
   }
   const forWhom = line.forWhom.length
     ? spend.people.filter((person) => line.forWhom.includes(person.id)).map((person) => person.name).join(', ')
@@ -462,7 +456,7 @@ function spendLineHtml(spend, line) {
         </span>
       </button>
       <span class="line__amount">${escapeHtml(money(line.amount, spend))}</span>`,
-    { kind: 'line', tag: 'li', bodyClass: 'line' });
+    { kind: 'line', tag: 'li', bodyClass: 'line line--money' });
 }
 
 export function spendView(spend) {
@@ -562,7 +556,8 @@ export function spendView(spend) {
             .map((line) => spendLineHtml(spend, line))
             .join('')}</ul>`
         : `<p class="muted small">${escapeHtml(t('spends.addFirst'))}</p>`
-    }`;
+    }
+    ${spend.people.length && spend.lines.length <= 2 ? hintHtml('spends', t('hint.spend')) : ''}`;
 
   const balancesTab = !spend.lines.length
     ? `<p class="muted small">${escapeHtml(t('spends.balancesEmpty'))}</p>`
@@ -628,7 +623,8 @@ export function spendView(spend) {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/spends')}
       <div>
         <h1>${escapeHtml(spendTitle(spend))}</h1>
         <p class="muted small">
@@ -636,9 +632,6 @@ export function spendView(spend) {
           ${spend.shared ? ` · ${escapeHtml(t('lists.sharedMark'))}` : ''}
         </p>
       </div>
-      <button type="button" class="button button--small button--ghost" data-goto="#/spends" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     ${eventLinkHtml(spend)}

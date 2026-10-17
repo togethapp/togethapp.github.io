@@ -12,8 +12,9 @@ page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error' && !/TUNNEL|ERR_|404/.test(m.text())) errors.push(m.text()); });
 await page.goto('http://localhost:8099/dist/marque-points.html');
 await page.evaluate(() => localStorage.clear());
-await page.goto('http://localhost:8099/dist/marque-points.html');
-await page.click('#lang-toggle');
+await page.goto('http://localhost:8099/dist/marque-points.html#/settings');
+// L'autre langue, choisie dans les réglages.
+await page.click('[data-pick-lang]:not([aria-pressed="true"])');
 
 async function newGame(preset, names, label) {
   await page.evaluate(() => { location.hash = '#/new'; });

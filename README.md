@@ -128,7 +128,8 @@ web, aucune dépendance, aucun build.
 - **Correction** : on clique sur une ligne du tableau pour modifier ou supprimer
   une manche, *Annuler la dernière manche* défait la saisie précédente, et
   *Renommer* corrige un nom mal saisi sans toucher aux scores.
-- **Ça marche sur téléphone**, hors ligne, en français ou en anglais, avec une
+- **Ça marche sur téléphone**, hors ligne, en français ou en anglais (choisi
+  dans **Réglages → Langue**, la langue du téléphone d'origine), avec une
   apparence au choix dans **Réglages → Apparence** : cinq styles (Hologramme,
   le style de l'app ; Classique, papier chaud et ambre ; Épuré, gris et plat ;
   Astronomie, un ciel de nuit — une carte du ciel en clair —, titres en
@@ -139,8 +140,17 @@ web, aucune dépendance, aucun build.
   aurore, la saison (pétales, lucioles, feuilles, neige) ou des confettis,
   immobile si le téléphone demande moins d'animations —, nuit (par défaut) ou
   clair — aussi au bouton rond du haut. Gardé sur l'appareil, appliqué avant le
-  premier affichage. Les parties sont enregistrées dans le navigateur, et
-  exportables en JSON pour sauvegarder ou changer d'appareil.
+  premier affichage. La vue 3D de l'Accueil prend la nuit du style (chaude en
+  Classique, violette en Astronomie…). Les parties sont enregistrées dans le
+  navigateur, et exportables en JSON pour sauvegarder ou changer d'appareil.
+- **Ce qui se voit d'un coup d'œil** : la flèche ‹ avant le titre ramène d'où
+  l'on vient ; les cartes montrent les personnes par leurs initiales, dans une
+  couleur tirée du prénom (la même partout) ; un onglet presque vide, ou un
+  compte qui n'a qu'une dépense, porte un mot d'aide illustré ; sur un onglet
+  qui contient déjà quelque chose, « + Nouveau… » se fait discret (le « + » de
+  la barre du bas crée tout) ; un nouvel écran arrive en douceur, une case
+  cochée et un vote répondent d'une petite animation — rien ne bouge si le
+  téléphone demande moins d'animations.
 
 ## Ce que ça fait — les listes
 
@@ -149,7 +159,8 @@ d'autre : le titre dit le contexte — *Courses de samedi*, *Valise Corse*,
 *Déménagement* — et une ligne est du texte libre, action ou objet, les deux
 mélangés si besoin.
 
-- **Attribuer** : on touche une ligne pour la donner à quelqu'un, ou à personne.
+- **Attribuer** : on touche le petit « + » au bout d'une ligne (ou le prénom
+  qui l'a remplacé) pour la donner à quelqu'un, ou à personne.
   *Répartir* distribue d'un coup ce que personne n'a pris, en servant d'abord
   celui qui en a le moins.
 - **Cocher** ce qui est fait, et filtrer d'un geste : tout, une personne, ou ce
@@ -412,12 +423,15 @@ poser la question.
   Le prénom de l'appareil (Réglages → Moi) est choisi d'office quand le
   sondage le compte : on coche ses jours dès l'ouverture.
 - On touche une case pour dire « dispo », on la retouche pour l'enlever. **Ne
-  pas avoir répondu n'est pas un non** — le compte dit combien ont répondu.
+  pas avoir répondu n'est pas un non** — le compte dit combien ont répondu, et
+  la carte du sondage le montre aussi en ronds, un par personne, plein quand
+  elle a répondu.
 - Une jauge horizontale classe les choix par nombre de personnes dispo ; à
-  égalité, l'ordre d'écriture décide.
+  égalité, l'ordre d'écriture décide. Le choix en tête porte une couronne, dans
+  la jauge comme dans la grille.
 - **Un choix = des mots, un jour, une heure**, chacun facultatif mais pas tous
   à la fois (un seul formulaire sous la grille). Un jour seul est un jour à
-  voter (« Samedi 17 octobre · 20:30 », marqué 📅) ; des mots avec un jour sont
+  voter (« Samedi 17 octobre · 20:30 », marqué d'un petit calendrier) ; des mots avec un jour sont
   une chose faite ce jour-là (« Kayak », le samedi) : la grille les range alors
   sous leur jour, et chaque jour a son gagnant. Le jour est gardé à part des
   mots (`option.day`, `option.at`) : renommer un choix ne le perd pas. Les

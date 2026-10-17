@@ -130,6 +130,14 @@ function holoRgba(hex, alpha) {
   return `rgba(${(value >> 16) & 255},${(value >> 8) & 255},${value & 255},${alpha})`;
 }
 
+/** Two colours `#rrggbb` mixed, `amount` of the second: the canvas has no color-mix(). */
+function holoMix(hex, other, amount) {
+  const a = parseInt(hex.slice(1), 16);
+  const b = parseInt(other.slice(1), 16);
+  const channel = (shift) => Math.round(((a >> shift) & 255) * (1 - amount) + ((b >> shift) & 255) * amount);
+  return `#${[16, 8, 0].map((shift) => channel(shift).toString(16).padStart(2, '0')).join('')}`;
+}
+
 /**
  * A glow and a core for each colour, drawn once: stamping a small picture is
  * far cheaper, sixty times a second, than painting a gradient. Drawn again
@@ -214,9 +222,21 @@ export function bindHolo() {
   const reduced = holoReduced();
   if (holoState.still === null) holoState.still = reduced;
   let picked = nodes.get(holoState.picked) || null;
-  // The stars and the table take the light of the chosen style or colour.
-  const hue = getComputedStyle(document.documentElement).getPropertyValue('--holo-hue').trim();
-  const colours = { ...HOLO_COLOURS, group: /^#[0-9a-f]{6}$/i.test(hue) ? hue : HOLO_COLOURS.group };
+  // The stars and the table take the light of the chosen style or colour,
+  // and the night is the style's own (styles.css, `--holo-ground`): the
+  // classic style's view is a warm night, not the hologram's blue one. The
+  // far stars, the names and the quiet star of what is in no group are
+  // touched by the same light.
+  const root = getComputedStyle(document.documentElement);
+  const token = (name, fallback) => {
+    const value = root.getPropertyValue(name).trim();
+    return /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+  };
+  const hue = token('--holo-hue', HOLO_COLOURS.group);
+  const deep = token('--holo-deep', '#03060d');
+  const colours = { ...HOLO_COLOURS, group: hue, outside: holoMix(HOLO_COLOURS.outside, hue, 0.25) };
+  const starlight = holoMix('#ffffff', hue, 0.2);
+  const ink = holoMix('#ffffff', hue, 0.15);
   const light = (alpha) => holoRgba(colours.group, alpha);
   const sprites = holoSprites(colours);
   const stars = holoStars();
@@ -256,7 +276,7 @@ export function bindHolo() {
     const box = { left, top: top ?? y - high, wide, high };
     taken.push(box);
     context.globalAlpha = alpha * 0.82;
-    context.fillStyle = 'rgba(4,12,26,0.78)';
+    context.fillStyle = holoRgba(deep, 0.78);
     context.fillRect(left, box.top, wide, high);
     if (border) {
       context.globalAlpha = alpha * 0.7;
@@ -299,7 +319,7 @@ export function bindHolo() {
 
     // Far stars: turned with the sky but never nearer, like a sky dome.
     context.globalCompositeOperation = 'lighter';
-    context.fillStyle = '#cfe9ff';
+    context.fillStyle = starlight;
     const focal = Math.max(width, height) * 0.55;
     for (const star of stars) {
       const seen = holoTurn(star, camera);
@@ -513,7 +533,7 @@ export function bindHolo() {
         const x = one.x + one.radius + 14;
         const y = one.y - one.radius - 8;
         const box = tag(words, x, y, {
-          colour: '#d8fbff', border: holoRgba(colours[node.type], 0.6), size: 10, width, alpha: dim, must: true,
+          colour: ink, border: holoRgba(colours[node.type], 0.6), size: 10, width, alpha: dim, must: true,
         });
         context.globalAlpha = 0.6 * dim;
         context.strokeStyle = holoRgba(colours[node.type], 0.8);

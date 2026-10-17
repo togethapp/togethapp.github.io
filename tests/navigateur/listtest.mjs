@@ -72,7 +72,8 @@ check('une ligne s’attribue', (await page.locator('.line__who').nth(1).textCon
 // répartir le reste
 await page.click('#share-out');
 await page.waitForTimeout(300);
-const owners = await page.locator('.line__who').evaluateAll((e) => e.map((x) => x.textContent.trim()));
+// Une ligne sans personne montre un « + », nommé « À prendre ».
+const owners = await page.locator('.line__who').evaluateAll((e) => e.map((x) => x.getAttribute('aria-label') || x.textContent.trim()));
 check('« Répartir » donne le reste à quelqu’un',
   owners.filter((o) => o === 'À prendre').length === 1, owners.join(' / '));
 check('et la ligne déjà faite reste sans personne', owners.at(-1) === 'À prendre', owners.at(-1));

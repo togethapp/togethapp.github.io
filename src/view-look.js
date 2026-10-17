@@ -1,7 +1,8 @@
 /**
  * How the app looks, chosen in Réglages → Apparence: a style (the hologram,
  * the first warm look, a calm grey one, the sky, or the seasons), a colour,
- * a background, and night or light.
+ * a background, and night or light. And the language it speaks, chosen just
+ * above (Réglages → Langue).
  *
  * Kept on this device with the other preferences, and written as attributes
  * on the root element that styles.css reads — `data-look`, `data-accent`,
@@ -12,10 +13,10 @@
  * Calls back into app.js only from inside functions.
  */
 
-import { escapeHtml, render, state } from './app.js';
+import { escapeHtml, render, state, switchLanguage } from './app.js';
 import { savePrefs } from './storage.js';
 import { skyMoonLine, skyMoonMask, skyMoonPhase, skySeason } from './sky.js';
-import { t } from './i18n.js';
+import { getLanguage, t } from './i18n.js';
 
 /** The styles, the app's own first: it is the one with no attribute. */
 export const LOOKS = ['holo', 'classic', 'calm', 'astro', 'seasons'];
@@ -98,6 +99,27 @@ export function refreshSky() {
   const turned = document.documentElement.dataset.season !== skySeason();
   applyLook();
   return turned;
+}
+
+/**
+ * Each language by its own name, whatever the app speaks: someone who does
+ * not read the one on screen still finds theirs. Chosen here, once — a button
+ * for it at the top of every page took the room of what is used every day.
+ */
+const LANGUAGE_NAMES = { fr: 'Français', en: 'English' };
+
+/** Réglages → Langue, titled in both languages for the same reason. */
+export function languageHtml() {
+  const on = getLanguage();
+  return `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('lang.title'))}</h2></div>
+      <div class="row row--chips" role="group" aria-label="${escapeHtml(t('lang.title'))}">
+        ${Object.entries(LANGUAGE_NAMES).map(([value, name]) => `
+          <button type="button" class="chip ${on === value ? 'chip--on' : ''}" data-pick-lang="${value}" lang="${value}"
+                  aria-pressed="${on === value ? 'true' : 'false'}">${escapeHtml(name)}</button>`).join('')}
+      </div>
+    </section>`;
 }
 
 /** Réglages → Apparence. */
@@ -188,5 +210,10 @@ export function bindLook(view) {
   });
   view.querySelectorAll('[data-pick-theme]').forEach((button) => {
     button.addEventListener('click', () => pickLook({ theme: button.dataset.pickTheme }));
+  });
+  view.querySelectorAll('[data-pick-lang]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (button.dataset.pickLang !== getLanguage()) switchLanguage(button.dataset.pickLang);
+    });
   });
 }

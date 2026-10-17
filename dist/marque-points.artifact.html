@@ -47,6 +47,10 @@
   --accent-pink: var(--night-pink);
   --accent: var(--accent-cyan);
   --holo-hue: var(--night-cyan);
+  /* The night inside the 3D view on Home, which stays night whatever the
+     theme: each style's own, so the view belongs to the page around it. */
+  --holo-ground: #081329;
+  --holo-deep: #03060d;
   --accent-text: #04101a;
   /* Made from the colour, so that any colour sits on any style. */
   --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--surface));
@@ -141,6 +145,8 @@
   --bad: #e4796b;
   --accent: var(--accent-amber);
   --holo-hue: var(--night-amber);
+  --holo-ground: #211e17;
+  --holo-deep: #0b0a07;
   --glow: transparent;
   --grid: transparent;
   --haze: color-mix(in srgb, var(--accent) 10%, transparent);
@@ -195,6 +201,8 @@
   --bad: #f2737f;
   --accent: var(--accent-blue);
   --holo-hue: var(--night-blue);
+  --holo-ground: #1a1b1e;
+  --holo-deep: #08090a;
   --glow: transparent;
   --grid: transparent;
   --haze: transparent;
@@ -250,6 +258,8 @@
   --bad: #ff7d95;
   --accent: var(--accent-violet);
   --holo-hue: var(--night-violet);
+  --holo-ground: #0e1230;
+  --holo-deep: #04050e;
   --grid: transparent;
   --haze: color-mix(in srgb, var(--accent) 12%, transparent);
   --glass: rgb(6 8 23 / 78%);
@@ -348,6 +358,8 @@
   --bad: #ff8a9b;
   --accent: var(--accent-pink);
   --holo-hue: var(--night-pink);
+  --holo-ground: #131f17;
+  --holo-deep: #060a07;
   --haze: color-mix(in srgb, var(--night-green) 10%, transparent);
   --glass: rgb(12 20 15 / 84%);
   --field: #101a13;
@@ -381,6 +393,8 @@
   --bad: #ff8a7a;
   --accent: var(--accent-amber);
   --holo-hue: var(--night-amber);
+  --holo-ground: #0d1d2c;
+  --holo-deep: #040a10;
   --haze: color-mix(in srgb, var(--night-amber) 12%, transparent);
   --glass: rgb(7 20 32 / 84%);
   --field: #0a1825;
@@ -414,6 +428,8 @@
   --bad: #f08470;
   --accent: var(--accent-orange);
   --holo-hue: var(--night-orange);
+  --holo-ground: #201811;
+  --holo-deep: #0a0705;
   --haze: color-mix(in srgb, var(--night-orange) 11%, transparent);
   --glass: rgb(21 15 11 / 84%);
   --field: #1a130d;
@@ -447,6 +463,8 @@
   --bad: #ff8094;
   --accent: var(--accent-blue);
   --holo-hue: var(--night-blue);
+  --holo-ground: #101b2b;
+  --holo-deep: #050910;
   --haze: color-mix(in srgb, var(--night-blue) 13%, transparent);
   --glass: rgb(9 17 29 / 84%);
   --field: #0c1624;
@@ -1008,21 +1026,21 @@ a { color: inherit; }
   padding: 18px;
 }
 
-/* Every panel carries a short tick of light on its top edge, like a
-   display's: the mark of the look, on cards and on the cards one taps. */
+/* Every panel catches the light along its top edge, brightest in the middle
+   and gone before the corners, like a pane of glass lit from above: the mark
+   of the look, on cards and on the cards one taps. (A short tick at the left
+   corner did this before, and read as a stray mark rather than a light.) */
 .card::before,
 .game-card::before {
   content: '';
   display: var(--tick);
   position: absolute;
   top: -1px;
-  left: 18px;
-  width: 22px;
-  height: 2px;
-  border-radius: 0 0 2px 2px;
-  background: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
-  opacity: 0.85;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent) 50%, transparent);
+  opacity: 0.7;
   pointer-events: none;
 }
 
@@ -1030,6 +1048,45 @@ a { color: inherit; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .row--tight { gap: 6px; }
 .spread { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+/*
+ * A page's head: the way back first, where phones put it — an arrow before
+ * the title, the size of a finger, level with the title's first line — then
+ * the title and what is said under it.
+ */
+.spread.page-head { justify-content: flex-start; align-items: flex-start; gap: 4px; }
+.page-head > :not(.back-button) { flex: 1; min-width: 0; }
+
+.back-button {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin: -4px 0 0 -10px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.back-button svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (hover: hover) {
+  .back-button:hover { background: var(--accent-soft); }
+}
+.back-button:active { transform: scale(0.92); }
+.back-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .muted { color: var(--muted); }
 .small { font-size: 0.82rem; }
 .center { text-align: center; }
@@ -1054,6 +1111,18 @@ a { color: inherit; }
 
 .button:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: 0 0 14px var(--glow); }
 .button:active:not(:disabled) { transform: scale(0.97); }
+
+/* « + New … » on a tab that already holds something: the "+" in the bar
+   below makes anything from anywhere, so this one steps back — soft, in the
+   colour, as wide as its words (app.js, newButtonHtml). */
+.button--new {
+  justify-self: start;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: none;
+}
 
 /* The one thing to do on a screen is lit from inside. */
 .button--primary {
@@ -1135,7 +1204,71 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
   font-size: 0.9rem;
 }
 
-.checkbox input { width: 20px; height: 20px; min-height: 0; accent-color: var(--accent); }
+.checkbox input { width: 20px; height: 20px; min-height: 0; }
+
+/*
+ * Boxes to tick and dots to choose, drawn in the look's own colours: the
+ * phone's came out as grey squares on the night styles. The box draws its
+ * tick itself, and the one just touched pops it in (`.touched`, set by
+ * app.js for the redraw that follows a touch) — not every ticked box on
+ * every redraw.
+ */
+:where(input[type='checkbox'], input[type='radio']) {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  margin: 0;
+  border: 2px solid color-mix(in srgb, var(--accent) 70%, var(--border));
+  border-radius: 7px;
+  background: var(--field);
+  cursor: pointer;
+  transition: background-color 0.16s var(--ease), border-color 0.16s var(--ease), box-shadow 0.16s var(--ease);
+}
+
+:where(input[type='radio']) { border-radius: 50%; }
+
+:where(input[type='checkbox'])::before {
+  content: '';
+  width: 52%;
+  height: 28%;
+  border: solid var(--accent-text);
+  border-width: 0 0 2px 2px;
+  transform: translateY(-18%) rotate(-45deg) scale(0);
+  transition: transform 0.18s var(--ease);
+}
+
+:where(input[type='radio'])::before {
+  content: '';
+  width: 44%;
+  height: 44%;
+  border-radius: 50%;
+  background: var(--accent-text);
+  transform: scale(0);
+  transition: transform 0.18s var(--ease);
+}
+
+:where(input[type='checkbox'], input[type='radio']):checked {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--glow);
+}
+
+:where(input[type='checkbox']):checked::before { transform: translateY(-18%) rotate(-45deg) scale(1); }
+:where(input[type='radio']):checked::before { transform: scale(1); }
+:where(input[type='checkbox'], input[type='radio']):disabled { opacity: 0.5; cursor: default; }
+:where(input[type='checkbox'], input[type='radio']):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  input[type='checkbox'].touched:checked::before { animation: tick-pop 0.34s var(--ease); }
+}
+
+@keyframes tick-pop {
+  0% { transform: translateY(-18%) rotate(-45deg) scale(0); }
+  60% { transform: translateY(-18%) rotate(-45deg) scale(1.25); }
+  100% { transform: translateY(-18%) rotate(-45deg) scale(1); }
+}
 
 /*
  * A row one chooses in a list: a radio or a checkbox beside a label that may
@@ -1155,7 +1288,6 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
   height: 20px;
   min-height: 0;
   margin-top: 1px;
-  accent-color: var(--accent);
 }
 
 .stack--tight { gap: 8px; }
@@ -1340,6 +1472,24 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
   /* Whole, beside a title that wraps around it rather than through it. */
   white-space: nowrap;
 }
+
+/* Who has answered a poll, a dot each, filled once they have. */
+.dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-right: 5px;
+  vertical-align: 0;
+}
+
+.dots > i {
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+.dots > .dots__on { background: currentColor; opacity: 1; }
 
 /* The word a shade nearer the text than its tint, to stay readable on it. */
 .pill--done { border-color: color-mix(in srgb, var(--good) 40%, transparent); background: color-mix(in srgb, var(--good) 14%, transparent); color: color-mix(in srgb, var(--good) 85%, var(--text)); }
@@ -1540,6 +1690,109 @@ table.scores .meta-cell { color: var(--muted); }
   .score-row { grid-template-columns: 1fr 88px; }
 }
 
+/* -------------------------------------------------------------- arriving --- */
+/*
+ * A new screen comes in gently: its parts rise a little and fade in, one
+ * after the other. app.js marks the view on a new screen only — a redraw of
+ * the same one (a vote, the others' changes coming in) stays still, or every
+ * change would make the page twitch. The box holding the 3D view only fades:
+ * a rising box would carry the view's full screen along with it. A vote just
+ * cast pulses once (`.touched`, see app.js). Nothing moves when the phone
+ * asks for less movement.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .view--arrive > * { animation: arrive 0.34s var(--ease) backwards; }
+  .view--arrive > :has(.holo) { animation-name: arrive-fade; }
+  .view--arrive > :nth-child(2) { animation-delay: 0.03s; }
+  .view--arrive > :nth-child(3) { animation-delay: 0.06s; }
+  .view--arrive > :nth-child(4) { animation-delay: 0.09s; }
+  .view--arrive > :nth-child(5) { animation-delay: 0.12s; }
+  .view--arrive > :nth-child(6) { animation-delay: 0.15s; }
+  .view--arrive > :nth-child(7) { animation-delay: 0.18s; }
+  .view--arrive > :nth-child(n + 8) { animation-delay: 0.21s; }
+
+  .vote.touched { animation: vote-pulse 0.42s var(--ease); }
+}
+
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+@keyframes arrive-fade {
+  from { opacity: 0; }
+}
+
+@keyframes vote-pulse {
+  40% { transform: scale(1.16); box-shadow: 0 0 0 6px var(--ring); }
+}
+
+/* ---------------------------------------------------------------- people --- */
+/*
+ * The people on a card: their initials on discs of their colour, a few
+ * overlapping, before their names (app.js, peopleHtml). The discs keep their
+ * night shades in both themes, and the initial is in a dark ink on all of
+ * them (tests/contrast.test.js).
+ */
+.people { display: flex; align-items: center; gap: 8px; }
+
+.faces { display: inline-flex; flex: none; }
+
+.face {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--face);
+  color: #0a1626;
+  font-size: 0.64rem;
+  font-style: normal;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.face + .face { margin-left: -7px; }
+.face::before { content: attr(data-initial); }
+.face--more { background: var(--surface-alt); color: var(--muted); }
+
+/* ------------------------------------------------------------------ hint --- */
+/*
+ * A word of help where a page would otherwise end in a dark field: a light
+ * drawing in the colour, and a sentence in the quiet ink (app.js, hintHtml).
+ * Framed by a dashed line, like a place left to fill.
+ */
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+.hint__art {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.8;
+}
+
+.hint__fill { fill: var(--accent); stroke: none; }
+
+.hint__text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 /* ----------------------------------------------------------------- lines --- */
 /*
  * A line in a list: a box to tick, the text, and who it is for. The three are
@@ -1576,10 +1829,10 @@ table.scores .meta-cell { color: var(--muted); }
 }
 
 .line__tick input {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   min-height: 0;
-  accent-color: var(--accent);
+  border-radius: 8px;
 }
 
 .line__text {
@@ -1606,7 +1859,30 @@ table.scores .meta-cell { color: var(--muted); }
   cursor: pointer;
 }
 
-.line__who--nobody { color: var(--muted); border-style: dashed; }
+/* Nobody yet: a small « + » to say who takes it, quieter still once done. */
+.line__who--nobody {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.line__who--nobody svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+@media (hover: hover) {
+  .line__who--nobody:hover { border-color: var(--accent); color: var(--accent); }
+}
+.line--done .line__who--nobody { opacity: 0.6; }
 
 .line--done .line__text { color: var(--muted); text-decoration: line-through; }
 
@@ -1640,6 +1916,12 @@ table.scores .meta-cell { color: var(--muted); }
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* A line of money has no box to tick: what it was takes the room, and what it
+   cost stands at the far right, a size up — the figure is what one looks for. */
+.line--money { grid-template-columns: 1fr auto; padding-left: 14px; }
+.line--money .line__amount { padding-right: 6px; font-size: 1.05rem; text-align: right; }
+.line--money:not(.line--repay) .line__amount { font-weight: 700; }
 
 .chip {
   padding: 6px 12px;
@@ -1693,21 +1975,43 @@ table.scores .meta-cell { color: var(--muted); }
 }
 
 /* The home page's kinds: six words on a phone's width, so each takes only
-   the room its word needs, and the row may scroll rather than wrap. */
+   the room its word needs, and the words at both ends stand clear of the
+   rounded ends rather than in their curve, where they looked cut. With a
+   larger text the row may not fit: it scrolls rather than wraps, and fades
+   on the side that hides more (app.js marks it). */
 .segmented--kinds {
   grid-auto-columns: auto;
+  padding: 3px 6px;
   overflow-x: auto;
   scrollbar-width: none;
 }
 
+.segmented--kinds::-webkit-scrollbar { display: none; }
+
 .segmented--kinds .segmented__option {
-  padding: 8px 2px;
-  font-size: 0.74rem;
+  padding: 8px 3px;
+  font-size: 0.72rem;
   white-space: nowrap;
 }
 
 @media (max-width: 340px) {
-  .segmented--kinds .segmented__option { padding: 8px 1px; font-size: 0.64rem; }
+  .segmented--kinds { padding: 3px 4px; }
+  .segmented--kinds .segmented__option { padding: 8px 2px; font-size: 0.68rem; }
+}
+
+.segmented--kinds.fade-end {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+}
+
+.segmented--kinds.fade-start {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 32px);
+  mask-image: linear-gradient(90deg, transparent, #000 32px);
+}
+
+.segmented--kinds.fade-start.fade-end {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
 }
 
 .segmented__option[aria-current="true"],
@@ -1792,7 +2096,7 @@ select.field-pill {
 }
 
 .split-row:not(:last-child) { border-bottom: 1px solid var(--border); }
-.split-row input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; accent-color: var(--accent); }
+.split-row input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; }
 
 /* The balances tab once nothing is left to settle: a plain state deserves a
    plain, good-news answer rather than an empty section. */
@@ -1832,6 +2136,20 @@ select.field-pill {
 .votes tbody tr { border-top: 1px solid var(--border); }
 
 .votes__leader { background: var(--accent-soft); }
+
+/* The choice most can make: a crown before it, and its count in the colour. */
+.crown {
+  width: 15px;
+  height: 15px;
+  margin-right: 4px;
+  vertical-align: -2px;
+  fill: color-mix(in srgb, var(--accent) 30%, transparent);
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.votes__leader .votes__score { color: var(--accent); font-weight: 750; }
 
 /*
  * With a dozen people across, the grid scrolls sideways — and without this the
@@ -2247,6 +2565,20 @@ body:not(.solo) .view {
 /* Picking a day for a poll's choices, under the box of choices. */
 .add-day { max-width: 16em; }
 .choice-day { margin-right: 0.3em; }
+.choice-day .icon-inline { margin-right: 0; }
+
+/* A day, an hour: small line icons in the colour, before their words. */
+.icon-inline {
+  width: 1.15em;
+  height: 1.15em;
+  margin-right: 0.35em;
+  vertical-align: -0.2em;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .choice-drop { padding: 0 0.5em; min-height: 0; margin-left: 0.2em; }
 
 /* The first opening: what the app is for, a name, and where to begin. */
@@ -2519,8 +2851,8 @@ body:not(.solo) .view {
   isolation: isolate;
   border: 1px solid color-mix(in srgb, var(--holo-hue) 22%, transparent);
   border-radius: var(--radius);
-  background: radial-gradient(120% 90% at 50% -10%, color-mix(in srgb, var(--holo-hue) 18%, #081329) 0%, #081329 45%, #03060d 100%);
-  box-shadow: 0 10px 30px rgb(0 30 70 / 28%), inset 0 0 50px color-mix(in srgb, var(--holo-hue) 6%, transparent);
+  background: radial-gradient(120% 90% at 50% -10%, color-mix(in srgb, var(--holo-hue) 18%, var(--holo-ground)) 0%, var(--holo-ground) 45%, var(--holo-deep) 100%);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 30%), inset 0 0 50px color-mix(in srgb, var(--holo-hue) 6%, transparent);
   color: var(--holo-ink);
   font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 }
@@ -2624,7 +2956,7 @@ body:not(.solo) .view {
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--holo-hue) 35%, transparent);
   border-radius: 10px;
-  background: rgb(6 16 32 / 60%);
+  background: color-mix(in srgb, var(--holo-ground) 60%, transparent);
   color: var(--holo-ink);
   cursor: pointer;
   -webkit-backdrop-filter: blur(6px);
@@ -2686,7 +3018,7 @@ body:not(.solo) .view {
   border: 1px solid color-mix(in srgb, var(--holo-hue) 30%, transparent);
   border-left: 3px solid var(--holo-kind, var(--holo-hue));
   border-radius: 10px;
-  background: rgb(4 12 26 / 82%);
+  background: color-mix(in srgb, var(--holo-deep) 82%, transparent);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   box-shadow: 0 0 18px color-mix(in srgb, var(--holo-hue) 14%, transparent);
@@ -2827,7 +3159,6 @@ body.holo-open { overflow: hidden; }
         <button type="button" class="icon-button" id="theme-toggle" data-i18n-title="theme.toggle">
           <svg class="icon-button__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" class="icon-button__fill"/></svg>
         </button>
-        <button type="button" class="icon-button icon-button--text" id="lang-toggle" data-i18n="lang.switch"></button>
       </div>
     </header>
 
@@ -3755,9 +4086,9 @@ const STRINGS = {
     'polls.question': 'La question',
     'polls.questionPlaceholder': 'Quel soir pour la raclette ?',
     'polls.choices': 'Les choix (un par ligne)',
-    'polls.addDay': '📅 Et/ou des jours, au calendrier',
-    'polls.addOtherDay': '📅 Un autre jour',
-    'polls.daysHour': '🕗 À quelle heure ? (facultatif)',
+    'polls.addDay': 'Et/ou des jours, au calendrier',
+    'polls.addOtherDay': 'Un autre jour',
+    'polls.daysHour': 'À quelle heure ? (facultatif)',
     'polls.eventDays': 'Ou des jours de l’événement à mettre au vote',
     'polls.eventDaysHint': 'Seulement pour faire voter sur les jours eux-mêmes.',
     'polls.forDay': 'Le sondage porte sur quel jour ?',
@@ -3779,6 +4110,7 @@ const STRINGS = {
     'polls.answered': '{count} {count|réponse|réponses} sur {total}',
     'polls.noAnswerYet': 'Personne n’a encore répondu.',
     'polls.leading': 'En tête : {option} ({count} dispo)',
+    'polls.ahead': 'En tête',
     'polls.gauge': 'Ce qui arrange le plus',
     'sign.by': 'Proposé par {name}',
     'sign.edit': 'Signature',
@@ -3806,8 +4138,8 @@ const STRINGS = {
     'polls.answeringAs': 'Vous répondez pour {name} : seule sa colonne se coche. Touchez un autre prénom plus haut pour changer.',
     'polls.addChoice': 'Ajouter un choix',
     'polls.dropMine': 'Retirer « {choice} », ajouté par vous',
-    'polls.pickDay': '📅 Un jour (facultatif)',
-    'polls.pickHour': '🕗 Une heure (facultatif)',
+    'polls.pickDay': 'Un jour (facultatif)',
+    'polls.pickHour': 'Une heure (facultatif)',
     'polls.otherPlaceholder': 'Un lieu, une activité…',
     'polls.dayPlaceholder': 'Un lieu… ou juste un jour ↓',
     'polls.choiceDay': 'Quel jour de l’événement ?',
@@ -4062,7 +4394,18 @@ const STRINGS = {
     'notes.millebornes': 'Premier à 5000 points sur l’ensemble des manches.',
     'notes.custom': 'À vous de régler le sens du classement, la fin de partie et le total par manche.',
 
-    'lang.switch': 'English',
+    'lang.title': 'Langue · Language',
+
+    // Sentences of help that wrap over several lines: a no-break space keeps
+    // each « : » and « ? » on the line of the word before it.
+    'hint.lists': 'Une liste par occasion\u00a0: les courses, la valise, les corvées. Glissez une carte vers la gauche pour la supprimer.',
+    'hint.polls': 'Un sondage par question\u00a0: un soir, un lieu, un cadeau. Envoyez le lien\u00a0: chacun coche, sans rien installer.',
+    'hint.games': 'Notez les scores manche après manche\u00a0: l’app fait les totaux et garde vos statistiques.',
+    'hint.spends': 'Un compte par séjour ou par sortie\u00a0: chacun note ce qu’il a payé, l’app dit qui rembourse qui.',
+    'hint.ideas': 'Un tableau par projet\u00a0: un voyage, un cadeau, une déco. Des notes et des croquis, à plusieurs.',
+    'hint.agenda': 'Pas encore de date\u00a0? Un sondage la trouve\u00a0: chacun coche ses jours, et la date retenue arrive ici.',
+    'hint.spend': 'Notez chaque dépense au fil de l’eau\u00a0: l’onglet Soldes dit à tout moment qui rembourse qui.',
+    'hint.list': 'Une ligne par chose à faire ou à prendre. Le + au bout d’une ligne dit qui s’en charge.',
     'theme.toggle': 'Nuit / clair',
   },
 
@@ -4945,9 +5288,9 @@ const STRINGS = {
     'polls.question': 'The question',
     'polls.questionPlaceholder': 'Which evening for the raclette?',
     'polls.choices': 'The choices (one per line)',
-    'polls.addDay': '📅 And/or days, from the calendar',
-    'polls.addOtherDay': '📅 Another day',
-    'polls.daysHour': '🕗 At what time? (optional)',
+    'polls.addDay': 'And/or days, from the calendar',
+    'polls.addOtherDay': 'Another day',
+    'polls.daysHour': 'At what time? (optional)',
     'polls.eventDays': 'Or days of the event to vote on',
     'polls.eventDaysHint': 'Only to have people vote on the days themselves.',
     'polls.forDay': 'Which day is the poll about?',
@@ -4969,6 +5312,7 @@ const STRINGS = {
     'polls.answered': '{count} of {total} answered',
     'polls.noAnswerYet': 'Nobody has answered yet.',
     'polls.leading': 'Leading: {option} ({count} available)',
+    'polls.ahead': 'In the lead',
     'polls.gauge': 'What suits most people',
     'sign.by': 'Proposed by {name}',
     'sign.edit': 'Signature',
@@ -4996,8 +5340,8 @@ const STRINGS = {
     'polls.answeringAs': 'You are answering for {name}: only that column can be ticked. Tap another name above to change.',
     'polls.addChoice': 'Add a choice',
     'polls.dropMine': 'Remove “{choice}”, added by you',
-    'polls.pickDay': '📅 A day (optional)',
-    'polls.pickHour': '🕗 A time (optional)',
+    'polls.pickDay': 'A day (optional)',
+    'polls.pickHour': 'A time (optional)',
     'polls.otherPlaceholder': 'A place, an activity…',
     'polls.dayPlaceholder': 'A place… or just a day ↓',
     'polls.choiceDay': 'Which day of the event?',
@@ -5250,7 +5594,16 @@ const STRINGS = {
     'notes.millebornes': 'First to 5000 points across all rounds.',
     'notes.custom': 'Set the ranking direction, the end condition and the round total yourself.',
 
-    'lang.switch': 'Français',
+    'lang.title': 'Language · Langue',
+
+    'hint.lists': 'One list per occasion: the shopping, the packing, the chores. Swipe a card to the left to delete it.',
+    'hint.polls': 'One poll per question: an evening, a place, a present. Send the link: everyone ticks, nothing to install.',
+    'hint.games': 'Note the scores round after round: the app adds them up and keeps your statistics.',
+    'hint.spends': 'One account per trip or outing: everyone notes what they paid, and the app says who pays back whom.',
+    'hint.ideas': 'One board per project: a trip, a present, a room to decorate. Notes and sketches, together.',
+    'hint.agenda': 'No date yet? A poll finds one: everyone ticks their days, and the chosen date lands here.',
+    'hint.spend': 'Note each expense as you go: the Balances tab always shows who pays back whom.',
+    'hint.list': 'One line per thing to do or bring. The + at the end of a line says who’s taking it.',
     'theme.toggle': 'Night / light',
   },
 };
@@ -12375,6 +12728,19 @@ function cardWhenText(poll) {
   return t(days === count ? 'polls.daysOffered' : 'polls.choicesOffered', { count });
 }
 
+/**
+ * Who has answered, at a glance: a dot per person, filled once they have —
+ * beside the words, which say the same for whoever cannot see them. Past
+ * eight people the eight dots fill in proportion, so a big poll stays a
+ * small gauge.
+ */
+function answeredDotsHtml(answered, total) {
+  if (!total) return '';
+  const dots = Math.min(total, 8);
+  const filled = total <= 8 ? answered : Math.round((answered / total) * 8);
+  return `<span class="dots" aria-hidden="true">${Array.from({ length: dots }, (_, index) => `<i class="${index < filled ? 'dots__on' : ''}"></i>`).join('')}</span>`;
+}
+
 function pollCardHtml(poll) {
   const { answered, leaders, ranked } = tally(poll);
   const leading = ranked.find((row) => leaders.includes(row.option.id));
@@ -12384,6 +12750,7 @@ function pollCardHtml(poll) {
         ${escapeHtml(pollTitle(poll))}
         ${poll.forActivity ? `<span class="pill pill--activity">🎯 ${escapeHtml(t('activity.pollPill'))}</span>` : ''}
         <span class="pill ${poll.closedAt ? 'pill--done' : ''}">
+          ${poll.closedAt ? '' : answeredDotsHtml(answered, poll.people.length)}
           ${escapeHtml(poll.closedAt ? t('polls.closed') : t('polls.answered', { count: answered, total: poll.people.length }))}
         </span>
       </span>
@@ -12411,9 +12778,7 @@ function pollsView() {
   return `
     ${flashHtml()}
     ${kindsHtml('polls')}
-    <button type="button" class="button button--primary button--block" data-goto="#/polls/new">
-      + ${escapeHtml(t('polls.new'))}
-    </button>
+    ${newButtonHtml('#/polls/new', t('polls.new'), live.length > 0)}
     ${groupChipsHtml()}
 
     <section class="section">
@@ -12421,10 +12786,11 @@ function pollsView() {
       ${
         open.length
           ? `<div class="game-list">${open.map(swipeable(pollCardHtml, isOrganiser)).join('')}</div>`
-          : `<p class="muted small">${escapeHtml(t('polls.none'))}</p>`
+          : hintHtml('polls', t('polls.none'))
       }
       ${hiddenByGroupHtml(state.polls)}
     </section>
+    ${open.length && live.length <= 2 ? hintHtml('polls', t('hint.polls')) : ''}
 
     ${
       closed.length
@@ -12442,11 +12808,9 @@ function newPollView() {
   const suggestions = [...new Set([myName(), ...recentPeople(state.polls), ...recentPeople(state.lists), ...recentNames(state.games)].filter(Boolean))].slice(0, 12);
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/polls')}
       <h1>${escapeHtml(t('polls.new'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/polls" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     <form id="new-poll" class="card stack">
@@ -12531,7 +12895,7 @@ function gaugeHtml(poll) {
             const said = t('polls.countLine', { yes: row.yes, total });
             return `
               <li class="gauge__row ${lead ? 'gauge__row--lead' : ''}" title="${escapeHtml(`${choiceLabel(row.option)} — ${said}`)}">
-                <span class="gauge__label">${escapeHtml(choiceLabel(row.option))}</span>
+                <span class="gauge__label">${lead ? leadMark() : ''}${escapeHtml(choiceLabel(row.option))}</span>
                 <span class="gauge__track" aria-hidden="true">
                   <span class="gauge__fill" style="width: ${share}%"></span>
                 </span>
@@ -12598,7 +12962,8 @@ function pollView(poll, { solo = false } = {}) {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${solo ? '' : backButtonHtml(pollHome(poll))}
       <div>
         <h1>${escapeHtml(pollTitle(poll))}</h1>
         <p class="muted small">
@@ -12613,13 +12978,6 @@ function pollView(poll, { solo = false } = {}) {
         ${poll.date ? `<p class="event-when"><strong>${escapeHtml(whenText(poll, { long: true }))}</strong></p>` : ''}
         ${signedByHtml(poll)}
       </div>
-      ${
-        solo
-          ? ''
-          : `<button type="button" class="button button--small button--ghost" data-goto="${pollHome(poll)}" data-back>
-               ${escapeHtml(t('action.back'))}
-             </button>`
-      }
     </div>
 
     ${guest ? '' : eventLinkHtml(poll)}
@@ -12688,6 +13046,7 @@ function pollView(poll, { solo = false } = {}) {
                        </tr>` : `
                        <tr class="${leaders.includes(row.option.id) ? 'votes__leader' : ''}">
                          <th scope="row">
+                           ${leaders.includes(row.option.id) ? leadMark() : ''}
                            ${
                              guest
                                ? `${dayMark(poll, row.option)}${escapeHtml(rowLabel(poll, row.option))}${
@@ -12842,8 +13201,18 @@ function choiceLabel(option) {
   return `${words} · ${[formatDayLong(day), option.at].filter(Boolean).join(' ')}`;
 }
 
-/** 📅 before a day to vote on, inside its label so the two wrap as one. */
-const dayMark = (poll, option) => (dayOfOption(poll, option) ? '<span class="choice-day" aria-hidden="true">📅</span>' : '');
+/** The choice most can make, crowned in the grid — and named for whoever cannot see the crown. */
+const leadMark = () => `<svg class="crown" viewBox="0 0 24 24" role="img" aria-label="${escapeHtml(t('polls.ahead'))}"><path d="M4 18 3 8l5 4 4-7 4 7 5-4-1 10z"/></svg>`;
+
+/**
+ * A day and an hour, as line icons in the hand of the tab bar's: the emoji
+ * 📅 🕗 they replace came out in colour, unlike anything around them.
+ */
+const DAY_ICON = '<svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></svg>';
+const HOUR_ICON = '<svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/></svg>';
+
+/** The day icon before a day to vote on, inside its label so the two wrap as one. */
+const dayMark = (poll, option) => (dayOfOption(poll, option) ? `<span class="choice-day" aria-hidden="true">${DAY_ICON}</span>` : '');
 
 /** A choice in the grid: under its day's heading when it is done on one. */
 function rowLabel(poll, option) {
@@ -12882,11 +13251,11 @@ function addChoiceHtml(poll) {
       ${
         event
           ? `<div class="row row--tight">
-               <span class="small" id="poll-on-day">📅 ${escapeHtml(day ? t('polls.onDay', { day: formatDayLong(day) }) : t('polls.wholeEvent'))}</span>
+               <span class="small" id="poll-on-day">${DAY_ICON}${escapeHtml(day ? t('polls.onDay', { day: formatDayLong(day) }) : t('polls.wholeEvent'))}</span>
                ${isOrganiser(poll) ? `<button type="button" class="button button--small button--ghost" id="poll-change-day">${escapeHtml(t('polls.changeDay'))}</button>` : ''}
              </div>`
           : `<label class="small add-day">
-               ${escapeHtml(t('polls.pickDay'))}
+               <span>${DAY_ICON}${escapeHtml(t('polls.pickDay'))}</span>
                <input type="date" id="new-choice-day" value="${escapeHtml(day)}" />
              </label>`
       }
@@ -12894,7 +13263,7 @@ function addChoiceHtml(poll) {
         event && !day
           ? ''
           : `<label class="small add-day">
-               ${escapeHtml(t('polls.pickHour'))}
+               <span>${HOUR_ICON}${escapeHtml(t('polls.pickHour'))}</span>
                <input type="time" id="new-choice-at" value="${escapeHtml(day ? hour : '')}" ${day ? '' : 'disabled'} />
              </label>`
       }
@@ -13313,11 +13682,11 @@ function newPollDaysHtml() {
       }
       <div class="row row--tight">
         <label class="small add-day">
-          ${escapeHtml(t(eventDaysOf.length ? 'polls.addOtherDay' : 'polls.addDay'))}
+          <span>${DAY_ICON}${escapeHtml(t(eventDaysOf.length ? 'polls.addOtherDay' : 'polls.addDay'))}</span>
           <input type="date" id="poll-add-day" />
         </label>
         <label class="small add-day" id="poll-add-at-label" ${picked.length ? '' : 'hidden'}>
-          ${escapeHtml(t('polls.daysHour'))}
+          <span>${HOUR_ICON}${escapeHtml(t('polls.daysHour'))}</span>
           <input type="time" id="poll-add-at" value="${escapeHtml(state.newPollAt || '')}" />
         </label>
       </div>
@@ -13549,6 +13918,7 @@ function bindPoll(poll) {
       if (answeringAs !== personId) return;
       const next = setVote(poll, personId, optionId, nextValue(voteOf(poll, personId, optionId)));
       if (next === poll) return;
+      markTouched(`[data-vote="${CSS.escape(button.dataset.vote)}"]`);
       replacePoll(next);
     });
   });
@@ -13872,12 +14242,12 @@ function openChoiceDialog(poll, optionId) {
           ? `<span class="small">${escapeHtml(t('polls.choiceDay'))}</span>
              ${dayChipsHtml(event, day, { attr: 'data-choice-day', noneLabel: t('polls.anyDay') })}`
           : `<label class="small add-day">
-               ${escapeHtml(t('polls.pickDay'))}
+               <span>${DAY_ICON}${escapeHtml(t('polls.pickDay'))}</span>
                <input type="date" id="choice-day" value="${escapeHtml(day)}" />
              </label>`
       }
       <label class="small add-day">
-        ${escapeHtml(t('polls.pickHour'))}
+        <span>${HOUR_ICON}${escapeHtml(t('polls.pickHour'))}</span>
         <input type="time" id="choice-at" value="${escapeHtml(when?.at || '')}" />
       </label>
       <div class="row">
@@ -14183,7 +14553,6 @@ function personName(list, who) {
 
 function listCardHtml(list) {
   const { done, total } = progress(list);
-  const people = list.people.map((person) => person.name).join(' · ');
   const late = list.items.filter((item) => isLate(item)).length;
   return `
     <button type="button" class="game-card" data-goto="#/list/${escapeHtml(list.id)}">
@@ -14193,7 +14562,7 @@ function listCardHtml(list) {
           ${escapeHtml(total ? t('lists.progress', { done, total }) : t('lists.empty'))}
         </span>
       </span>
-      ${people ? `<span class="game-card__meta">${escapeHtml(people)}</span>` : ''}
+      ${peopleHtml(list.people.map((person) => person.name))}
       <span class="game-card__meta">
         ${escapeHtml(formatDate(list.updatedAt))}${
           late ? ` — <span class="late">${escapeHtml(t('lists.late', { count: late }))}</span>` : ''
@@ -14213,9 +14582,7 @@ function listsView() {
   return `
     ${flashHtml()}
     ${kindsHtml('lists')}
-    <button type="button" class="button button--primary button--block" data-goto="#/lists/new">
-      + ${escapeHtml(t('lists.new'))}
-    </button>
+    ${newButtonHtml('#/lists/new', t('lists.new'), live.length > 0)}
     ${groupChipsHtml()}
 
     <section class="section">
@@ -14223,10 +14590,11 @@ function listsView() {
       ${
         open.length
           ? `<div class="game-list">${open.map(swipeable(listCardHtml)).join('')}</div>`
-          : `<p class="muted small">${escapeHtml(t('lists.none'))}</p>`
+          : hintHtml('lists', t('lists.none'))
       }
       ${hiddenByGroupHtml(state.lists)}
     </section>
+    ${open.length && live.length <= 2 ? hintHtml('lists', t('hint.lists')) : ''}
 
     ${
       finished.length
@@ -14274,11 +14642,9 @@ function newListView() {
   ].filter(Boolean))].slice(0, 12);
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/lists')}
       <h1>${escapeHtml(t('lists.new'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/lists" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     ${
@@ -14380,9 +14746,16 @@ function listItemHtml(list, item) {
             : ''
         }
       </button>
-      <button type="button" class="line__who ${who ? '' : 'line__who--nobody'}" data-assign="${escapeHtml(item.id)}">
-        ${escapeHtml(who || t('lists.nobody'))}
-      </button>`,
+      ${
+        // Who takes it, once someone does. Until then a small « + » — the
+        // same « À prendre » on every line said nothing and filled the list.
+        who
+          ? `<button type="button" class="line__who" data-assign="${escapeHtml(item.id)}">${escapeHtml(who)}</button>`
+          : `<button type="button" class="line__who line__who--nobody" data-assign="${escapeHtml(item.id)}"
+                     aria-label="${escapeHtml(t('lists.nobody'))}" title="${escapeHtml(t('lists.assignTitle'))}">
+               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg>
+             </button>`
+      }`,
     { kind: 'item', tag: 'li', bodyClass: `line ${item.done ? 'line--done' : ''}` });
 }
 
@@ -14401,7 +14774,8 @@ function listView(list) {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/lists')}
       <div>
         <h1>${escapeHtml(listTitle(list))}</h1>
         <p class="muted small">
@@ -14410,9 +14784,6 @@ function listView(list) {
         </p>
         ${signedByHtml(list)}
       </div>
-      <button type="button" class="button button--small button--ghost" data-goto="#/lists" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     ${eventLinkHtml(list)}
@@ -14446,6 +14817,7 @@ function listView(list) {
         ? linesHtml(list, shown)
         : `<p class="muted small">${escapeHtml(list.items.length ? t('lists.nothingHere') : t('lists.addFirst'))}</p>`
     }
+    ${list.items.length <= 2 ? hintHtml('lists', t('hint.list')) : ''}
 
     ${listFlowsHtml(list)}
 
@@ -14633,7 +15005,10 @@ function bindList(list) {
   });
 
   view.querySelectorAll('[data-tick]').forEach((box) => {
-    box.addEventListener('change', () => replaceList(toggleItem(list, box.dataset.tick)));
+    box.addEventListener('change', () => {
+      markTouched(`[data-tick="${CSS.escape(box.dataset.tick)}"]`);
+      replaceList(toggleItem(list, box.dataset.tick));
+    });
   });
 
   view.querySelectorAll('[data-assign]').forEach((button) => {
@@ -15063,7 +15438,7 @@ function spendCardHtml(spend) {
         ${escapeHtml(spendTitle(spend))}
         <span class="pill">${escapeHtml(money(spendTotal(spend), spend))}</span>
       </span>
-      <span class="game-card__meta">${escapeHtml(spend.people.map((person) => person.name).join(' · '))}</span>
+      ${peopleHtml(spend.people.map((person) => person.name))}
       <span class="game-card__meta">
         ${escapeHtml(formatDate(spend.updatedAt))} — <span class="${mine && mine.balance < 0 ? 'late' : ''}">${escapeHtml(line)}</span>
       </span>
@@ -15096,9 +15471,7 @@ function agendaView() {
 
   return `
     ${flashHtml()}
-    <button type="button" class="button button--primary button--block" data-goto="#/agenda/new">
-      + ${escapeHtml(t('events.new'))}
-    </button>
+    ${newButtonHtml('#/agenda/new', t('events.new'), Boolean(dated.length || deciding.length))}
     ${groupChipsHtml()}
 
     ${
@@ -15115,10 +15488,11 @@ function agendaView() {
       ${
         coming.length
           ? `<div class="game-list">${coming.map(swipeable(eventCardHtml, isOrganiser)).join('')}</div>`
-          : `<p class="muted small">${escapeHtml(t('events.none'))}</p>`
+          : hintHtml('agenda', t('events.none'))
       }
       ${hiddenByGroupHtml(state.polls.filter((poll) => poll.date))}
     </section>
+    ${coming.length && coming.length + deciding.length <= 2 ? hintHtml('agenda', t('hint.agenda')) : ''}
 
     ${
       past.length
@@ -15143,9 +15517,7 @@ function spendsView() {
   return `
     ${flashHtml()}
     ${kindsHtml('spends')}
-    <button type="button" class="button button--primary button--block" data-goto="#/spends/new">
-      + ${escapeHtml(t('spends.new'))}
-    </button>
+    ${newButtonHtml('#/spends/new', t('spends.new'), live.length > 0)}
     ${groupChipsHtml()}
 
     <section class="section">
@@ -15153,10 +15525,11 @@ function spendsView() {
       ${
         open.length
           ? `<div class="game-list">${open.map(swipeable(spendCardHtml)).join('')}</div>`
-          : `<p class="muted small">${escapeHtml(t('spends.none'))}</p>`
+          : hintHtml('spends', t('spends.none'))
       }
       ${hiddenByGroupHtml(state.spends)}
     </section>
+    ${open.length && live.length <= 2 ? hintHtml('spends', t('hint.spends')) : ''}
 
     ${
       done.length
@@ -15187,7 +15560,6 @@ function eventCardHtml(poll) {
   if (polls.length) parts.push(t('count.polls', { count: polls.length }));
   if (boards.length) parts.push(t('count.boards', { count: boards.length }));
   if (games.length) parts.push(t('count.games', { count: games.length }));
-  const people = poll.people.map((person) => person.name).join(' · ');
   // What is on the programme, first things first: a card says what is coming.
   const programme = activities.slice(0, 3).map((one) => [one.date ? whenText(one) : '', eventName(one) || pollTitle(one)].filter(Boolean).join(' '));
   if (activities.length > 3) programme.push('…');
@@ -15197,7 +15569,7 @@ function eventCardHtml(poll) {
         ${escapeHtml(eventName(poll) || pollTitle(poll))}
         <span class="pill">${escapeHtml(when)}</span>
       </span>
-      ${people ? `<span class="game-card__meta">${escapeHtml(people)}</span>` : ''}
+      ${peopleHtml(poll.people.map((person) => person.name))}
       ${parts.length ? `<span class="game-card__meta">${escapeHtml(parts.join(' · '))}</span>` : ''}
       ${programme.length ? `<span class="game-card__meta">${escapeHtml(t('activity.onProgramme', { items: programme.join(' · ') }))}</span>` : ''}
     </button>`;
@@ -15211,11 +15583,9 @@ function newEventView() {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/agenda')}
       <h1>${escapeHtml(t('events.new'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/agenda" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     <form id="new-event" class="card stack">
@@ -15349,11 +15719,9 @@ function newSpendView() {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/spends')}
       <h1>${escapeHtml(t('spends.new'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/spends" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     <form id="new-spend" class="card stack">
@@ -15450,7 +15818,7 @@ function spendLineHtml(spend, line) {
           <span class="line__due">${escapeHtml(t('spends.repayment'))}${line.day ? ` · ${escapeHtml(formatDay(line.day))}` : ''}</span>
         </button>
         <span class="line__amount">${escapeHtml(money(line.amount, spend))}</span>`,
-      { kind: 'line', tag: 'li', bodyClass: 'line line--repay' });
+      { kind: 'line', tag: 'li', bodyClass: 'line line--money line--repay' });
   }
   const forWhom = line.forWhom.length
     ? spend.people.filter((person) => line.forWhom.includes(person.id)).map((person) => person.name).join(', ')
@@ -15464,7 +15832,7 @@ function spendLineHtml(spend, line) {
         </span>
       </button>
       <span class="line__amount">${escapeHtml(money(line.amount, spend))}</span>`,
-    { kind: 'line', tag: 'li', bodyClass: 'line' });
+    { kind: 'line', tag: 'li', bodyClass: 'line line--money' });
 }
 
 function spendView(spend) {
@@ -15564,7 +15932,8 @@ function spendView(spend) {
             .map((line) => spendLineHtml(spend, line))
             .join('')}</ul>`
         : `<p class="muted small">${escapeHtml(t('spends.addFirst'))}</p>`
-    }`;
+    }
+    ${spend.people.length && spend.lines.length <= 2 ? hintHtml('spends', t('hint.spend')) : ''}`;
 
   const balancesTab = !spend.lines.length
     ? `<p class="muted small">${escapeHtml(t('spends.balancesEmpty'))}</p>`
@@ -15630,7 +15999,8 @@ function spendView(spend) {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/spends')}
       <div>
         <h1>${escapeHtml(spendTitle(spend))}</h1>
         <p class="muted small">
@@ -15638,9 +16008,6 @@ function spendView(spend) {
           ${spend.shared ? ` · ${escapeHtml(t('lists.sharedMark'))}` : ''}
         </p>
       </div>
-      <button type="button" class="button button--small button--ghost" data-goto="#/spends" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     ${eventLinkHtml(spend)}
@@ -16098,9 +16465,7 @@ function ideasView() {
   return `
     ${flashHtml()}
     ${kindsHtml('ideas')}
-    <button type="button" class="button button--primary button--block" data-goto="#/ideas/new">
-      + ${escapeHtml(t('ideas.new'))}
-    </button>
+    ${newButtonHtml('#/ideas/new', t('ideas.new'), live.length > 0)}
     ${groupChipsHtml()}
 
     <section class="section">
@@ -16109,10 +16474,11 @@ function ideasView() {
         live.length
           ? `<div class="game-list">${live.map(swipeable(boardCardHtml)).join('')}</div>
              <p class="muted small">${escapeHtml(t('ideas.swipeHint'))}</p>`
-          : `<p class="muted small">${escapeHtml(t('ideas.none'))}</p>`
+          : hintHtml('ideas', t('ideas.none'))
       }
       ${hiddenByGroupHtml(state.boards)}
     </section>
+    ${live.length && live.length <= 2 ? hintHtml('ideas', t('hint.ideas')) : ''}
 
     ${archivedHtml(sorted, swipeable(boardCardHtml))}`;
 }
@@ -16120,11 +16486,9 @@ function ideasView() {
 function newBoardView() {
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/ideas')}
       <h1>${escapeHtml(t('ideas.new'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/ideas" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     <form id="new-board" class="card stack">
@@ -16200,7 +16564,8 @@ function boardView(board) {
   const cards = cardsInOrder(board);
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/ideas')}
       <div>
         <h1>${escapeHtml(boardTitle(board))}</h1>
         <p class="muted small">
@@ -16208,9 +16573,6 @@ function boardView(board) {
           ${board.shared ? ` · ${escapeHtml(t('lists.sharedMark'))}` : ''}
         </p>
       </div>
-      <button type="button" class="button button--small button--ghost" data-goto="#/ideas" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     ${eventLinkHtml(board)}
@@ -16756,9 +17118,9 @@ function newGameView() {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/games')}
       <h1>${escapeHtml(t('new.title'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/games" data-back>${escapeHtml(t('action.back'))}</button>
     </div>
 
     <form id="new-game" class="card stack">
@@ -16985,12 +17347,12 @@ function gameView(game) {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/games')}
       <div>
         <h1>${escapeHtml(gameTitle(game))}</h1>
         <p class="muted small">${escapeHtml(preset ? presetLabel(preset) : '')} · ${escapeHtml(t('home.rounds', { count: game.rounds.length }))}</p>
       </div>
-      <button type="button" class="button button--small button--ghost" data-goto="#/games" data-back>${escapeHtml(t('action.back'))}</button>
     </div>
 
     ${eventLinkHtml(game)}
@@ -21272,9 +21634,9 @@ function privacyView() {
   const contact = String(CONTACT || '').trim();
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/settings')}
       <h1>${escapeHtml(t('privacy.title'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/settings" data-back>${escapeHtml(t('action.back'))}</button>
     </div>
     <p class="lead">${escapeHtml(t('privacy.intro'))}</p>
     ${block('privacy.deviceTitle', 'privacy.device')}
@@ -21609,6 +21971,14 @@ function holoRgba(hex, alpha) {
   return `rgba(${(value >> 16) & 255},${(value >> 8) & 255},${value & 255},${alpha})`;
 }
 
+/** Two colours `#rrggbb` mixed, `amount` of the second: the canvas has no color-mix(). */
+function holoMix(hex, other, amount) {
+  const a = parseInt(hex.slice(1), 16);
+  const b = parseInt(other.slice(1), 16);
+  const channel = (shift) => Math.round(((a >> shift) & 255) * (1 - amount) + ((b >> shift) & 255) * amount);
+  return `#${[16, 8, 0].map((shift) => channel(shift).toString(16).padStart(2, '0')).join('')}`;
+}
+
 /**
  * A glow and a core for each colour, drawn once: stamping a small picture is
  * far cheaper, sixty times a second, than painting a gradient. Drawn again
@@ -21693,9 +22063,21 @@ function bindHolo() {
   const reduced = holoReduced();
   if (holoState.still === null) holoState.still = reduced;
   let picked = nodes.get(holoState.picked) || null;
-  // The stars and the table take the light of the chosen style or colour.
-  const hue = getComputedStyle(document.documentElement).getPropertyValue('--holo-hue').trim();
-  const colours = { ...HOLO_COLOURS, group: /^#[0-9a-f]{6}$/i.test(hue) ? hue : HOLO_COLOURS.group };
+  // The stars and the table take the light of the chosen style or colour,
+  // and the night is the style's own (styles.css, `--holo-ground`): the
+  // classic style's view is a warm night, not the hologram's blue one. The
+  // far stars, the names and the quiet star of what is in no group are
+  // touched by the same light.
+  const root = getComputedStyle(document.documentElement);
+  const token = (name, fallback) => {
+    const value = root.getPropertyValue(name).trim();
+    return /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+  };
+  const hue = token('--holo-hue', HOLO_COLOURS.group);
+  const deep = token('--holo-deep', '#03060d');
+  const colours = { ...HOLO_COLOURS, group: hue, outside: holoMix(HOLO_COLOURS.outside, hue, 0.25) };
+  const starlight = holoMix('#ffffff', hue, 0.2);
+  const ink = holoMix('#ffffff', hue, 0.15);
   const light = (alpha) => holoRgba(colours.group, alpha);
   const sprites = holoSprites(colours);
   const stars = holoStars();
@@ -21735,7 +22117,7 @@ function bindHolo() {
     const box = { left, top: top ?? y - high, wide, high };
     taken.push(box);
     context.globalAlpha = alpha * 0.82;
-    context.fillStyle = 'rgba(4,12,26,0.78)';
+    context.fillStyle = holoRgba(deep, 0.78);
     context.fillRect(left, box.top, wide, high);
     if (border) {
       context.globalAlpha = alpha * 0.7;
@@ -21778,7 +22160,7 @@ function bindHolo() {
 
     // Far stars: turned with the sky but never nearer, like a sky dome.
     context.globalCompositeOperation = 'lighter';
-    context.fillStyle = '#cfe9ff';
+    context.fillStyle = starlight;
     const focal = Math.max(width, height) * 0.55;
     for (const star of stars) {
       const seen = holoTurn(star, camera);
@@ -21992,7 +22374,7 @@ function bindHolo() {
         const x = one.x + one.radius + 14;
         const y = one.y - one.radius - 8;
         const box = tag(words, x, y, {
-          colour: '#d8fbff', border: holoRgba(colours[node.type], 0.6), size: 10, width, alpha: dim, must: true,
+          colour: ink, border: holoRgba(colours[node.type], 0.6), size: 10, width, alpha: dim, must: true,
         });
         context.globalAlpha = 0.6 * dim;
         context.strokeStyle = holoRgba(colours[node.type], 0.8);
@@ -22290,7 +22672,8 @@ function bindHolo() {
 /**
  * How the app looks, chosen in Réglages → Apparence: a style (the hologram,
  * the first warm look, a calm grey one, the sky, or the seasons), a colour,
- * a background, and night or light.
+ * a background, and night or light. And the language it speaks, chosen just
+ * above (Réglages → Langue).
  *
  * Kept on this device with the other preferences, and written as attributes
  * on the root element that styles.css reads — `data-look`, `data-accent`,
@@ -22388,6 +22771,27 @@ function refreshSky() {
   return turned;
 }
 
+/**
+ * Each language by its own name, whatever the app speaks: someone who does
+ * not read the one on screen still finds theirs. Chosen here, once — a button
+ * for it at the top of every page took the room of what is used every day.
+ */
+const LANGUAGE_NAMES = { fr: 'Français', en: 'English' };
+
+/** Réglages → Langue, titled in both languages for the same reason. */
+function languageHtml() {
+  const on = getLanguage();
+  return `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('lang.title'))}</h2></div>
+      <div class="row row--chips" role="group" aria-label="${escapeHtml(t('lang.title'))}">
+        ${Object.entries(LANGUAGE_NAMES).map(([value, name]) => `
+          <button type="button" class="chip ${on === value ? 'chip--on' : ''}" data-pick-lang="${value}" lang="${value}"
+                  aria-pressed="${on === value ? 'true' : 'false'}">${escapeHtml(name)}</button>`).join('')}
+      </div>
+    </section>`;
+}
+
 /** Réglages → Apparence. */
 function lookHtml() {
   const look = chosenLook();
@@ -22476,6 +22880,11 @@ function bindLook(view) {
   });
   view.querySelectorAll('[data-pick-theme]').forEach((button) => {
     button.addEventListener('click', () => pickLook({ theme: button.dataset.pickTheme }));
+  });
+  view.querySelectorAll('[data-pick-lang]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (button.dataset.pickLang !== getLanguage()) switchLanguage(button.dataset.pickLang);
+    });
   });
 }
 
@@ -22595,7 +23004,7 @@ function eventsHtml() {
           : ''
       }
       <div class="row">
-        <button type="button" class="button button--small" data-goto="#/agenda/new">+ ${escapeHtml(t('events.new'))}</button>
+        <button type="button" class="button button--small button--new" data-goto="#/agenda/new">+ ${escapeHtml(t('events.new'))}</button>
       </div>
     </section>`;
 }
@@ -23074,11 +23483,9 @@ function groupView(group) {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/groups')}
       <h1>${escapeHtml(group.name)}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/groups" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
     <p class="muted small">
       ${escapeHtml(t('dash.peopleCount', { count: counts.people }))} · ${escapeHtml(countsText(counts))}
@@ -23450,6 +23857,7 @@ function settingsView() {
   return `
     ${flashHtml()}
     ${meHtml()}
+    ${languageHtml()}
     ${lookHtml()}
     ${accountHtml()}
     ${notifyHtml()}
@@ -23977,11 +24385,9 @@ function bindOverview() {
 function backView(token) {
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
       <h1>${escapeHtml(t('back.title'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     ${inAppWarningHtml()}
@@ -24113,11 +24519,9 @@ function joinView(invitation) {
   const already = invitation.group ? groupNamed(invitation.group) : null;
   const head = `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
       <h1>${escapeHtml(invitation.group ? t('join.title', { name: invitation.group }) : t('join.titlePlain'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     ${inAppWarningHtml()}`;
@@ -24207,11 +24611,9 @@ function toHomeScreenHtml(invitation) {
 function waitingView(knock) {
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
       <h1>${escapeHtml(t('gate.waitingTitle', { name: knock.groupName }))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     <div class="card stack">
@@ -24566,11 +24968,9 @@ async function renameEverywhere(before) {
 function personView(who) {
   const file = personFile(state, who);
   const head = (title, tail) => `
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
       ${title}
-      <button type="button" class="button button--small button--ghost" data-goto="#/" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
     ${tail}`;
 
@@ -24715,9 +25115,9 @@ function statsView() {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/games')}
       <h1>${escapeHtml(t('stats.title'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/games" data-back>${escapeHtml(t('action.back'))}</button>
     </div>
     ${groupChipsHtml()}
 
@@ -25133,6 +25533,9 @@ const state = {
   // The screens walked through to get here, oldest first, without loops: what
   // "Back" returns to. See followTrail().
   trail: [],
+  // The control just touched, as a selector, to be found again in the redraw
+  // its touch causes: see markTouched().
+  touched: null,
   // The new-list form's draft, kept across re-renders like the new-game one:
   // adding a person must not throw away the lines already typed.
   newListName: '',
@@ -25533,6 +25936,97 @@ function flashHtml() {
 }
 
 /**
+ * « + New … » at the head of a tab. The "+" in the bar below makes anything
+ * from anywhere, so on a tab that already holds something this one steps
+ * back — small and soft — and it is lit, full width, only on an empty tab,
+ * where it is the one thing to do.
+ */
+function newButtonHtml(target, label, quiet) {
+  return `<button type="button" class="button ${quiet ? 'button--small button--new' : 'button--primary button--block'}" data-goto="${escapeHtml(target)}">
+      + ${escapeHtml(label)}
+    </button>`;
+}
+
+/** The colours a person's initial may take: the eight one may choose, in their night shades. */
+const FACE_COLOURS = ['red', 'orange', 'amber', 'green', 'cyan', 'blue', 'violet', 'pink'];
+
+/**
+ * A person's colour, from their name: Alice is the same colour on every card
+ * and every device, without anything to store or to agree on.
+ */
+function faceColour(name) {
+  let hash = 0;
+  for (const char of name.trim().toLowerCase()) hash = (hash * 31 + char.codePointAt(0)) % 1000003;
+  return FACE_COLOURS[hash % FACE_COLOURS.length];
+}
+
+/**
+ * The people on a card: their initials in colour, a few overlapping, then
+ * their names — a card reads as who it is with before it is read at all.
+ * The initials are drawn by the style (data-initial), so the card's words
+ * stay the names and nothing else.
+ */
+function peopleHtml(names) {
+  const named = names.map((name) => String(name || '').trim()).filter(Boolean);
+  if (!named.length) return '';
+  const shown = named.slice(0, 4);
+  const faces = shown
+    .map((name) => `<i class="face" style="--face: var(--night-${faceColour(name)})" data-initial="${escapeHtml(Array.from(name)[0].toUpperCase())}"></i>`)
+    .join('');
+  const more = named.length > shown.length ? `<i class="face face--more" data-initial="+${named.length - shown.length}"></i>` : '';
+  return `
+    <span class="game-card__meta people">
+      <span class="faces" aria-hidden="true">${faces}${more}</span>
+      <span>${escapeHtml(named.join(' · '))}</span>
+    </span>`;
+}
+
+/**
+ * Light drawings for the words of help, one per kind of thing, in the same
+ * hand as the tab bar's icons: lines of the colour, nothing filled but the
+ * pips of a die.
+ */
+const HINT_ART = {
+  lists: '<rect x="14" y="10" width="36" height="46" rx="6"/><path d="M21 23l3 3 6-6M21 35l3 3 6-6M34 24h9M34 36h9M21 47h22"/>',
+  polls: '<rect x="10" y="14" width="44" height="40" rx="6"/><path d="M10 25h44M22 9v9M42 9v9M24 39l6 6 11-12"/>',
+  games: '<g transform="rotate(-8 32 32)"><rect x="14" y="14" width="36" height="36" rx="8"/>'
+    + '<g class="hint__fill"><circle cx="24" cy="24" r="2.6"/><circle cx="40" cy="24" r="2.6"/><circle cx="32" cy="32" r="2.6"/>'
+    + '<circle cx="24" cy="40" r="2.6"/><circle cx="40" cy="40" r="2.6"/></g></g>',
+  spends: '<path d="M18 8h28v48l-4.7-3.5-4.6 3.5-4.7-3.5-4.7 3.5-4.6-3.5L18 56z"/><path d="M25 20h14M25 29h14M25 38h8"/>',
+  ideas: '<path d="M24 40c-4-3.2-7-7.6-7-13a15 15 0 0 1 30 0c0 5.4-3 9.8-7 13v5H24z"/>'
+    + '<path d="M25 51h14M28 56h8M32 4v3M9 27H6M58 27h-3M15 11l2 2M49 11l-2 2"/>',
+  agenda: '<rect x="10" y="14" width="44" height="40" rx="6"/><path d="M10 25h44M22 9v9M42 9v9"/>'
+    + '<path d="M32 31l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/>',
+};
+
+/**
+ * A word of help where a page would otherwise be a dark field: an empty tab,
+ * a tab with only one or two things on it, an account with a first expense.
+ * What the page is for, or what to do next, beside a light drawing; the call
+ * sites drop it once the page has enough on it to say so by itself.
+ */
+function hintHtml(art, text) {
+  return `
+    <div class="hint">
+      <svg class="hint__art" viewBox="0 0 64 64" aria-hidden="true">${HINT_ART[art] || HINT_ART.lists}</svg>
+      <p class="hint__text">${escapeHtml(text)}</p>
+    </div>`;
+}
+
+/**
+ * The way back, before a page's title: an arrow where phones put it, as big
+ * as a finger, named « Retour » for whoever cannot see it. It goes back to the
+ * screen one came from (data-back, see backTarget()), or to `target` when
+ * there is none — a link just opened.
+ */
+function backButtonHtml(target) {
+  const label = escapeHtml(t('action.back'));
+  return `<button type="button" class="back-button" data-goto="${escapeHtml(target)}" data-back aria-label="${label}" title="${label}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+  </button>`;
+}
+
+/**
  * The group pastilles, shown above the lists, the polls and the games.
  *
  * From two groups on: with one, there is nothing to choose between, and a row
@@ -25598,7 +26092,7 @@ function gameCardHtml(game) {
           ${status.finished ? escapeHtml(t('game.finished')) : escapeHtml(t('home.rounds', { count: game.rounds.length }))}
         </span>
       </span>
-      <span class="game-card__meta">${escapeHtml(game.players.map((p) => p.name).join(' · '))}</span>
+      ${peopleHtml(game.players.map((p) => p.name))}
       <span class="game-card__meta">${escapeHtml(formatDate(game.updatedAt))}${line ? ` — ${escapeHtml(line)}` : ''}</span>
       ${eventTagHtml(game)}
     </button>`;
@@ -25723,9 +26217,7 @@ function homeView() {
   return `
     ${flashHtml()}
     ${kindsHtml('games')}
-    <button type="button" class="button button--primary button--block" data-goto="#/new">
-      + ${escapeHtml(t('action.newGame'))}
-    </button>
+    ${newButtonHtml('#/new', t('action.newGame'), mine.some(isLive))}
     ${groupChipsHtml()}
     ${
       mine.length
@@ -25747,10 +26239,11 @@ function homeView() {
       ${
         ongoing.length
           ? `<div class="game-list">${ongoing.map(swipeable(gameCardHtml)).join('')}</div>`
-          : `<p class="muted small">${escapeHtml(t('home.empty'))}</p>`
+          : hintHtml('games', t('home.empty'))
       }
       ${hiddenByGroupHtml(state.games)}
     </section>
+    ${ongoing.length && live.length <= 2 ? hintHtml('games', t('hint.games')) : ''}
 
     ${
       finished.length
@@ -25810,15 +26303,15 @@ function bindChrome() {
       failed ? 'error' : 'info');
     render();
   });
+}
 
-  document.getElementById('lang-toggle').addEventListener('click', () => {
-    const next = getLanguage() === 'fr' ? 'en' : 'fr';
-    setLanguage(next);
-    state.prefs = { ...state.prefs, lang: next };
-    savePrefs(state.prefs);
-    applyStaticText();
-    render();
-  });
+/** Speak `lang` from now on, on this device: chosen in Réglages (view-look.js). */
+function switchLanguage(lang) {
+  setLanguage(lang);
+  state.prefs = { ...state.prefs, lang: getLanguage() };
+  savePrefs(state.prefs);
+  applyStaticText();
+  render();
 }
 
 /* ----------------------------------------------------------------- render --- */
@@ -26244,6 +26737,60 @@ function render() {
   });
 
   restoreScrolls(kept);
+  fadeKinds();
+  showTouched();
+  arrive();
+}
+
+/**
+ * The kinds on Home fit a phone's width; with a larger text they may not, and
+ * the row scrolls. A fade on the side that hides more says there is more, and
+ * the kind on show is brought into view rather than left behind the edge.
+ */
+function fadeKinds() {
+  view.querySelectorAll('.segmented--kinds').forEach((row) => {
+    const mark = () => {
+      const more = row.scrollWidth - row.clientWidth;
+      row.classList.toggle('fade-start', more > 1 && row.scrollLeft > 1);
+      row.classList.toggle('fade-end', more > 1 && row.scrollLeft < more - 1);
+    };
+    const on = row.querySelector('[aria-current="true"]');
+    if (on && row.scrollWidth > row.clientWidth) {
+      const left = on.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft;
+      row.scrollLeft = Math.max(0, left - (row.clientWidth - on.offsetWidth) / 2);
+    }
+    mark();
+    row.addEventListener('scroll', mark, { passive: true });
+  });
+}
+
+/**
+ * Name the control just touched — a box ticked, a vote cast — so that the
+ * redraw this touch causes can show it answering: the tick pops in, the vote
+ * pulses (styles.css, `.touched`). Only that one, and only once: every box
+ * replaying its tick on each redraw would be noise.
+ */
+function markTouched(selector) {
+  state.touched = selector;
+}
+
+function showTouched() {
+  if (!state.touched) return;
+  view.querySelector(state.touched)?.classList.add('touched');
+  state.touched = null;
+}
+
+/**
+ * A new screen comes in gently, its parts one after the other (styles.css,
+ * `.view--arrive`); a screen redrawn in place — a vote, a refresh from the
+ * others — does not, or every change would make the page twitch. The style
+ * says nothing moves when the phone asks for less movement.
+ */
+let shownHash = null;
+function arrive() {
+  const here = hereHash();
+  view.classList.toggle('view--arrive', here !== shownHash);
+  shownHash = here;
 }
 
 /**

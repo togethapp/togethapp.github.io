@@ -8,6 +8,7 @@
 import {
   appVersion, countsText, escapeHtml, everything, flash, flashHtml, forEventText, formatDate, gameCardHtml,
   gameTitle, groupChipsHtml, isBusy, kindsHtml, navigate, render, route, state, view, whenText,
+  backButtonHtml,
 } from './app.js';
 import { dayNow, groupCounts, inGroup, isLive, peopleIn, personFile, topEventOf, upcomingEvents } from './dashboard.js';
 import { getLanguage, t } from './i18n.js';
@@ -36,7 +37,7 @@ import { installReminderHtml } from './view-install.js';
 import { askInvitationShape, groupNamed, showCalendar, showMyLink, showsGate } from './view-join.js';
 import { notifyHtml } from './view-notify.js';
 import { listCardHtml, listTitle } from './view-lists.js';
-import { lookHtml } from './view-look.js';
+import { languageHtml, lookHtml } from './view-look.js';
 import { getPoll, heldCounts, pollCardHtml, pollTitle } from './view-polls.js';
 import { eventCardHtml, money, myBalance, spendCardHtml, spendTitle } from './view-spends.js';
 
@@ -124,7 +125,7 @@ function eventsHtml() {
           : ''
       }
       <div class="row">
-        <button type="button" class="button button--small" data-goto="#/agenda/new">+ ${escapeHtml(t('events.new'))}</button>
+        <button type="button" class="button button--small button--new" data-goto="#/agenda/new">+ ${escapeHtml(t('events.new'))}</button>
       </div>
     </section>`;
 }
@@ -603,11 +604,9 @@ export function groupView(group) {
 
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/groups')}
       <h1>${escapeHtml(group.name)}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/groups" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
     <p class="muted small">
       ${escapeHtml(t('dash.peopleCount', { count: counts.people }))} · ${escapeHtml(countsText(counts))}
@@ -979,6 +978,7 @@ export function settingsView() {
   return `
     ${flashHtml()}
     ${meHtml()}
+    ${languageHtml()}
     ${lookHtml()}
     ${accountHtml()}
     ${notifyHtml()}

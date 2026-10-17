@@ -231,8 +231,8 @@ await page.waitForSelector('[data-pick-theme]');
 await page.click('[data-pick-theme="dark"]');
 await settle();
 
-// En anglais, les mêmes choix.
-await page.click('#lang-toggle');
+// En anglais, les mêmes choix — la langue se choisit juste au-dessus.
+await page.click('[data-pick-lang="en"]');
 await settle();
 check('en anglais', /Appearance/.test(await page.locator('#view').textContent()) && /Hologram/.test(await page.locator('#view').textContent())
   && /Astronomy/.test(await page.locator('#view').textContent()) && /Background/.test(await page.locator('#view').textContent()));

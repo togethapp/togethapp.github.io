@@ -22,6 +22,8 @@ async function device(label, prefs) {
 const choices = (page) => page.locator('.votes tbody th').evaluateAll((cells) => cells.map((th) => {
   const copy = th.cloneNode(true);
   copy.querySelectorAll('.choice-drop').forEach((button) => button.remove());
+  // Le jour d'un choix est marqué d'une petite icône de calendrier : lue ici comme 📅.
+  copy.querySelectorAll('.choice-day').forEach((mark) => mark.replaceWith('📅'));
   return copy.textContent.replace(/\s+/g, ' ').trim();
 }));
 

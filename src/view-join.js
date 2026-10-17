@@ -8,6 +8,7 @@
 import {
   escapeHtml, flash, flashHtml, isBusy, isHidden, liveCoversGroups, navigate, render, route, state, stopWatching,
   view,
+  backButtonHtml,
 } from './app.js';
 import { t } from './i18n.js';
 import { readCode } from './lock.js';
@@ -32,11 +33,9 @@ import { installFirstHtml, installOfferHtml, phoneToInstall } from './view-insta
 export function backView(token) {
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
       <h1>${escapeHtml(t('back.title'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     ${inAppWarningHtml()}
@@ -168,11 +167,9 @@ export function joinView(invitation) {
   const already = invitation.group ? groupNamed(invitation.group) : null;
   const head = `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
       <h1>${escapeHtml(invitation.group ? t('join.title', { name: invitation.group }) : t('join.titlePlain'))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     ${inAppWarningHtml()}`;
@@ -262,11 +259,9 @@ function toHomeScreenHtml(invitation) {
 function waitingView(knock) {
   return `
     ${flashHtml()}
-    <div class="spread">
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
       <h1>${escapeHtml(t('gate.waitingTitle', { name: knock.groupName }))}</h1>
-      <button type="button" class="button button--small button--ghost" data-goto="#/" data-back>
-        ${escapeHtml(t('action.back'))}
-      </button>
     </div>
 
     <div class="card stack">
