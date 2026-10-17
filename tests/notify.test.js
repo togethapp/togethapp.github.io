@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { keyBytes, mayBeNews, pushSupport, rememberTold, subscriptionFields, toldKey } from '../src/notify.js';
+import {
+  activationProblem, keyBytes, mayBeNews, problemDetail, pushSupport, rememberTold, subscriptionFields, toldKey,
+} from '../src/notify.js';
 
 test('what this browser can do with notifications', () => {
   const full = { worker: true, push: true, notification: true, permission: 'default', phone: null, standalone: false };
@@ -41,4 +43,40 @@ test('a subscription’s fields, or nothing', () => {
 
 test('the public key becomes the bytes the browser takes', () => {
   assert.deepEqual([...keyBytes('AP8-_w')], [0, 255, 62, 255]);
+});
+
+test('turning notifications on says which step failed, not « try again »', () => {
+  const answered = (status, message = '') => Object.assign(new Error(message), { status });
+  assert.equal(activationProblem('worker'), 'worker', 'the service worker never got ready');
+
+  // The notifier, asked for its key.
+  const unread = new TypeError('Failed to fetch');
+  assert.equal(activationProblem('key', unread, true), 'function',
+    'no answer the page can read while the database answers: Supabase without the function, which sends no CORS headers');
+  assert.equal(activationProblem('key', unread, false), 'offline', 'nothing answers at all: the network');
+  assert.equal(activationProblem('key', answered(404)), 'function', 'a function that is not there, said plainly');
+  assert.equal(activationProblem('key', answered(200, 'no key')), 'function', 'a function of that name, but not this one');
+  assert.equal(activationProblem('key', answered(502)), 'database', 'the function answers but cannot read the database');
+
+  // The browser's own push service.
+  const refused = Object.assign(new Error('Registration failed - push service error'), { name: 'AbortError' });
+  assert.equal(activationProblem('subscribe', refused), 'browser');
+  assert.equal(activationProblem('subscribe', Object.assign(new Error('denied'), { name: 'NotAllowedError' })), 'denied');
+
+  // The database, once per group.
+  assert.equal(activationProblem('register', [{ status: 'account' }, { status: 'account' }]), 'account',
+    'every group asks for an account');
+  assert.equal(activationProblem('register', [{ status: 'account' }, { status: 'unknown' }]), 'refused');
+  assert.equal(activationProblem('register', [new TypeError('Failed to fetch')]), 'offline');
+  assert.equal(activationProblem('register', [answered(400, 'abonnement invalide')]), 'refused');
+  assert.equal(activationProblem(undefined, new Error('?')), 'failed', 'anything else');
+});
+
+test('what was said, short enough to read out', () => {
+  const refused = Object.assign(new Error('Registration failed - push service error'), { name: 'AbortError' });
+  assert.equal(problemDetail(refused), 'AbortError: Registration failed - push service error');
+  assert.equal(problemDetail(new Error('notifier failed: 502\n{"status":"error"}')), 'notifier failed: 502 {"status":"error"}');
+  assert.equal(problemDetail({ status: 'account' }), 'account', 'an answer from the database');
+  assert.equal(problemDetail(new Error('x'.repeat(500))).length, 160);
+  assert.equal(problemDetail(null), '');
 });

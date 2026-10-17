@@ -655,6 +655,13 @@ frappe. Toucher la notification ouvre la bonne page.
   aes128gcm, RFC 8291), vérifié contre une implémentation indépendante. La paire
   de clés VAPID est faite par la fonction au premier appel et gardée dans la
   base. Le contenu est chiffré pour le seul téléphone qui le reçoit.
+- Une activation qui échoue dit pourquoi, sous le bouton, avec ce que le
+  navigateur ou la base a répondu (`activationProblem`, notify.js) : service
+  worker pas prêt ; fonction `notifier` absente ou qui ne démarre pas — Supabase
+  y répond sans en-têtes CORS, la page ne voit qu'une requête échouée, et c'est
+  la base, si elle répond, qui départage d'avec l'absence de réseau ; base sans
+  ses tables (502) ; service d'envoi du navigateur qui refuse (pour Brave, le
+  réglage à ouvrir) ; compte exigé ; aucun groupe qui ait gardé l'abonnement.
 - Mise en place : docs/DEPLOIEMENT.md, étape 10. Tests : `notify`, `webpush`,
   `notifier`, contrôle SQL `notifications`, suite `notifications`.
 

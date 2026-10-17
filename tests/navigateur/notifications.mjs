@@ -134,6 +134,65 @@ await single.waitForSelector('#notify');
 check('le fichier unique, sans service worker, dit qu’il ne reçoit pas de notifications',
   /ne reçoit pas de notifications/.test(await single.locator('#notify').textContent()));
 
+/* --- 6. Quand ça ne s'active pas, l'app dit pourquoi, près du bouton ------ */
+
+const mode = (m) => fetch(`${BASE}/__notifier?mode=${m}`);
+const subscribed = async (label) => (await seen()).subscriptions.some((one) => one.endpoint.endsWith(`/${label}`));
+async function tryOn(label, before = null) {
+  const page = await device(label, { me: 'Gui', groups: [MIFA] });
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  if (before) await page.evaluate(before);
+  await page.click('#notify-on');
+  await page.waitForSelector('#notify-problem', { timeout: 30000 });
+  return { page, text: await page.locator('#notify').textContent() };
+}
+
+await mode('absent');
+const absent = await tryOn('sans-fonction');
+check('fonction « notifier » absente (un 404 que la page ne peut pas lire) : l’app le dit, au lieu de « réessayez »',
+  /la fonction « notifier » n’est pas en place/.test(absent.text) && !/Réessayez dans un moment/.test(absent.text), absent.text);
+check('avec ce que le navigateur a dit, pour qui cherche', /Détail : TypeError/.test(absent.text), absent.text);
+check('sans rien confier à la base, et le bouton reste là pour réessayer',
+  !(await subscribed('sans-fonction')) && await absent.page.locator('#notify-on').count() === 1);
+await mode('ok');
+await absent.page.click('#notify-on');
+await absent.page.waitForFunction(() => /Activées sur cet appareil/.test(document.querySelector('#notify')?.textContent || ''), null, { timeout: 15000 });
+check('la fonction mise en place, le même bouton active, et l’explication s’en va',
+  await absent.page.locator('#notify-problem').count() === 0 && await subscribed('sans-fonction'));
+
+await mode('database');
+const noTables = await tryOn('sans-tables');
+check('la fonction en place mais la base sans ses tables : l’app parle de la mise à jour SQL',
+  /mise à jour SQL/.test(noTables.text) && /502/.test(noTables.text), noTables.text);
+await mode('ok');
+
+const refuse = () => {
+  PushManager.prototype.subscribe = async () => {
+    throw new DOMException('Registration failed - push service error', 'AbortError');
+  };
+};
+const service = await tryOn('refus-envoi', refuse);
+check('le service d’envoi du navigateur refuse : l’app le dit, nomme ceux de Windows, et rapporte l’erreur',
+  /service d’envoi \(Microsoft pour Edge, Google pour Chrome/.test(service.text)
+    && /AbortError: Registration failed - push service error/.test(service.text), service.text);
+check('et n’abonne rien', !(await subscribed('refus-envoi')));
+const brave = await tryOn('brave', () => {
+  Object.defineProperty(navigator, 'brave', { value: {} });
+  PushManager.prototype.subscribe = async () => {
+    throw new DOMException('Registration failed - push service error', 'AbortError');
+  };
+});
+check('dans Brave, l’app dit quel réglage ouvrir', /Brave ne reçoit[\s\S]*messagerie push/.test(brave.text), brave.text);
+
+const cut = await device('hors-ligne', { me: 'Gui', groups: [MIFA] });
+await cut.evaluate(() => navigator.serviceWorker.ready);
+await cut.context().setOffline(true);
+await cut.click('#notify-on');
+await cut.waitForSelector('#notify-problem', { timeout: 30000 });
+check('sans réseau du tout, l’app dit de vérifier la connexion, pas que la fonction manque',
+  /Pas de réponse de la base/.test(await cut.locator('#notify').textContent()));
+await cut.context().setOffline(false);
+
 check('aucune erreur de page', errors.length === 0, errors.join(' | '));
 await browser.close();
 const bad = results.filter((r) => !r.ok);

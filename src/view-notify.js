@@ -12,7 +12,9 @@
 
 import { escapeHtml, flash, render, state, view } from './app.js';
 import { getLanguage, t } from './i18n.js';
-import { keyBytes, mayBeNews, pushSupport, rememberTold, subscriptionFields, toldKey } from './notify.js';
+import {
+  activationProblem, keyBytes, mayBeNews, problemDetail, pushSupport, rememberTold, subscriptionFields, toldKey,
+} from './notify.js';
 import { savePrefs } from './storage.js';
 import { groups, onHomeScreen } from './view-groups.js';
 import { phoneToInstall } from './view-install.js';
@@ -50,25 +52,99 @@ async function worker() {
   ]);
 }
 
+/** Throw `error` on, saying which step of turning notifications on it stopped. */
+function stopAt(step, error) {
+  const stop = error instanceof Error ? error : new Error(String(error));
+  stop.step = stop.step || step;
+  throw stop;
+}
+
 /** This browser's subscription, made with the database's key if there is none yet. */
 async function subscribe(registration) {
   const held = await registration.pushManager.getSubscription();
   if (held) return held;
-  const answer = await state.remote.notifier({ action: 'key' });
-  if (!answer?.key) throw new Error('no key');
-  return registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(answer.key) });
+  const answer = await state.remote.notifier({ action: 'key' }).catch((error) => stopAt('key', error));
+  // Answered, but not with a key: a function of that name that is not this one.
+  if (!answer?.key) stopAt('key', Object.assign(new Error('no key'), { status: 200 }));
+  return registration.pushManager
+    .subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(answer.key) })
+    .catch((error) => stopAt('subscribe', error));
 }
 
-/** Hand the subscription to the database, once per group. */
+/**
+ * Hand the subscription to the database, once per group. Answers what each
+ * group said — the database's answer, or the error on the way.
+ */
 async function register(subscription) {
   const fields = subscriptionFields(subscription.toJSON());
-  if (!fields) throw new Error('no subscription');
+  if (!fields) stopAt('subscribe', new Error('no keys in the subscription'));
+  const said = [];
   for (const group of groups()) {
-    await state.remote.pushSubscribe(group.key, fields, getLanguage(), appAddress()).catch(() => null);
+    said.push(await state.remote.pushSubscribe(group.key, fields, getLanguage(), appAddress()).catch((error) => error));
+  }
+  return said;
+}
+
+/**
+ * Whether the database itself answers, the notifier aside: a call to the
+ * notifier that got no answer the page could read is then the notifier's
+ * fault, not the network's.
+ */
+async function databaseAnswers() {
+  if (navigator.onLine === false) return false;
+  const [group] = groups();
+  if (!group) return false;
+  try {
+    await state.remote.groupOf(group.key);
+    return true;
+  } catch (error) {
+    return Boolean(error?.status);
+  }
+}
+
+/**
+ * Subscribe this browser and hand the subscription to the database. Answers
+ * null when done, or why not: { reason, detail } — the reason one of
+ * activationProblem's, the detail what the browser or the database said.
+ */
+async function turnOn() {
+  try {
+    const registration = await worker();
+    if (!registration) return { reason: activationProblem('worker'), detail: '' };
+    const said = await register(await subscribe(registration));
+    if (said.some((one) => one?.status === 'ok')) return null;
+    return { reason: activationProblem('register', said), detail: problemDetail(said[0]) };
+  } catch (error) {
+    const answers = error?.step === 'key' && !error.status ? await databaseAnswers() : true;
+    return { reason: activationProblem(error?.step, error, answers), detail: problemDetail(error) };
   }
 }
 
 /* ---------------------------------------------------------------- screen --- */
+
+/** What to read for each reason turning them on can fail (notify.js). */
+const PROBLEMS = {
+  worker: 'notify.worker',
+  offline: 'notify.offline',
+  function: 'notify.notReady',
+  database: 'notify.database',
+  denied: 'notify.denied',
+  browser: 'notify.browser',
+  account: 'notify.account',
+  refused: 'notify.kept',
+  failed: 'notify.failed',
+};
+
+/** Why the last try failed, by the button that tries again: what to do, then what was said. */
+function problemHtml() {
+  const problem = state.notifyProblem;
+  if (!problem) return '';
+  // Brave turns Google's push service off: it refuses every subscription.
+  const reason = problem.reason === 'browser' && 'brave' in navigator ? 'notify.brave' : PROBLEMS[problem.reason];
+  return `
+      <p class="banner banner--warn" id="notify-problem">${escapeHtml(t(reason || PROBLEMS.failed))}</p>
+      ${problem.detail ? `<p class="muted small">${escapeHtml(t('notify.detail', { detail: problem.detail }))}</p>` : ''}`;
+}
 
 /** The settings section. */
 export function notifyHtml() {
@@ -82,7 +158,8 @@ export function notifyHtml() {
       <div class="row"><button type="button" class="button button--small button--ghost" id="notify-off">${escapeHtml(t('notify.disable'))}</button></div>`;
   } else if (can === 'ready') {
     body = groups().length
-      ? `<div class="row"><button type="button" class="button button--small button--primary" id="notify-on">${escapeHtml(t('notify.enable'))}</button></div>`
+      ? `${problemHtml()}
+      <div class="row"><button type="button" class="button button--small button--primary" id="notify-on">${escapeHtml(t('notify.enable'))}</button></div>`
       : `<p class="muted small">${escapeHtml(t('notify.noGroup'))}</p>`;
   } else {
     body = `<p class="muted small">${escapeHtml(t(`notify.${can}`))}</p>`;
@@ -98,18 +175,17 @@ export function notifyHtml() {
 export function bindNotify() {
   view.querySelector('#notify-on')?.addEventListener('click', async (event) => {
     event.currentTarget.disabled = true;
+    state.notifyProblem = null;
     const permission = await Notification.requestPermission().catch(() => 'denied');
     if (permission !== 'granted') {
       flash(t('notify.refused'), 'error');
       render();
       return;
     }
-    try {
-      const registration = await worker();
-      if (!registration) throw new Error('no worker');
-      await register(await subscribe(registration));
-    } catch (error) {
-      flash(t(/no key|404/.test(String(error?.message)) ? 'notify.notReady' : 'notify.failed'), 'error');
+    // Said where the button is, and kept there: a banner at the top of the
+    // page would be out of sight, and gone before the reason was read.
+    state.notifyProblem = await turnOn();
+    if (state.notifyProblem) {
       render();
       return;
     }

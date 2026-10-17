@@ -3280,7 +3280,15 @@ const STRINGS = {
     'notify.disabled': 'Notifications désactivées sur cet appareil.',
     'notify.refused': 'Pas de notifications sans votre accord : le téléphone n’a pas donné la permission.',
     'notify.failed': 'Les notifications n’ont pas pu être activées. Réessayez dans un moment.',
-    'notify.notReady': 'La base ne sait pas encore envoyer de notifications : la fonction « notifier » n’est pas en place.',
+    'notify.notReady': 'La base ne sait pas encore envoyer de notifications : la fonction « notifier » n’est pas en place, ou ne démarre pas.',
+    'notify.worker': 'L’app n’a pas fini de s’installer dans ce navigateur : rechargez la page, puis réessayez.',
+    'notify.offline': 'Pas de réponse de la base : vérifiez la connexion, puis réessayez.',
+    'notify.database': 'La fonction « notifier » répond, mais ne parvient pas à lire la base : la mise à jour SQL des notifications n’y a sans doute pas été passée.',
+    'notify.browser': 'Ce navigateur n’a pas pu s’inscrire auprès de son service d’envoi (Microsoft pour Edge, Google pour Chrome, Mozilla pour Firefox). Un réseau d’entreprise, un VPN ou un bloqueur peut l’en empêcher : réessayez sans, ou depuis un autre navigateur.',
+    'notify.brave': 'Brave ne reçoit de notifications que par le service d’envoi de Google : Réglages → Confidentialité et sécurité → activez « Utiliser les services Google pour la messagerie push », relancez Brave, puis réessayez.',
+    'notify.account': 'Vos groupes demandent un compte : connectez-vous d’abord (Réglages → Compte), puis réessayez.',
+    'notify.kept': 'La base n’a gardé l’abonnement de ce navigateur pour aucun de vos groupes. Réessayez dans un moment ; si cela recommence, montrez le détail ci-dessous à qui gère l’app.',
+    'notify.detail': 'Détail : {detail}',
     'account.offerTitle': 'Garder {name} sur un compte ?',
     'account.offerTitleBare': 'Garder ce groupe sur un compte ?',
     'account.offerWhy': 'Facultatif, et sans mot de passe : un code arrive par e-mail. Connecté, vous retrouvez ce groupe sur tout appareil — même si ce téléphone efface ses données, ou si vous en changez.',
@@ -4467,7 +4475,15 @@ const STRINGS = {
     'notify.disabled': 'Notifications off for this device.',
     'notify.refused': 'No notifications without your say-so: the phone did not give permission.',
     'notify.failed': 'Notifications could not be turned on. Try again in a moment.',
-    'notify.notReady': 'The database cannot send notifications yet: the « notifier » function is not set up.',
+    'notify.notReady': 'The database cannot send notifications yet: the « notifier » function is not set up, or does not start.',
+    'notify.worker': 'The app has not finished setting itself up in this browser: reload the page, then try again.',
+    'notify.offline': 'No answer from the database: check the connection, then try again.',
+    'notify.database': 'The « notifier » function answers, but cannot read the database: the SQL update for notifications has most likely not been run there.',
+    'notify.browser': 'This browser could not sign up with its push service (Microsoft for Edge, Google for Chrome, Mozilla for Firefox). A company network, a VPN or a blocker can stop it: try again without, or from another browser.',
+    'notify.brave': 'Brave only receives notifications through Google’s push service: Settings → Privacy and security → turn on « Use Google services for push messaging », restart Brave, then try again.',
+    'notify.account': 'Your groups ask for an account: sign in first (Settings → Account), then try again.',
+    'notify.kept': 'The database kept this browser’s subscription for none of your groups. Try again in a moment; if it happens again, show the detail below to whoever runs the app.',
+    'notify.detail': 'Detail: {detail}',
     'account.offerTitle': 'Keep {name} on an account?',
     'account.offerTitleBare': 'Keep this group on an account?',
     'account.offerWhy': 'Optional, and no password: a code arrives by e-mail. Signed in, you get this group back on any device — even if this phone clears its data, or you change phones.',
@@ -12105,6 +12121,52 @@ function keyBytes(text) {
   const plain = String(text || '').replace(/-/g, '+').replace(/_/g, '/');
   const padded = plain + '='.repeat((4 - (plain.length % 4)) % 4);
   return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
+}
+
+/**
+ * Why turning notifications on failed, from the step that failed and what it
+ * met there — so the app can say what to do rather than « try again »:
+ *
+ *   'worker'    the app's service worker never got ready (reload the page)
+ *   'offline'   nothing answers, the database no more than the notifier
+ *   'function'  the notifier is not in place, or does not start. Supabase
+ *               answers for such a function without the headers a page needs
+ *               to read the answer, so the browser reports a failed fetch, not
+ *               a 404 — told apart from no network by `answers`: whether the
+ *               database itself still answers
+ *   'database'  the notifier answers, but cannot read the database (502: the
+ *               SQL of the notifications not run, most likely)
+ *   'denied'    the browser refused to subscribe despite the permission
+ *   'browser'   the browser's own push service (Microsoft for Edge, Google for
+ *               Chrome, Mozilla for Firefox) did not subscribe it
+ *   'account'   every group asks for an account, and this device has none
+ *   'refused'   the database kept the subscription for no group
+ *
+ * `met` is what was thrown, or for 'register' what each group answered.
+ */
+function activationProblem(step, met = null, answers = true) {
+  if (step === 'worker') return 'worker';
+  if (step === 'key') {
+    const status = Number(met?.status) || 0;
+    if (!status) return answers ? 'function' : 'offline';
+    return status === 502 ? 'database' : 'function';
+  }
+  if (step === 'subscribe') return met?.name === 'NotAllowedError' ? 'denied' : 'browser';
+  if (step === 'register') {
+    const said = Array.isArray(met) ? met : [];
+    if (said.length && said.every((one) => one?.status === 'account')) return 'account';
+    if (said.length && said.every((one) => one instanceof Error && !one.status)) return 'offline';
+    return 'refused';
+  }
+  return 'failed';
+}
+
+/** What the browser or the database said, short: for whoever asks why. */
+function problemDetail(error) {
+  if (!error) return '';
+  if (!(error instanceof Error) && typeof error.status === 'string') return error.status;
+  const name = error.name && error.name !== 'Error' ? `${error.name}: ` : '';
+  return `${name}${error.message || ''}`.replace(/\s+/g, ' ').trim().slice(0, 160);
 }
 
   // ---- src/swipe.js ----------------------------------------------------
@@ -24671,25 +24733,99 @@ async function worker() {
   ]);
 }
 
+/** Throw `error` on, saying which step of turning notifications on it stopped. */
+function stopAt(step, error) {
+  const stop = error instanceof Error ? error : new Error(String(error));
+  stop.step = stop.step || step;
+  throw stop;
+}
+
 /** This browser's subscription, made with the database's key if there is none yet. */
 async function subscribe(registration) {
   const held = await registration.pushManager.getSubscription();
   if (held) return held;
-  const answer = await state.remote.notifier({ action: 'key' });
-  if (!answer?.key) throw new Error('no key');
-  return registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(answer.key) });
+  const answer = await state.remote.notifier({ action: 'key' }).catch((error) => stopAt('key', error));
+  // Answered, but not with a key: a function of that name that is not this one.
+  if (!answer?.key) stopAt('key', Object.assign(new Error('no key'), { status: 200 }));
+  return registration.pushManager
+    .subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(answer.key) })
+    .catch((error) => stopAt('subscribe', error));
 }
 
-/** Hand the subscription to the database, once per group. */
+/**
+ * Hand the subscription to the database, once per group. Answers what each
+ * group said — the database's answer, or the error on the way.
+ */
 async function register(subscription) {
   const fields = subscriptionFields(subscription.toJSON());
-  if (!fields) throw new Error('no subscription');
+  if (!fields) stopAt('subscribe', new Error('no keys in the subscription'));
+  const said = [];
   for (const group of groups()) {
-    await state.remote.pushSubscribe(group.key, fields, getLanguage(), appAddress()).catch(() => null);
+    said.push(await state.remote.pushSubscribe(group.key, fields, getLanguage(), appAddress()).catch((error) => error));
+  }
+  return said;
+}
+
+/**
+ * Whether the database itself answers, the notifier aside: a call to the
+ * notifier that got no answer the page could read is then the notifier's
+ * fault, not the network's.
+ */
+async function databaseAnswers() {
+  if (navigator.onLine === false) return false;
+  const [group] = groups();
+  if (!group) return false;
+  try {
+    await state.remote.groupOf(group.key);
+    return true;
+  } catch (error) {
+    return Boolean(error?.status);
+  }
+}
+
+/**
+ * Subscribe this browser and hand the subscription to the database. Answers
+ * null when done, or why not: { reason, detail } — the reason one of
+ * activationProblem's, the detail what the browser or the database said.
+ */
+async function turnOn() {
+  try {
+    const registration = await worker();
+    if (!registration) return { reason: activationProblem('worker'), detail: '' };
+    const said = await register(await subscribe(registration));
+    if (said.some((one) => one?.status === 'ok')) return null;
+    return { reason: activationProblem('register', said), detail: problemDetail(said[0]) };
+  } catch (error) {
+    const answers = error?.step === 'key' && !error.status ? await databaseAnswers() : true;
+    return { reason: activationProblem(error?.step, error, answers), detail: problemDetail(error) };
   }
 }
 
 /* ---------------------------------------------------------------- screen --- */
+
+/** What to read for each reason turning them on can fail (notify.js). */
+const PROBLEMS = {
+  worker: 'notify.worker',
+  offline: 'notify.offline',
+  function: 'notify.notReady',
+  database: 'notify.database',
+  denied: 'notify.denied',
+  browser: 'notify.browser',
+  account: 'notify.account',
+  refused: 'notify.kept',
+  failed: 'notify.failed',
+};
+
+/** Why the last try failed, by the button that tries again: what to do, then what was said. */
+function problemHtml() {
+  const problem = state.notifyProblem;
+  if (!problem) return '';
+  // Brave turns Google's push service off: it refuses every subscription.
+  const reason = problem.reason === 'browser' && 'brave' in navigator ? 'notify.brave' : PROBLEMS[problem.reason];
+  return `
+      <p class="banner banner--warn" id="notify-problem">${escapeHtml(t(reason || PROBLEMS.failed))}</p>
+      ${problem.detail ? `<p class="muted small">${escapeHtml(t('notify.detail', { detail: problem.detail }))}</p>` : ''}`;
+}
 
 /** The settings section. */
 function notifyHtml() {
@@ -24703,7 +24839,8 @@ function notifyHtml() {
       <div class="row"><button type="button" class="button button--small button--ghost" id="notify-off">${escapeHtml(t('notify.disable'))}</button></div>`;
   } else if (can === 'ready') {
     body = groups().length
-      ? `<div class="row"><button type="button" class="button button--small button--primary" id="notify-on">${escapeHtml(t('notify.enable'))}</button></div>`
+      ? `${problemHtml()}
+      <div class="row"><button type="button" class="button button--small button--primary" id="notify-on">${escapeHtml(t('notify.enable'))}</button></div>`
       : `<p class="muted small">${escapeHtml(t('notify.noGroup'))}</p>`;
   } else {
     body = `<p class="muted small">${escapeHtml(t(`notify.${can}`))}</p>`;
@@ -24719,18 +24856,17 @@ function notifyHtml() {
 function bindNotify() {
   view.querySelector('#notify-on')?.addEventListener('click', async (event) => {
     event.currentTarget.disabled = true;
+    state.notifyProblem = null;
     const permission = await Notification.requestPermission().catch(() => 'denied');
     if (permission !== 'granted') {
       flash(t('notify.refused'), 'error');
       render();
       return;
     }
-    try {
-      const registration = await worker();
-      if (!registration) throw new Error('no worker');
-      await register(await subscribe(registration));
-    } catch (error) {
-      flash(t(/no key|404/.test(String(error?.message)) ? 'notify.notReady' : 'notify.failed'), 'error');
+    // Said where the button is, and kept there: a banner at the top of the
+    // page would be out of sight, and gone before the reason was read.
+    state.notifyProblem = await turnOn();
+    if (state.notifyProblem) {
       render();
       return;
     }
@@ -24885,6 +25021,9 @@ const state = {
   poll: null,
   // Changes heard as they happen, when the database announces them: live.js.
   live: null,
+  // Why turning notifications on failed, shown in their section until the next
+  // try: { reason, detail } (view-notify.js).
+  notifyProblem: null,
   // The set of games being fetched, so a redraw does not start a second fetch.
   openingSet: null,
   // The same, for a shared list opened from its link.
