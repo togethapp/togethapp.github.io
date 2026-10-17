@@ -25,7 +25,7 @@ import {
 } from './view-groups.js';
 import { markForActivity, activitiesOnClose } from './flows.js';
 import {
-  eventFlowsHtml, pollFlowsHtml, programmeHtml, activityHeadHtml, pollActivitiesHtml, dayChipsHtml,
+  eventFlowsHtml, pollFlowsHtml, programmeHtml, activityHeadHtml, pollActivitiesHtml, dayChipsHtml, settlePollActivity,
 } from './view-flows.js';
 import { recentNames } from './model.js';
 import { sameName } from './stats.js';
@@ -1380,6 +1380,8 @@ export function bindPoll(poll) {
         replacePoll(setClosed(poll, true));
         return;
       }
+      // Under an event, what it settles on is an activity of its own.
+      if (settlePollActivity(poll, { option, date: day.date, at: day.at || null })) return;
       const next = setClosed(setPollDate(poll, day.date, day.at), true);
       flash(t('polls.dateKept', { day: whenText(next) }));
       replacePoll(next);
@@ -1393,6 +1395,7 @@ export function bindPoll(poll) {
     const written = view.querySelector('#poll-title').value;
     // Le nom proposé n'est pas un nom choisi : ne le garder que s'il a bougé.
     const named = written.trim() === eventName(poll) ? poll : setEventName(poll, written);
+    if (day && settlePollActivity(poll, { date: day, at: hour || null, until, name: written.trim() === eventName(poll) ? '' : written })) return;
     const next = setPollDate(named, day, hour, until);
     flash(next.date ? t('polls.dateKept', { day: whenText(next) }) : t('polls.dateCleared'));
     replacePoll(next);

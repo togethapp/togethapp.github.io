@@ -3226,6 +3226,8 @@ const STRINGS = {
     'activity.onProgramme': 'Programme : {items}',
     'activity.attach': 'En faire une activité de…',
     'activity.share': 'Partager l’activité',
+    'activity.splitHint': 'Ce sondage tient lieu d’activité. Séparez-les : l’activité devient un élément à part, et le sondage reste un sondage, clos.',
+    'activity.split': 'En faire l’activité « {name} »',
     'activity.attachHint': 'Sous un autre événement, il en devient une activité : au programme, avec sa propre chaîne.',
     'account.delete': 'Supprimer mon compte',
     'account.deleteConfirm': 'Supprimer votre compte ? Votre adresse, votre prénom et vos droits gardés sur le compte sont effacés. Cet appareil reste dans ses groupes, sans compte.',
@@ -4410,6 +4412,8 @@ const STRINGS = {
     'activity.onProgramme': 'Programme: {items}',
     'activity.attach': 'Make it an activity of…',
     'activity.share': 'Share the activity',
+    'activity.splitHint': 'This poll stands in for an activity. Split them: the activity becomes an item of its own, and the poll stays a poll, closed.',
+    'activity.split': 'Make it the activity “{name}”',
     'activity.attachHint': 'Under another event, it becomes one of its activities: on the programme, with its own chain.',
     'account.delete': 'Delete my account',
     'account.deleteConfirm': 'Delete your account? Your address, your name and the rights kept on the account are erased. This device stays in its groups, without an account.',
@@ -9482,6 +9486,7 @@ function skyMoonLine(phase) {
 
 
 
+
 /** The things of one kind a document is linked to, whichever way. */
 function related(document_, all, kind) {
   return relationsOf(document_, all)
@@ -9737,6 +9742,53 @@ function activitiesOnClose(poll, all) {
   return [...byDay.values()]
     .filter((group) => group.length === 1 && !group[0].made)
     .map(([choice]) => activityFromChoice(event, poll, choice.option));
+}
+
+/**
+ * A poll under an event settling on a day: the activity is an element of its
+ * own, named after what was chosen — « Raclette », not « Raclette ou pizza
+ * samedi soir ? » —, and the poll stays a poll, closed, where it was.
+ *
+ * What was chosen is `option` when given, else the poll's one favourite. The
+ * name is `name` when given; else that choice's words, unless the choice is
+ * only a day — it says when, not what; else the question's (« Quand le
+ * karaoké ? » → Karaoké).
+ *
+ * Returns `{ activity, poll }`, or null when the poll is under no event, asks
+ * when an activity is (it dates that activity instead), or already made it.
+ */
+function settleAsActivity(poll, all, { option = null, date, at = null, until = null, name = '' } = {}) {
+  if (!poll || isEvent(poll) || poll.whenFor || !date) return null;
+  const undated = setPollDate(poll, null);
+  const event = topEventOf(undated, all);
+  if (!event || event.id === poll.id) return null;
+  const { leaders } = tally(poll);
+  const chosen = option || (leaders.length === 1 ? poll.options.find((one) => one.id === leaders[0]) || null : null);
+  if (madeFrom(event, all, poll.id, chosen?.id || null)) return null;
+  const words = chosen && !isDayChoice(chosen, poll.createdAt) ? oneLine(chosen.text) : '';
+  const keen = chosen
+    ? (poll.people || []).filter((person) => voteOf(poll, person.id, chosen.id) === 'yes').map((person) => person.name)
+    : [];
+  const made = activityFor(event, {
+    name: oneLine(name) || words || eventName(poll),
+    date,
+    at,
+    names: keen.length ? keen : goers(poll),
+    from: { doc: poll.id, part: chosen?.id || null },
+  });
+  const activity = until ? setPollDate(made, made.date, made.at, until) : made;
+  return { activity, poll: undated.closedAt ? undated : setClosed(undated, true) };
+}
+
+/**
+ * A poll that became an activity itself, before activities were elements of
+ * their own: dated, under an event. Splitting it makes the activity and
+ * leaves the poll a closed poll, as settleAsActivity() does. Null for
+ * anything else.
+ */
+function splitPollActivity(poll, all) {
+  if (!isActivity(poll, all) || isEvent(poll) || poll.whenFor) return null;
+  return settleAsActivity(poll, all, { date: poll.date, at: poll.at || null, until: poll.until || null });
 }
 
 /** The polls of an event still choosing an activity: open, marked. */
@@ -13500,6 +13552,8 @@ function bindPoll(poll) {
         replacePoll(setClosed(poll, true));
         return;
       }
+      // Under an event, what it settles on is an activity of its own.
+      if (settlePollActivity(poll, { option, date: day.date, at: day.at || null })) return;
       const next = setClosed(setPollDate(poll, day.date, day.at), true);
       flash(t('polls.dateKept', { day: whenText(next) }));
       replacePoll(next);
@@ -13513,6 +13567,7 @@ function bindPoll(poll) {
     const written = view.querySelector('#poll-title').value;
     // Le nom proposé n'est pas un nom choisi : ne le garder que s'il a bougé.
     const named = written.trim() === eventName(poll) ? poll : setEventName(poll, written);
+    if (day && settlePollActivity(poll, { date: day, at: hour || null, until, name: written.trim() === eventName(poll) ? '' : written })) return;
     const next = setPollDate(named, day, hour, until);
     flash(next.date ? t('polls.dateKept', { day: whenText(next) }) : t('polls.dateCleared'));
     replacePoll(next);
@@ -19929,6 +19984,22 @@ function bindData() {
 
 
 
+/**
+ * A poll under an event settled on a day: the activity it makes, kept as an
+ * element of its own, and the poll, closed. False when it makes none, for
+ * the poll to take the day itself.
+ */
+function settlePollActivity(poll, how) {
+  const settled = settleAsActivity(poll, everything(), how);
+  if (!settled) return false;
+  const made = organise(signed(settled.activity));
+  state.polls = [...state.polls, made];
+  persistPoll(made);
+  flash(t('activity.made', { name: documentTitle(made), event: chainLabelShort(byId(made.parent) || made) }));
+  replacePoll(settled.poll);
+  return true;
+}
+
 /** One document by id, whatever its kind. */
 function byId(id) {
   return everything().find((one) => one.id === id) || null;
@@ -20272,6 +20343,12 @@ function activityHeadHtml(activity) {
       <p class="small">${escapeHtml(t('activity.of', { name: documentTitle(event), when: whenText(event, { long: true }) }))}</p>
       ${outsideEvent(activity, event) ? `<p class="small late">${escapeHtml(t('activity.outside'))}</p>` : ''}
       ${
+        isOrganiser(activity) && splitPollActivity(activity, all)
+          ? `<p class="small">${escapeHtml(t('activity.splitHint'))}</p>
+             <div class="row"><button type="button" class="button button--small" data-flow-split>${escapeHtml(t('activity.split', { name: documentTitle(splitPollActivity(activity, all).activity) }))}</button></div>`
+          : ''
+      }
+      ${
         activity.date
           ? ''
           : `<span class="small">${escapeHtml(t('activity.pickDay'))}</span>
@@ -20408,6 +20485,19 @@ function bindFlows(root) {
       if (!activity) return;
       flash(t('activity.dayKept', { day: formatDayLong(node.dataset.activitySetDay) }));
       replacePoll(setPollDate(activity, node.dataset.activitySetDay, activity.at || null, null));
+    });
+  });
+  root.querySelectorAll('[data-flow-split]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const poll = owner(node);
+      const split = poll && splitPollActivity(poll, everything());
+      if (!split) return;
+      const made = organise(signed(split.activity));
+      state.polls = [...state.polls, made];
+      persistPoll(made);
+      replacePoll(split.poll, { redraw: false });
+      flash(t('activity.made', { name: documentTitle(made), event: chainLabelShort(byId(made.parent) || made) }));
+      navigate(documentHref(made));
     });
   });
   root.querySelectorAll('[data-flow-when]').forEach((node) => {

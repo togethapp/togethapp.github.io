@@ -7,6 +7,7 @@ import {
 } from '../src/dashboard.js';
 import {
   activityFor, ideaActivities, choiceActivities, whenPoll, markForActivity, activitiesOnClose, activityFromChoice, activityVotes,
+  settleAsActivity, splitPollActivity,
 } from '../src/flows.js';
 import {
   createEvent, createPoll, addOptions, setVote, setClosed, choiceText, setPollDate, setOptionDay, optionsByDay, tally, mergePolls,
@@ -160,4 +161,47 @@ test('des choix calés chacun sur un jour : un gagnant par jour, à son jour', (
   const loose = setOptionDay(moved, rando.id, null);
   assert.equal('day' in loose.options[1], false, 'décalé : plus de jour');
   assert.equal(mergePolls(quoi, loose).options[1].day, undefined, 'le jour suit la dernière écriture du choix');
+});
+
+test('un sondage sous un événement qui retient un jour fait une activité à part, nommée d’après le choix', () => {
+  const annecy = weekend();
+  let poll = attach({ ...createPoll({ question: 'Raclette ou pizza le samedi soir ?', names: ['Gui', 'Alice'] }), ...g }, annecy.id);
+  poll = addOptions(poll, 'Raclette', { day: '2026-10-10', at: '20:00' });
+  poll = addOptions(poll, 'Pizza', { day: '2026-10-10', at: '20:00' });
+  const [raclette] = poll.options;
+  poll = setVote(setVote(poll, poll.people[0].id, raclette.id, 'yes'), poll.people[1].id, raclette.id, 'yes');
+  const all = [annecy, poll];
+
+  const settled = settleAsActivity(poll, all, { option: raclette, date: '2026-10-10', at: '20:00' });
+  assert.equal(settled.activity.title, 'Raclette');
+  assert.equal(settled.activity.parent, annecy.id);
+  assert.equal(settled.activity.date, '2026-10-10');
+  assert.equal(settled.activity.at, '20:00');
+  assert.deepEqual(settled.activity.from, { doc: poll.id, part: raclette.id });
+  assert.equal(isActivity(settled.activity, [...all, settled.activity]), true);
+  assert.equal(settled.poll.date, null, 'le sondage ne prend pas le jour');
+  assert.ok(settled.poll.closedAt, 'le sondage est clos');
+  assert.equal(isActivity(settled.poll, [annecy, settled.poll, settled.activity]), false);
+  assert.equal(settleAsActivity(poll, [annecy, poll, settled.activity], { option: raclette, date: '2026-10-10' }), null,
+    'pas deux fois');
+
+  const loose = { ...createPoll({ question: 'Quand ?' }), ...g };
+  assert.equal(settleAsActivity(loose, [loose], { date: '2026-10-10' }), null, 'hors événement, le sondage prend le jour');
+});
+
+test('un sondage devenu activité lui-même se sépare : l’activité à part, le sondage clos', () => {
+  const annecy = weekend();
+  let poll = attach({ ...createPoll({ question: 'Raclette ou pizza le samedi soir ?', names: ['Gui', 'Alice'] }), ...g }, annecy.id);
+  poll = addOptions(poll, 'Raclette\nPizza');
+  poll = setVote(poll, poll.people[0].id, poll.options[0].id, 'yes');
+  poll = setClosed(setPollDate(poll, '2026-10-10', '20:00'), true);
+  assert.equal(isActivity(poll, [annecy, poll]), true);
+
+  const split = splitPollActivity(poll, [annecy, poll]);
+  assert.equal(split.activity.title, 'Raclette');
+  assert.equal(split.activity.date, '2026-10-10');
+  assert.deepEqual(split.activity.people.map((person) => person.name), ['Gui']);
+  assert.equal(split.poll.date, null);
+  assert.equal(splitPollActivity(split.activity, [annecy, split.poll, split.activity]), null, 'une vraie activité reste');
+  assert.equal(splitPollActivity(annecy, [annecy]), null);
 });
