@@ -16,8 +16,9 @@ base).
   --coller` (sans commentaires). Avec : « SQL Editor → New query → coller → Run
   → attendu : Success. No rows returned ». Pas d'encadré dans l'app pour ça : il
   a été essayé et retiré.
-- Si la fonction d'agenda change (`supabase/functions/agenda/index.ts`), le dire :
-  elle se recolle dans Supabase → Edge Functions (JWT désactivé).
+- Si une fonction change (`supabase/functions/agenda/index.ts` ou
+  `…/notifier/index.ts`), le dire : elle se recolle dans Supabase → Edge
+  Functions (JWT désactivé).
 - Sobriété : sessions courtes, une par chantier ; ne pas relire en entier
   `src/app.js` ni les `src/view-*.js` (≈ 1 000 à 3 000 lignes chacun) —
   chercher avec grep et lire des extraits.
@@ -30,13 +31,15 @@ App web installable (PWA), sans dépendance ni framework : modules ES dans
 facultative : Supabase (supabase.com), appelée uniquement par des fonctions
 RPC `security definer` ; la table n'est jamais exposée.
 
-- `src/app.js` : routeur, accueil, agenda, personnes ; `src/view-*.js` : un
-  écran chacun (sondages, listes, comptes, idées, parties, groupes), qui rappellent
+- `src/app.js` : routeur, rendu, relèves ; `src/view-*.js` : un écran chacun
+  (accueil, entrée dans un groupe, personnes, sondages, listes, comptes, idées,
+  parties, groupes), qui rappellent
   `app.js` depuis leurs fonctions seulement ; `src/i18n.js` : tous les textes
   (FR et EN, ajouter les deux ; pluriel : `{count|ligne|lignes}`) ; `src/remote.js` : appels à la base ; `polls.js`,
   `lists.js`, `spends.js`, `ideas.js`, `model.js` (parties) : la logique pure, testée.
-- `tools/bundle.js` construit `dist/*.html` et `supabase/functions/agenda/index.ts`,
-  et tamponne `sw.js`/`index.html`. Liste explicite `MODULES` : un nouveau module
+- `tools/bundle.js` construit `dist/*.html` et les deux fonctions
+  (`supabase/functions/agenda/index.ts`, `…/notifier/index.ts`), et tamponne
+  `sw.js`/`index.html`. Liste explicite `MODULES` : un nouveau module
   s'y ajoute, et dans `SHELL` de `sw.js`. Pas d'import renommé (`as`), pas deux
   noms identiques au niveau supérieur de deux modules (tout finit dans une portée).
 - Le schéma SQL vit dans `docs/DEPLOIEMENT.md` : bloc ```sql n°1 = étape 2,
@@ -47,7 +50,7 @@ RPC `security definer` ; la table n'est jamais exposée.
 ## Avant chaque commit
 
 1. `node tools/bundle.js` — sinon les tests « committed build is up to date » échouent.
-2. `npm test` (node --test, ~280 tests, quelques secondes).
+2. `npm test` (node --test, ~400 tests, quelques secondes).
 3. Si l'écran change : `tests/navigateur/lancer.sh audit <suites>` (Playwright
    contre une fausse base, `tests/navigateur/fausse-base.mjs`, à tenir à jour
    avec le SQL). `audit` vérifie les règles communes à tous les écrans (voir
@@ -88,10 +91,12 @@ guide en français.
   (`#/poll/<id>/solo`), sans navigation.
 - **Apparence** (octobre 2026) : style « hologramme » par défaut, nuit quel
   que soit le réglage du téléphone ; Réglages → Apparence (`view-look.js`) :
-  styles Classique / Épuré, six couleurs, nuit/clair, en attributs `data-look`,
-  `data-accent`, `data-theme` lus par les variables en tête de `styles.css`
-  (contrastes ≥ 4,5:1 partout, `tests/contrast.test.js`). En tête de
-  l'Accueil, la vue d'ensemble 3D (`holo.js`, `view-holo.js`), sans personnes.
+  styles Classique / Épuré, huit couleurs (celle du style en fait partie,
+  pas de pastille à part : elle doublait une couleur), nuit/clair, en
+  attributs `data-look`, `data-accent`, `data-theme` lus par les variables en
+  tête de `styles.css` (contrastes ≥ 4,5:1 partout, `tests/contrast.test.js`).
+  En tête de l'Accueil, la vue d'ensemble 3D (`holo.js`, `view-holo.js`),
+  sans personnes.
 - **Ce qui est supprimé ne revient pas** : table `marque_points_gone` ; l'app
   retire sa copie quand la base répond « document supprime ».
 

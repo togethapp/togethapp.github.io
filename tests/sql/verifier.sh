@@ -30,8 +30,9 @@ cat > "$TMP/socle.sql" <<'SQL'
 do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
   if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin; end if;
 end $$;
-grant usage on schema public to anon, authenticated;
+grant usage on schema public to anon, authenticated, service_role;
 create extension if not exists pgcrypto;
 -- Et l'identité du compte connecté, que Supabase tire du jeton ; ici, d'un
 -- réglage que les contrôles posent eux-mêmes (set request.jwt.claim.sub).

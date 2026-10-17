@@ -165,30 +165,81 @@ export function accountHtml() {
     <section class="section" id="account">
       <div class="section__head"><h2>${escapeHtml(t('account.title'))}</h2></div>
       <p class="muted small">${escapeHtml(t('account.why'))}</p>
-      ${
-        awaiting
-          ? `<form id="account-code-form" class="card stack stack--tight">
-               <label class="stack stack--tight">
-                 <span class="small">${escapeHtml(t('account.codeSent', { email: awaiting }))}</span>
-                 <input type="text" id="account-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10"
-                        placeholder="${escapeHtml(t('account.codePlaceholder'))}" />
-               </label>
-               <div class="row">
-                 <button type="submit" class="button button--primary">${escapeHtml(t('account.signIn'))}</button>
-                 <button type="button" class="button button--ghost" id="account-other">${escapeHtml(t('account.otherEmail'))}</button>
-               </div>
-             </form>`
-          : `<form id="account-email-form" class="card stack stack--tight">
-               <label class="stack stack--tight">
-                 <span class="small">${escapeHtml(t('account.email'))}</span>
-                 <input type="email" id="account-email" autocomplete="email" inputmode="email"
-                        placeholder="${escapeHtml(t('account.emailPlaceholder'))}" />
-               </label>
-               <div class="row"><button type="submit" class="button button--primary">${escapeHtml(t('account.sendCode'))}</button></div>
-               <p class="muted small">${escapeHtml(t('account.privacy'))}</p>
-               <div class="row"><button type="button" class="button button--small button--ghost" data-goto="#/confidentialite">${escapeHtml(t('privacy.title'))}</button></div>
-             </form>`
-      }
+      ${signInFormHtml()}
+    </section>`;
+}
+
+/** The two steps of signing in: the address, then the code it received. */
+function signInFormHtml() {
+  return awaiting
+    ? `<form id="account-code-form" class="card stack stack--tight">
+         <label class="stack stack--tight">
+           <span class="small">${escapeHtml(t('account.codeSent', { email: awaiting }))}</span>
+           <input type="text" id="account-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10"
+                  placeholder="${escapeHtml(t('account.codePlaceholder'))}" />
+         </label>
+         <div class="row">
+           <button type="submit" class="button button--primary">${escapeHtml(t('account.signIn'))}</button>
+           <button type="button" class="button button--ghost" id="account-other">${escapeHtml(t('account.otherEmail'))}</button>
+         </div>
+       </form>`
+    : `<form id="account-email-form" class="card stack stack--tight">
+         <label class="stack stack--tight">
+           <span class="small">${escapeHtml(t('account.email'))}</span>
+           <input type="email" id="account-email" autocomplete="email" inputmode="email"
+                  placeholder="${escapeHtml(t('account.emailPlaceholder'))}" />
+         </label>
+         <div class="row"><button type="submit" class="button button--primary">${escapeHtml(t('account.sendCode'))}</button></div>
+         <p class="muted small">${escapeHtml(t('account.privacy'))}</p>
+         <div class="row"><button type="button" class="button button--small button--ghost" data-goto="#/confidentialite">${escapeHtml(t('privacy.title'))}</button></div>
+       </form>`;
+}
+
+/* ------------------------------------------------- offered on the way in --- */
+
+/**
+ * Just let into a group: the moment to offer an account, once. It is what
+ * keeps the group when the phone wipes its data or is replaced — and nobody
+ * listens to that advice later, from the settings. Optional: « Plus tard »
+ * puts it away, and nothing else changes.
+ */
+export function offerAccount(group) {
+  // Answered once — « Plus tard », or signed in — is answered for this device:
+  // the reminder on Home takes over from there.
+  if (!state.remote || account() || state.prefs.accountOfferDone) return false;
+  state.prefs = { ...state.prefs, accountOffer: { name: String(group?.name || ''), at: Date.now() } };
+  savePrefs(state.prefs);
+  return true;
+}
+
+/** Offered for a week at most: by then, the reminder on Home takes over. */
+const OFFER_MS = 7 * 24 * 60 * 60 * 1000;
+
+function offered() {
+  const offer = state.prefs.accountOffer;
+  if (!offer || !state.remote || account() || state.prefs.accountOfferDone) return null;
+  return Date.now() - (offer.at || 0) < OFFER_MS ? offer : null;
+}
+
+function forgetOffer() {
+  const { accountOffer, ...rest } = state.prefs;
+  state.prefs = { ...rest, accountOfferDone: Date.now() };
+  savePrefs(state.prefs);
+}
+
+/** On the groups tab, where someone just let in lands. */
+export function accountOfferHtml() {
+  const offer = offered();
+  if (!offer) return '';
+  return `
+    <section class="section account-offer" id="account">
+      <div class="section__head">
+        <h2>${escapeHtml(offer.name ? t('account.offerTitle', { name: offer.name }) : t('account.offerTitleBare'))}</h2>
+      </div>
+      <p class="small">${escapeHtml(t('account.offerWhy'))}</p>
+      ${signInFormHtml()}
+      <p class="muted small">${escapeHtml(t('account.offerWithout'))}</p>
+      <div class="row"><button type="button" class="button button--small button--ghost" data-account-later>${escapeHtml(t('install.later'))}</button></div>
     </section>`;
 }
 
@@ -230,9 +281,15 @@ export function bindAccount() {
     }
     saveAccount({ ...session, email: session.email || awaiting });
     awaiting = '';
+    forgetOffer();
     flash(t('account.welcome'));
     render();
     await syncAccount({ force: true });
+    render();
+  });
+  view.querySelector('[data-account-later]')?.addEventListener('click', () => {
+    awaiting = '';
+    forgetOffer();
     render();
   });
   view.querySelector('#account-other')?.addEventListener('click', () => {

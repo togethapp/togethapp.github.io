@@ -8,8 +8,9 @@
 
 import {
   appLink, chainLabel, chainOf, documentTitle, escapeHtml, everything, flash, formatDate, formatDay, isBusy,
-  knocking, lookForUpdate, navigate, pullAny, render, showsGate, state, view,
+  liveCoversGroups, lookForUpdate, navigate, pullAny, render, state, view,
 } from './app.js';
+import { knocking, showsGate } from './view-join.js';
 import {
   getPoll, getSpend, persistPoll, persistSpend, pullPoll, pushFailed, replacePoll, replaceSpend,
 } from './view-polls.js';
@@ -32,7 +33,8 @@ import { bindSwipes } from './swipe.js';
 import { setLink } from './remote.js';
 import { canSeal, newCode, readCode, seal, unseal } from './lock.js';
 import { t } from './i18n.js';
-import { syncAccount } from './view-account.js';
+import { account, offerAccount, syncAccount } from './view-account.js';
+import { syncPush } from './view-notify.js';
 import { keepData } from './view-install.js';
 
 /* ------------------------------------------------------------- the chain --- */
@@ -243,6 +245,7 @@ export function rememberGroup(group) {
   if (!known) {
     void syncAccount({ restore: false, force: true });
     void keepData();
+    void syncPush();
   }
 }
 
@@ -1031,7 +1034,7 @@ export async function joinGroup(key) {
   if (!group) return null;
   rememberGroup({
     id: group.id, name: group.name, key: clean, admits: Boolean(group.admits),
-    accounts: Boolean(group.accounts), linked: Boolean(group.linked),
+    accounts: Boolean(group.accounts), linked: Boolean(group.linked), channel: liveChannel(group),
   });
   return group;
 }
@@ -1060,10 +1063,11 @@ export async function verifyGroups() {
       continue;
     }
     if (found.name !== group.name || Boolean(found.admits) !== group.admits
-        || Boolean(found.accounts) !== Boolean(group.accounts) || Boolean(found.linked) !== Boolean(group.linked)) {
+        || Boolean(found.accounts) !== Boolean(group.accounts) || Boolean(found.linked) !== Boolean(group.linked)
+        || liveChannel(found) !== (group.channel || '')) {
       rememberGroup({
         ...group, name: found.name || group.name, admits: Boolean(found.admits),
-        accounts: Boolean(found.accounts), linked: Boolean(found.linked),
+        accounts: Boolean(found.accounts), linked: Boolean(found.linked), channel: liveChannel(found),
       });
       learnt = true;
     }
@@ -1142,12 +1146,15 @@ export async function checkPending(knock) {
     } catch {
       // In the group either way; what it shares can be fetched later.
     }
-    // Just let in: the one moment they will listen to "keep your return link".
-    // Said in the line that greets them rather than in a dialog — a question
-    // that blocks the screen on the way in is a question in the wrong place.
-    flash(taken
-      ? t('groups.joinedWithKeepLink', { name: group.name, count: taken })
-      : t('groups.joinedKeepLink', { name: group.name }));
+    // Just let in: the one moment they will listen to "keep this group". An
+    // account is offered on the groups tab, where they land, the return link
+    // beside it; signed in already, the account keeps it. Said on the page
+    // rather than in a dialog — a question that blocks the screen on the way
+    // in is a question in the wrong place.
+    const offered = !alreadyIn && offerAccount(group);
+    flash(offered || account()
+      ? t(taken ? 'groups.joinedWith' : 'groups.joined', { name: group.name, count: taken })
+      : t(taken ? 'groups.joinedWithKeepLink' : 'groups.joinedKeepLink', { name: group.name, count: taken }));
     return 'ok';
   }
 
@@ -1248,6 +1255,14 @@ export async function loadGate(group) {
 }
 
 /**
+ * The secret name of the group's channel on Realtime (see live.js), or '' from
+ * a database that does not announce its changes yet.
+ */
+function liveChannel(found) {
+  return typeof found?.channel === 'string' && /^[a-z0-9]{8,64}$/.test(found.channel) ? found.channel : '';
+}
+
+/**
  * Whether this device's key lets people in. Groups remembered before the
  * question existed do not say, so the database is asked once.
  */
@@ -1262,7 +1277,7 @@ export async function refreshGroup(group) {
   if (!found) return false;
   rememberGroup({
     ...group, name: found.name || group.name, admits: Boolean(found.admits),
-    accounts: Boolean(found.accounts), linked: Boolean(found.linked),
+    accounts: Boolean(found.accounts), linked: Boolean(found.linked), channel: liveChannel(found),
   });
   return true;
 }
@@ -1300,6 +1315,8 @@ export async function catchUpAll() {
 
 /** Not more often than this, when it happens on its own. */
 const SYNC_EVERY = 20000;
+/** And while the database announces every change (live.js). */
+const SYNC_HEARD = 120000;
 
 /**
  * Catch up by itself: when the app opens, and each time it comes back to the
@@ -1307,7 +1324,10 @@ const SYNC_EVERY = 20000;
  */
 export async function catchUpQuietly() {
   if (!state.remote || !groups().length) return;
-  if (state.syncedAt && Date.now() - state.syncedAt < SYNC_EVERY) return;
+  // Every group heard as it changes: asking is only a net, in case an
+  // announcement was lost.
+  const every = liveCoversGroups() ? SYNC_HEARD : SYNC_EVERY;
+  if (state.syncedAt && Date.now() - state.syncedAt < every) return;
   const taken = await catchUpAll();
   const changed = showsGate() ? await refreshGate() : false;
   if ((taken || changed) && !isBusy()) render();

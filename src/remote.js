@@ -447,6 +447,25 @@ export function createRemote(config, fetchImpl = globalThis.fetch) {
     async accountLeave(token, key) {
       return call('marque_points_account_leave', { p_key: key }, token);
     },
+
+    /* -------------------------------------------------- notifications --- */
+
+    /** Keep this browser's subscription for a group, with that group's key. */
+    async pushSubscribe(key, { endpoint, p256dh, auth }, lang = 'fr', app = '') {
+      return call('marque_points_push_subscribe', {
+        p_key: key, p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_lang: lang, p_app: app,
+      });
+    },
+
+    /** Forget this browser's subscription, in every group. */
+    async pushUnsubscribe(endpoint) {
+      await call('marque_points_push_unsubscribe', { p_endpoint: endpoint });
+    },
+
+    /** The notifier function: { action: 'key' | 'doc' | 'knock', … }. */
+    async notifier(body) {
+      return call('notifier', body, null, '/functions/v1/notifier');
+    },
   };
 }
 

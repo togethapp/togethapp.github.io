@@ -11,7 +11,44 @@
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 
-const rows = new Map(); // id → { data, code, tries, group }
+/**
+ * Supabase Realtime, the little the app uses: a WebSocket speaking Phoenix
+ * (JSON, 1.0.0), public channels, and an empty « changed » broadcast on each
+ * write — on the document's channel, and on its group's when the group lists
+ * it — as the trigger marque_points_live does. NOLIVE=1 leaves it out, like a
+ * database where Realtime is off.
+ */
+const live = new Set(); // sockets: { write(message), topics: Set }
+const channelOf = (groupId) => createHash('sha256').update(`canal|${groupId}`).digest('hex').slice(0, 32);
+function announce(topic) {
+  for (const socket of live) {
+    if (socket.topics.has(topic)) {
+      socket.write({ topic: `realtime:${topic}`, event: 'broadcast', payload: { type: 'broadcast', event: 'changed', payload: {} }, ref: null });
+    }
+  }
+}
+function announceRow(id, row) {
+  // After the answer has left, as Realtime speaks after the commit.
+  setTimeout(() => {
+    announce(`doc-${id}`);
+    if (row?.group && row.listed !== false && !row.code) announce(`group-${channelOf(row.group)}`);
+  }, 30);
+}
+class AnnouncingRows extends Map {
+  set(id, row) {
+    super.set(id, row);
+    announceRow(id, row);
+    return this;
+  }
+  delete(id) {
+    const row = this.get(id);
+    const gone = super.delete(id);
+    if (gone) announceRow(id, row);
+    return gone;
+  }
+}
+
+const rows = new AnnouncingRows(); // id → { data, code, tries, group }
 const INVITES = new Map(); // code → { group, at }
 const MISSES = new Map(); // nom de groupe → essais ratés
 const CALENDARS = new Map();
@@ -37,10 +74,14 @@ const OWNED = new Map(); // `${compte}|${doc}` → secret d'organisateur
 const CUT = new Map(); // `${compte}|${groupe}` → quand une clé du compte y a été coupée
 const REQUIRED = new Set(); // groupes qui exigent un compte
 const REVOKED = new Set(); // comptes déconnectés partout : leur jeton de renouvellement ne sert plus
+const PUSH = []; // marque_points_push : { endpoint, group, lang, app }
+const NOTIFIED = []; // ce que la fonction « notifier » a reçu
+// Une clé publique VAPID quelconque, de la bonne forme (un point P-256 brut).
+const VAPID_PUBLIC = 'BA3xkPq8MXN8qJ3wk_0BrivFfuUnIdGzFWzitn3FfhXJyS5nAgjhs3xLrV-TvwrlAz6OYo_vwuqCGf6w7SIYtlw';
 const port = Number(process.env.PORT) || 8123;
 const old = process.env.OLD === '1';
 
-createServer(async (req, res) => {
+const server = createServer(async (req, res) => {
   const send = (status, body) => {
     res.writeHead(status, {
       'content-type': 'application/json',
@@ -53,6 +94,8 @@ createServer(async (req, res) => {
   const raise = (message) => send(400, { code: 'P0001', message });
   if (req.method === 'OPTIONS') return send(204);
   // Pour les tests : le code que l'e-mail aurait porté.
+  // Pour les tests : ce que la fonction « notifier » a reçu, et les abonnements.
+  if (req.url === '/__notifier') return send(200, { calls: NOTIFIED, subscriptions: PUSH });
   if (req.url.startsWith('/__code?')) {
     return send(200, { code: CODES.get(new URL(req.url, 'http://x').searchParams.get('email')) ?? null });
   }
@@ -62,6 +105,15 @@ createServer(async (req, res) => {
   for await (const chunk of req) body += chunk;
   const at = body ? JSON.parse(body) : {};
   const fn = req.url.split('/').pop();
+
+  // La fonction « notifier », réduite à ce qu'elle reçoit : chiffrer et envoyer
+  // est l'affaire de tests/notifier.test.js et tests/webpush.test.js.
+  if (req.url === '/functions/v1/notifier') {
+    if (old || process.env.NONOTIFIER === '1') return send(404, { message: 'Function not found' });
+    NOTIFIED.push(at);
+    if (at.action === 'key') return send(200, { status: 'ok', key: VAPID_PUBLIC });
+    return send(200, { status: 'ok', sent: 0 });
+  }
 
   if (req.url.startsWith('/auth/v1/')) {
     if (old) return send(404, { message: 'not found' });
@@ -262,8 +314,25 @@ createServer(async (req, res) => {
     const group = GROUPS.get(at.p_key);
     return send(200, group ? {
       ...group, admits: ADMITS.has(at.p_key), accounts: REQUIRED.has(group.id),
-      linked: Boolean(KEYS.find((one) => one.key === at.p_key)?.user),
+      linked: Boolean(KEYS.find((one) => one.key === at.p_key)?.user), channel: channelOf(group.id),
     } : null);
+  }
+  if (fn === 'marque_points_push_subscribe') {
+    const group = GROUPS.get(at.p_key);
+    if (!group || closed(at.p_key)) return send(200, { status: 'unknown' });
+    // Comme la base : les services d'envoi des navigateurs, et rien d'autre.
+    if (!/^https:\/\/(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|([a-z0-9-]+\.)*push\.apple\.com|([a-z0-9-]+\.)*notify\.windows\.com)\/\S+$/
+      .test(String(at.p_endpoint ?? ''))) return raise('abonnement invalide');
+    const kept = PUSH.filter((one) => !(one.endpoint === at.p_endpoint && one.group === group.id));
+    PUSH.length = 0;
+    PUSH.push(...kept, { endpoint: at.p_endpoint, group: group.id, lang: at.p_lang, app: at.p_app });
+    return send(200, { status: 'ok' });
+  }
+  if (fn === 'marque_points_push_unsubscribe') {
+    const kept = PUSH.filter((one) => one.endpoint !== at.p_endpoint);
+    PUSH.length = 0;
+    PUSH.push(...kept);
+    return send(204);
   }
   if (fn === 'marque_points_set_accounts') {
     const group = GROUPS.get(at.p_key);
@@ -300,6 +369,7 @@ createServer(async (req, res) => {
     MISSES.delete(name);
 
     const ticket = `jeton-${Math.random().toString(36).slice(2, 12)}`;
+    setTimeout(() => announce(`group-${channelOf(invite.group.id)}`), 30);
     REQUESTS.push({
       id: `req_${Math.random().toString(36).slice(2, 10)}`,
       group: invite.group.id,
@@ -496,4 +566,57 @@ createServer(async (req, res) => {
   }
 
   return send(404, { code: 'PGRST202', message: 'function not found' });
-}).listen(port, () => console.log(`fake database on ${port}${old ? ' (not updated)' : ''}`));
+});
+
+/** The WebSocket by hand: the handshake, then unmasked text frames out and masked ones in. */
+server.on('upgrade', (req, socket) => {
+  const url = new URL(req.url, 'http://x');
+  if (old || process.env.NOLIVE === '1' || url.pathname !== '/realtime/v1/websocket' || url.searchParams.get('apikey') !== KEY) {
+    socket.end('HTTP/1.1 403 Forbidden\r\n\r\n');
+    return;
+  }
+  const accept = createHash('sha1').update(`${req.headers['sec-websocket-key']}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest('base64');
+  socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
+  const client = {
+    topics: new Set(),
+    write(message) {
+      const text = Buffer.from(JSON.stringify(message));
+      const head = text.length < 126 ? Buffer.from([0x81, text.length])
+        : Buffer.from([0x81, 126, text.length >> 8, text.length & 255]);
+      socket.write(Buffer.concat([head, text]));
+    },
+  };
+  live.add(client);
+  let pending = Buffer.alloc(0);
+  socket.on('data', (chunk) => {
+    pending = Buffer.concat([pending, chunk]);
+    while (pending.length >= 2) {
+      const opcode = pending[0] & 15;
+      let length = pending[1] & 127;
+      let offset = 2;
+      if (length === 126) { length = pending.readUInt16BE(2); offset = 4; }
+      if (pending.length < offset + 4 + length) return;
+      const mask = pending.subarray(offset, offset + 4);
+      const data = Buffer.from(pending.subarray(offset + 4, offset + 4 + length)).map((byte, i) => byte ^ mask[i % 4]);
+      pending = pending.subarray(offset + 4 + length);
+      if (opcode === 8) { socket.end(); return; }
+      if (opcode !== 1) continue;
+      let message = null;
+      try { message = JSON.parse(data.toString()); } catch { continue; }
+      const topic = String(message.topic ?? '').replace(/^realtime:/, '');
+      if (message.event === 'phx_join') {
+        client.topics.add(topic);
+        client.write({ topic: message.topic, event: 'phx_reply', payload: { status: 'ok', response: {} }, ref: message.ref });
+      } else if (message.event === 'phx_leave') {
+        client.topics.delete(topic);
+      } else if (message.event === 'heartbeat') {
+        client.write({ topic: 'phoenix', event: 'phx_reply', payload: { status: 'ok', response: {} }, ref: message.ref });
+      }
+    }
+  });
+  const forget = () => live.delete(client);
+  socket.on('close', forget);
+  socket.on('error', forget);
+});
+
+server.listen(port, () => console.log(`fake database on ${port}${old ? ' (not updated)' : ''}`));

@@ -87,8 +87,21 @@ web, aucune dépendance, aucun build.
   chaque fois qu'on y revient, elle va chercher ce que le groupe a partagé
   depuis — Safari et l'app de l'écran d'accueil sont deux appareils, et ne se
   parlent que par la base. Le bouton **⟳** de la barre du haut le fait sur
-  commande et dit combien d'éléments sont arrivés ; un document ouvert à l'écran,
-  lui, se met à jour toutes les cinq secondes.
+  commande et dit combien d'éléments sont arrivés.
+- **Et pendant qu'on regarde, aussitôt** : la base annonce chaque écriture sur
+  Supabase Realtime (déclencheur `marque_points_live`) — une annonce vide, sur
+  le canal du document et sur celui de son groupe, dont le nom est tiré au
+  hasard et donné seulement avec une clé (`group_of` → `channel`). L'app
+  écoute ses groupes, ses sondages « lien seulement » et le document à
+  l'écran, puis redemande comme d'habitude, avec sa clé : une clé coupée
+  n'apprend rien de plus. Sans Realtime (ou canal refusé, redemandé toutes les
+  30 s), elle redemande toutes les 5 s (document ouvert) et 20 s (groupes),
+  comme avant ; quand elle entend, une fois par minute seulement, au cas où
+  une annonce se perdrait. Une connexion dont le serveur ne répond plus depuis
+  une minute — un téléphone qui sort de veille en garde une qui se dit encore
+  ouverte — n'est plus crue : l'app relève à nouveau elle-même et en rouvre une.
+  `src/live.js` (client Phoenix écrit à la main) ; suite `direct`, contrôle
+  SQL `annonces`.
 - **Ce prénom sert ensuite partout** : le groupe voit qui est entré, et vous êtes
   proposé en premier dans une nouvelle liste, un sondage ou une partie — proposé
   une fois, au moment où le formulaire est vide ; effacé, il reste effacé. Il ne
@@ -118,8 +131,10 @@ web, aucune dépendance, aucun build.
 - **Ça marche sur téléphone**, hors ligne, en français ou en anglais, avec un
   apparence au choix dans **Réglages → Apparence** : trois styles (Hologramme,
   le style de l'app ; Classique, papier chaud et ambre ; Épuré, gris et plat),
-  six couleurs ou celle du style, nuit (par défaut) ou clair — aussi au bouton
-  rond du haut. Gardé sur l'appareil, appliqué avant le premier affichage. Les parties sont enregistrées dans le navigateur, et
+  huit couleurs, du rouge au rose (celle du style est l'une d'elles, cochée
+  d'origine), nuit (par défaut) ou clair — aussi au bouton rond du haut. Gardé
+  sur l'appareil, appliqué avant le premier affichage. Les parties sont
+  enregistrées dans le navigateur, et
   exportables en JSON pour sauvegarder ou changer d'appareil.
 
 ## Ce que ça fait — les listes
@@ -565,6 +580,12 @@ l'ancienne le faisait), les secrets d'organisateur, le prénom.
 - Synchronisé à l'ouverture de l'app, en rejoignant un groupe, et par
   **Synchroniser** — seulement ce qui est nouveau (une clé, un secret), pas
   tout à chaque fois. Se déconnecter laisse tout sur l'appareil.
+- **Proposé à l'entrée** (étape 2) : qui vient d'être accepté dans un groupe
+  — ou revient par son lien de retour — trouve en tête de l'onglet Groupes
+  « Garder Mifa sur un compte ? », le formulaire sur place, et le lien de
+  retour comme autre voie. **Plus tard** le range pour de bon sur cet
+  appareil (le rappel de l'Accueil prend le relais) ; se connecter aussi.
+  Suite `offrecompte`.
 - Les visiteurs d'un lien de sondage n'ont besoin de rien.
 - **Exiger un compte**, groupe par groupe (Groupes → le groupe → Appareils,
   pour une clé qui fait entrer) : la liste dit combien d'appareils ont un
@@ -586,6 +607,37 @@ l'ancienne le faisait), les secrets d'organisateur, le prénom.
 - Côté Supabase : le modèle d'e-mail doit porter le code (`{{ .Token }}`) et,
   pour plus que quelques e-mails par heure, un service d'envoi (SMTP) — voir
   docs/DEPLOIEMENT.md, étape 9.
+
+## Les notifications
+
+**Réglages → Notifications → Activer les notifications** : cet appareil est
+prévenu d'un nouveau sondage, d'une liste, d'un compte ou d'un tableau d'idées
+dans ses groupes, d'une date retenue, et — s'il fait entrer — de quelqu'un qui
+frappe. Toucher la notification ouvre la bonne page.
+
+- Sur iPhone, seule l'app posée sur l'écran d'accueil les reçoit (iOS 16.4+) :
+  la section le dit dans Safari. Le fichier unique (`dist/`) n'a pas de service
+  worker et dit qu'il ne les reçoit pas.
+- L'appareil confie son abonnement à la base **une fois par groupe, avec la clé
+  de ce groupe** (`marque_points_push_subscribe`) : couper la clé l'efface.
+  Seules les adresses des services d'envoi des navigateurs (Google, Mozilla,
+  Apple, Microsoft) sont acceptées, cinq au plus par clé — la base et la
+  fonction refusent toute autre adresse. Dans un groupe qui exige un compte,
+  un appareil sans compte n'est pas prévenu.
+- Chaque écriture faite avec une clé de groupe, et chaque frappe, préviennent
+  la fonction **`notifier`** (`supabase/functions/notifier/`, construite en un
+  fichier par `npm run bundle`), une fois par document et par date
+  (`marque-points:told:v1`). C'est la base qui décide de ce qui est nouveau
+  (`marque_points_push_event` : créé il y a moins de deux jours, jamais
+  annoncé ; une date pas encore annoncée ni passée), une seule fois
+  (`marque_points_push_sent`), et jamais à l'appareil qui l'a écrit. Le texte
+  vient de la base, pas de l'appelant.
+- Web Push écrit à la main, sans bibliothèque (`webpush.js` : VAPID et
+  aes128gcm, RFC 8291), vérifié contre une implémentation indépendante. La paire
+  de clés VAPID est faite par la fonction au premier appel et gardée dans la
+  base. Le contenu est chiffré pour le seul téléphone qui le reçoit.
+- Mise en place : docs/DEPLOIEMENT.md, étape 10. Tests : `notify`, `webpush`,
+  `notifier`, contrôle SQL `notifications`, suite `notifications`.
 
 ## Supprimer d'un glissement
 
@@ -735,7 +787,7 @@ des presets et des traductions, et fraîcheur des fichiers livrés dans
 Deux batteries de plus, plus lentes, pour ce que `npm test` ne voit pas :
 
 ```bash
-tests/navigateur/lancer.sh            # l'app dans Chromium, contre une fausse base (~10 min)
+tests/navigateur/lancer.sh            # l'app dans Chromium, contre une fausse base (~15 min)
 tests/navigateur/lancer.sh polltest   # une suite seulement
 tests/sql/verifier.sh                 # le SQL du guide sur un vrai PostgreSQL
 tests/sql/verifier.sh --depuis <commit>   # la mise à jour d'une base plus ancienne
@@ -753,7 +805,12 @@ pour partager, son groupe dit, et « Plus d'actions » de *Renommer* à
 fenêtre qu'un bouton ouvre, avec une façon visible d'en sortir — et en sortir
 sans valider (Échap) ne doit rien avoir enregistré. Un écran ou une fenêtre
 ajouté plus tard est vérifié de la même façon, en ajoutant sa route à
-`routesOf`.
+`routesOf`. **`pieges`** remplit chaque sorte de document de noms piégés (du
+HTML qui s'exécuterait : une balise, une sortie d'attribut, une fin de champ)
+et vérifie, écran par écran, qu'ils s'affichent comme du texte sans jamais
+s'exécuter — c'est par là qu'entrerait une faille, un membre du groupe ou un
+visiteur d'un lien écrivant ce qu'il veut. Un nouvel écran s'ajoute aussi à
+ses routes.
 
 La première installe Playwright hors du projet si besoin et utilise le Chromium
 de l'environnement (`/opt/pw-browsers/chromium`) ; la seconde demande
@@ -789,8 +846,13 @@ src/config.js     l'adresse de cette base, à remplir pour activer le partage
 tools/check-remote.js  vérifie que la base est correctement configurée
 docs/DEPLOIEMENT.md    mise en ligne pas à pas
 src/i18n.js       traductions fr / en
-src/app.js        routeur, accueil, agenda, pages des personnes
-src/view-*.js     un écran chacun : sondages, listes, comptes, idées, parties, groupes
+src/app.js        routeur, rendu, relèves, et les aides communes aux écrans
+src/view-*.js     un écran chacun : accueil et réglages (home), entrée dans un
+                  groupe (join), personnes (people), sondages, listes, comptes,
+                  idées, parties, groupes
+src/live.js       les changements entendus aussitôt (Supabase Realtime)
+src/notify.js     notifications : ce qui se décide sans navigateur
+supabase/functions/notifier/  la fonction qui envoie les notifications
 tools/serve.js    serveur statique de développement
 tools/bundle.js   construction du fichier unique autonome
 dist/             le fichier unique, livré dans le dépôt

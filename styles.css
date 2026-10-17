@@ -24,18 +24,22 @@
   --bad: #ff5f7e;
   /* The colours one may choose, in their night shades — which the 3D view
      on Home keeps whatever the theme, since it is always night in there. */
-  --night-cyan: #5ff3ff;
-  --night-violet: #b9a0ff;
-  --night-green: #4ff0a0;
+  --night-red: #ff6450;
+  --night-orange: #ff8a3d;
   --night-amber: #f2b14d;
-  --night-pink: #ff85dc;
+  --night-green: #4ff0a0;
+  --night-cyan: #5ff3ff;
   --night-blue: #7ab8ff;
-  --accent-cyan: var(--night-cyan);
-  --accent-violet: var(--night-violet);
-  --accent-green: var(--night-green);
+  --night-violet: #b9a0ff;
+  --night-pink: #ff85dc;
+  --accent-red: var(--night-red);
+  --accent-orange: var(--night-orange);
   --accent-amber: var(--night-amber);
-  --accent-pink: var(--night-pink);
+  --accent-green: var(--night-green);
+  --accent-cyan: var(--night-cyan);
   --accent-blue: var(--night-blue);
+  --accent-violet: var(--night-violet);
+  --accent-pink: var(--night-pink);
   --accent: var(--accent-cyan);
   --holo-hue: var(--night-cyan);
   --accent-text: #04101a;
@@ -85,12 +89,14 @@
   --good: #0b7d4c;
   --bad: #c8233f;
   /* The same colours, deep enough to read on light. */
-  --accent-cyan: #00718c;
-  --accent-violet: #6a3fcf;
-  --accent-green: #067044;
+  --accent-red: #b52a17;
+  --accent-orange: #a8420a;
   --accent-amber: #985a00;
-  --accent-pink: #b4237c;
+  --accent-green: #067044;
+  --accent-cyan: #00718c;
   --accent-blue: #1f5fbf;
+  --accent-violet: #6a3fcf;
+  --accent-pink: #b4237c;
   --accent-text: #ffffff;
   --glow: color-mix(in srgb, var(--accent) 16%, transparent);
   --ring: color-mix(in srgb, var(--accent) 22%, transparent);
@@ -211,13 +217,16 @@
   --shadow-lift: 0 0 0 1px var(--border), 0 6px 16px rgb(0 0 0 / 8%);
 }
 
-/* A colour chosen in the settings wins over the style's own. */
-:root[data-accent='cyan'] { --accent: var(--accent-cyan); --holo-hue: var(--night-cyan); }
-:root[data-accent='violet'] { --accent: var(--accent-violet); --holo-hue: var(--night-violet); }
-:root[data-accent='green'] { --accent: var(--accent-green); --holo-hue: var(--night-green); }
+/* A colour chosen in the settings wins over the style's own. The red is a
+   vermilion, warmer than the red of errors and of « Supprimer » (--bad). */
+:root[data-accent='red'] { --accent: var(--accent-red); --holo-hue: var(--night-red); }
+:root[data-accent='orange'] { --accent: var(--accent-orange); --holo-hue: var(--night-orange); }
 :root[data-accent='amber'] { --accent: var(--accent-amber); --holo-hue: var(--night-amber); }
-:root[data-accent='pink'] { --accent: var(--accent-pink); --holo-hue: var(--night-pink); }
+:root[data-accent='green'] { --accent: var(--accent-green); --holo-hue: var(--night-green); }
+:root[data-accent='cyan'] { --accent: var(--accent-cyan); --holo-hue: var(--night-cyan); }
 :root[data-accent='blue'] { --accent: var(--accent-blue); --holo-hue: var(--night-blue); }
+:root[data-accent='violet'] { --accent: var(--accent-violet); --holo-hue: var(--night-violet); }
+:root[data-accent='pink'] { --accent: var(--accent-pink); --holo-hue: var(--night-pink); }
 
 /* ------------------------------------------------------------------ base --- */
 * { box-sizing: border-box; }
@@ -1766,14 +1775,19 @@ body:not(.solo) .view {
 .swatch--pen .swatch__rubber { background: transparent; border: 2px solid var(--text); }
 .swatch--on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 
-/* Réglages → Apparence: each colour shown as itself; « A », the style's own. */
-.tints { gap: 4px; }
+/* Réglages → Apparence: each colour shown as itself, all eight on one line —
+   narrower than 40px each on the smallest phones rather than one alone below. */
+.tints {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 40px));
+  gap: 4px;
+}
 
 .tint {
   display: inline-grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 100%;
+  aspect-ratio: 1;
   padding: 0;
   border: 2px solid transparent;
   border-radius: 50%;
@@ -1789,9 +1803,6 @@ body:not(.solo) .view {
   border-radius: 50%;
   background: var(--tint);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%), 0 0 10px color-mix(in srgb, var(--tint) 35%, transparent);
-  color: var(--accent-text);
-  font-size: 0.72rem;
-  font-weight: 800;
 }
 
 .tint--on { border-color: var(--text); }

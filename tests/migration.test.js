@@ -88,9 +88,11 @@ test('the update erases no data', async () => {
   // The functions it installs clean up after themselves (expired invitations),
   // which is theirs to do when they run — not the update's, when it is pasted.
   // A trigger is code too: `after delete on` says when it runs, and dropping
-  // one to create it again replaces code, not data.
+  // one to create it again replaces code, not data. So is `on delete cascade`,
+  // a rule kept with a new table's column, which deletes nothing when pasted.
   const outside = statements
     .replace(/\$\$[\s\S]*?\$\$/g, '')
+    .replace(/\bon\s+delete\s+cascade\b/gi, '')
     .replace(/\bcreate\s+trigger\b[^;]*;/gi, '')
     .replace(/\bdrop\s+trigger\s+if\s+exists\b[^;]*;/gi, '');
   assert.equal(/\b(delete|truncate)\b/i.test(outside), false, 'no delete or truncate at the top level');

@@ -24,7 +24,7 @@ const root = resolve(import.meta.dirname, '..');
  * for app.js and the screens split out of it (view-*.js), which call each
  * other, and only from inside functions, run once everything is loaded.
  */
-const MODULES = ['i18n.js', 'games.js', 'model.js', 'scoring.js', 'helpers.js', 'tarot.js', 'qr.js', 'stamp.js', 'people.js', 'lists.js', 'polls.js', 'spends.js', 'ideas.js', 'stats.js', 'dashboard.js', 'holo.js', 'flows.js', 'ics.js', 'recap.js', 'export-docx.js', 'export-pdf.js', 'storage.js', 'config.js', 'lock.js', 'remote.js', 'prefill.js', 'cloud.js', 'swipe.js', 'view-polls.js', 'view-lists.js', 'view-spends.js', 'view-ideas.js', 'view-games.js', 'view-groups.js', 'view-flows.js', 'view-account.js', 'view-install.js', 'view-holo.js', 'view-look.js', 'app.js'];
+const MODULES = ['i18n.js', 'games.js', 'model.js', 'scoring.js', 'helpers.js', 'tarot.js', 'qr.js', 'stamp.js', 'people.js', 'lists.js', 'polls.js', 'spends.js', 'ideas.js', 'stats.js', 'dashboard.js', 'holo.js', 'flows.js', 'ics.js', 'recap.js', 'export-docx.js', 'export-pdf.js', 'storage.js', 'config.js', 'lock.js', 'remote.js', 'prefill.js', 'cloud.js', 'live.js', 'notify.js', 'swipe.js', 'view-polls.js', 'view-lists.js', 'view-spends.js', 'view-ideas.js', 'view-games.js', 'view-groups.js', 'view-flows.js', 'view-account.js', 'view-install.js', 'view-holo.js', 'view-look.js', 'view-home.js', 'view-join.js', 'view-people.js', 'view-notify.js', 'app.js'];
 
 /**
  * An import, on one line or spread over several — a long list of names wraps,
@@ -147,7 +147,7 @@ async function checkOfflineShell(root) {
  * readable — src/ics.js and supabase/functions/agenda/handler.js — and this
  * builds what gets deployed, exactly as dist/ is built for the app.
  */
-export async function edgeFunction() {
+export async function edgeFunction(name = 'agenda') {
   const strip = (code) =>
     code
       .replace(IMPORT_LINE, '')
@@ -155,22 +155,26 @@ export async function edgeFunction() {
       .replace(EXPORT_KEYWORD, '')
       .trim();
 
-  const [calendar, handler] = await Promise.all([
-    readFile(join(root, 'src', 'ics.js'), 'utf8'),
-    readFile(join(root, 'supabase', 'functions', 'agenda', 'handler.js'), 'utf8'),
-  ]);
-
-  const parts = [strip(calendar), strip(handler)];
-  for (const part of parts) {
+  const sources = EDGE_SOURCES[name];
+  if (!sources) throw new Error(`Cannot build the ${name} function: no such function.`);
+  const parts = (await Promise.all(sources.map((path) => readFile(join(root, path), 'utf8')))).map(strip);
+  const declaredIn = new Map();
+  parts.forEach((part, index) => {
     const leftover = part.match(LEFTOVER_MODULE);
     if (leftover) {
       throw new Error(
-        `Cannot build the calendar function: a module statement was left in — ${leftover[0].trim()}`,
+        `Cannot build the ${name} function: a module statement was left in — ${leftover[0].trim()}`,
       );
     }
-  }
+    for (const [, identifier] of part.matchAll(TOP_LEVEL_DECLARATION)) {
+      if (declaredIn.has(identifier)) {
+        throw new Error(`Cannot build the ${name} function: "${identifier}" is declared twice (${declaredIn.get(identifier)}, ${sources[index]}).`);
+      }
+      declaredIn.set(identifier, sources[index]);
+    }
+  });
 
-  const text = `${EDGE_HEADER}\n${parts.join('\n\n')}\n`;
+  const text = `${EDGE_HEADERS[name]}\n${parts.join('\n\n')}\n`;
   // Le nombre de lignes est écrit dans le fichier lui-même : un collage
   // incomplet — le piège de l'éditeur de Supabase — se voit alors d'un coup
   // d'œil, au lieu de ressortir en « Expression expected » à la première ligne
@@ -178,12 +182,18 @@ export async function edgeFunction() {
   // tient sur une ligne, quel que soit le nombre écrit dessus.
   const lines = text.split('\n').length - 1;
   if (!text.includes(LINE_COUNT_MARK)) {
-    throw new Error('Cannot build the calendar function: its header no longer says how long it is.');
+    throw new Error(`Cannot build the ${name} function: its header no longer says how long it is.`);
   }
   return text.replace(LINE_COUNT_MARK, String(lines));
 }
 
 const LINE_COUNT_MARK = '{{lignes}}';
+
+/** What each Edge Function is made of, in order: each part only uses what comes before it. */
+const EDGE_SOURCES = {
+  agenda: ['src/ics.js', 'supabase/functions/agenda/handler.js'],
+  notifier: ['src/ics.js', 'supabase/functions/notifier/webpush.js', 'supabase/functions/notifier/handler.js'],
+};
 
 const EDGE_HEADER = `// ${GENERATED_BY}
 //
@@ -195,6 +205,19 @@ const EDGE_HEADER = `// ${GENERATED_BY}
 // le collage est incomplet : refaites un « tout sélectionner » dans l'éditeur,
 // puis recollez. Le plus sûr est de copier depuis la version brute du fichier
 // sur GitHub (bouton « Raw »), qui est du texte et rien d'autre.`;
+
+const EDGE_HEADERS = {
+  agenda: EDGE_HEADER,
+  notifier: `// ${GENERATED_BY}
+//
+// Collez ce fichier dans Supabase → Edge Functions, sous le nom « notifier »,
+// avec la vérification du JWT **désactivée**. Voir docs/DEPLOIEMENT.md, étape 10.
+//
+// Le fichier fait ${LINE_COUNT_MARK} lignes. Si l'éditeur en affiche moins une fois collé,
+// le collage est incomplet : refaites un « tout sélectionner » dans l'éditeur,
+// puis recollez. Le plus sûr est de copier depuis la version brute du fichier
+// sur GitHub (bouton « Raw »), qui est du texte et rien d'autre.`,
+};
 
 /** Every substitution must fire: a silent no-op would ship a broken page. */
 function substitute(source, pattern, replacement, what) {
@@ -312,8 +335,9 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename
     console.log(`dist/${name} — ${(output.length / 1024).toFixed(0)} KB`);
   }
 
-  const edge = await edgeFunction();
-  const where = join(root, 'supabase', 'functions', 'agenda', 'index.ts');
-  await writeFile(where, edge);
-  console.log(`supabase/functions/agenda/index.ts — ${(edge.length / 1024).toFixed(0)} KB`);
+  for (const name of Object.keys(EDGE_SOURCES)) {
+    const edge = await edgeFunction(name);
+    await writeFile(join(root, 'supabase', 'functions', name, 'index.ts'), edge);
+    console.log(`supabase/functions/${name}/index.ts — ${(edge.length / 1024).toFixed(0)} KB`);
+  }
 }

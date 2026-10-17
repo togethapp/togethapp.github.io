@@ -8,9 +8,10 @@
 
 import {
   askForText, escapeHtml, flash, flashHtml, formatDate, groupChipsHtml, isBusy, isHidden, kindsHtml,
-  navigate, render, state, stopWatching, view,
+  liveQuiet, navigate, render, state, stopWatching, view,
   attachedHtml, chainButtonsHtml,
 } from './app.js';
+import { docTopic } from './live.js';
 import { actionsHtml, eventLinkHtml, eventTagHtml, keptElsewhere, pushFailed, shareBarHtml, whenAbsent } from './view-polls.js';
 import { archivedHtml } from './view-lists.js';
 import { ask, makeDialog } from './view-games.js';
@@ -660,7 +661,7 @@ export function watchBoard(id) {
   stopWatching();
   if (!state.remote) return;
   state.poll = setInterval(async () => {
-    if (isBusy() || isHidden()) return;
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
     if (await pullBoard(id)) render();
   }, 5000);
 }

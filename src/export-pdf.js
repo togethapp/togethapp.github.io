@@ -42,11 +42,6 @@ export function toLatin1(value) {
     .replace(/[^\x00-\xFF]/g, '?');
 }
 
-/** Width of a string in points, close enough to place and wrap text. */
-export function textWidth(text, size) {
-  return toLatin1(text).length * size * 0.5;
-}
-
 export function buildPdf(report) {
   const lines = [];
   let y = PAGE.height - PAGE.margin;

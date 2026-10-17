@@ -242,6 +242,12 @@ alter table public.marque_points_group enable row level security;
 alter table public.marque_points_group
   add column if not exists accounts_required boolean not null default false;
 
+-- Le nom du canal où la base annonce les changements du groupe (voir « Les
+-- changements annoncés aussitôt », plus bas) : tiré au hasard, donné seulement
+-- à qui a une clé.
+alter table public.marque_points_group
+  add column if not exists channel text not null default replace(gen_random_uuid()::text, '-', '');
+
 -- Deux groupes du même nom seraient indiscernables : on entre dans un groupe en
 -- disant son nom, et un lien d'invitation ne porte que ce nom. Sur une base qui
 -- en aurait déjà deux, l'index n'est pas créé et un message le dit — renommez-en
@@ -530,7 +536,8 @@ security definer
 set search_path = public
 as $$
   select jsonb_build_object('id', g.id, 'name', g.name, 'admits', k.admits,
-                            'accounts', g.accounts_required, 'linked', k.user_id is not null)
+                            'accounts', g.accounts_required, 'linked', k.user_id is not null,
+                            'channel', g.channel)
     from public.marque_points_group_key k
     join public.marque_points_group g on g.id = k.group_id
    where k.key_hash = md5(coalesce(p_key, '') || k.key_salt)
@@ -1811,6 +1818,338 @@ begin
 end;
 $$;
 
+-- Les changements annoncés aussitôt : à chaque écriture, la base dit « ça a
+-- changé » sur Supabase Realtime, sur le canal du document et sur celui de son
+-- groupe. L'annonce ne porte rien, ni identifiant ni contenu : l'app qui
+-- l'entend redemande comme d'habitude, avec sa clé. Le canal d'un groupe a un
+-- nom tiré au hasard (colonne channel, plus haut), donné seulement à qui a une
+-- clé. Sans Realtime, rien n'est annoncé, rien n'échoue, et l'app redemande
+-- toutes les quelques secondes, comme avant.
+create or replace function public.marque_points_announce(p_topic text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if to_regprocedure('realtime.send(jsonb, text, text, boolean)') is null then
+    return;
+  end if;
+  execute 'select realtime.send($1, $2, $3, false)' using '{}'::jsonb, 'changed', p_topic;
+exception when others then
+  null;
+end;
+$$;
+
+create or replace function public.marque_points_live()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_channel text;
+  v_fresh boolean := false;
+begin
+  if tg_table_name = 'marque_points_request' then
+    select channel into v_channel from public.marque_points_group where id = new.group_id;
+    if found then
+      perform public.marque_points_announce('group-' || v_channel);
+    end if;
+    return null;
+  end if;
+  if tg_op <> 'INSERT' then
+    perform public.marque_points_announce('doc-' || old.id);
+    if old.group_id is not null and old.listed and old.code_hash is null then
+      select channel into v_channel from public.marque_points_group where id = old.group_id;
+      if found then
+        perform public.marque_points_announce('group-' || v_channel);
+      end if;
+    end if;
+  end if;
+  if tg_op = 'INSERT' then
+    perform public.marque_points_announce('doc-' || new.id);
+    v_fresh := true;
+  elsif tg_op = 'UPDATE' then
+    v_fresh := new.group_id is distinct from old.group_id or not old.listed or old.code_hash is not null;
+  end if;
+  if v_fresh and new.group_id is not null and new.listed and new.code_hash is null then
+    select channel into v_channel from public.marque_points_group where id = new.group_id;
+    if found then
+      perform public.marque_points_announce('group-' || v_channel);
+    end if;
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists marque_points_live on public.marque_points_games;
+create trigger marque_points_live
+  after insert or update or delete on public.marque_points_games
+  for each row execute function public.marque_points_live();
+
+drop trigger if exists marque_points_live on public.marque_points_request;
+create trigger marque_points_live
+  after insert on public.marque_points_request
+  for each row execute function public.marque_points_live();
+
+-- Les notifications. Un appareil qui les active donne l'adresse où son
+-- navigateur les reçoit, une fois par groupe, avec sa clé : couper la clé
+-- l'efface. Seules les adresses des services d'envoi des navigateurs (Google,
+-- Mozilla, Apple, Microsoft) sont gardées, cinq au plus par clé : la fonction
+-- n'écrit jamais ailleurs. La fonction « notifier » (étape 10) les envoie ; elle seule lit ces
+-- tables, avec la clé de service, jamais la page.
+create table if not exists public.marque_points_push (
+  endpoint text not null,
+  key_id text not null references public.marque_points_group_key(id) on delete cascade,
+  p256dh text not null,
+  auth text not null,
+  lang text not null default 'fr',
+  app text not null default '',
+  created_at timestamptz not null default now(),
+  primary key (endpoint, key_id)
+);
+alter table public.marque_points_push enable row level security;
+create index if not exists marque_points_push_key on public.marque_points_push (key_id);
+
+-- Ce qui a déjà été annoncé : une nouveauté ne sonne qu'une fois.
+create table if not exists public.marque_points_push_sent (
+  doc_id text not null,
+  event text not null,
+  sent_at timestamptz not null default now(),
+  primary key (doc_id, event)
+);
+alter table public.marque_points_push_sent enable row level security;
+
+-- La paire de clés qui signe les envois, faite une fois par la fonction.
+create table if not exists public.marque_points_push_vapid (
+  id integer primary key default 1 check (id = 1),
+  public_key text not null,
+  private_jwk jsonb not null,
+  created_at timestamptz not null default now()
+);
+alter table public.marque_points_push_vapid enable row level security;
+
+create or replace function public.marque_points_push_subscribe(
+  p_key text,
+  p_endpoint text,
+  p_p256dh text,
+  p_auth text,
+  p_lang text default 'fr',
+  p_app text default ''
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_key public.marque_points_group_key;
+  v_required boolean;
+begin
+  select k.* into v_key
+    from public.marque_points_group_key k
+   where k.key_hash = md5(coalesce(p_key, '') || k.key_salt)
+   limit 1;
+  if not found then
+    return jsonb_build_object('status', 'unknown');
+  end if;
+  select g.accounts_required into v_required from public.marque_points_group g where g.id = v_key.group_id;
+  if v_required and v_key.user_id is null then
+    return jsonb_build_object('status', 'account');
+  end if;
+  if coalesce(p_endpoint, '') !~ ('^https://(fcm\.googleapis\.com|android\.googleapis\.com'
+                                   '|updates\.push\.services\.mozilla\.com|([a-z0-9-]+\.)*push\.apple\.com'
+                                   '|([a-z0-9-]+\.)*notify\.windows\.com)/\S+$')
+     or length(p_endpoint) > 1000
+     or coalesce(p_p256dh, '') !~ '^[A-Za-z0-9_-]{80,100}$'
+     or coalesce(p_auth, '') !~ '^[A-Za-z0-9_-]{16,32}$' then
+    raise exception 'abonnement invalide';
+  end if;
+  insert into public.marque_points_push (endpoint, key_id, p256dh, auth, lang, app, created_at)
+  values (p_endpoint, v_key.id, p_p256dh, p_auth,
+          case when p_lang = 'en' then 'en' else 'fr' end,
+          case when coalesce(p_app, '') ~ '^https?://\S+$' and length(p_app) <= 300 then p_app else '' end,
+          clock_timestamp())
+  on conflict (endpoint, key_id) do update
+     set p256dh = excluded.p256dh, auth = excluded.auth, lang = excluded.lang, app = excluded.app,
+         created_at = excluded.created_at;
+  delete from public.marque_points_push p
+   where p.key_id = v_key.id
+     and p.endpoint not in (select q.endpoint from public.marque_points_push q
+                             where q.key_id = v_key.id order by q.created_at desc limit 5);
+  return jsonb_build_object('status', 'ok');
+end;
+$$;
+
+create or replace function public.marque_points_push_unsubscribe(p_endpoint text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from public.marque_points_push where endpoint = p_endpoint;
+$$;
+
+-- Pour la fonction seule : la paire de clés, faite à son premier appel. Deux
+-- appels en même temps ne font qu'une paire : la première gardée l'emporte.
+create or replace function public.marque_points_push_vapid(p_public text default null, p_private jsonb default null)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.marque_points_push_vapid;
+begin
+  if p_public is not null and p_private is not null then
+    insert into public.marque_points_push_vapid (id, public_key, private_jwk)
+    values (1, p_public, p_private)
+    on conflict (id) do nothing;
+  end if;
+  select * into v_row from public.marque_points_push_vapid where id = 1;
+  if not found then
+    return null;
+  end if;
+  return jsonb_build_object('public', v_row.public_key, 'private', v_row.private_jwk);
+end;
+$$;
+
+-- Pour la fonction seule : ce qu'un document a de nouveau, et à qui le dire.
+-- Nouveau : créé il y a moins de deux jours, jamais annoncé. Une date : jamais
+-- annoncée pour ce document, et pas encore passée. Un document plus ancien,
+-- vu pour la première fois, est noté sans rien annoncer. Jamais à l'appareil
+-- qui l'a écrit, ni, dans un groupe qui exige un compte, à un appareil sans
+-- compte : il n'y voit rien de ce qui est partagé.
+create or replace function public.marque_points_push_event(p_key text, p_id text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_key public.marque_points_group_key;
+  v_group public.marque_points_group;
+  v_doc public.marque_points_games;
+  v_kind text;
+  v_date text;
+  v_event text;
+  v_created double precision;
+begin
+  select k.* into v_key
+    from public.marque_points_group_key k
+   where k.key_hash = md5(coalesce(p_key, '') || k.key_salt)
+   limit 1;
+  if not found then
+    return jsonb_build_object('status', 'unknown');
+  end if;
+  select g.* into v_group from public.marque_points_group g where g.id = v_key.group_id;
+  if v_group.accounts_required and v_key.user_id is null then
+    return jsonb_build_object('status', 'unknown');
+  end if;
+  select d.* into v_doc
+    from public.marque_points_games d
+   where d.id = p_id and d.group_id = v_key.group_id and d.listed and d.code_hash is null;
+  if not found then
+    return jsonb_build_object('status', 'unknown');
+  end if;
+  v_kind := v_doc.data->>'kind';
+  if v_kind is null or v_kind not in ('poll', 'list', 'spend', 'board') then
+    return jsonb_build_object('status', 'quiet');
+  end if;
+  if v_kind = 'poll' and coalesce(v_doc.data->>'date', '') ~ '^\d{4}-\d{2}-\d{2}$' then
+    v_date := v_doc.data->>'date';
+  end if;
+
+  insert into public.marque_points_push_sent (doc_id, event) values (p_id, 'new')
+  on conflict do nothing;
+  if found then
+    if v_date is not null then
+      insert into public.marque_points_push_sent (doc_id, event) values (p_id, 'date:' || v_date)
+      on conflict do nothing;
+    end if;
+    if jsonb_typeof(v_doc.data->'createdAt') = 'number' then
+      v_created := (v_doc.data->>'createdAt')::double precision;
+    end if;
+    if v_created is null or v_created < extract(epoch from now()) * 1000 - 2 * 86400000 then
+      return jsonb_build_object('status', 'quiet');
+    end if;
+    v_event := 'new';
+  elsif v_date is not null then
+    insert into public.marque_points_push_sent (doc_id, event) values (p_id, 'date:' || v_date)
+    on conflict do nothing;
+    if not found or v_date < to_char(now() - interval '1 day', 'YYYY-MM-DD') then
+      return jsonb_build_object('status', 'quiet');
+    end if;
+    v_event := 'date';
+  else
+    return jsonb_build_object('status', 'quiet');
+  end if;
+
+  return jsonb_build_object(
+    'status', 'ok', 'event', v_event, 'id', p_id, 'group', v_group.name,
+    'doc', jsonb_build_object(
+      'kind', v_kind, 'question', v_doc.data->'question', 'title', v_doc.data->'title',
+      'name', v_doc.data->'name', 'fixed', v_doc.data->'fixed', 'date', v_date, 'at', v_doc.data->'at'),
+    'targets', coalesce((
+      select jsonb_agg(jsonb_build_object('endpoint', t.endpoint, 'p256dh', t.p256dh, 'auth', t.auth,
+                                          'lang', t.lang, 'app', t.app))
+        from (select distinct on (p.endpoint) p.*
+                from public.marque_points_push p
+                join public.marque_points_group_key k on k.id = p.key_id
+               where k.group_id = v_group.id
+                 and (not v_group.accounts_required or k.user_id is not null)
+                 and p.endpoint not in (select mine.endpoint from public.marque_points_push mine
+                                         where mine.key_id = v_key.id)) t), '[]'::jsonb));
+end;
+$$;
+
+-- Pour la fonction seule : quelqu'un frappe, à dire à qui fait entrer. Une fois.
+create or replace function public.marque_points_push_knock(p_ticket text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_request public.marque_points_request;
+  v_name text;
+begin
+  select r.* into v_request
+    from public.marque_points_request r
+   where r.state = 'waiting' and r.ticket_hash = md5(coalesce(p_ticket, '') || r.ticket_salt)
+   limit 1;
+  if not found then
+    return jsonb_build_object('status', 'unknown');
+  end if;
+  insert into public.marque_points_push_sent (doc_id, event) values (v_request.id, 'knock')
+  on conflict do nothing;
+  if not found then
+    return jsonb_build_object('status', 'quiet');
+  end if;
+  select g.name into v_name from public.marque_points_group g where g.id = v_request.group_id;
+  return jsonb_build_object(
+    'status', 'ok', 'event', 'knock', 'group', v_name, 'who', v_request.name,
+    'targets', coalesce((
+      select jsonb_agg(jsonb_build_object('endpoint', t.endpoint, 'p256dh', t.p256dh, 'auth', t.auth,
+                                          'lang', t.lang, 'app', t.app))
+        from (select distinct on (p.endpoint) p.*
+                from public.marque_points_push p
+                join public.marque_points_group_key k on k.id = p.key_id
+               where k.group_id = v_request.group_id and k.admits) t), '[]'::jsonb));
+end;
+$$;
+
+-- Pour la fonction seule : une adresse que le service d'envoi dit disparue.
+create or replace function public.marque_points_push_gone(p_endpoint text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from public.marque_points_push where endpoint = p_endpoint;
+$$;
+
 -- PostgreSQL accorde l'exécution à tout le monde par défaut : ce qui ne doit
 -- s'exécuter que d'ici, depuis l'éditeur SQL, doit être retiré explicitement.
 -- Sans cette ligne, quiconque a la clé publique de la page — elle est dans le
@@ -1839,6 +2178,7 @@ grant execute on function public.marque_points_put(text, jsonb, text, text) to a
 grant execute on function public.marque_points_delete(text, text, text) to anon, authenticated;
 grant execute on function public.marque_points_put_set(text, jsonb, text, text) to anon, authenticated;
 grant execute on function public.marque_points_forget_set(text, text) to anon, authenticated;
+grant execute on function public.marque_points_open_set(text, text) to anon, authenticated;
 revoke all on function public.marque_points_account_link(text, text) from public, anon;
 revoke all on function public.marque_points_account_owner_put(text, text) from public, anon;
 revoke all on function public.marque_points_account_restore(jsonb, text) from public, anon;
@@ -1850,6 +2190,18 @@ grant execute on function public.marque_points_account_leave(text) to authentica
 revoke all on function public.marque_points_account_delete() from public, anon;
 grant execute on function public.marque_points_set_accounts(text, boolean) to anon, authenticated;
 revoke all on function public.marque_points_account_cut_mark() from public, anon, authenticated;
+revoke all on function public.marque_points_announce(text) from public, anon, authenticated;
+revoke all on function public.marque_points_live() from public, anon, authenticated;
+grant execute on function public.marque_points_push_subscribe(text, text, text, text, text, text) to anon, authenticated;
+grant execute on function public.marque_points_push_unsubscribe(text) to anon, authenticated;
+revoke all on function public.marque_points_push_vapid(text, jsonb) from public, anon, authenticated;
+revoke all on function public.marque_points_push_event(text, text) from public, anon, authenticated;
+revoke all on function public.marque_points_push_knock(text) from public, anon, authenticated;
+revoke all on function public.marque_points_push_gone(text) from public, anon, authenticated;
+grant execute on function public.marque_points_push_vapid(text, jsonb) to service_role;
+grant execute on function public.marque_points_push_event(text, text) to service_role;
+grant execute on function public.marque_points_push_knock(text) to service_role;
+grant execute on function public.marque_points_push_gone(text) to service_role;
 grant execute on function public.marque_points_account_delete() to authenticated;
 ```
 
@@ -2777,6 +3129,62 @@ privée), la même chose : vos groupes et vos sondages y apparaissent.
 - **La personne elle-même** : **Réglages → Compte → Se déconnecter de tous
   les appareils**, depuis n'importe lequel de ses appareils. Le téléphone
   perdu n'a plus de compte au plus tard une heure après.
+
+## Étape 10 — Les notifications (facultatif)
+
+Une fois posée, cette étape permet à chaque appareil d'**être prévenu** :
+un nouveau sondage, une liste, un compte ou un tableau d'idées dans ses
+groupes, une date retenue — et, pour qui fait entrer, quelqu'un qui frappe.
+Chacun l'active pour lui, dans **Réglages → Notifications**.
+
+Elle est **facultative**. Sans elle, le bouton *Activer les notifications*
+répond « la fonction notifier n'est pas en place », et rien d'autre ne change.
+
+### 1. Le SQL
+
+Il est dans le bloc de l'étape 2 bis (et dans `supabase/mise-a-jour.sql`) :
+les tables `marque_points_push…` et leurs fonctions. Rien de plus à passer.
+
+### 2. Déployer la fonction
+
+Le fichier est **`supabase/functions/notifier/index.ts`**, construit par
+`npm run bundle`, en un seul fichier comme celui de l'agenda.
+
+1. Supabase → **Edge Functions** → **Deploy a new function** → **Via Editor**.
+2. Nommez-la **`notifier`**, exactement.
+3. Collez **tout** le contenu de `index.ts` (le plus sûr : bouton « Raw » sur
+   GitHub, puis tout sélectionner). L'en-tête dit combien de lignes il fait.
+4. **Désactivez la vérification du JWT**, comme pour l'agenda.
+5. Déployez.
+
+Aucun secret à régler : la paire de clés qui signe les envois est faite par la
+fonction elle-même au premier appel, et gardée dans la base
+(`marque_points_push_vapid`, que la page ne lit jamais). La fonction lit les
+abonnements avec la clé de service que Supabase donne à toute Edge Function.
+
+### 3. Essayer
+
+Sur un téléphone, **l'app posée sur l'écran d'accueil** (sur iPhone, c'est
+obligatoire : Safari seul ne reçoit pas de notifications ; iOS 16.4 ou plus) :
+Réglages → Notifications → **Activer les notifications** → Autoriser. Puis,
+depuis un autre appareil du groupe, créez un sondage : le téléphone sonne.
+
+Ce qu'une notification contient (le nom du groupe, le titre du document, la
+date) est chiffré pour le téléphone qui la reçoit : le service d'envoi
+(Apple, Google, Mozilla) ne la lit pas.
+
+## Étape 11 — Les changements en direct (rien à faire, en principe)
+
+Le bloc SQL de l'étape 2 bis fait annoncer chaque écriture par la base sur
+**Supabase Realtime** : l'app ouverte voit les votes, les lignes cochées et les
+nouveaux documents arriver aussitôt, au lieu de toutes les 5 à 20 secondes.
+L'annonce ne contient rien (ni titre, ni identifiant) ; le canal d'un groupe a
+un nom secret.
+
+Realtime est actif par défaut. Si un jour **Realtime → Settings** propose
+*« Allow public access »* (ou *« Private channels only »*), il faut que les
+canaux publics restent permis. S'ils ne le sont pas, rien ne casse : l'app
+revient d'elle-même à sa relève de quelques secondes.
 
 ## Ce que ce montage implique
 

@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v14" />
-    <meta name="app-build" content="9d9c2567" />
+    <meta name="app-build" content="5bb2a89b" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -43,18 +43,22 @@
   --bad: #ff5f7e;
   /* The colours one may choose, in their night shades — which the 3D view
      on Home keeps whatever the theme, since it is always night in there. */
-  --night-cyan: #5ff3ff;
-  --night-violet: #b9a0ff;
-  --night-green: #4ff0a0;
+  --night-red: #ff6450;
+  --night-orange: #ff8a3d;
   --night-amber: #f2b14d;
-  --night-pink: #ff85dc;
+  --night-green: #4ff0a0;
+  --night-cyan: #5ff3ff;
   --night-blue: #7ab8ff;
-  --accent-cyan: var(--night-cyan);
-  --accent-violet: var(--night-violet);
-  --accent-green: var(--night-green);
+  --night-violet: #b9a0ff;
+  --night-pink: #ff85dc;
+  --accent-red: var(--night-red);
+  --accent-orange: var(--night-orange);
   --accent-amber: var(--night-amber);
-  --accent-pink: var(--night-pink);
+  --accent-green: var(--night-green);
+  --accent-cyan: var(--night-cyan);
   --accent-blue: var(--night-blue);
+  --accent-violet: var(--night-violet);
+  --accent-pink: var(--night-pink);
   --accent: var(--accent-cyan);
   --holo-hue: var(--night-cyan);
   --accent-text: #04101a;
@@ -104,12 +108,14 @@
   --good: #0b7d4c;
   --bad: #c8233f;
   /* The same colours, deep enough to read on light. */
-  --accent-cyan: #00718c;
-  --accent-violet: #6a3fcf;
-  --accent-green: #067044;
+  --accent-red: #b52a17;
+  --accent-orange: #a8420a;
   --accent-amber: #985a00;
-  --accent-pink: #b4237c;
+  --accent-green: #067044;
+  --accent-cyan: #00718c;
   --accent-blue: #1f5fbf;
+  --accent-violet: #6a3fcf;
+  --accent-pink: #b4237c;
   --accent-text: #ffffff;
   --glow: color-mix(in srgb, var(--accent) 16%, transparent);
   --ring: color-mix(in srgb, var(--accent) 22%, transparent);
@@ -230,13 +236,16 @@
   --shadow-lift: 0 0 0 1px var(--border), 0 6px 16px rgb(0 0 0 / 8%);
 }
 
-/* A colour chosen in the settings wins over the style's own. */
-:root[data-accent='cyan'] { --accent: var(--accent-cyan); --holo-hue: var(--night-cyan); }
-:root[data-accent='violet'] { --accent: var(--accent-violet); --holo-hue: var(--night-violet); }
-:root[data-accent='green'] { --accent: var(--accent-green); --holo-hue: var(--night-green); }
+/* A colour chosen in the settings wins over the style's own. The red is a
+   vermilion, warmer than the red of errors and of « Supprimer » (--bad). */
+:root[data-accent='red'] { --accent: var(--accent-red); --holo-hue: var(--night-red); }
+:root[data-accent='orange'] { --accent: var(--accent-orange); --holo-hue: var(--night-orange); }
 :root[data-accent='amber'] { --accent: var(--accent-amber); --holo-hue: var(--night-amber); }
-:root[data-accent='pink'] { --accent: var(--accent-pink); --holo-hue: var(--night-pink); }
+:root[data-accent='green'] { --accent: var(--accent-green); --holo-hue: var(--night-green); }
+:root[data-accent='cyan'] { --accent: var(--accent-cyan); --holo-hue: var(--night-cyan); }
 :root[data-accent='blue'] { --accent: var(--accent-blue); --holo-hue: var(--night-blue); }
+:root[data-accent='violet'] { --accent: var(--accent-violet); --holo-hue: var(--night-violet); }
+:root[data-accent='pink'] { --accent: var(--accent-pink); --holo-hue: var(--night-pink); }
 
 /* ------------------------------------------------------------------ base --- */
 * { box-sizing: border-box; }
@@ -1785,14 +1794,19 @@ body:not(.solo) .view {
 .swatch--pen .swatch__rubber { background: transparent; border: 2px solid var(--text); }
 .swatch--on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 
-/* Réglages → Apparence: each colour shown as itself; « A », the style's own. */
-.tints { gap: 4px; }
+/* Réglages → Apparence: each colour shown as itself, all eight on one line —
+   narrower than 40px each on the smallest phones rather than one alone below. */
+.tints {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 40px));
+  gap: 4px;
+}
 
 .tint {
   display: inline-grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 100%;
+  aspect-ratio: 1;
   padding: 0;
   border: 2px solid transparent;
   border-radius: 50%;
@@ -1808,9 +1822,6 @@ body:not(.solo) .view {
   border-radius: 50%;
   background: var(--tint);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%), 0 0 10px color-mix(in srgb, var(--tint) 35%, transparent);
-  color: var(--accent-text);
-  font-size: 0.72rem;
-  font-weight: 800;
 }
 
 .tint--on { border-color: var(--text); }
@@ -2231,7 +2242,7 @@ body.holo-open { overflow: hidden; }
         const root = document.documentElement;
         if (prefs.theme === 'light' || prefs.theme === 'dark') root.dataset.theme = prefs.theme;
         if (prefs.look === 'classic' || prefs.look === 'calm') root.dataset.look = prefs.look;
-        if (/^(cyan|violet|green|amber|pink|blue)$/.test(prefs.accent || '')) root.dataset.accent = prefs.accent;
+        if (/^(red|orange|amber|green|cyan|blue|violet|pink)$/.test(prefs.accent || '')) root.dataset.accent = prefs.accent;
         // The phone's bar takes the page's colour from the start, too.
         const ground = getComputedStyle(root).getPropertyValue('--bg').trim();
         if (ground) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', ground);
@@ -2323,7 +2334,6 @@ const STRINGS = {
 
     'home.finished': 'Parties terminées',
     'home.empty': 'Aucune partie pour le moment. Lancez-en une !',
-    'home.emptyFinished': 'Aucune partie terminée.',
     'home.rounds': '{count} {count|manche|manches}',
     'home.leader': 'En tête : {name}',
     'home.winner': 'Vainqueur : {name}',
@@ -2412,7 +2422,6 @@ const STRINGS = {
     'data.autoShareHint':
       'Décoché, tout reste sur cet appareil jusqu’à ce que vous appuyiez sur Partager. Coché, chaque nouvelle partie, liste ou sondage part dans votre groupe — à condition qu’il n’y en ait qu’un, sinon l’app préfère demander.',
     'share.sending': 'Envoi…',
-    'share.sendFailed': 'La partie n’a pas pu être envoyée. Réessayez.',
     'action.stats': 'Statistiques',
     'tab.games': 'Jeux',
     'tab.home': 'Accueil',
@@ -2424,13 +2433,15 @@ const STRINGS = {
     'look.classic': 'Classique',
     'look.calm': 'Épuré',
     'look.colour': 'Couleur',
-    'look.accent.auto': 'Celle du style',
-    'look.accent.cyan': 'Cyan',
-    'look.accent.violet': 'Violet',
-    'look.accent.green': 'Vert',
+    'look.accent.own': '{name} — celle du style',
+    'look.accent.red': 'Rouge',
+    'look.accent.orange': 'Orange',
     'look.accent.amber': 'Ambre',
-    'look.accent.pink': 'Rose',
+    'look.accent.green': 'Vert',
+    'look.accent.cyan': 'Cyan',
     'look.accent.blue': 'Bleu',
+    'look.accent.violet': 'Violet',
+    'look.accent.pink': 'Rose',
     'look.theme': 'Thème',
     'look.night': 'Nuit',
     'look.light': 'Clair',
@@ -2522,7 +2533,6 @@ const STRINGS = {
     'event.hint': 'Les personnes dispo pour le {day} y seront déjà.',
     'event.addList': '+ Liste de ce qu’on apporte',
     'event.addSpend': '+ Compte des dépenses',
-    'agenda.coming': 'Ce qui vient',
     'agenda.dated': 'Lignes datées',
     'events.title': 'Événements',
     'events.seeAgenda': 'L’agenda',
@@ -2533,7 +2543,6 @@ const STRINGS = {
     'event.none': 'Aucun',
     'event.tag': 'Pour {name} · {day}',
     'event.named': '{name} · {day}',
-    'chain.label': 'Rattaché à',
     'chain.map': 'La chaîne',
     'chain.youAreHere': 'ici',
     'chain.attach': 'Rattacher…',
@@ -2676,6 +2685,24 @@ const STRINGS = {
     'account.sendFailed': 'Le code n’a pas pu être envoyé. Vérifiez l’adresse et réessayez.',
     'account.tooMany': 'Trop de codes demandés d’un coup : réessayez dans quelques minutes.',
     'account.welcome': 'Connecté. Vos groupes et vos sondages sont gardés sur votre compte.',
+    'notify.title': 'Notifications',
+    'notify.why': 'Être prévenu sur cet appareil : un nouveau sondage, une liste, un compte ou un tableau d’idées dans vos groupes, une date retenue — et, si vous faites entrer, quelqu’un qui frappe.',
+    'notify.on': 'Activées sur cet appareil.',
+    'notify.enable': 'Activer les notifications',
+    'notify.disable': 'Désactiver',
+    'notify.install': 'Sur iPhone, seule l’app posée sur l’écran d’accueil reçoit des notifications : installez-la d’abord (Partager → Sur l’écran d’accueil), ouvrez-la, puis revenez ici.',
+    'notify.denied': 'Les notifications sont bloquées pour cette app dans les réglages du téléphone ou du navigateur. Autorisez-les là, puis revenez ici.',
+    'notify.unsupported': 'Ce navigateur ne reçoit pas de notifications.',
+    'notify.noGroup': 'Entrez d’abord dans un groupe : c’est ce qui s’y passe qui est annoncé.',
+    'notify.enabled': 'Notifications activées.',
+    'notify.disabled': 'Notifications désactivées sur cet appareil.',
+    'notify.refused': 'Pas de notifications sans votre accord : le téléphone n’a pas donné la permission.',
+    'notify.failed': 'Les notifications n’ont pas pu être activées. Réessayez dans un moment.',
+    'notify.notReady': 'La base ne sait pas encore envoyer de notifications : la fonction « notifier » n’est pas en place.',
+    'account.offerTitle': 'Garder {name} sur un compte ?',
+    'account.offerTitleBare': 'Garder ce groupe sur un compte ?',
+    'account.offerWhy': 'Facultatif, et sans mot de passe : un code arrive par e-mail. Connecté, vous retrouvez ce groupe sur tout appareil — même si ce téléphone efface ses données, ou si vous en changez.',
+    'account.offerWithout': 'Sans compte, gardez votre lien de retour : bouton « Mon lien de retour », sous le groupe, plus bas.',
     'account.signedIn': 'Connecté : {email}',
     'account.keeps': 'Votre compte garde vos groupes et vos droits d’organisateur. Sur un autre appareil, connectez-vous avec la même adresse pour tout retrouver.',
     'account.sync': 'Synchroniser',
@@ -2732,8 +2759,6 @@ const STRINGS = {
     'event.addToHint': 'Dans le groupe de l’événement, avec les personnes qui viennent.',
     'event.addMore': '+ Ajouter à l’événement',
     'event.addElsewhere': 'Autre chose, hors de l’événement',
-    'agenda.nothing':
-      'Rien de daté pour l’instant. Une date retenue sur un sondage, ou un jour posé sur une ligne, apparaît ici — et part dans les agendas abonnés.',
     'agenda.late': 'en retard',
     'agenda.more': '+ {count} {count|autre|autres}, dans les agendas abonnés',
     'tab.spends': 'Comptes',
@@ -2835,7 +2860,6 @@ const STRINGS = {
     'ideas.discard': 'Quitter sans enregistrer ? Ce qui a été changé sera perdu.',
     'ideas.discardYes': 'Quitter sans enregistrer',
     'ideas.inks': 'Couleur',
-    'ideas.pens': 'Épaisseur',
     'ideas.ink.ink': 'Encre',
     'ideas.ink.red': 'Rouge',
     'ideas.ink.blue': 'Bleu',
@@ -2956,7 +2980,6 @@ const STRINGS = {
       'Cette app posée sur l’écran d’accueil est une installation à part de Safari : elle a son propre stockage, et doit entrer dans le groupe de son côté. Le plus simple, sur votre propre téléphone : collez la clé du groupe ci-dessous. Sinon, demandez à entrer, et acceptez depuis Safari.',
     'groups.add': 'Entrer dans un groupe',
     'groups.invite': 'Inviter',
-    'groups.inviteTitle': 'Entrer dans {name}',
     'groups.inviteWhich': 'Pour qui ?',
     'groups.inviteWhichHint':
       'Les deux valent deux jours, et dans les deux cas personne n’entre sans que vous l’acceptiez.',
@@ -3255,7 +3278,6 @@ const STRINGS = {
     'action.exportDocx': 'Word',
     'action.exportPdf': 'PDF',
     'action.replay': 'Rejouer',
-    'results.title': 'Résultats',
     'results.recapTitle': 'Récapitulatif de la partie',
     'results.recapHint': 'À coller dans une conversation, pour ceux qui n’étaient pas là.',
     'home.search': 'Rechercher une partie ou un joueur',
@@ -3470,7 +3492,6 @@ const STRINGS = {
 
     'home.finished': 'Finished games',
     'home.empty': 'No games yet. Start one!',
-    'home.emptyFinished': 'No finished games.',
     'home.rounds': '{count} {count|round|rounds}',
     'home.leader': 'Leading: {name}',
     'home.winner': 'Winner: {name}',
@@ -3559,7 +3580,6 @@ const STRINGS = {
     'data.autoShareHint':
       'Unticked, everything stays on this device until you press Share. Ticked, each new game, list or poll goes to your group — as long as there is only one, otherwise the app would rather ask.',
     'share.sending': 'Sending…',
-    'share.sendFailed': 'The game could not be sent. Try again.',
     'action.stats': 'Statistics',
     'tab.games': 'Games',
     'tab.home': 'Home',
@@ -3571,13 +3591,15 @@ const STRINGS = {
     'look.classic': 'Classic',
     'look.calm': 'Calm',
     'look.colour': 'Colour',
-    'look.accent.auto': 'The style’s own',
-    'look.accent.cyan': 'Cyan',
-    'look.accent.violet': 'Violet',
-    'look.accent.green': 'Green',
+    'look.accent.own': '{name} — the style’s own',
+    'look.accent.red': 'Red',
+    'look.accent.orange': 'Orange',
     'look.accent.amber': 'Amber',
-    'look.accent.pink': 'Pink',
+    'look.accent.green': 'Green',
+    'look.accent.cyan': 'Cyan',
     'look.accent.blue': 'Blue',
+    'look.accent.violet': 'Violet',
+    'look.accent.pink': 'Pink',
     'look.theme': 'Theme',
     'look.night': 'Night',
     'look.light': 'Light',
@@ -3669,7 +3691,6 @@ const STRINGS = {
     'event.hint': 'Whoever is free on {day} will already be in it.',
     'event.addList': '+ What to bring',
     'event.addSpend': '+ Shared expenses',
-    'agenda.coming': 'What’s coming',
     'agenda.dated': 'Lines with a day',
     'events.title': 'Events',
     'events.seeAgenda': 'Agenda',
@@ -3680,7 +3701,6 @@ const STRINGS = {
     'event.none': 'None',
     'event.tag': 'For {name} · {day}',
     'event.named': '{name} · {day}',
-    'chain.label': 'Attached to',
     'chain.map': 'The chain',
     'chain.youAreHere': 'here',
     'chain.attach': 'Attach…',
@@ -3823,6 +3843,24 @@ const STRINGS = {
     'account.sendFailed': 'The code could not be sent. Check the address and try again.',
     'account.tooMany': 'Too many codes asked for at once: try again in a few minutes.',
     'account.welcome': 'Signed in. Your groups and polls are kept on your account.',
+    'notify.title': 'Notifications',
+    'notify.why': 'Be told on this device: a new poll, list, account or board of ideas in your groups, a date set — and, if you let people in, someone knocking.',
+    'notify.on': 'On for this device.',
+    'notify.enable': 'Turn on notifications',
+    'notify.disable': 'Turn off',
+    'notify.install': 'On an iPhone, only the app on the home screen gets notifications: install it first (Share → Add to Home Screen), open it, then come back here.',
+    'notify.denied': 'Notifications are blocked for this app in the phone’s or the browser’s settings. Allow them there, then come back here.',
+    'notify.unsupported': 'This browser does not receive notifications.',
+    'notify.noGroup': 'Join a group first: what happens there is what gets announced.',
+    'notify.enabled': 'Notifications on.',
+    'notify.disabled': 'Notifications off for this device.',
+    'notify.refused': 'No notifications without your say-so: the phone did not give permission.',
+    'notify.failed': 'Notifications could not be turned on. Try again in a moment.',
+    'notify.notReady': 'The database cannot send notifications yet: the « notifier » function is not set up.',
+    'account.offerTitle': 'Keep {name} on an account?',
+    'account.offerTitleBare': 'Keep this group on an account?',
+    'account.offerWhy': 'Optional, and no password: a code arrives by e-mail. Signed in, you get this group back on any device — even if this phone clears its data, or you change phones.',
+    'account.offerWithout': 'Without an account, keep your return link: the “My return link” button, under the group, further down.',
     'account.signedIn': 'Signed in: {email}',
     'account.keeps': 'Your account keeps your groups and your organiser rights. On another device, sign in with the same address to get everything back.',
     'account.sync': 'Sync',
@@ -3879,8 +3917,6 @@ const STRINGS = {
     'event.addToHint': 'In the event’s group, with the people coming.',
     'event.addMore': '+ Add to the event',
     'event.addElsewhere': 'Something else, not for this event',
-    'agenda.nothing':
-      'Nothing on a day yet. A day a poll settled on, or a day put on a line, shows up here — and goes out to subscribed calendars.',
     'agenda.late': 'overdue',
     'agenda.more': '+ {count} more, in subscribed calendars',
     'tab.spends': 'Accounts',
@@ -3982,7 +4018,6 @@ const STRINGS = {
     'ideas.discard': 'Leave without saving? What was changed will be lost.',
     'ideas.discardYes': 'Leave without saving',
     'ideas.inks': 'Colour',
-    'ideas.pens': 'Thickness',
     'ideas.ink.ink': 'Ink',
     'ideas.ink.red': 'Red',
     'ideas.ink.blue': 'Blue',
@@ -4103,7 +4138,6 @@ const STRINGS = {
       'This app on your home screen is a separate installation from Safari: it has its own storage, and has to join the group on its own. On your own phone the easy way is to paste the group\'s key below. Otherwise ask to join, and accept it from Safari.',
     'groups.add': 'Join a group',
     'groups.invite': 'Invite',
-    'groups.inviteTitle': 'Join {name}',
     'groups.inviteWhich': 'For whom?',
     'groups.inviteWhichHint':
       'Both are good for two days, and either way nobody gets in until you accept them.',
@@ -4392,7 +4426,6 @@ const STRINGS = {
     'action.exportDocx': 'Word',
     'action.exportPdf': 'PDF',
     'action.replay': 'Play again',
-    'results.title': 'Results',
     'results.recapTitle': 'Game summary',
     'results.recapHint': 'To paste into a conversation, for those who were not there.',
     'home.search': 'Search a game or a player',
@@ -9543,11 +9576,6 @@ function toLatin1(value) {
     .replace(/[^\x00-\xFF]/g, '?');
 }
 
-/** Width of a string in points, close enough to place and wrap text. */
-function textWidth(text, size) {
-  return toLatin1(text).length * size * 0.5;
-}
-
 function buildPdf(report) {
   const lines = [];
   let y = PAGE.height - PAGE.margin;
@@ -10421,6 +10449,25 @@ function createRemote(config, fetchImpl = globalThis.fetch) {
     async accountLeave(token, key) {
       return call('marque_points_account_leave', { p_key: key }, token);
     },
+
+    /* -------------------------------------------------- notifications --- */
+
+    /** Keep this browser's subscription for a group, with that group's key. */
+    async pushSubscribe(key, { endpoint, p256dh, auth }, lang = 'fr', app = '') {
+      return call('marque_points_push_subscribe', {
+        p_key: key, p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_lang: lang, p_app: app,
+      });
+    },
+
+    /** Forget this browser's subscription, in every group. */
+    async pushUnsubscribe(endpoint) {
+      await call('marque_points_push_unsubscribe', { p_endpoint: endpoint });
+    },
+
+    /** The notifier function: { action: 'key' | 'doc' | 'knock', … }. */
+    async notifier(body) {
+      return call('notifier', body, null, '/functions/v1/notifier');
+    },
   };
 }
 
@@ -10790,6 +10837,351 @@ async function connectStore({ getLocalGames, onGames, onLost }) {
   return { save, remove, stop };
 }
 
+  // ---- src/live.js -----------------------------------------------------
+/**
+ * Hearing changes as they happen, instead of asking every few seconds.
+ *
+ * The database announces each write on Supabase Realtime: « something changed »
+ * on the channel of the document, and on the secret channel of its group. The
+ * announcement carries nothing — no id, no content — so hearing it gives away
+ * nothing either: the app then asks the database the usual way, with its key,
+ * and a key that was cut off gets nothing more than before.
+ *
+ * This is a small client of the Phoenix protocol Realtime speaks (JSON, version
+ * 1.0.0), with no library. Nothing here is needed for the app to work: when the
+ * socket is closed, refused or silent, `covers` says no and the app goes on
+ * asking every few seconds, as it always did.
+ */
+
+/** Realtime closes a socket that has said nothing for a minute. */
+const HEARTBEAT_EVERY = 25000;
+/**
+ * A socket the server has not answered for this long is taken for dead. A
+ * phone waking up can hold one that still says « open »: trusting it would
+ * make the app wait for announcements that never come.
+ */
+const SILENT_AFTER = 60000;
+/** A channel refused or closed by the server is asked again after this. */
+const REJOIN_AFTER = 30000;
+/** Waits before trying again, longer each time, up to a minute. */
+const RETRY_AFTER = [1000, 2000, 5000, 10000, 30000, 60000];
+
+/** The socket's address, from the REST address the app already has. */
+function liveUrl(config) {
+  if (!config || !config.url || !config.key) return '';
+  const origin = String(config.url).replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+  if (!/^https?:\/\//.test(origin)) return '';
+  return `${origin.replace(/^http/, 'ws')}/realtime/v1/websocket?apikey=${encodeURIComponent(config.key)}&vsn=1.0.0`;
+}
+
+/** The channel of one document, as the database names it. */
+function docTopic(id) {
+  return `doc-${id}`;
+}
+
+/** The channel of a group: its secret name, handed over only with a key. */
+function groupTopic(channel) {
+  return `group-${channel}`;
+}
+
+/** The message that joins a public channel, broadcast only. */
+function joinMessage(topic, ref, key) {
+  return {
+    topic: `realtime:${topic}`,
+    event: 'phx_join',
+    payload: {
+      config: {
+        broadcast: { ack: false, self: false },
+        presence: { key: '', enabled: false },
+        postgres_changes: [],
+        private: false,
+      },
+      access_token: key,
+    },
+    ref,
+    join_ref: ref,
+  };
+}
+
+/**
+ * What a message from the socket means for us: a channel joined or refused,
+ * a change announced, or nothing.
+ */
+function readMessage(raw) {
+  let message = null;
+  try {
+    message = typeof raw === 'string' ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+  if (!message || typeof message.topic !== 'string' || !message.topic.startsWith('realtime:')) return null;
+  const topic = message.topic.slice('realtime:'.length);
+  if (message.event === 'phx_reply') {
+    const ok = message.payload?.status === 'ok';
+    return { kind: ok ? 'joined' : 'refused', topic, ref: message.ref ?? null };
+  }
+  if (message.event === 'phx_error' || message.event === 'phx_close') return { kind: 'refused', topic, ref: null };
+  if (message.event === 'broadcast') return { kind: 'changed', topic };
+  return null;
+}
+
+/**
+ * The client. `onChange(topic)` is called for each announcement heard, on a
+ * channel asked for with `watch`. `WebSocketImpl` and the timers are there for
+ * the tests.
+ */
+function createLive({
+  url, key, onChange, WebSocketImpl = globalThis.WebSocket,
+  setTimer = setTimeout, clearTimer = clearTimeout, every = setInterval, stopEvery = clearInterval,
+  now = () => Date.now(),
+}) {
+  if (!url || typeof WebSocketImpl !== 'function') return null;
+
+  let socket = null;
+  let open = false;
+  let heartbeat = null;
+  let retry = null;
+  let failures = 0;
+  let counter = 0;
+  let wanted = new Set();
+  /** topic -> { ref, joined, refusedAt } for the channels asked on this socket. */
+  let channels = new Map();
+  /** When the server last said anything at all — a reply to the heartbeat counts. */
+  let lastHeard = 0;
+  /** Channels joined at least once, on this socket or an earlier one. */
+  const heardBefore = new Set();
+  /** topic -> when the app last asked the database itself, while covered. */
+  const asked = new Map();
+
+  const send = (message) => {
+    if (!open) return;
+    try {
+      socket.send(JSON.stringify(message));
+    } catch {
+      // A socket closing under our feet: the close handler takes it from here.
+    }
+  };
+  const nextRef = () => String(++counter);
+
+  const join = (topic) => {
+    const ref = nextRef();
+    channels.set(topic, { ref, joined: false, refusedAt: null });
+    send(joinMessage(topic, ref, key));
+  };
+  const silent = () => now() - lastHeard >= SILENT_AFTER;
+  /** Close a socket taken for dead, and schedule the next one (its own close handler no longer will). */
+  const abandon = () => {
+    const dead = socket;
+    socket = null;
+    drop();
+    try {
+      dead?.close();
+    } catch {
+      // Already gone.
+    }
+    schedule();
+  };
+  /** Every heartbeat: give up on a silent socket, ask again for refused channels. */
+  const tick = () => {
+    if (silent()) {
+      abandon();
+      return;
+    }
+    send({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: nextRef() });
+    for (const [topic, channel] of channels) {
+      if (!channel.joined && channel.refusedAt !== null && now() - channel.refusedAt >= REJOIN_AFTER && wanted.has(topic)) join(topic);
+    }
+  };
+  const leave = (topic) => {
+    const channel = channels.get(topic);
+    channels.delete(topic);
+    if (channel) send({ topic: `realtime:${topic}`, event: 'phx_leave', payload: {}, ref: nextRef(), join_ref: channel.ref });
+  };
+
+  const drop = () => {
+    open = false;
+    channels = new Map();
+    if (heartbeat) stopEvery(heartbeat);
+    heartbeat = null;
+  };
+
+  const schedule = () => {
+    if (retry || !wanted.size) return;
+    const wait = RETRY_AFTER[Math.min(failures, RETRY_AFTER.length - 1)];
+    failures += 1;
+    retry = setTimer(() => {
+      retry = null;
+      connect();
+    }, wait);
+  };
+
+  function connect() {
+    if (socket || !wanted.size) return;
+    let created = null;
+    try {
+      created = new WebSocketImpl(url);
+    } catch {
+      schedule();
+      return;
+    }
+    socket = created;
+    created.onopen = () => {
+      if (socket !== created) return;
+      open = true;
+      failures = 0;
+      lastHeard = now();
+      for (const topic of wanted) join(topic);
+      heartbeat = every(tick, HEARTBEAT_EVERY);
+    };
+    created.onmessage = (event) => {
+      if (socket !== created) return;
+      lastHeard = now();
+      const heard = readMessage(event?.data);
+      if (!heard) return;
+      const channel = channels.get(heard.topic);
+      if (!channel) return;
+      if (heard.kind === 'joined' && heard.ref === channel.ref) {
+        channel.joined = true;
+        // Joined again after the socket dropped: what was said meanwhile was
+        // not heard, so it counts as one announcement.
+        if (heardBefore.has(heard.topic)) onChange(heard.topic);
+        heardBefore.add(heard.topic);
+      }
+      else if (heard.kind === 'refused') {
+        channel.joined = false;
+        channel.refusedAt = now();
+      }
+      else if (heard.kind === 'changed' && channel.joined) onChange(heard.topic);
+    };
+    created.onclose = () => {
+      if (socket !== created) return;
+      socket = null;
+      drop();
+      schedule();
+    };
+    created.onerror = () => {
+      // The close event follows; nothing to do twice.
+    };
+  }
+
+  return {
+    /** Listen to exactly these channels from now on. */
+    watch(topics) {
+      const next = new Set(topics.filter(Boolean));
+      for (const topic of [...channels.keys()]) if (!next.has(topic)) leave(topic);
+      if (open) for (const topic of next) if (!channels.has(topic)) join(topic);
+      wanted = next;
+      if (!wanted.size) {
+        this.stop();
+        return;
+      }
+      connect();
+    },
+
+    /** Whether an announcement on this channel would be heard right now. */
+    covers(topic) {
+      return open && !silent() && Boolean(channels.get(topic)?.joined);
+    },
+
+    /**
+     * Whether the app may skip asking the database itself this time. While a
+     * channel is heard, asking once a minute is enough — in case an
+     * announcement was lost; otherwise, the app asks as it always did.
+     */
+    quiet(topic, every_ = 60000) {
+      if (!this.covers(topic)) return false;
+      const last = asked.get(topic);
+      if (last !== undefined && now() - last < every_) return true;
+      asked.set(topic, now());
+      return false;
+    },
+
+    /**
+     * Back in front: a socket the phone closed meanwhile is opened again now,
+     * and one that kept quiet while the phone slept is not trusted any more.
+     */
+    wake() {
+      if (open && now() - lastHeard >= HEARTBEAT_EVERY + 10000) abandon();
+      if (retry) {
+        clearTimer(retry);
+        retry = null;
+      }
+      failures = 0;
+      connect();
+    },
+
+    stop() {
+      wanted = new Set();
+      if (retry) clearTimer(retry);
+      retry = null;
+      const closing = socket;
+      socket = null;
+      drop();
+      try {
+        closing?.close();
+      } catch {
+        // Already closed.
+      }
+    },
+  };
+}
+
+  // ---- src/notify.js ---------------------------------------------------
+/**
+ * Notifications, the parts that need no browser: whether this one can receive
+ * them, what to tell the notifier, and what to remember having told it.
+ */
+
+/** The kinds of document whose arrival in a group is worth a notification. */
+const NEWS_KINDS = new Set(['poll', 'list', 'spend', 'board']);
+
+/**
+ * What this browser can do: 'ready' (ask away), 'install' (an iPhone in
+ * Safari: only the app on the home screen receives them), 'denied' (refused
+ * in the phone's settings), or 'unsupported'.
+ */
+function pushSupport({ worker, push, notification, permission, phone, standalone }) {
+  if (worker && push && notification) return permission === 'denied' ? 'denied' : 'ready';
+  if (phone === 'ios' && !standalone) return 'install';
+  return 'unsupported';
+}
+
+/**
+ * Whether a document just written with a group key may be news for the
+ * group: one of the kinds above, shared in the group rather than by link.
+ */
+function mayBeNews(document_) {
+  return Boolean(document_ && typeof document_.id === 'string' && NEWS_KINDS.has(document_.kind) && !document_.linkOnly);
+}
+
+/**
+ * What has been told about a document: its arrival, and the day it settled
+ * on. Told once each, so a list ticked twenty times costs one call.
+ */
+function toldKey(document_) {
+  return `${document_.id}|${document_.kind === 'poll' && document_.date ? document_.date : ''}`;
+}
+
+/** Remember a key told, the newest last, the oldest forgotten past `limit`. */
+function rememberTold(told, key, limit = 400) {
+  return [...told.filter((one) => one !== key), key].slice(-limit);
+}
+
+/** The fields the database keeps of a subscription, from its JSON form. */
+function subscriptionFields(json) {
+  const endpoint = typeof json?.endpoint === 'string' ? json.endpoint : '';
+  const p256dh = typeof json?.keys?.p256dh === 'string' ? json.keys.p256dh : '';
+  const auth = typeof json?.keys?.auth === 'string' ? json.keys.auth : '';
+  return endpoint && p256dh && auth ? { endpoint, p256dh, auth } : null;
+}
+
+/** A base64url key as the bytes `pushManager.subscribe` takes. */
+function keyBytes(text) {
+  const plain = String(text || '').replace(/-/g, '+').replace(/_/g, '/');
+  const padded = plain + '='.repeat((4 - (plain.length % 4)) % 4);
+  return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
+}
+
   // ---- src/swipe.js ----------------------------------------------------
 /**
  * Slide left to delete — the gesture a phone's own lists taught everyone.
@@ -10904,6 +11296,8 @@ function bindSwipes(kind, onDelete) {
  * Split out of app.js, which it calls back into: only from inside functions,
  * so the two may import each other.
  */
+
+
 
 
 
@@ -12593,7 +12987,7 @@ function watchPoll(id) {
   if (!state.remote) return;
   state.pollWatched = id;
   const look = async () => {
-    if (isBusy() || isHidden()) return;
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
     if (await pullPoll(id)) render();
   };
   // At once, and then every five seconds: opening a poll should show the
@@ -12634,7 +13028,7 @@ function watchSpend(id) {
   stopWatching();
   if (!state.remote) return;
   state.poll = setInterval(async () => {
-    if (isBusy() || isHidden()) return;
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
     if (await pullSpend(id)) render();
   }, 5000);
 }
@@ -14547,6 +14941,7 @@ function openSpendPeopleDialog(spend) {
 
 
 
+
 function boardTitle(board) {
   return board.name || t('ideas.untitled');
 }
@@ -15176,7 +15571,7 @@ function watchBoard(id) {
   stopWatching();
   if (!state.remote) return;
   state.poll = setInterval(async () => {
-    if (isBusy() || isHidden()) return;
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
     if (await pullBoard(id)) render();
   }, 5000);
 }
@@ -16823,6 +17218,8 @@ function bindGame(game) {
 
 
 
+
+
 /* ------------------------------------------------------------- the chain --- */
 
 /** Write a document back, whatever its kind. */
@@ -17031,6 +17428,7 @@ function rememberGroup(group) {
   if (!known) {
     void syncAccount({ restore: false, force: true });
     void keepData();
+    void syncPush();
   }
 }
 
@@ -17819,7 +18217,7 @@ async function joinGroup(key) {
   if (!group) return null;
   rememberGroup({
     id: group.id, name: group.name, key: clean, admits: Boolean(group.admits),
-    accounts: Boolean(group.accounts), linked: Boolean(group.linked),
+    accounts: Boolean(group.accounts), linked: Boolean(group.linked), channel: liveChannel(group),
   });
   return group;
 }
@@ -17848,10 +18246,11 @@ async function verifyGroups() {
       continue;
     }
     if (found.name !== group.name || Boolean(found.admits) !== group.admits
-        || Boolean(found.accounts) !== Boolean(group.accounts) || Boolean(found.linked) !== Boolean(group.linked)) {
+        || Boolean(found.accounts) !== Boolean(group.accounts) || Boolean(found.linked) !== Boolean(group.linked)
+        || liveChannel(found) !== (group.channel || '')) {
       rememberGroup({
         ...group, name: found.name || group.name, admits: Boolean(found.admits),
-        accounts: Boolean(found.accounts), linked: Boolean(found.linked),
+        accounts: Boolean(found.accounts), linked: Boolean(found.linked), channel: liveChannel(found),
       });
       learnt = true;
     }
@@ -17930,12 +18329,15 @@ async function checkPending(knock) {
     } catch {
       // In the group either way; what it shares can be fetched later.
     }
-    // Just let in: the one moment they will listen to "keep your return link".
-    // Said in the line that greets them rather than in a dialog — a question
-    // that blocks the screen on the way in is a question in the wrong place.
-    flash(taken
-      ? t('groups.joinedWithKeepLink', { name: group.name, count: taken })
-      : t('groups.joinedKeepLink', { name: group.name }));
+    // Just let in: the one moment they will listen to "keep this group". An
+    // account is offered on the groups tab, where they land, the return link
+    // beside it; signed in already, the account keeps it. Said on the page
+    // rather than in a dialog — a question that blocks the screen on the way
+    // in is a question in the wrong place.
+    const offered = !alreadyIn && offerAccount(group);
+    flash(offered || account()
+      ? t(taken ? 'groups.joinedWith' : 'groups.joined', { name: group.name, count: taken })
+      : t(taken ? 'groups.joinedWithKeepLink' : 'groups.joinedKeepLink', { name: group.name, count: taken }));
     return 'ok';
   }
 
@@ -18036,6 +18438,14 @@ async function loadGate(group) {
 }
 
 /**
+ * The secret name of the group's channel on Realtime (see live.js), or '' from
+ * a database that does not announce its changes yet.
+ */
+function liveChannel(found) {
+  return typeof found?.channel === 'string' && /^[a-z0-9]{8,64}$/.test(found.channel) ? found.channel : '';
+}
+
+/**
  * Whether this device's key lets people in. Groups remembered before the
  * question existed do not say, so the database is asked once.
  */
@@ -18050,7 +18460,7 @@ async function refreshGroup(group) {
   if (!found) return false;
   rememberGroup({
     ...group, name: found.name || group.name, admits: Boolean(found.admits),
-    accounts: Boolean(found.accounts), linked: Boolean(found.linked),
+    accounts: Boolean(found.accounts), linked: Boolean(found.linked), channel: liveChannel(found),
   });
   return true;
 }
@@ -18088,6 +18498,8 @@ async function catchUpAll() {
 
 /** Not more often than this, when it happens on its own. */
 const SYNC_EVERY = 20000;
+/** And while the database announces every change (live.js). */
+const SYNC_HEARD = 120000;
 
 /**
  * Catch up by itself: when the app opens, and each time it comes back to the
@@ -18095,7 +18507,10 @@ const SYNC_EVERY = 20000;
  */
 async function catchUpQuietly() {
   if (!state.remote || !groups().length) return;
-  if (state.syncedAt && Date.now() - state.syncedAt < SYNC_EVERY) return;
+  // Every group heard as it changes: asking is only a net, in case an
+  // announcement was lost.
+  const every = liveCoversGroups() ? SYNC_HEARD : SYNC_EVERY;
+  if (state.syncedAt && Date.now() - state.syncedAt < every) return;
   const taken = await catchUpAll();
   const changed = showsGate() ? await refreshGate() : false;
   if ((taken || changed) && !isBusy()) render();
@@ -19478,30 +19893,81 @@ function accountHtml() {
     <section class="section" id="account">
       <div class="section__head"><h2>${escapeHtml(t('account.title'))}</h2></div>
       <p class="muted small">${escapeHtml(t('account.why'))}</p>
-      ${
-        awaiting
-          ? `<form id="account-code-form" class="card stack stack--tight">
-               <label class="stack stack--tight">
-                 <span class="small">${escapeHtml(t('account.codeSent', { email: awaiting }))}</span>
-                 <input type="text" id="account-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10"
-                        placeholder="${escapeHtml(t('account.codePlaceholder'))}" />
-               </label>
-               <div class="row">
-                 <button type="submit" class="button button--primary">${escapeHtml(t('account.signIn'))}</button>
-                 <button type="button" class="button button--ghost" id="account-other">${escapeHtml(t('account.otherEmail'))}</button>
-               </div>
-             </form>`
-          : `<form id="account-email-form" class="card stack stack--tight">
-               <label class="stack stack--tight">
-                 <span class="small">${escapeHtml(t('account.email'))}</span>
-                 <input type="email" id="account-email" autocomplete="email" inputmode="email"
-                        placeholder="${escapeHtml(t('account.emailPlaceholder'))}" />
-               </label>
-               <div class="row"><button type="submit" class="button button--primary">${escapeHtml(t('account.sendCode'))}</button></div>
-               <p class="muted small">${escapeHtml(t('account.privacy'))}</p>
-               <div class="row"><button type="button" class="button button--small button--ghost" data-goto="#/confidentialite">${escapeHtml(t('privacy.title'))}</button></div>
-             </form>`
-      }
+      ${signInFormHtml()}
+    </section>`;
+}
+
+/** The two steps of signing in: the address, then the code it received. */
+function signInFormHtml() {
+  return awaiting
+    ? `<form id="account-code-form" class="card stack stack--tight">
+         <label class="stack stack--tight">
+           <span class="small">${escapeHtml(t('account.codeSent', { email: awaiting }))}</span>
+           <input type="text" id="account-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10"
+                  placeholder="${escapeHtml(t('account.codePlaceholder'))}" />
+         </label>
+         <div class="row">
+           <button type="submit" class="button button--primary">${escapeHtml(t('account.signIn'))}</button>
+           <button type="button" class="button button--ghost" id="account-other">${escapeHtml(t('account.otherEmail'))}</button>
+         </div>
+       </form>`
+    : `<form id="account-email-form" class="card stack stack--tight">
+         <label class="stack stack--tight">
+           <span class="small">${escapeHtml(t('account.email'))}</span>
+           <input type="email" id="account-email" autocomplete="email" inputmode="email"
+                  placeholder="${escapeHtml(t('account.emailPlaceholder'))}" />
+         </label>
+         <div class="row"><button type="submit" class="button button--primary">${escapeHtml(t('account.sendCode'))}</button></div>
+         <p class="muted small">${escapeHtml(t('account.privacy'))}</p>
+         <div class="row"><button type="button" class="button button--small button--ghost" data-goto="#/confidentialite">${escapeHtml(t('privacy.title'))}</button></div>
+       </form>`;
+}
+
+/* ------------------------------------------------- offered on the way in --- */
+
+/**
+ * Just let into a group: the moment to offer an account, once. It is what
+ * keeps the group when the phone wipes its data or is replaced — and nobody
+ * listens to that advice later, from the settings. Optional: « Plus tard »
+ * puts it away, and nothing else changes.
+ */
+function offerAccount(group) {
+  // Answered once — « Plus tard », or signed in — is answered for this device:
+  // the reminder on Home takes over from there.
+  if (!state.remote || account() || state.prefs.accountOfferDone) return false;
+  state.prefs = { ...state.prefs, accountOffer: { name: String(group?.name || ''), at: Date.now() } };
+  savePrefs(state.prefs);
+  return true;
+}
+
+/** Offered for a week at most: by then, the reminder on Home takes over. */
+const OFFER_MS = 7 * 24 * 60 * 60 * 1000;
+
+function offered() {
+  const offer = state.prefs.accountOffer;
+  if (!offer || !state.remote || account() || state.prefs.accountOfferDone) return null;
+  return Date.now() - (offer.at || 0) < OFFER_MS ? offer : null;
+}
+
+function forgetOffer() {
+  const { accountOffer, ...rest } = state.prefs;
+  state.prefs = { ...rest, accountOfferDone: Date.now() };
+  savePrefs(state.prefs);
+}
+
+/** On the groups tab, where someone just let in lands. */
+function accountOfferHtml() {
+  const offer = offered();
+  if (!offer) return '';
+  return `
+    <section class="section account-offer" id="account">
+      <div class="section__head">
+        <h2>${escapeHtml(offer.name ? t('account.offerTitle', { name: offer.name }) : t('account.offerTitleBare'))}</h2>
+      </div>
+      <p class="small">${escapeHtml(t('account.offerWhy'))}</p>
+      ${signInFormHtml()}
+      <p class="muted small">${escapeHtml(t('account.offerWithout'))}</p>
+      <div class="row"><button type="button" class="button button--small button--ghost" data-account-later>${escapeHtml(t('install.later'))}</button></div>
     </section>`;
 }
 
@@ -19543,9 +20009,15 @@ function bindAccount() {
     }
     saveAccount({ ...session, email: session.email || awaiting });
     awaiting = '';
+    forgetOffer();
     flash(t('account.welcome'));
     render();
     await syncAccount({ force: true });
+    render();
+  });
+  view.querySelector('[data-account-later]')?.addEventListener('click', () => {
+    awaiting = '';
+    forgetOffer();
     render();
   });
   view.querySelector('#account-other')?.addEventListener('click', () => {
@@ -20656,8 +21128,8 @@ function bindHolo() {
 /** The styles, the app's own first: it is the one with no attribute. */
 const LOOKS = ['holo', 'classic', 'calm'];
 
-/** The colours one may choose over a style's own. */
-const LOOK_ACCENTS = ['cyan', 'violet', 'green', 'amber', 'pink', 'blue'];
+/** The colours one may choose, in the order of the rainbow. */
+const LOOK_ACCENTS = ['red', 'orange', 'amber', 'green', 'cyan', 'blue', 'violet', 'pink'];
 
 /** Each style's own colour, the one shown under « Celle du style ». */
 const LOOK_OWN_ACCENT = { holo: 'cyan', classic: 'amber', calm: 'blue' };
@@ -20701,10 +21173,17 @@ function lookHtml() {
             aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
   // A colour is shown as itself, in the theme on screen: the same token the
   // page would take, read from styles.css rather than written twice.
-  const dot = (value, label) => `
-    <button type="button" class="tint ${accent === value ? 'tint--on' : ''}" data-pick-accent="${escapeHtml(value)}"
-            aria-pressed="${accent === value ? 'true' : 'false'}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">
-      <span class="tint__dot" style="--tint: var(--accent-${value || LOOK_OWN_ACCENT[look]})" aria-hidden="true">${value ? '' : 'A'}</span>
+  //
+  // The style's own colour is one of the dots, not a dot of its own beside
+  // them — that showed the same colour twice. Picking it means « the style's
+  // own »: no colour is kept, and changing style changes the colour with it.
+  const own = LOOK_OWN_ACCENT[look];
+  const shown = accent || own;
+  const name = (value) => (value === own ? t('look.accent.own', { name: t(`look.accent.${value}`) }) : t(`look.accent.${value}`));
+  const dot = (value) => `
+    <button type="button" class="tint ${shown === value ? 'tint--on' : ''}" data-pick-accent="${value === own ? '' : escapeHtml(value)}"
+            aria-pressed="${shown === value ? 'true' : 'false'}" aria-label="${escapeHtml(name(value))}" title="${escapeHtml(name(value))}">
+      <span class="tint__dot" style="--tint: var(--accent-${value})" aria-hidden="true"></span>
     </button>`;
   return `
     <section class="section">
@@ -20716,9 +21195,9 @@ function lookHtml() {
         </div>
         <span class="muted small">${escapeHtml(t('look.colour'))}</span>
         <div class="row row--chips tints" role="group" aria-label="${escapeHtml(t('look.colour'))}">
-          ${dot('', t('look.accent.auto'))}
-          ${LOOK_ACCENTS.map((value) => dot(value, t(`look.accent.${value}`))).join('')}
+          ${LOOK_ACCENTS.map(dot).join('')}
         </div>
+        <span class="muted small" id="look-colour-name">${escapeHtml(name(shown))}</span>
         <span class="muted small">${escapeHtml(t('look.theme'))}</span>
         <div class="row row--chips" role="group" aria-label="${escapeHtml(t('look.theme'))}">
           ${chip('theme', 'dark', t('look.night'), dark)}
@@ -20752,507 +21231,37 @@ function bindLook(view) {
   });
 }
 
-  // ---- src/app.js ------------------------------------------------------
-/** UI layer: hash router, views, event wiring. */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-const view = document.getElementById('view');
-
-const state = {
-  games: loadGames(),
-  lists: loadLists(),
-  polls: loadPolls(),
-  spends: loadSpends(),
-  boards: loadBoards(),
-  prefs: loadPrefs(),
-  flash: null, // { message, kind: 'info' | 'error' }
-  editingRoundId: null,
-  // New-game form draft, kept across re-renders of that view.
-  search: '',
-  newPresetId: null,
-  newConfig: null,
-  newName: '',
-  // Set once the host's document store answers; null means this browser only.
-  store: null,
-  // The shared database, when this copy of the app is configured for one.
-  remote: createRemote(remoteConfig()),
-  // Polling while a shared game is on screen.
-  poll: null,
-  // The set of games being fetched, so a redraw does not start a second fetch.
-  openingSet: null,
-  // The same, for a shared list opened from its link.
-  openingList: null,
-  // And for a poll.
-  openingPoll: null,
-  // And for a shared account of expenses.
-  openingSpend: null,
-  // And for a board of ideas.
-  openingBoard: null,
-  // Whose lines are on screen in a list: null for everyone, 'none' for the
-  // ones nobody has taken.
-  listFilter: null,
-  // The screens walked through to get here, oldest first, without loops: what
-  // "Back" returns to. See followTrail().
-  trail: [],
-  // The new-list form's draft, kept across re-renders like the new-game one:
-  // adding a person must not throw away the lines already typed.
-  newListName: '',
-  newListPeople: ['', ''],
-  newListLines: '',
-  // And the new board's.
-  newBoardName: '',
-  // And the new account's.
-  newSpendName: '',
-  newSpendCurrency: 'EUR',
-  // The account whose « add an expense » form is unfolded. Once an account has
-  // lines, the form folds behind one button, so the lines are what is in sight.
-  spendFormOpen: null,
-  newSpendPeople: ['', ''],
-  // Which half of an account's page is showing — reset when a different
-  // account is opened, kept when this one just redraws (adding a line, say).
-  spendTabId: null,
-  spendTab: 'expenses',
-  // And the new-poll form's.
-  newEventName: '',
-  newEventDay: '',
-  newEventHour: '',
-  newEventUntil: '',
-  newEventPeople: ['', ''],
-  newPollQuestion: '',
-  newPollChoices: '',
-  // Days picked on the calendar, as YYYY-MM-DD, shown apart from the typed choices.
-  newPollDays: [],
-  // One hour for all the picked days, when the evening has one.
-  newPollAt: '',
-  newPollPeople: ['', ''],
-  // Names typed so far, so switching preset does not wipe them.
-  newGameNames: ['', '', ''],
-  // Whether anyone has touched the entrant fields since the form was emptied.
-  //
-  // My own first name is offered as the first *player*, never as a team, and the
-  // preset is only known once the form is drawn — so the offer is made at draw
-  // time. Which means it must be made once: put back after someone deleted it, it
-  // would put them in a game they had just taken themselves out of.
-  newGameTouched: false,
-  // Where a thing about to be created will land — decided on the form, before it
-  // exists, rather than left for a later that never came.
-  //
-  // A dialog would do the job and was tried; it puts a modal in front of every
-  // single creation, which is a heavy price for a question whose answer is
-  // almost always the obvious one. Chips answer it in advance, in the open, and
-  // cost a tap only when the answer is wrong.
-  //
-  // `chosen` is null until someone touches a chip, and only then does it beat
-  // the default — so opening the form after changing the pastille follows the
-  // pastille rather than a stale choice.
-  newGroupChoice: { touched: false, id: null },
-  // The event a new thing is made for, if any: the id of its poll. Picked on
-  // the form, or already set when « Ajouter » was pressed on the event.
-  newEventLink: null,
-  // The deal being entered on the Tarot screen.
-  deal: null,
-};
-
-/* ------------------------------------------------------------- utilities --- */
-
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (char) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]),
-  );
-}
-
-/** Read a score input: '' means "not filled in" (null), otherwise a number. */
-function parseScore(raw) {
-  const value = String(raw ?? '').trim().replace(',', '.');
-  if (value === '') return null;
-  const number = Number(value);
-  return Number.isNaN(number) ? NaN : number;
-}
-
-function parseIntOrNull(raw) {
-  const value = String(raw ?? '').trim();
-  if (value === '') return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? Math.trunc(number) : null;
-}
-
-function presetLabel(preset) {
-  return preset.labelKey ? t(preset.labelKey) : preset.name;
-}
-
-function gameTitle(game) {
-  if (game.name) return game.name;
-  const preset = getPreset(game.presetId);
-  return preset ? presetLabel(preset) : t('new.customLabel');
-}
-
-/** The title of a game or of a list, whichever this is. */
-function documentTitle(document_) {
-  if (isValidList(document_)) return listTitle(document_);
-  if (isValidPoll(document_)) return pollTitle(document_);
-  if (isValidBoard(document_)) return boardTitle(document_);
-  if (isValidSpend(document_)) return spendTitle(document_);
-  return gameTitle(document_);
-}
-
-/** Where a document's page is, whatever its kind. */
-function documentHref(document_) {
-  const page = { list: 'list', poll: 'poll', spend: 'spend', board: 'idea', game: 'game' }[kindOf(document_)] || 'game';
-  return `#/${page}/${document_.id}`;
-}
-
-/** Every document this device holds, of every kind. */
-function everything() {
-  return allDocuments(state);
-}
-
-/** What a document hangs from, up to its event: the farthest first. */
-function chainOf(document_) {
-  return ancestorsOf(document_, everything());
-}
-
-/** A link in the chain, as it reads: an event says its day. */
-function chainLabel(document_) {
-  const title = isEventDoc(document_) ? eventName(document_) || pollTitle(document_) : documentTitle(document_);
-  return isEventDoc(document_) && document_.date ? t('event.named', { name: title, day: formatDay(document_.date) }) : title;
-}
-
+  // ---- src/view-home.js ------------------------------------------------
 /**
- * A day written `AAAA-MM-JJ`, shown the way the reader's language shows days.
- * Built field by field rather than handed to Date(), which reads that form as
- * UTC midnight and so shows the day before, west of Greenwich.
- */
-function formatDay(day) {
-  const [year, month, date] = String(day || '').split('-').map(Number);
-  if (!year || !month || !date) return String(day || '');
-  try {
-    return new Date(year, month - 1, date).toLocaleDateString(getLanguage(), {
-      day: 'numeric',
-      month: 'short',
-    });
-  } catch {
-    return String(day);
-  }
-}
-
-/**
- * When an event is: its day — or its first and last, when it runs over
- * several — and its hour. `long` adds the weekday, as an agenda wants it.
- */
-function whenText(poll, { long = false } = {}) {
-  const show = long ? formatDayLong : formatDay;
-  const days = poll.until && poll.until > poll.date
-    ? t('events.range', { from: show(poll.date), to: show(poll.until) })
-    : show(poll.date);
-  return [days, poll.at].filter(Boolean).join(' · ');
-}
-
-/**
- * A day in an agenda: the weekday matters as much as the number, since "jeudi"
- * is how anyone actually holds a date in their head.
- */
-function formatDayLong(day) {
-  const [year, month, date] = String(day || '').split('-').map(Number);
-  if (!year || !month || !date) return String(day || '');
-  try {
-    return new Date(year, month - 1, date).toLocaleDateString(getLanguage(), {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-    });
-  } catch {
-    return formatDay(day);
-  }
-}
-
-function formatDate(timestamp) {
-  try {
-    return new Date(timestamp).toLocaleDateString(getLanguage(), {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  } catch {
-    return '';
-  }
-}
-
-/** The app's own address, with no game attached to it. */
-function appLink() {
-  const { origin, pathname, search } = location;
-  return `${origin}${pathname}${search}`;
-}
-
-function flash(message, kind = 'info') {
-  state.flash = { message, kind, shownAt: null };
-}
-
-/**
- * How long a message stays on screen once it has been read.
+ * Home, the groups tab and the settings: what is coming, what waits on me, the
+ * groups this device is in and who knocks at them, and the app's own settings.
  *
- * Long enough to survive what follows it: something is answered, the app asks
- * the database what the answer changed, and redraws when it knows. A message
- * consumed by the first of those two redraws would flash and vanish. Going
- * somewhere else, on the other hand, ends it — a line about a group accepted is
- * nothing to a screen of games.
+ * Calls back into app.js and the other views only from inside functions.
  */
-const FLASH_KEPT = 4000;
 
-/* ------------------------------------------------------------- persisting --- */
 
-/* ----------------------------------------------------------------- router --- */
 
-function route() {
-  return routeOf(location.hash);
-}
 
-/** What an address opens, without going there. */
-function routeOf(address) {
-  // A form may come filled in: `#/lists/new?titre=…`. See prefill.js.
-  const hash = withoutPrefill(address).replace(/^#\/?/, '');
-  const [name, param] = hash.split('/');
-  if (name === 'games') return { name: 'home' };
-  // An invitation link carries both the six digits and the group's name, so
-  // the person who receives it has nothing to read out and nothing to type.
-  // A return link: a person's own token, which hands this browser a key.
-  if (name === 'back' && param) return { name: 'back', token: backTokenFrom(address) };
-  if (name === 'join' && param) {
-    const invitation = joinFrom(address);
-    if (invitation) return { name: 'join', code: invitation.code, group: invitation.name };
-    // Half a link is still half a link: whichever of the two survived is kept,
-    // and the page asks for the other rather than for both.
-    return { name: 'join', code: readCode(param), group: groupSegment(hash) };
-  }
-  // Someone's own page, reached from the overview. Both spellings open it: the
-  // app speaks two languages, and a link once sent is a link for ever.
-  if ((name === 'person' || name === 'personne') && param) {
-    return { name: 'person', who: personFrom(param) };
-  }
-  // One group, everything in it: #/group/<id>, from the overview.
-  if (name === 'group' && param) return { name: 'group', id: decodeSegment(param) };
-  if (name === 'groups') return { name: 'groups' };
-  if (name === 'settings' || name === 'reglages') return { name: 'settings' };
-  if (name === 'privacy' || name === 'confidentialite') return { name: 'privacy' };
-  if (name === 'new') return { name: 'new' };
-  if (name === 'stats') return { name: 'stats' };
-  if (name === 'game' && param) return { name: 'game', id: param };
-  if (name === 'set' && param) return { name: 'set', id: param };
-  if (name === 'lists' && param === 'new') return { name: 'new-list' };
-  if (name === 'lists') return { name: 'lists' };
-  if (name === 'list' && param) return { name: 'list', id: param };
-  if (name === 'spends' && param === 'new') return { name: 'new-spend' };
-  if (name === 'spends') return { name: 'spends' };
-  if (name === 'agenda' && param === 'new') return { name: 'new-event' };
-  if (name === 'agenda') return { name: 'agenda' };
-  if (name === 'spend' && param) return { name: 'spend', id: param };
-  if (name === 'ideas' && param === 'new') return { name: 'new-board' };
-  if (name === 'ideas') return { name: 'ideas' };
-  if (name === 'idea' && param) return { name: 'board', id: param };
-  if (name === 'polls' && param === 'new') return { name: 'new-poll' };
-  if (name === 'polls') return { name: 'polls' };
-  // A shared link opens the poll alone: `#/poll/<id>/solo`. See pollView().
-  if (name === 'poll' && param) return { name: 'poll', id: param, solo: hash.split('/')[2] === 'solo' };
-  return { name: 'overview' };
-}
 
-/**
- * Where a poll is listed, so its page goes back there: the agenda for a day
- * that is settled or still being looked for, the home page's polls otherwise.
- */
-function pollHome(poll) {
-  return isEvent(poll) || poll.date || (!poll.closedAt && seeksDay(poll)) ? '#/agenda' : '#/polls';
-}
 
-/** A segment of the address, decoded if it can be. */
-function decodeSegment(segment) {
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return segment;
-  }
-}
 
-/** The name written in `#/person/<name>`, decoded if it can be. */
-function personFrom(segment) {
-  try {
-    return decodeURIComponent(segment).trim();
-  } catch {
-    return String(segment).trim();
-  }
-}
 
-/** The group's name as written in `#/join/<code>/<name>`, decoded if it can be. */
-function groupSegment(hash) {
-  const segment = hash.split('/')[2] || '';
-  try {
-    return decodeURIComponent(segment).trim();
-  } catch {
-    return segment.trim();
-  }
-}
 
-function navigate(hash) {
-  if (location.hash === hash) render();
-  else location.hash = hash;
-}
 
-/** The address of the screen on show, spelled one way. */
-function hereHash() {
-  return location.hash && location.hash !== '#' ? location.hash : '#/';
-}
 
-/**
- * Note the screen just reached. Reaching the one before is going back: it is
- * taken off, so "Back" never bounces between two screens. Any other screen goes
- * on top, and leaves the place it had lower down.
- */
-function followTrail() {
-  const here = hereHash();
-  const trail = state.trail;
-  if (trail[trail.length - 1] === here) return;
-  if (trail[trail.length - 2] === here) state.trail = trail.slice(0, -1);
-  else state.trail = [...trail.filter((hash) => hash !== here), here].slice(-50);
-}
 
-/**
- * Where "Back" goes: the screen one came from — the group's page for a list
- * opened there, the person's for a poll opened from it — and the usual place
- * when there is none (a link just opened). A form already filled in is not
- * somewhere to go back to.
- */
-function backTarget(fallback) {
-  const here = hereHash();
-  for (let index = state.trail.length - 1; index >= 0; index -= 1) {
-    const hash = state.trail[index];
-    if (hash === here || /^#\/(lists|polls|spends|agenda|ideas)\/new$|^#\/new$/.test(hash)) continue;
-    return hash;
-  }
-  return fallback;
-}
 
-/* ------------------------------------------------------------------ views --- */
 
-function flashHtml() {
-  if (!state.flash) return '';
-  const { message, kind, shownAt } = state.flash;
-  // Shown for the first time: the clock starts here rather than when the message
-  // was raised, so one that had to wait — for a screen where someone was typing,
-  // say — is still read rather than silently dropped.
-  if (!shownAt) {
-    state.flash = { ...state.flash, shownAt: Date.now() };
-  } else if (Date.now() - shownAt > FLASH_KEPT) {
-    state.flash = null;
-    return '';
-  }
-  return `<p class="banner ${kind === 'error' ? 'banner--warn' : ''}">${escapeHtml(message)}</p>`;
-}
 
-/**
- * The group pastilles, shown above the lists, the polls and the games.
- *
- * From two groups on: with one, there is nothing to choose between, and a row
- * of buttons that can only say "everything" is noise. The line under them is
- * the same count the overview shows, for whatever is on screen.
- */
-function groupChipsHtml() {
-  const held = groupsByName();
-  const everything = [...state.lists, ...state.polls, ...state.games, ...state.spends, ...state.boards];
-  const outside = everything.some(outsideGroups);
-  // With one group and nothing outside it, there is nothing to choose between.
-  if (!held.length || (held.length < 2 && !outside)) return '';
-  const active = groupFilter();
-  const counted = active === OUTSIDE_GROUPS
-    ? groupCounts({
-        lists: shownDocs(state.lists), polls: shownDocs(state.polls),
-        games: shownDocs(state.games), spends: shownDocs(state.spends), boards: shownDocs(state.boards),
-      })
-    : groupCounts(state, active);
-  const chip = (id, label) => `
-    <button type="button" class="chip ${active === id ? 'chip--on' : ''}"
-            data-group-filter="${escapeHtml(id)}" aria-pressed="${active === id ? 'true' : 'false'}">
-      ${escapeHtml(label)}
-    </button>`;
-  return `
-    <div class="row" role="group" aria-label="${escapeHtml(t('filter.by'))}">
-      ${chip('', t('filter.all'))}
-      ${held.map((group) => chip(group.id, group.name)).join('')}
-      ${outside || active === OUTSIDE_GROUPS ? chip(OUTSIDE_GROUPS, t('filter.others')) : ''}
-    </div>
-    <p class="muted small">${escapeHtml(countsText(counted))}</p>`;
-}
 
-/**
- * What is going on, kind by kind, in the order of the tabs — leaving out the
- * kinds with nothing: « 1 liste · 2 parties », not five numbers, three of
- * them nought.
- */
-function countsText(counts) {
-  const said = ['lists', 'polls', 'games', 'spends', 'boards']
-    .filter((kind) => counts[kind])
-    .map((kind) => t(`count.${kind}`, { count: counts[kind] }));
-  return said.length ? said.join(' · ') : t('count.none');
-}
 
-function gameCardHtml(game) {
-  const status = gameStatus(game);
-  const names = status.finished
-    ? status.winners.map((row) => row.name)
-    : status.leaders.map((row) => row.name);
-  let line = '';
-  if (game.rounds.length && names.length) {
-    const key = status.finished
-      ? names.length > 1 ? 'home.winners' : 'home.winner'
-      : 'home.leader';
-    line = t(key, { name: names.join(', ') });
-  }
-  return `
-    <button type="button" class="game-card" data-goto="#/game/${escapeHtml(game.id)}">
-      <span class="game-card__title">
-        ${escapeHtml(gameTitle(game))}
-        <span class="pill ${status.finished ? 'pill--done' : ''}">
-          ${status.finished ? escapeHtml(t('game.finished')) : escapeHtml(t('home.rounds', { count: game.rounds.length }))}
-        </span>
-      </span>
-      <span class="game-card__meta">${escapeHtml(game.players.map((p) => p.name).join(' · '))}</span>
-      <span class="game-card__meta">${escapeHtml(formatDate(game.updatedAt))}${line ? ` — ${escapeHtml(line)}` : ''}</span>
-      ${eventTagHtml(game)}
-    </button>`;
-}
+
+
+
+
+
+
+
 
 /* --------------------------------------------------------------- overview --- */
 
@@ -21343,52 +21352,10 @@ function eventsHtml() {
     </section>`;
 }
 
-/** « · Pour Raclette › Courses » after a line about something attached. */
-function forEventText(document_) {
-  const chain = document_ ? chainOf(document_) : [];
-  return chain.length ? ` · ${t('event.tagUndated', { name: chain.map(chainLabelShort).join(' › ') })}` : '';
-}
 
-/** A document's card, whatever its kind. */
-function documentCardHtml(document_) {
-  const kind = kindOf(document_);
-  if (kind === 'list') return listCardHtml(document_);
-  if (kind === 'poll') return isEventDoc(document_) ? eventCardHtml(document_) : pollCardHtml(document_);
-  if (kind === 'spend') return spendCardHtml(document_);
-  if (kind === 'board') return boardCardHtml(document_);
-  return gameCardHtml(document_);
-}
 
-/**
- * On a document's page, what is attached to it — a poll under a list, a board
- * under that poll — and the way to bring more. An event has its own section,
- * which holds its whole chain.
- */
-function attachedHtml(document_) {
-  const children = childrenOf(document_, everything()).filter(isLive);
-  if (!children.length) return '';
-  return `
-    <section class="section">
-      <div class="section__head"><h2>${escapeHtml(t('chain.here'))}</h2></div>
-      <div class="game-list">${children.map(documentCardHtml).join('')}</div>
-    </section>`;
-}
 
-/** The buttons of « Plus d'actions » for the chain and the links: attach, detach, link. */
-function chainButtonsHtml(document_) {
-  // An event goes under another event only, as one of its activities; one
-  // with activities of its own stays on top.
-  const all = everything();
-  const attach = isEventDoc(document_) && !attachTargets(document_, all).length && !parentId(document_)
-    ? ''
-    : `<button type="button" class="button button--small button--ghost" data-attach-doc="${escapeHtml(document_.id)}">${escapeHtml(t(isEventDoc(document_) ? 'activity.attach' : 'chain.attach'))}</button>`;
-  return `${attach}<button type="button" class="button button--small button--ghost" data-relate-doc="${escapeHtml(document_.id)}">${escapeHtml(t('relate.button'))}</button>`;
-}
 
-/** A link in the chain, in a line of text: its title alone. */
-function chainLabelShort(document_) {
-  return isEventDoc(document_) ? eventName(document_) || pollTitle(document_) : documentTitle(document_);
-}
 
 /**
  * The rest of what is going on, a few of each kind — leaving out what "For
@@ -22136,27 +22103,6 @@ function overviewView() {
     }`;
 }
 
-/**
- * Which kind of thing Home shows: everything at once, or one kind in full.
- *
- * The kinds used to be tabs of their own; they are one row of the home page
- * now, so the tab bar can answer other questions — when, with whom — and each
- * kind keeps its own address, so a link once sent still opens it.
- */
-function kindsHtml(active) {
-  const kind = (id, goto, label) => `
-    <button type="button" class="segmented__option" data-goto="${goto}"
-            aria-current="${active === id ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
-  return `
-    <nav class="segmented segmented--kinds" aria-label="${escapeHtml(t('home.kinds'))}">
-      ${kind('overview', '#/', t('tab.all'))}
-      ${kind('lists', '#/lists', t('tab.lists'))}
-      ${kind('polls', '#/polls', t('tab.polls'))}
-      ${kind('games', '#/games', t('tab.games'))}
-      ${kind('spends', '#/spends', t('tab.spends'))}
-      ${kind('ideas', '#/ideas', t('tab.ideas'))}
-    </nav>`;
-}
 
 /**
  * What is waiting on this device's person, and on nobody else: a poll they
@@ -22237,7 +22183,11 @@ function groupsView() {
   }
   return `
     ${flashHtml()}
-    ${accountNeededHtml()}
+    ${
+      // Just let in, an account is offered with its form; the same form says
+      // what the reminder would.
+      accountOfferHtml() || accountNeededHtml()
+    }
     ${
       // Knocking at a group asks for a first name: better to meet the field
       // here than to be sent to the settings by an error.
@@ -22254,6 +22204,7 @@ function settingsView() {
     ${meHtml()}
     ${lookHtml()}
     ${accountHtml()}
+    ${notifyHtml()}
     ${dataHtml()}`;
 }
 
@@ -22750,6 +22701,23 @@ function bindOverview() {
   });
 }
 
+  // ---- src/view-join.js ------------------------------------------------
+/**
+ * Coming into a group: the invitation, the knock and the wait, and the return
+ * link that hands a known person a key again.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+
+
+
+
 /* ------------------------------------------------------------- coming back --- */
 
 /**
@@ -22817,6 +22785,7 @@ function bindBack(token) {
     } catch {
       // In the group either way.
     }
+    offerAccount(group);
     flash(taken
       ? t('groups.joinedWith', { name: group.name, count: taken })
       : t('groups.joined', { name: group.name }));
@@ -23214,11 +23183,17 @@ function showsGate() {
   return ['overview', 'groups'].includes(route().name);
 }
 
+/** When the knocks were last asked for, while the group's channel is heard. */
+let lastGateLook = 0;
+
 function watchGate() {
   stopWatching();
   if (!state.remote) return;
   state.poll = setInterval(async () => {
     if (isBusy() || isHidden() || !showsGate()) return;
+    // Heard as they happen: a knock is announced on the group's channel.
+    if (liveCoversGroups() && Date.now() - lastGateLook < 60000) return;
+    lastGateLook = Date.now();
     if (await refreshGate()) render();
   }, 15000);
 }
@@ -23238,6 +23213,27 @@ function watchPending() {
     }
   }, 5000);
 }
+
+  // ---- src/view-people.js ----------------------------------------------
+/**
+ * People: one person's page, the table of everyone's evenings, and renaming a
+ * player in every game at once.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /**
  * Rename a player in every game they appear in.
@@ -23304,103 +23300,6 @@ async function renameEverywhere(before) {
     return;
   }
   render();
-}
-
-/**
- * Ask for one line of text, the same way the app asks anything else: a dialog
- * that removes itself, Escape answering null.
- */
-function askForText({ title, hint, value = '', confirmLabel }) {
-  return new Promise((resolve) => {
-    const dialog = makeDialog('dialog dialog--ask');
-    dialog.innerHTML = `
-      <div class="stack">
-        <h2>${escapeHtml(title)}</h2>
-        <p class="muted small">${escapeHtml(hint)}</p>
-        <input type="text" id="asked-text" value="${escapeHtml(value)}" maxlength="40" />
-        <div class="row">
-          <button type="button" class="button button--primary" id="asked-ok">${escapeHtml(confirmLabel)}</button>
-          <button type="button" class="button" id="asked-cancel">${escapeHtml(t('action.cancel'))}</button>
-        </div>
-      </div>`;
-
-    let answered = false;
-    const done = (answer) => {
-      if (answered) return;
-      answered = true;
-      resolve(answer);
-      dialog.close();
-    };
-    dialog.addEventListener('close', () => done(null));
-    dialog.querySelector('#asked-cancel').addEventListener('click', () => done(null));
-    dialog.querySelector('#asked-ok').addEventListener('click', () => done(dialog.querySelector('#asked-text').value));
-    dialog.querySelector('#asked-text').addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') done(dialog.querySelector('#asked-text').value);
-    });
-    dialog.showModal();
-    dialog.querySelector('#asked-text').select();
-  });
-}
-
-function homeView() {
-  const query = (state.search || '').trim().toLowerCase();
-  const matches = (game) => {
-    if (!query) return true;
-    const preset = getPreset(game.presetId);
-    const haystack = [gameTitle(game), preset ? presetLabel(preset) : '', ...game.players.map((p) => p.name)]
-      .join(' ')
-      .toLowerCase();
-    return haystack.includes(query);
-  };
-
-  const mine = shownDocs(state.games);
-  const sorted = [...mine].sort((a, b) => b.updatedAt - a.updatedAt).filter(matches);
-  const live = sorted.filter(isLive);
-  const ongoing = live.filter((game) => !gameStatus(game).finished);
-  const finished = live.filter((game) => gameStatus(game).finished);
-
-  return `
-    ${flashHtml()}
-    ${kindsHtml('games')}
-    <button type="button" class="button button--primary button--block" data-goto="#/new">
-      + ${escapeHtml(t('action.newGame'))}
-    </button>
-    ${groupChipsHtml()}
-    ${
-      mine.length
-        ? `<div class="row">
-             <button type="button" class="button button--small button--ghost" data-goto="#/stats">${escapeHtml(t('action.stats'))}</button>
-           </div>`
-        : ''
-    }
-
-    ${
-      mine.length > 4
-        ? `<label class="visually-hidden" for="search">${escapeHtml(t('home.search'))}</label>
-           <input type="text" id="search" placeholder="${escapeHtml(t('home.search'))}" value="${escapeHtml(state.search || '')}" />`
-        : ''
-    }
-
-    <section class="section">
-      <div class="section__head"><h2>${escapeHtml(t('kinds.ongoing'))}</h2></div>
-      ${
-        ongoing.length
-          ? `<div class="game-list">${ongoing.map(swipeable(gameCardHtml)).join('')}</div>`
-          : `<p class="muted small">${escapeHtml(t('home.empty'))}</p>`
-      }
-      ${hiddenByGroupHtml(state.games)}
-    </section>
-
-    ${
-      finished.length
-        ? `<section class="section">
-             <div class="section__head"><h2>${escapeHtml(t('home.finished'))}</h2></div>
-             <div class="game-list">${finished.map(swipeable(gameCardHtml)).join('')}</div>
-           </section>`
-        : ''
-    }
-
-    ${archivedHtml(sorted, swipeable(gameCardHtml))}`;
 }
 
 /* ---------------------------------------------------------------- person --- */
@@ -23627,6 +23526,861 @@ function statsView() {
     <p class="notes">${escapeHtml(t('stats.note'))}</p>`;
 }
 
+  // ---- src/view-notify.js ----------------------------------------------
+/**
+ * Notifications on this device: turned on in the settings, and told to the
+ * notifier (supabase/functions/notifier) whenever this device writes
+ * something that may be news for its group, or knocks at one.
+ *
+ * Turning them on asks the phone, subscribes the browser with the database's
+ * public key, and hands the subscription to the database once per group, with
+ * that group's key — so a key cut off stops the notifications too.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+
+const TOLD = 'marque-points:told:v1';
+
+/** What this browser can do with notifications. */
+function support() {
+  const served = Boolean(document.querySelector('link[rel="manifest"]'));
+  return pushSupport({
+    worker: served && 'serviceWorker' in navigator,
+    push: 'PushManager' in window,
+    notification: 'Notification' in window,
+    permission: 'Notification' in window ? Notification.permission : 'default',
+    phone: phoneToInstall(),
+    standalone: onHomeScreen(),
+  });
+}
+
+function isOn() {
+  return Boolean(state.prefs.push) && support() === 'ready' && Notification.permission === 'granted';
+}
+
+/** The app's own address, for a notification to open. */
+function appAddress() {
+  return `${location.origin}${location.pathname}`;
+}
+
+/** The service worker, within a few seconds, or null. */
+async function worker() {
+  if (!('serviceWorker' in navigator)) return null;
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
+  ]);
+}
+
+/** This browser's subscription, made with the database's key if there is none yet. */
+async function subscribe(registration) {
+  const held = await registration.pushManager.getSubscription();
+  if (held) return held;
+  const answer = await state.remote.notifier({ action: 'key' });
+  if (!answer?.key) throw new Error('no key');
+  return registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(answer.key) });
+}
+
+/** Hand the subscription to the database, once per group. */
+async function register(subscription) {
+  const fields = subscriptionFields(subscription.toJSON());
+  if (!fields) throw new Error('no subscription');
+  for (const group of groups()) {
+    await state.remote.pushSubscribe(group.key, fields, getLanguage(), appAddress()).catch(() => null);
+  }
+}
+
+/* ---------------------------------------------------------------- screen --- */
+
+/** The settings section. */
+function notifyHtml() {
+  if (!state.remote) return '';
+  const can = support();
+  const on = isOn();
+  let body = '';
+  if (on) {
+    body = `
+      <p class="small">${escapeHtml(t('notify.on'))}</p>
+      <div class="row"><button type="button" class="button button--small button--ghost" id="notify-off">${escapeHtml(t('notify.disable'))}</button></div>`;
+  } else if (can === 'ready') {
+    body = groups().length
+      ? `<div class="row"><button type="button" class="button button--small button--primary" id="notify-on">${escapeHtml(t('notify.enable'))}</button></div>`
+      : `<p class="muted small">${escapeHtml(t('notify.noGroup'))}</p>`;
+  } else {
+    body = `<p class="muted small">${escapeHtml(t(`notify.${can}`))}</p>`;
+  }
+  return `
+    <section class="section" id="notify">
+      <div class="section__head"><h2>${escapeHtml(t('notify.title'))}</h2></div>
+      <p class="muted small">${escapeHtml(t('notify.why'))}</p>
+      ${body}
+    </section>`;
+}
+
+function bindNotify() {
+  view.querySelector('#notify-on')?.addEventListener('click', async (event) => {
+    event.currentTarget.disabled = true;
+    const permission = await Notification.requestPermission().catch(() => 'denied');
+    if (permission !== 'granted') {
+      flash(t('notify.refused'), 'error');
+      render();
+      return;
+    }
+    try {
+      const registration = await worker();
+      if (!registration) throw new Error('no worker');
+      await register(await subscribe(registration));
+    } catch (error) {
+      flash(t(/no key|404/.test(String(error?.message)) ? 'notify.notReady' : 'notify.failed'), 'error');
+      render();
+      return;
+    }
+    state.prefs = { ...state.prefs, push: true };
+    savePrefs(state.prefs);
+    flash(t('notify.enabled'));
+    render();
+  });
+  view.querySelector('#notify-off')?.addEventListener('click', async (event) => {
+    event.currentTarget.disabled = true;
+    try {
+      const registration = await worker();
+      const held = await registration?.pushManager.getSubscription();
+      if (held) {
+        await state.remote.pushUnsubscribe(held.endpoint).catch(() => null);
+        await held.unsubscribe().catch(() => null);
+      }
+    } catch {
+      // Turned off here all the same; the database forgets it at the next send.
+    }
+    state.prefs = { ...state.prefs, push: false };
+    savePrefs(state.prefs);
+    flash(t('notify.disabled'));
+    render();
+  });
+}
+
+/**
+ * On opening, and after joining a group: the database holds this device's
+ * subscription for every group it is in — a new group, a key made anew, a
+ * subscription the browser renewed.
+ */
+async function syncPush() {
+  if (!state.remote || !isOn()) return;
+  try {
+    const registration = await worker();
+    if (registration) await register(await subscribe(registration));
+  } catch {
+    // Tried again at the next opening.
+  }
+}
+
+/* --------------------------------------------------------------- telling --- */
+
+function told() {
+  try {
+    const list = JSON.parse(localStorage.getItem(TOLD) || '[]');
+    return Array.isArray(list) ? list.filter((one) => typeof one === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * A document written with a group key: the notifier decides whether that is
+ * news (new, or a day settled) and for whom. Asked once per document and day,
+ * whatever this device's own notifications.
+ */
+async function tell(document_, key) {
+  if (!state.remote || !key || !mayBeNews(document_)) return;
+  const said = toldKey(document_);
+  if (told().includes(said)) return;
+  try {
+    await state.remote.notifier({ action: 'doc', key, id: document_.id });
+  } catch (error) {
+    // No network: asked again at the next write. Anything else — no notifier
+    // in this database — is not worth asking again for the same thing.
+    if (!error?.status) return;
+  }
+  try {
+    localStorage.setItem(TOLD, JSON.stringify(rememberTold(told(), said)));
+  } catch {
+    // No storage: the notifier tells each piece of news once anyway.
+  }
+}
+
+/** Someone knocked from this device: the group's door-keepers hear of it. */
+function tellKnock(ticket) {
+  if (!state.remote || !ticket) return;
+  state.remote.notifier({ action: 'knock', ticket }).catch(() => null);
+}
+
+  // ---- src/app.js ------------------------------------------------------
+/** UI layer: hash router, views, event wiring. */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const view = document.getElementById('view');
+
+const state = {
+  games: loadGames(),
+  lists: loadLists(),
+  polls: loadPolls(),
+  spends: loadSpends(),
+  boards: loadBoards(),
+  prefs: loadPrefs(),
+  flash: null, // { message, kind: 'info' | 'error' }
+  editingRoundId: null,
+  // New-game form draft, kept across re-renders of that view.
+  search: '',
+  newPresetId: null,
+  newConfig: null,
+  newName: '',
+  // Set once the host's document store answers; null means this browser only.
+  store: null,
+  // The shared database, when this copy of the app is configured for one.
+  remote: createRemote(remoteConfig()),
+  // Polling while a shared game is on screen.
+  poll: null,
+  // Changes heard as they happen, when the database announces them: live.js.
+  live: null,
+  // The set of games being fetched, so a redraw does not start a second fetch.
+  openingSet: null,
+  // The same, for a shared list opened from its link.
+  openingList: null,
+  // And for a poll.
+  openingPoll: null,
+  // And for a shared account of expenses.
+  openingSpend: null,
+  // And for a board of ideas.
+  openingBoard: null,
+  // Whose lines are on screen in a list: null for everyone, 'none' for the
+  // ones nobody has taken.
+  listFilter: null,
+  // The screens walked through to get here, oldest first, without loops: what
+  // "Back" returns to. See followTrail().
+  trail: [],
+  // The new-list form's draft, kept across re-renders like the new-game one:
+  // adding a person must not throw away the lines already typed.
+  newListName: '',
+  newListPeople: ['', ''],
+  newListLines: '',
+  // And the new board's.
+  newBoardName: '',
+  // And the new account's.
+  newSpendName: '',
+  newSpendCurrency: 'EUR',
+  // The account whose « add an expense » form is unfolded. Once an account has
+  // lines, the form folds behind one button, so the lines are what is in sight.
+  spendFormOpen: null,
+  newSpendPeople: ['', ''],
+  // Which half of an account's page is showing — reset when a different
+  // account is opened, kept when this one just redraws (adding a line, say).
+  spendTabId: null,
+  spendTab: 'expenses',
+  // And the new-poll form's.
+  newEventName: '',
+  newEventDay: '',
+  newEventHour: '',
+  newEventUntil: '',
+  newEventPeople: ['', ''],
+  newPollQuestion: '',
+  newPollChoices: '',
+  // Days picked on the calendar, as YYYY-MM-DD, shown apart from the typed choices.
+  newPollDays: [],
+  // One hour for all the picked days, when the evening has one.
+  newPollAt: '',
+  newPollPeople: ['', ''],
+  // Names typed so far, so switching preset does not wipe them.
+  newGameNames: ['', '', ''],
+  // Whether anyone has touched the entrant fields since the form was emptied.
+  //
+  // My own first name is offered as the first *player*, never as a team, and the
+  // preset is only known once the form is drawn — so the offer is made at draw
+  // time. Which means it must be made once: put back after someone deleted it, it
+  // would put them in a game they had just taken themselves out of.
+  newGameTouched: false,
+  // Where a thing about to be created will land — decided on the form, before it
+  // exists, rather than left for a later that never came.
+  //
+  // A dialog would do the job and was tried; it puts a modal in front of every
+  // single creation, which is a heavy price for a question whose answer is
+  // almost always the obvious one. Chips answer it in advance, in the open, and
+  // cost a tap only when the answer is wrong.
+  //
+  // `chosen` is null until someone touches a chip, and only then does it beat
+  // the default — so opening the form after changing the pastille follows the
+  // pastille rather than a stale choice.
+  newGroupChoice: { touched: false, id: null },
+  // The event a new thing is made for, if any: the id of its poll. Picked on
+  // the form, or already set when « Ajouter » was pressed on the event.
+  newEventLink: null,
+  // The deal being entered on the Tarot screen.
+  deal: null,
+};
+
+/* ------------------------------------------------------------- utilities --- */
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]),
+  );
+}
+
+/** Read a score input: '' means "not filled in" (null), otherwise a number. */
+function parseScore(raw) {
+  const value = String(raw ?? '').trim().replace(',', '.');
+  if (value === '') return null;
+  const number = Number(value);
+  return Number.isNaN(number) ? NaN : number;
+}
+
+function parseIntOrNull(raw) {
+  const value = String(raw ?? '').trim();
+  if (value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.trunc(number) : null;
+}
+
+function presetLabel(preset) {
+  return preset.labelKey ? t(preset.labelKey) : preset.name;
+}
+
+function gameTitle(game) {
+  if (game.name) return game.name;
+  const preset = getPreset(game.presetId);
+  return preset ? presetLabel(preset) : t('new.customLabel');
+}
+
+/** The title of a game or of a list, whichever this is. */
+function documentTitle(document_) {
+  if (isValidList(document_)) return listTitle(document_);
+  if (isValidPoll(document_)) return pollTitle(document_);
+  if (isValidBoard(document_)) return boardTitle(document_);
+  if (isValidSpend(document_)) return spendTitle(document_);
+  return gameTitle(document_);
+}
+
+/** Where a document's page is, whatever its kind. */
+function documentHref(document_) {
+  const page = { list: 'list', poll: 'poll', spend: 'spend', board: 'idea', game: 'game' }[kindOf(document_)] || 'game';
+  return `#/${page}/${document_.id}`;
+}
+
+/** Every document this device holds, of every kind. */
+function everything() {
+  return allDocuments(state);
+}
+
+/** What a document hangs from, up to its event: the farthest first. */
+function chainOf(document_) {
+  return ancestorsOf(document_, everything());
+}
+
+/** A link in the chain, as it reads: an event says its day. */
+function chainLabel(document_) {
+  const title = isEventDoc(document_) ? eventName(document_) || pollTitle(document_) : documentTitle(document_);
+  return isEventDoc(document_) && document_.date ? t('event.named', { name: title, day: formatDay(document_.date) }) : title;
+}
+
+/**
+ * A day written `AAAA-MM-JJ`, shown the way the reader's language shows days.
+ * Built field by field rather than handed to Date(), which reads that form as
+ * UTC midnight and so shows the day before, west of Greenwich.
+ */
+function formatDay(day) {
+  const [year, month, date] = String(day || '').split('-').map(Number);
+  if (!year || !month || !date) return String(day || '');
+  try {
+    return new Date(year, month - 1, date).toLocaleDateString(getLanguage(), {
+      day: 'numeric',
+      month: 'short',
+    });
+  } catch {
+    return String(day);
+  }
+}
+
+/**
+ * When an event is: its day — or its first and last, when it runs over
+ * several — and its hour. `long` adds the weekday, as an agenda wants it.
+ */
+function whenText(poll, { long = false } = {}) {
+  const show = long ? formatDayLong : formatDay;
+  const days = poll.until && poll.until > poll.date
+    ? t('events.range', { from: show(poll.date), to: show(poll.until) })
+    : show(poll.date);
+  return [days, poll.at].filter(Boolean).join(' · ');
+}
+
+/**
+ * A day in an agenda: the weekday matters as much as the number, since "jeudi"
+ * is how anyone actually holds a date in their head.
+ */
+function formatDayLong(day) {
+  const [year, month, date] = String(day || '').split('-').map(Number);
+  if (!year || !month || !date) return String(day || '');
+  try {
+    return new Date(year, month - 1, date).toLocaleDateString(getLanguage(), {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    });
+  } catch {
+    return formatDay(day);
+  }
+}
+
+function formatDate(timestamp) {
+  try {
+    return new Date(timestamp).toLocaleDateString(getLanguage(), {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return '';
+  }
+}
+
+/** The app's own address, with no game attached to it. */
+function appLink() {
+  const { origin, pathname, search } = location;
+  return `${origin}${pathname}${search}`;
+}
+
+function flash(message, kind = 'info') {
+  state.flash = { message, kind, shownAt: null };
+}
+
+/**
+ * How long a message stays on screen once it has been read.
+ *
+ * Long enough to survive what follows it: something is answered, the app asks
+ * the database what the answer changed, and redraws when it knows. A message
+ * consumed by the first of those two redraws would flash and vanish. Going
+ * somewhere else, on the other hand, ends it — a line about a group accepted is
+ * nothing to a screen of games.
+ */
+const FLASH_KEPT = 4000;
+
+/* ------------------------------------------------------------- persisting --- */
+
+/* ----------------------------------------------------------------- router --- */
+
+function route() {
+  return routeOf(location.hash);
+}
+
+/** What an address opens, without going there. */
+function routeOf(address) {
+  // A form may come filled in: `#/lists/new?titre=…`. See prefill.js.
+  const hash = withoutPrefill(address).replace(/^#\/?/, '');
+  const [name, param] = hash.split('/');
+  if (name === 'games') return { name: 'home' };
+  // An invitation link carries both the six digits and the group's name, so
+  // the person who receives it has nothing to read out and nothing to type.
+  // A return link: a person's own token, which hands this browser a key.
+  if (name === 'back' && param) return { name: 'back', token: backTokenFrom(address) };
+  if (name === 'join' && param) {
+    const invitation = joinFrom(address);
+    if (invitation) return { name: 'join', code: invitation.code, group: invitation.name };
+    // Half a link is still half a link: whichever of the two survived is kept,
+    // and the page asks for the other rather than for both.
+    return { name: 'join', code: readCode(param), group: groupSegment(hash) };
+  }
+  // Someone's own page, reached from the overview. Both spellings open it: the
+  // app speaks two languages, and a link once sent is a link for ever.
+  if ((name === 'person' || name === 'personne') && param) {
+    return { name: 'person', who: personFrom(param) };
+  }
+  // One group, everything in it: #/group/<id>, from the overview.
+  if (name === 'group' && param) return { name: 'group', id: decodeSegment(param) };
+  if (name === 'groups') return { name: 'groups' };
+  if (name === 'settings' || name === 'reglages') return { name: 'settings' };
+  if (name === 'privacy' || name === 'confidentialite') return { name: 'privacy' };
+  if (name === 'new') return { name: 'new' };
+  if (name === 'stats') return { name: 'stats' };
+  if (name === 'game' && param) return { name: 'game', id: param };
+  if (name === 'set' && param) return { name: 'set', id: param };
+  if (name === 'lists' && param === 'new') return { name: 'new-list' };
+  if (name === 'lists') return { name: 'lists' };
+  if (name === 'list' && param) return { name: 'list', id: param };
+  if (name === 'spends' && param === 'new') return { name: 'new-spend' };
+  if (name === 'spends') return { name: 'spends' };
+  if (name === 'agenda' && param === 'new') return { name: 'new-event' };
+  if (name === 'agenda') return { name: 'agenda' };
+  if (name === 'spend' && param) return { name: 'spend', id: param };
+  if (name === 'ideas' && param === 'new') return { name: 'new-board' };
+  if (name === 'ideas') return { name: 'ideas' };
+  if (name === 'idea' && param) return { name: 'board', id: param };
+  if (name === 'polls' && param === 'new') return { name: 'new-poll' };
+  if (name === 'polls') return { name: 'polls' };
+  // A shared link opens the poll alone: `#/poll/<id>/solo`. See pollView().
+  if (name === 'poll' && param) return { name: 'poll', id: param, solo: hash.split('/')[2] === 'solo' };
+  return { name: 'overview' };
+}
+
+/**
+ * Where a poll is listed, so its page goes back there: the agenda for a day
+ * that is settled or still being looked for, the home page's polls otherwise.
+ */
+function pollHome(poll) {
+  return isEvent(poll) || poll.date || (!poll.closedAt && seeksDay(poll)) ? '#/agenda' : '#/polls';
+}
+
+/** A segment of the address, decoded if it can be. */
+function decodeSegment(segment) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+/** The name written in `#/person/<name>`, decoded if it can be. */
+function personFrom(segment) {
+  try {
+    return decodeURIComponent(segment).trim();
+  } catch {
+    return String(segment).trim();
+  }
+}
+
+/** The group's name as written in `#/join/<code>/<name>`, decoded if it can be. */
+function groupSegment(hash) {
+  const segment = hash.split('/')[2] || '';
+  try {
+    return decodeURIComponent(segment).trim();
+  } catch {
+    return segment.trim();
+  }
+}
+
+function navigate(hash) {
+  if (location.hash === hash) render();
+  else location.hash = hash;
+}
+
+/** The address of the screen on show, spelled one way. */
+function hereHash() {
+  return location.hash && location.hash !== '#' ? location.hash : '#/';
+}
+
+/**
+ * Note the screen just reached. Reaching the one before is going back: it is
+ * taken off, so "Back" never bounces between two screens. Any other screen goes
+ * on top, and leaves the place it had lower down.
+ */
+function followTrail() {
+  const here = hereHash();
+  const trail = state.trail;
+  if (trail[trail.length - 1] === here) return;
+  if (trail[trail.length - 2] === here) state.trail = trail.slice(0, -1);
+  else state.trail = [...trail.filter((hash) => hash !== here), here].slice(-50);
+}
+
+/**
+ * Where "Back" goes: the screen one came from — the group's page for a list
+ * opened there, the person's for a poll opened from it — and the usual place
+ * when there is none (a link just opened). A form already filled in is not
+ * somewhere to go back to.
+ */
+function backTarget(fallback) {
+  const here = hereHash();
+  for (let index = state.trail.length - 1; index >= 0; index -= 1) {
+    const hash = state.trail[index];
+    if (hash === here || /^#\/(lists|polls|spends|agenda|ideas)\/new$|^#\/new$/.test(hash)) continue;
+    return hash;
+  }
+  return fallback;
+}
+
+/* ------------------------------------------------------------------ views --- */
+
+function flashHtml() {
+  if (!state.flash) return '';
+  const { message, kind, shownAt } = state.flash;
+  // Shown for the first time: the clock starts here rather than when the message
+  // was raised, so one that had to wait — for a screen where someone was typing,
+  // say — is still read rather than silently dropped.
+  if (!shownAt) {
+    state.flash = { ...state.flash, shownAt: Date.now() };
+  } else if (Date.now() - shownAt > FLASH_KEPT) {
+    state.flash = null;
+    return '';
+  }
+  return `<p class="banner ${kind === 'error' ? 'banner--warn' : ''}">${escapeHtml(message)}</p>`;
+}
+
+/**
+ * The group pastilles, shown above the lists, the polls and the games.
+ *
+ * From two groups on: with one, there is nothing to choose between, and a row
+ * of buttons that can only say "everything" is noise. The line under them is
+ * the same count the overview shows, for whatever is on screen.
+ */
+function groupChipsHtml() {
+  const held = groupsByName();
+  const everything = [...state.lists, ...state.polls, ...state.games, ...state.spends, ...state.boards];
+  const outside = everything.some(outsideGroups);
+  // With one group and nothing outside it, there is nothing to choose between.
+  if (!held.length || (held.length < 2 && !outside)) return '';
+  const active = groupFilter();
+  const counted = active === OUTSIDE_GROUPS
+    ? groupCounts({
+        lists: shownDocs(state.lists), polls: shownDocs(state.polls),
+        games: shownDocs(state.games), spends: shownDocs(state.spends), boards: shownDocs(state.boards),
+      })
+    : groupCounts(state, active);
+  const chip = (id, label) => `
+    <button type="button" class="chip ${active === id ? 'chip--on' : ''}"
+            data-group-filter="${escapeHtml(id)}" aria-pressed="${active === id ? 'true' : 'false'}">
+      ${escapeHtml(label)}
+    </button>`;
+  return `
+    <div class="row" role="group" aria-label="${escapeHtml(t('filter.by'))}">
+      ${chip('', t('filter.all'))}
+      ${held.map((group) => chip(group.id, group.name)).join('')}
+      ${outside || active === OUTSIDE_GROUPS ? chip(OUTSIDE_GROUPS, t('filter.others')) : ''}
+    </div>
+    <p class="muted small">${escapeHtml(countsText(counted))}</p>`;
+}
+
+/**
+ * What is going on, kind by kind, in the order of the tabs — leaving out the
+ * kinds with nothing: « 1 liste · 2 parties », not five numbers, three of
+ * them nought.
+ */
+function countsText(counts) {
+  const said = ['lists', 'polls', 'games', 'spends', 'boards']
+    .filter((kind) => counts[kind])
+    .map((kind) => t(`count.${kind}`, { count: counts[kind] }));
+  return said.length ? said.join(' · ') : t('count.none');
+}
+
+function gameCardHtml(game) {
+  const status = gameStatus(game);
+  const names = status.finished
+    ? status.winners.map((row) => row.name)
+    : status.leaders.map((row) => row.name);
+  let line = '';
+  if (game.rounds.length && names.length) {
+    const key = status.finished
+      ? names.length > 1 ? 'home.winners' : 'home.winner'
+      : 'home.leader';
+    line = t(key, { name: names.join(', ') });
+  }
+  return `
+    <button type="button" class="game-card" data-goto="#/game/${escapeHtml(game.id)}">
+      <span class="game-card__title">
+        ${escapeHtml(gameTitle(game))}
+        <span class="pill ${status.finished ? 'pill--done' : ''}">
+          ${status.finished ? escapeHtml(t('game.finished')) : escapeHtml(t('home.rounds', { count: game.rounds.length }))}
+        </span>
+      </span>
+      <span class="game-card__meta">${escapeHtml(game.players.map((p) => p.name).join(' · '))}</span>
+      <span class="game-card__meta">${escapeHtml(formatDate(game.updatedAt))}${line ? ` — ${escapeHtml(line)}` : ''}</span>
+      ${eventTagHtml(game)}
+    </button>`;
+}
+
+/** « · Pour Raclette › Courses » after a line about something attached. */
+function forEventText(document_) {
+  const chain = document_ ? chainOf(document_) : [];
+  return chain.length ? ` · ${t('event.tagUndated', { name: chain.map(chainLabelShort).join(' › ') })}` : '';
+}
+/** A document's card, whatever its kind. */
+function documentCardHtml(document_) {
+  const kind = kindOf(document_);
+  if (kind === 'list') return listCardHtml(document_);
+  if (kind === 'poll') return isEventDoc(document_) ? eventCardHtml(document_) : pollCardHtml(document_);
+  if (kind === 'spend') return spendCardHtml(document_);
+  if (kind === 'board') return boardCardHtml(document_);
+  return gameCardHtml(document_);
+}
+/**
+ * On a document's page, what is attached to it — a poll under a list, a board
+ * under that poll — and the way to bring more. An event has its own section,
+ * which holds its whole chain.
+ */
+function attachedHtml(document_) {
+  const children = childrenOf(document_, everything()).filter(isLive);
+  if (!children.length) return '';
+  return `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('chain.here'))}</h2></div>
+      <div class="game-list">${children.map(documentCardHtml).join('')}</div>
+    </section>`;
+}
+/** The buttons of « Plus d'actions » for the chain and the links: attach, detach, link. */
+function chainButtonsHtml(document_) {
+  // An event goes under another event only, as one of its activities; one
+  // with activities of its own stays on top.
+  const all = everything();
+  const attach = isEventDoc(document_) && !attachTargets(document_, all).length && !parentId(document_)
+    ? ''
+    : `<button type="button" class="button button--small button--ghost" data-attach-doc="${escapeHtml(document_.id)}">${escapeHtml(t(isEventDoc(document_) ? 'activity.attach' : 'chain.attach'))}</button>`;
+  return `${attach}<button type="button" class="button button--small button--ghost" data-relate-doc="${escapeHtml(document_.id)}">${escapeHtml(t('relate.button'))}</button>`;
+}
+/** A link in the chain, in a line of text: its title alone. */
+function chainLabelShort(document_) {
+  return isEventDoc(document_) ? eventName(document_) || pollTitle(document_) : documentTitle(document_);
+}
+/**
+ * Which kind of thing Home shows: everything at once, or one kind in full.
+ *
+ * The kinds used to be tabs of their own; they are one row of the home page
+ * now, so the tab bar can answer other questions — when, with whom — and each
+ * kind keeps its own address, so a link once sent still opens it.
+ */
+function kindsHtml(active) {
+  const kind = (id, goto, label) => `
+    <button type="button" class="segmented__option" data-goto="${goto}"
+            aria-current="${active === id ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
+  return `
+    <nav class="segmented segmented--kinds" aria-label="${escapeHtml(t('home.kinds'))}">
+      ${kind('overview', '#/', t('tab.all'))}
+      ${kind('lists', '#/lists', t('tab.lists'))}
+      ${kind('polls', '#/polls', t('tab.polls'))}
+      ${kind('games', '#/games', t('tab.games'))}
+      ${kind('spends', '#/spends', t('tab.spends'))}
+      ${kind('ideas', '#/ideas', t('tab.ideas'))}
+    </nav>`;
+}
+/**
+ * Ask for one line of text, the same way the app asks anything else: a dialog
+ * that removes itself, Escape answering null.
+ */
+function askForText({ title, hint, value = '', confirmLabel }) {
+  return new Promise((resolve) => {
+    const dialog = makeDialog('dialog dialog--ask');
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(title)}</h2>
+        <p class="muted small">${escapeHtml(hint)}</p>
+        <input type="text" id="asked-text" value="${escapeHtml(value)}" maxlength="40" />
+        <div class="row">
+          <button type="button" class="button button--primary" id="asked-ok">${escapeHtml(confirmLabel)}</button>
+          <button type="button" class="button" id="asked-cancel">${escapeHtml(t('action.cancel'))}</button>
+        </div>
+      </div>`;
+
+    let answered = false;
+    const done = (answer) => {
+      if (answered) return;
+      answered = true;
+      resolve(answer);
+      dialog.close();
+    };
+    dialog.addEventListener('close', () => done(null));
+    dialog.querySelector('#asked-cancel').addEventListener('click', () => done(null));
+    dialog.querySelector('#asked-ok').addEventListener('click', () => done(dialog.querySelector('#asked-text').value));
+    dialog.querySelector('#asked-text').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') done(dialog.querySelector('#asked-text').value);
+    });
+    dialog.showModal();
+    dialog.querySelector('#asked-text').select();
+  });
+}
+
+function homeView() {
+  const query = (state.search || '').trim().toLowerCase();
+  const matches = (game) => {
+    if (!query) return true;
+    const preset = getPreset(game.presetId);
+    const haystack = [gameTitle(game), preset ? presetLabel(preset) : '', ...game.players.map((p) => p.name)]
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(query);
+  };
+
+  const mine = shownDocs(state.games);
+  const sorted = [...mine].sort((a, b) => b.updatedAt - a.updatedAt).filter(matches);
+  const live = sorted.filter(isLive);
+  const ongoing = live.filter((game) => !gameStatus(game).finished);
+  const finished = live.filter((game) => gameStatus(game).finished);
+
+  return `
+    ${flashHtml()}
+    ${kindsHtml('games')}
+    <button type="button" class="button button--primary button--block" data-goto="#/new">
+      + ${escapeHtml(t('action.newGame'))}
+    </button>
+    ${groupChipsHtml()}
+    ${
+      mine.length
+        ? `<div class="row">
+             <button type="button" class="button button--small button--ghost" data-goto="#/stats">${escapeHtml(t('action.stats'))}</button>
+           </div>`
+        : ''
+    }
+
+    ${
+      mine.length > 4
+        ? `<label class="visually-hidden" for="search">${escapeHtml(t('home.search'))}</label>
+           <input type="text" id="search" placeholder="${escapeHtml(t('home.search'))}" value="${escapeHtml(state.search || '')}" />`
+        : ''
+    }
+
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('kinds.ongoing'))}</h2></div>
+      ${
+        ongoing.length
+          ? `<div class="game-list">${ongoing.map(swipeable(gameCardHtml)).join('')}</div>`
+          : `<p class="muted small">${escapeHtml(t('home.empty'))}</p>`
+      }
+      ${hiddenByGroupHtml(state.games)}
+    </section>
+
+    ${
+      finished.length
+        ? `<section class="section">
+             <div class="section__head"><h2>${escapeHtml(t('home.finished'))}</h2></div>
+             <div class="game-list">${finished.map(swipeable(gameCardHtml)).join('')}</div>
+           </section>`
+        : ''
+    }
+
+    ${archivedHtml(sorted, swipeable(gameCardHtml))}`;
+}
+
 /* ---------------------------------------------------------------- chrome --- */
 
 function applyStaticText() {
@@ -23799,6 +24553,7 @@ function render() {
   takePrefill(current);
   markTab(current);
   setSolo(Boolean(current.solo));
+  listenLive(current);
   const kept = keptScrolls();
   // Nothing to fetch without a database, or before this device is in a group.
   const sync = document.getElementById('sync');
@@ -24026,10 +24781,12 @@ function render() {
     view.innerHTML = settingsView();
     bindOverview();
     bindAccount();
+    bindNotify();
     bindLook(view);
   } else if (current.name === 'groups') {
     view.innerHTML = groupsView();
     bindOverview();
+    bindAccount();
     if (state.remote && groups().some((group) => group.admits !== false)) watchGate();
     else stopWatching();
   } else {
@@ -24191,12 +24948,120 @@ async function pullAny(id) {
   return false;
 }
 
+/* ------------------------------------------------------------------- live --- */
+
+/**
+ * The channels worth hearing now: every group this device is in, and the
+ * document on screen — a visitor's poll included, which belongs to no group of
+ * theirs.
+ */
+function liveTopics(current) {
+  const topics = [...groups().filter((group) => group.channel).map((group) => groupTopic(group.channel)),
+    ...linkOnlyPolls().map((poll) => docTopic(poll.id))];
+  if (['game', 'list', 'spend', 'board', 'poll'].includes(current.name) && current.id) topics.push(docTopic(current.id));
+  return [...new Set(topics)];
+}
+
+/**
+ * The link-only polls held here: listed for no group, so no group's channel
+ * speaks of them — each is heard on its own, as the catch-up asks for each.
+ */
+function linkOnlyPolls() {
+  return state.polls.filter((poll) => poll.shared && poll.linkOnly && !poll.archivedAt);
+}
+
+/** Groups asked for their channel this session, so a database without one is asked once. */
+const askedChannel = new Set();
+
+function listenLive(current) {
+  if (!state.live) return;
+  state.live.watch(liveTopics(current));
+  for (const group of groups().filter((held) => !held.channel && !askedChannel.has(held.id))) {
+    askedChannel.add(group.id);
+    void refreshGroup(group).then((learnt) => learnt && state.live.watch(liveTopics(route())));
+  }
+}
+
+/**
+ * True when the app need not ask the database itself this time: the channel is
+ * heard, and was asked less than a minute ago. The watchers keep their clock;
+ * they only skip their turn.
+ */
+function liveQuiet(topic) {
+  return Boolean(state.live?.quiet(topic));
+}
+
+/** Whether everything the catch-up asks for would be heard as it happens. */
+function liveCoversGroups() {
+  return Boolean(state.live)
+    && groups().every((group) => group.channel && state.live.covers(groupTopic(group.channel)))
+    && linkOnlyPolls().every((poll) => state.live.covers(docTopic(poll.id)));
+}
+
+/** Announcements arriving in a burst — a list ticked line after line — cost one fetch at a time. */
+const hearing = new Map();
+
+async function heard(topic) {
+  if (hearing.has(topic)) {
+    hearing.set(topic, true);
+    return;
+  }
+  hearing.set(topic, false);
+  try {
+    let changed = false;
+    const group = groups().find((held) => held.channel && groupTopic(held.channel) === topic);
+    if (group) {
+      changed = (await catchUpWith(group)) > 0;
+      if (showsGate()) changed = (await refreshGate()) || changed;
+    } else if (topic.startsWith('doc-')) {
+      changed = await pullAny(topic.slice('doc-'.length));
+    }
+    if (changed && !isBusy()) render();
+  } catch {
+    // Out of reach for now: the watchers ask again on their own.
+  } finally {
+    const again = hearing.get(topic);
+    hearing.delete(topic);
+    if (again) void heard(topic);
+  }
+}
+
+/**
+ * Every write with a group key may be news for the group, and every knock is
+ * news for its door-keepers: the notifier is told after the database has
+ * taken it (view-notify.js). Wrapped here once, rather than at each of the
+ * many places that write.
+ */
+function tellTheNotifier() {
+  const { put, ask } = state.remote;
+  state.remote.put = async (document_, key = null, owner = null) => {
+    const answer = await put(document_, key, owner);
+    if (key) void tell(document_, key);
+    return answer;
+  };
+  state.remote.ask = async (...args) => {
+    const answer = await ask(...args);
+    if (answer?.status === 'waiting') tellKnock(answer.ticket);
+    return answer;
+  };
+}
+
+function startLive() {
+  state.live = createLive({ url: liveUrl(remoteConfig()), key: remoteConfig()?.key, onChange: (topic) => void heard(topic) });
+  if (!state.live) return;
+  // A phone closes the socket of an app left in the background: open it again
+  // on coming back, rather than after the next wait.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') state.live.wake();
+  });
+}
+
 /** While a shared list is on screen, watch for what the others are ticking. */
 function watchList(id) {
   stopWatching();
   if (!state.remote) return;
   state.poll = setInterval(async () => {
-    if (isBusy() || isHidden()) return;
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
     if (await pullList(id)) render();
   }, 5000);
 }
@@ -24207,6 +25072,7 @@ function watchGame(id) {
   if (!state.remote) return;
   state.poll = setInterval(async () => {
     if (isBusy() || isHidden()) return; // never redraw under someone's fingers
+    if (liveQuiet(docTopic(id))) return;
     if (await pullGame(id)) render();
   }, 5000);
 }
@@ -24413,6 +25279,8 @@ render();
 // What happened while the app was closed, learnt on opening it rather than left
 // waiting for someone to press a button: a knock answered, a key cut off.
 if (state.remote) {
+  tellTheNotifier();
+  startLive();
   (async () => {
     const answered = pendings().length ? await checkAllPendings() : false;
     const changed = await verifyGroups();
@@ -24422,6 +25290,9 @@ if (state.remote) {
     await syncAccount({ force: true });
     // And what the others pushed meanwhile, without being asked for it.
     await catchUpQuietly();
+    // Notifications on: the database has this device's subscription for
+    // every group it is now in.
+    await syncPush();
   })();
 
   // Coming back to the app — from Safari, from another app, from a locked
