@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { dayText, handle, messageFor } from '../supabase/functions/notifier/handler.js';
+import { dayText, handle, isPushService, messageFor } from '../supabase/functions/notifier/handler.js';
 import { toBase64Url } from '../supabase/functions/notifier/webpush.js';
 
 const subtle = globalThis.crypto.subtle;
@@ -70,36 +70,36 @@ test('the first call makes the key pair, later ones keep it', async () => {
 });
 
 test('news goes to every target, encrypted, and a gone subscription is forgotten', async () => {
-  const alice = await subscription('https://push.example/alice');
-  const bob = await subscription('https://push.example/bob', 'en');
+  const alice = await subscription('https://fcm.googleapis.com/fcm/send/alice');
+  const bob = await subscription('https://web.push.apple.com/bob', 'en');
   const { calls, fetchImpl } = world({
     marque_points_push_event: {
       status: 'ok', event: 'new', id: 'v_1', group: 'Mifa', doc: { kind: 'poll', question: 'Quel soir ?' }, targets: [alice, bob],
     },
-    pushStatus: { 'https://push.example/bob': 410 },
+    pushStatus: { 'https://web.push.apple.com/bob': 410 },
   });
   const answer = await (await handle(post({ action: 'doc', key: 'cle', id: 'v_1' }), { ...ENV, fetchImpl })).json();
   assert.deepEqual(answer, { status: 'ok', sent: 1 });
   const asked = calls.find((call) => call.url.endsWith('/marque_points_push_event'));
   assert.deepEqual(asked.body, { p_key: 'cle', p_id: 'v_1' });
   assert.equal(asked.options.headers.authorization, 'Bearer service-key', 'with the service key, never the page’s');
-  const pushed = calls.filter((call) => call.url.startsWith('https://push.example/'));
+  const pushed = calls.filter((call) => /^https:\/\/(fcm|web\.push)/.test(call.url));
   assert.equal(pushed.length, 2);
   assert.ok(pushed.every((call) => call.options.headers['content-encoding'] === 'aes128gcm'));
   assert.ok(pushed.every((call) => !new TextDecoder().decode(call.body).includes('Quel soir')), 'nothing readable on the way');
   const gone = calls.find((call) => call.url.endsWith('/marque_points_push_gone'));
-  assert.deepEqual(gone.body, { p_endpoint: 'https://push.example/bob' });
+  assert.deepEqual(gone.body, { p_endpoint: 'https://web.push.apple.com/bob' });
 });
 
 test('nothing new, nothing sent', async () => {
   const { calls, fetchImpl } = world({ marque_points_push_event: { status: 'quiet' } });
   const answer = await (await handle(post({ action: 'doc', key: 'cle', id: 'v_1' }), { ...ENV, fetchImpl })).json();
   assert.deepEqual(answer, { status: 'quiet', sent: 0 });
-  assert.equal(calls.some((call) => call.url.startsWith('https://push.')), false);
+  assert.equal(calls.some((call) => !call.url.includes('/rest/v1/')), false);
 });
 
 test('a knock is asked with its ticket', async () => {
-  const gui = await subscription('https://push.example/gui');
+  const gui = await subscription('https://updates.push.services.mozilla.com/wpush/v2/gui');
   const { calls, fetchImpl } = world({ marque_points_push_knock: { status: 'ok', event: 'knock', group: 'Mifa', who: 'Zoé', targets: [gui] } });
   const answer = await (await handle(post({ action: 'knock', ticket: 'jeton' }), { ...ENV, fetchImpl })).json();
   assert.deepEqual(answer, { status: 'ok', sent: 1 });
@@ -115,4 +115,21 @@ test('anything else is refused, and the browser may ask first', async () => {
   assert.equal(preflight.status, 204);
   assert.equal(preflight.headers.get('access-control-allow-origin'), '*');
   assert.equal((await handle(post({ action: 'key' }), { base: '', serviceKey: '', fetchImpl })).status, 500);
+});
+
+test('only the browsers’ push services are written to', async () => {
+  assert.equal(isPushService('https://fcm.googleapis.com/fcm/send/x'), true);
+  assert.equal(isPushService('https://updates.push.services.mozilla.com/wpush/v2/x'), true);
+  assert.equal(isPushService('https://web.push.apple.com/x'), true);
+  assert.equal(isPushService('https://wns2-par02p.notify.windows.com/w/?token=x'), true);
+  assert.equal(isPushService('https://attacker.example/push'), false);
+  assert.equal(isPushService('https://fcm.googleapis.com.attacker.example/x'), false);
+  assert.equal(isPushService('http://fcm.googleapis.com/fcm/send/x'), false);
+  const odd = await subscription('https://attacker.example/push');
+  const { calls, fetchImpl } = world({
+    marque_points_push_event: { status: 'ok', event: 'new', id: 'v_1', group: 'Mifa', doc: { kind: 'poll', question: 'Q' }, targets: [odd] },
+  });
+  const answer = await (await handle(post({ action: 'doc', key: 'cle', id: 'v_1' }), { ...ENV, fetchImpl })).json();
+  assert.deepEqual(answer, { status: 'ok', sent: 0 });
+  assert.equal(calls.some((call) => call.url.startsWith('https://attacker.example')), false);
 });

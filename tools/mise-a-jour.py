@@ -133,7 +133,7 @@ function('marque_points_push_gone'),
     [revoke(n) for n in ['marque_points_account_link', 'marque_points_account_owner_put', 'marque_points_account_restore', 'marque_points_account_leave', 'marque_points_account_delete']]
     + [grant(n) for n in ['marque_points_account_link', 'marque_points_account_owner_put', 'marque_points_account_restore', 'marque_points_account_leave', 'marque_points_account_delete']]
     + [revoke('marque_points_account_cut_mark'), revoke('marque_points_announce'), revoke('marque_points_live')]
-    + [grant(n) for n in ['marque_points_push_subscribe', 'marque_points_push_unsubscribe']]
+    + [grant(n) for n in ['marque_points_push_subscribe', 'marque_points_push_unsubscribe', 'marque_points_open_set']]
     + [revoke(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_gone']]
     + [grant(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_gone']]
     + [grant(n) for n in ['marque_points_group_of', 'marque_points_group_keys', 'marque_points_set_accounts']]) + "\n",

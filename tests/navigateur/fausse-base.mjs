@@ -320,7 +320,9 @@ const server = createServer(async (req, res) => {
   if (fn === 'marque_points_push_subscribe') {
     const group = GROUPS.get(at.p_key);
     if (!group || closed(at.p_key)) return send(200, { status: 'unknown' });
-    if (!/^https:\/\/\S+$/.test(String(at.p_endpoint ?? ''))) return raise('abonnement invalide');
+    // Comme la base : les services d'envoi des navigateurs, et rien d'autre.
+    if (!/^https:\/\/(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|([a-z0-9-]+\.)*push\.apple\.com|([a-z0-9-]+\.)*notify\.windows\.com)\/\S+$/
+      .test(String(at.p_endpoint ?? ''))) return raise('abonnement invalide');
     const kept = PUSH.filter((one) => !(one.endpoint === at.p_endpoint && one.group === group.id));
     PUSH.length = 0;
     PUSH.push(...kept, { endpoint: at.p_endpoint, group: group.id, lang: at.p_lang, app: at.p_app });

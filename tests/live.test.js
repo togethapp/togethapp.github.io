@@ -53,8 +53,18 @@ function fakeTimers() {
     clearTimer: (id) => {
       if (timers[id - 1]) timers[id - 1].fn = null;
     },
-    every: () => 1,
-    stopEvery: () => {},
+    ticks: [],
+    every(fn) {
+      this.ticks.push(fn);
+      return this.ticks.length;
+    },
+    stopEvery(id) {
+      this.ticks[id - 1] = null;
+    },
+    /** The heartbeat, run by hand. */
+    beat() {
+      for (const fn of this.ticks) fn?.();
+    },
     fire() {
       const pending = timers.splice(0);
       for (const timer of pending) timer.fn?.();
@@ -71,7 +81,10 @@ function setUp({ now = () => 0 } = {}) {
     key: 'k',
     onChange: (topic) => heard.push(topic),
     WebSocketImpl: FakeSocket,
-    ...clock,
+    setTimer: clock.setTimer,
+    clearTimer: clock.clearTimer,
+    every: (fn) => clock.every(fn),
+    stopEvery: (id) => clock.stopEvery(id),
     now,
   });
   return { live, made, heard, clock };
@@ -203,13 +216,19 @@ test('while heard, the app asks the database itself only once a minute', () => {
   made[0].accept();
   made[0].replyToJoins();
   assert.equal(live.quiet('doc-a'), false, 'the first time once heard still asks');
+  // The server answers every heartbeat: the socket is alive throughout.
+  const alive = () => made[0].say({ topic: 'phoenix', event: 'phx_reply', payload: { status: 'ok' }, ref: 'h' });
   time = 5000;
+  alive();
   assert.equal(live.quiet('doc-a'), true);
   time = 59000;
+  alive();
   assert.equal(live.quiet('doc-a'), true);
   time = 61000;
+  alive();
   assert.equal(live.quiet('doc-a'), false, 'a minute on: ask, in case something was lost');
   time = 62000;
+  alive();
   assert.equal(live.quiet('doc-a'), true);
 });
 
@@ -221,4 +240,52 @@ test('stopping closes the socket and covers nothing', () => {
   live.stop();
   assert.equal(made[0].closed, true);
   assert.equal(live.covers('doc-a'), false);
+});
+
+test('a socket the server stopped answering is not trusted, and is replaced', () => {
+  let time = 0;
+  const { live, made, clock } = setUp({ now: () => time });
+  live.watch(['doc-a']);
+  made[0].accept();
+  made[0].replyToJoins();
+  assert.equal(live.covers('doc-a'), true);
+  // The phone slept: nothing came for a minute, yet the socket still says open.
+  time = 61000;
+  assert.equal(live.covers('doc-a'), false, 'so the app goes back to asking');
+  clock.beat();
+  assert.equal(made[0].closed, true, 'the heartbeat gives it up');
+  clock.fire();
+  assert.equal(made.length, 2, 'and opens another');
+});
+
+test('coming back to the front replaces a socket that kept quiet at once', () => {
+  let time = 0;
+  const { live, made } = setUp({ now: () => time });
+  live.watch(['group-g']);
+  made[0].accept();
+  made[0].replyToJoins();
+  time = 40000;
+  live.wake();
+  assert.equal(made[0].closed, true);
+  assert.equal(made.length, 2, 'without waiting for the next heartbeat');
+});
+
+test('a channel the server refused is asked again a little later', () => {
+  let time = 0;
+  const { live, made, clock } = setUp({ now: () => time });
+  live.watch(['doc-a']);
+  made[0].accept();
+  made[0].say({ topic: 'realtime:doc-a', event: 'phx_error', payload: {} });
+  assert.equal(live.covers('doc-a'), false);
+  const joins = () => made[0].joins().filter((join) => join.topic === 'realtime:doc-a').length;
+  time = 10000;
+  made[0].say({ topic: 'phoenix', event: 'phx_reply', payload: { status: 'ok' }, ref: 'h' });
+  clock.beat();
+  assert.equal(joins(), 1, 'not at once');
+  time = 31000;
+  made[0].say({ topic: 'phoenix', event: 'phx_reply', payload: { status: 'ok' }, ref: 'h' });
+  clock.beat();
+  assert.equal(joins(), 2, 'but after a while');
+  made[0].replyToJoins();
+  assert.equal(live.covers('doc-a'), true);
 });

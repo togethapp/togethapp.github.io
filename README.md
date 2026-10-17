@@ -92,12 +92,16 @@ web, aucune dépendance, aucun build.
   Supabase Realtime (déclencheur `marque_points_live`) — une annonce vide, sur
   le canal du document et sur celui de son groupe, dont le nom est tiré au
   hasard et donné seulement avec une clé (`group_of` → `channel`). L'app
-  écoute ses groupes et le document à l'écran, puis redemande comme d'habitude,
-  avec sa clé : une clé coupée n'apprend rien de plus. Sans Realtime (ou
-  canal refusé), elle redemande toutes les 5 s (document ouvert) et 20 s
-  (groupes), comme avant ; quand elle entend, une fois par minute seulement,
-  au cas où une annonce se perdrait. `src/live.js` (client Phoenix écrit à la
-  main) ; suite `direct`, contrôle SQL `annonces`.
+  écoute ses groupes, ses sondages « lien seulement » et le document à
+  l'écran, puis redemande comme d'habitude, avec sa clé : une clé coupée
+  n'apprend rien de plus. Sans Realtime (ou canal refusé, redemandé toutes les
+  30 s), elle redemande toutes les 5 s (document ouvert) et 20 s (groupes),
+  comme avant ; quand elle entend, une fois par minute seulement, au cas où
+  une annonce se perdrait. Une connexion dont le serveur ne répond plus depuis
+  une minute — un téléphone qui sort de veille en garde une qui se dit encore
+  ouverte — n'est plus crue : l'app relève à nouveau elle-même et en rouvre une.
+  `src/live.js` (client Phoenix écrit à la main) ; suite `direct`, contrôle
+  SQL `annonces`.
 - **Ce prénom sert ensuite partout** : le groupe voit qui est entré, et vous êtes
   proposé en premier dans une nouvelle liste, un sondage ou une partie — proposé
   une fois, au moment où le formulaire est vide ; effacé, il reste effacé. Il ne
@@ -616,6 +620,10 @@ frappe. Toucher la notification ouvre la bonne page.
   worker et dit qu'il ne les reçoit pas.
 - L'appareil confie son abonnement à la base **une fois par groupe, avec la clé
   de ce groupe** (`marque_points_push_subscribe`) : couper la clé l'efface.
+  Seules les adresses des services d'envoi des navigateurs (Google, Mozilla,
+  Apple, Microsoft) sont acceptées, cinq au plus par clé — la base et la
+  fonction refusent toute autre adresse. Dans un groupe qui exige un compte,
+  un appareil sans compte n'est pas prévenu.
 - Chaque écriture faite avec une clé de groupe, et chaque frappe, préviennent
   la fonction **`notifier`** (`supabase/functions/notifier/`, construite en un
   fichier par `npm run bundle`), une fois par document et par date
@@ -779,7 +787,7 @@ des presets et des traductions, et fraîcheur des fichiers livrés dans
 Deux batteries de plus, plus lentes, pour ce que `npm test` ne voit pas :
 
 ```bash
-tests/navigateur/lancer.sh            # l'app dans Chromium, contre une fausse base (~10 min)
+tests/navigateur/lancer.sh            # l'app dans Chromium, contre une fausse base (~15 min)
 tests/navigateur/lancer.sh polltest   # une suite seulement
 tests/sql/verifier.sh                 # le SQL du guide sur un vrai PostgreSQL
 tests/sql/verifier.sh --depuis <commit>   # la mise à jour d'une base plus ancienne
@@ -797,7 +805,12 @@ pour partager, son groupe dit, et « Plus d'actions » de *Renommer* à
 fenêtre qu'un bouton ouvre, avec une façon visible d'en sortir — et en sortir
 sans valider (Échap) ne doit rien avoir enregistré. Un écran ou une fenêtre
 ajouté plus tard est vérifié de la même façon, en ajoutant sa route à
-`routesOf`.
+`routesOf`. **`pieges`** remplit chaque sorte de document de noms piégés (du
+HTML qui s'exécuterait : une balise, une sortie d'attribut, une fin de champ)
+et vérifie, écran par écran, qu'ils s'affichent comme du texte sans jamais
+s'exécuter — c'est par là qu'entrerait une faille, un membre du groupe ou un
+visiteur d'un lien écrivant ce qu'il veut. Un nouvel écran s'ajoute aussi à
+ses routes.
 
 La première installe Playwright hors du projet si besoin et utilise le Chromium
 de l'environnement (`/opt/pw-browsers/chromium`) ; la seconde demande

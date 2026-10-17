@@ -3,7 +3,7 @@
 // Collez ce fichier dans Supabase → Edge Functions, sous le nom « notifier »,
 // avec la vérification du JWT **désactivée**. Voir docs/DEPLOIEMENT.md, étape 10.
 //
-// Le fichier fait 561 lignes. Si l'éditeur en affiche moins une fois collé,
+// Le fichier fait 572 lignes. Si l'éditeur en affiche moins une fois collé,
 // le collage est incomplet : refaites un « tout sélectionner » dans l'éditeur,
 // puis recollez. Le plus sûr est de copier depuis la version brute du fichier
 // sur GitHub (bouton « Raw »), qui est du texte et rien d'autre.
@@ -478,6 +478,17 @@ function messageFor(news, target) {
   };
 }
 
+/**
+ * The browsers' own push services, the only addresses written to. The database
+ * keeps no other (marque_points_push_subscribe); checked again here, so that a
+ * row slipped in some other way never turns the function into a messenger.
+ */
+const PUSH_SERVICES = /^https:\/\/(fcm\.googleapis\.com|android\.googleapis\.com|updates\.push\.services\.mozilla\.com|([a-z0-9-]+\.)*push\.apple\.com|([a-z0-9-]+\.)*notify\.windows\.com)\//;
+
+function isPushService(endpoint) {
+  return PUSH_SERVICES.test(String(endpoint || ''));
+}
+
 /** The VAPID subject: the app's own address, which every push service accepts. */
 function subjectFor(target) {
   try {
@@ -538,7 +549,7 @@ async function handle(request, { base, serviceKey, fetchImpl = fetch }) {
     }
     if (news?.status !== 'ok') return json({ status: news?.status || 'unknown', sent: 0 });
 
-    const targets = Array.isArray(news.targets) ? news.targets : [];
+    const targets = (Array.isArray(news.targets) ? news.targets : []).filter((target) => isPushService(target?.endpoint));
     if (!targets.length) return json({ status: 'ok', sent: 0 });
     const keys = await vapid();
     let sent = 0;

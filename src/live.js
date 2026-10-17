@@ -15,6 +15,14 @@
 
 /** Realtime closes a socket that has said nothing for a minute. */
 const HEARTBEAT_EVERY = 25000;
+/**
+ * A socket the server has not answered for this long is taken for dead. A
+ * phone waking up can hold one that still says « open »: trusting it would
+ * make the app wait for announcements that never come.
+ */
+const SILENT_AFTER = 60000;
+/** A channel refused or closed by the server is asked again after this. */
+const REJOIN_AFTER = 30000;
 /** Waits before trying again, longer each time, up to a minute. */
 const RETRY_AFTER = [1000, 2000, 5000, 10000, 30000, 60000];
 
@@ -96,8 +104,10 @@ export function createLive({
   let failures = 0;
   let counter = 0;
   let wanted = new Set();
-  /** topic -> { ref, joined } for the channels asked on this socket. */
+  /** topic -> { ref, joined, refusedAt } for the channels asked on this socket. */
   let channels = new Map();
+  /** When the server last said anything at all — a reply to the heartbeat counts. */
+  let lastHeard = 0;
   /** Channels joined at least once, on this socket or an earlier one. */
   const heardBefore = new Set();
   /** topic -> when the app last asked the database itself, while covered. */
@@ -115,8 +125,32 @@ export function createLive({
 
   const join = (topic) => {
     const ref = nextRef();
-    channels.set(topic, { ref, joined: false });
+    channels.set(topic, { ref, joined: false, refusedAt: null });
     send(joinMessage(topic, ref, key));
+  };
+  const silent = () => now() - lastHeard >= SILENT_AFTER;
+  /** Close a socket taken for dead, and schedule the next one (its own close handler no longer will). */
+  const abandon = () => {
+    const dead = socket;
+    socket = null;
+    drop();
+    try {
+      dead?.close();
+    } catch {
+      // Already gone.
+    }
+    schedule();
+  };
+  /** Every heartbeat: give up on a silent socket, ask again for refused channels. */
+  const tick = () => {
+    if (silent()) {
+      abandon();
+      return;
+    }
+    send({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: nextRef() });
+    for (const [topic, channel] of channels) {
+      if (!channel.joined && channel.refusedAt !== null && now() - channel.refusedAt >= REJOIN_AFTER && wanted.has(topic)) join(topic);
+    }
   };
   const leave = (topic) => {
     const channel = channels.get(topic);
@@ -155,11 +189,13 @@ export function createLive({
       if (socket !== created) return;
       open = true;
       failures = 0;
+      lastHeard = now();
       for (const topic of wanted) join(topic);
-      heartbeat = every(() => send({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: nextRef() }), HEARTBEAT_EVERY);
+      heartbeat = every(tick, HEARTBEAT_EVERY);
     };
     created.onmessage = (event) => {
       if (socket !== created) return;
+      lastHeard = now();
       const heard = readMessage(event?.data);
       if (!heard) return;
       const channel = channels.get(heard.topic);
@@ -171,7 +207,10 @@ export function createLive({
         if (heardBefore.has(heard.topic)) onChange(heard.topic);
         heardBefore.add(heard.topic);
       }
-      else if (heard.kind === 'refused') channel.joined = false;
+      else if (heard.kind === 'refused') {
+        channel.joined = false;
+        channel.refusedAt = now();
+      }
       else if (heard.kind === 'changed' && channel.joined) onChange(heard.topic);
     };
     created.onclose = () => {
@@ -201,7 +240,7 @@ export function createLive({
 
     /** Whether an announcement on this channel would be heard right now. */
     covers(topic) {
-      return open && Boolean(channels.get(topic)?.joined);
+      return open && !silent() && Boolean(channels.get(topic)?.joined);
     },
 
     /**
@@ -217,8 +256,12 @@ export function createLive({
       return false;
     },
 
-    /** Back in front: a socket the phone closed meanwhile is opened again now. */
+    /**
+     * Back in front: a socket the phone closed meanwhile is opened again now,
+     * and one that kept quiet while the phone slept is not trusted any more.
+     */
     wake() {
+      if (open && now() - lastHeard >= HEARTBEAT_EVERY + 10000) abandon();
       if (retry) {
         clearTimer(retry);
         retry = null;

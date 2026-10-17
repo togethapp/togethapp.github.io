@@ -931,17 +931,26 @@ begin
   if v_required and v_key.user_id is null then
     return jsonb_build_object('status', 'account');
   end if;
-  if coalesce(p_endpoint, '') !~ '^https://\S+$' or length(p_endpoint) not between 20 and 1000
+  if coalesce(p_endpoint, '') !~ ('^https://(fcm\.googleapis\.com|android\.googleapis\.com'
+                                   '|updates\.push\.services\.mozilla\.com|([a-z0-9-]+\.)*push\.apple\.com'
+                                   '|([a-z0-9-]+\.)*notify\.windows\.com)/\S+$')
+     or length(p_endpoint) > 1000
      or coalesce(p_p256dh, '') !~ '^[A-Za-z0-9_-]{80,100}$'
      or coalesce(p_auth, '') !~ '^[A-Za-z0-9_-]{16,32}$' then
     raise exception 'abonnement invalide';
   end if;
-  insert into public.marque_points_push (endpoint, key_id, p256dh, auth, lang, app)
+  insert into public.marque_points_push (endpoint, key_id, p256dh, auth, lang, app, created_at)
   values (p_endpoint, v_key.id, p_p256dh, p_auth,
           case when p_lang = 'en' then 'en' else 'fr' end,
-          case when coalesce(p_app, '') ~ '^https?://\S+$' and length(p_app) <= 300 then p_app else '' end)
+          case when coalesce(p_app, '') ~ '^https?://\S+$' and length(p_app) <= 300 then p_app else '' end,
+          clock_timestamp())
   on conflict (endpoint, key_id) do update
-     set p256dh = excluded.p256dh, auth = excluded.auth, lang = excluded.lang, app = excluded.app;
+     set p256dh = excluded.p256dh, auth = excluded.auth, lang = excluded.lang, app = excluded.app,
+         created_at = excluded.created_at;
+  delete from public.marque_points_push p
+   where p.key_id = v_key.id
+     and p.endpoint not in (select q.endpoint from public.marque_points_push q
+                             where q.key_id = v_key.id order by q.created_at desc limit 5);
   return jsonb_build_object('status', 'ok');
 end;
 $$;
@@ -1054,6 +1063,7 @@ begin
                 from public.marque_points_push p
                 join public.marque_points_group_key k on k.id = p.key_id
                where k.group_id = v_group.id
+                 and (not v_group.accounts_required or k.user_id is not null)
                  and p.endpoint not in (select mine.endpoint from public.marque_points_push mine
                                          where mine.key_id = v_key.id)) t), '[]'::jsonb));
 end;
@@ -1119,6 +1129,7 @@ revoke all on function public.marque_points_announce(text) from public, anon, au
 revoke all on function public.marque_points_live() from public, anon, authenticated;
 grant execute on function public.marque_points_push_subscribe(text, text, text, text, text, text) to anon, authenticated;
 grant execute on function public.marque_points_push_unsubscribe(text) to anon, authenticated;
+grant execute on function public.marque_points_open_set(text, text) to anon, authenticated;
 revoke all on function public.marque_points_push_vapid(text, jsonb) from public, anon, authenticated;
 revoke all on function public.marque_points_push_event(text, text) from public, anon, authenticated;
 revoke all on function public.marque_points_push_knock(text) from public, anon, authenticated;

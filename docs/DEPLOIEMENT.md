@@ -1895,7 +1895,9 @@ create trigger marque_points_live
 
 -- Les notifications. Un appareil qui les active donne l'adresse où son
 -- navigateur les reçoit, une fois par groupe, avec sa clé : couper la clé
--- l'efface. La fonction « notifier » (étape 10) les envoie ; elle seule lit ces
+-- l'efface. Seules les adresses des services d'envoi des navigateurs (Google,
+-- Mozilla, Apple, Microsoft) sont gardées, cinq au plus par clé : la fonction
+-- n'écrit jamais ailleurs. La fonction « notifier » (étape 10) les envoie ; elle seule lit ces
 -- tables, avec la clé de service, jamais la page.
 create table if not exists public.marque_points_push (
   endpoint text not null,
@@ -1956,17 +1958,26 @@ begin
   if v_required and v_key.user_id is null then
     return jsonb_build_object('status', 'account');
   end if;
-  if coalesce(p_endpoint, '') !~ '^https://\S+$' or length(p_endpoint) not between 20 and 1000
+  if coalesce(p_endpoint, '') !~ ('^https://(fcm\.googleapis\.com|android\.googleapis\.com'
+                                   '|updates\.push\.services\.mozilla\.com|([a-z0-9-]+\.)*push\.apple\.com'
+                                   '|([a-z0-9-]+\.)*notify\.windows\.com)/\S+$')
+     or length(p_endpoint) > 1000
      or coalesce(p_p256dh, '') !~ '^[A-Za-z0-9_-]{80,100}$'
      or coalesce(p_auth, '') !~ '^[A-Za-z0-9_-]{16,32}$' then
     raise exception 'abonnement invalide';
   end if;
-  insert into public.marque_points_push (endpoint, key_id, p256dh, auth, lang, app)
+  insert into public.marque_points_push (endpoint, key_id, p256dh, auth, lang, app, created_at)
   values (p_endpoint, v_key.id, p_p256dh, p_auth,
           case when p_lang = 'en' then 'en' else 'fr' end,
-          case when coalesce(p_app, '') ~ '^https?://\S+$' and length(p_app) <= 300 then p_app else '' end)
+          case when coalesce(p_app, '') ~ '^https?://\S+$' and length(p_app) <= 300 then p_app else '' end,
+          clock_timestamp())
   on conflict (endpoint, key_id) do update
-     set p256dh = excluded.p256dh, auth = excluded.auth, lang = excluded.lang, app = excluded.app;
+     set p256dh = excluded.p256dh, auth = excluded.auth, lang = excluded.lang, app = excluded.app,
+         created_at = excluded.created_at;
+  delete from public.marque_points_push p
+   where p.key_id = v_key.id
+     and p.endpoint not in (select q.endpoint from public.marque_points_push q
+                             where q.key_id = v_key.id order by q.created_at desc limit 5);
   return jsonb_build_object('status', 'ok');
 end;
 $$;
@@ -2008,7 +2019,8 @@ $$;
 -- Nouveau : créé il y a moins de deux jours, jamais annoncé. Une date : jamais
 -- annoncée pour ce document, et pas encore passée. Un document plus ancien,
 -- vu pour la première fois, est noté sans rien annoncer. Jamais à l'appareil
--- qui l'a écrit.
+-- qui l'a écrit, ni, dans un groupe qui exige un compte, à un appareil sans
+-- compte : il n'y voit rien de ce qui est partagé.
 create or replace function public.marque_points_push_event(p_key text, p_id text)
 returns jsonb
 language plpgsql
@@ -2086,6 +2098,7 @@ begin
                 from public.marque_points_push p
                 join public.marque_points_group_key k on k.id = p.key_id
                where k.group_id = v_group.id
+                 and (not v_group.accounts_required or k.user_id is not null)
                  and p.endpoint not in (select mine.endpoint from public.marque_points_push mine
                                          where mine.key_id = v_key.id)) t), '[]'::jsonb));
 end;
@@ -2165,6 +2178,7 @@ grant execute on function public.marque_points_put(text, jsonb, text, text) to a
 grant execute on function public.marque_points_delete(text, text, text) to anon, authenticated;
 grant execute on function public.marque_points_put_set(text, jsonb, text, text) to anon, authenticated;
 grant execute on function public.marque_points_forget_set(text, text) to anon, authenticated;
+grant execute on function public.marque_points_open_set(text, text) to anon, authenticated;
 revoke all on function public.marque_points_account_link(text, text) from public, anon;
 revoke all on function public.marque_points_account_owner_put(text, text) from public, anon;
 revoke all on function public.marque_points_account_restore(jsonb, text) from public, anon;

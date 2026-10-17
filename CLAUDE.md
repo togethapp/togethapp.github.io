@@ -37,8 +37,9 @@ RPC `security definer` ; la table n'est jamais exposée.
   `app.js` depuis leurs fonctions seulement ; `src/i18n.js` : tous les textes
   (FR et EN, ajouter les deux ; pluriel : `{count|ligne|lignes}`) ; `src/remote.js` : appels à la base ; `polls.js`,
   `lists.js`, `spends.js`, `ideas.js`, `model.js` (parties) : la logique pure, testée.
-- `tools/bundle.js` construit `dist/*.html` et `supabase/functions/agenda/index.ts`,
-  et tamponne `sw.js`/`index.html`. Liste explicite `MODULES` : un nouveau module
+- `tools/bundle.js` construit `dist/*.html` et les deux fonctions
+  (`supabase/functions/agenda/index.ts`, `…/notifier/index.ts`), et tamponne
+  `sw.js`/`index.html`. Liste explicite `MODULES` : un nouveau module
   s'y ajoute, et dans `SHELL` de `sw.js`. Pas d'import renommé (`as`), pas deux
   noms identiques au niveau supérieur de deux modules (tout finit dans une portée).
 - Le schéma SQL vit dans `docs/DEPLOIEMENT.md` : bloc ```sql n°1 = étape 2,
@@ -49,7 +50,7 @@ RPC `security definer` ; la table n'est jamais exposée.
 ## Avant chaque commit
 
 1. `node tools/bundle.js` — sinon les tests « committed build is up to date » échouent.
-2. `npm test` (node --test, ~280 tests, quelques secondes).
+2. `npm test` (node --test, ~400 tests, quelques secondes).
 3. Si l'écran change : `tests/navigateur/lancer.sh audit <suites>` (Playwright
    contre une fausse base, `tests/navigateur/fausse-base.mjs`, à tenir à jour
    avec le SQL). `audit` vérifie les règles communes à tous les écrans (voir

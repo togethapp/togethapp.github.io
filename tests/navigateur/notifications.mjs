@@ -27,9 +27,9 @@ async function device(label, prefs, { where = `${APP}#/settings`, allow = true }
     // Pas de service d'envoi ici : un abonnement de la bonne forme.
     if (typeof PushManager === 'undefined') return;
     const fake = () => ({
-      endpoint: `https://push.example/${who}`,
+      endpoint: `https://fcm.googleapis.com/fcm/send/${who}`,
       toJSON: () => ({
-        endpoint: `https://push.example/${who}`,
+        endpoint: `https://fcm.googleapis.com/fcm/send/${who}`,
         keys: { p256dh: 'BA3xkPq8MXN8qJ3wk_0BrivFfuUnIdGzFWzitn3FfhXJyS5nAgjhs3xLrV-TvwrlAz6OYo_vwuqCGf6w7SIYtlw', auth: 'IxNSocK0BfpuTPJ-9QH84w' },
       }),
       unsubscribe: async () => { localStorage.removeItem('fake-sub'); return true; },
@@ -71,7 +71,7 @@ check('la clé publique a été demandée à la fonction', state.calls.some((cal
 check('l’abonnement a été pris avec cette clé (65 octets)', (await gui.evaluate(() => localStorage.getItem('fake-sub'))) === '65');
 check('et confié à la base pour Mifa, avec l’adresse de l’app',
   state.subscriptions.length === 1 && state.subscriptions[0].group === 'grp_famille'
-    && state.subscriptions[0].endpoint === 'https://push.example/gui' && state.subscriptions[0].app === APP
+    && state.subscriptions[0].endpoint === 'https://fcm.googleapis.com/fcm/send/gui' && state.subscriptions[0].app === APP
     && state.subscriptions[0].lang === 'fr',
   JSON.stringify(state.subscriptions));
 
