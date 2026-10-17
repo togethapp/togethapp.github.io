@@ -26,6 +26,7 @@ const HOLO_COLOURS = {
   group: '#5ff3ff',
   outside: '#8f98c2',
   event: '#ff4fd8',
+  activity: '#ff8a7a',
   poll: '#ffb347',
   list: '#4dffa6',
   spend: '#4dc3ff',
@@ -33,7 +34,7 @@ const HOLO_COLOURS = {
   game: '#ffe45c',
 };
 
-const HOLO_KINDS = ['event', 'poll', 'list', 'spend', 'board', 'game'];
+const HOLO_KINDS = ['event', 'activity', 'poll', 'list', 'spend', 'board', 'game'];
 
 /** The height of the glass table under the sky. */
 const HOLO_FLOOR = -0.62;
@@ -465,7 +466,7 @@ export function bindHolo() {
         context.setLineDash([]);
         context.lineDashOffset = 0;
       } else {
-        const radius = unit * (node.kind === 'event' ? 0.042 : 0.034) * one.scale * (0.4 + 0.6 * spread);
+        const radius = unit * (node.kind === 'event' ? 0.042 : node.kind === 'activity' ? 0.03 : 0.034) * one.scale * (0.4 + 0.6 * spread);
         one.radius = radius;
         stamp(sprite.glow, one.x, one.y, radius * 6.5, 0.9 * fog * dim);
         if (node.done) {
@@ -481,10 +482,11 @@ export function bindHolo() {
         } else {
           stamp(sprite.core, one.x, one.y, radius * 2.4, fog * dim);
         }
-        if (node.kind === 'event') {
+        if (node.kind === 'event' || node.kind === 'activity') {
+          // An event in a diamond; its activities, moons round it, in a smaller one.
           context.globalAlpha = 0.65 * fog * dim;
           context.strokeStyle = colour;
-          const d = radius * 2;
+          const d = radius * (node.kind === 'event' ? 2 : 1.7);
           context.beginPath();
           context.moveTo(one.x, one.y - d);
           context.lineTo(one.x + d, one.y);

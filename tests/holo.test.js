@@ -36,6 +36,23 @@ test('groups are stars, live documents orbit them, and nobody is in the sky', ()
   assert.equal(graph.docs.find((doc) => doc.id === 'd:gm').kind, 'game');
 });
 
+test('an event under another event is an activity, circling it like a moon', () => {
+  const polls = [
+    ...held().polls,
+    { id: 'karaoke', kind: 'poll', groupId: 'g1', parent: 'ev', date: '2026-12-24', at: '21:00' },
+    { id: 'later', kind: 'poll', groupId: 'g1', parent: 'ev', fixed: true },
+    { id: 'ask', kind: 'poll', groupId: 'g1', parent: 'ev' },
+  ];
+  const graph = holoGraph({ ...held(), polls }, groups, undefined, '2026-10-16');
+  const doc = (id) => graph.docs.find((one) => one.id === `d:${id}`);
+  assert.equal(doc('ev').kind, 'event');
+  for (const id of ['karaoke', 'later']) {
+    assert.equal(doc(id).kind, 'activity');
+    assert.equal(doc(id).around, 'd:ev');
+  }
+  assert.equal(doc('ask').kind, 'poll');
+});
+
 test('a document circles its event, else its star; link-only and loose ones go outside', () => {
   const graph = holoGraph(held(), groups, undefined, '2026-10-16');
   const around = (id) => graph.docs.find((doc) => doc.id === `d:${id}`).around;

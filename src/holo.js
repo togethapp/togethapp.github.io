@@ -20,7 +20,7 @@ import { allDocuments, inGroup, isLive, kindOf, isEventDoc, parentId, linksOf, i
 export const HOLO_OUTSIDE = 'outside';
 
 /** The order of the kinds round a star: events first, the rest after. */
-const HOLO_ORDER = { event: 0, poll: 1, list: 2, spend: 3, board: 4, game: 5 };
+const HOLO_ORDER = { event: 0, activity: 1, poll: 2, list: 3, spend: 4, board: 5, game: 6 };
 
 /** A number in [0, 1) that a text always gives the same: places stay put. */
 export function holoHash(text, salt = 0) {
@@ -51,7 +51,8 @@ function holoDone(document_, today) {
  * A hub is `{ id, type, label, ref, count }`: `type` is `group` or
  * `outside`, `ref` the group's id, `count` the documents of that group.
  * A document is `{ id, kind, label, ref, done, hub, around }`: `kind` is the
- * document's own (`event` for a poll that has its day), `done` what isDone()
+ * document's own (`event` for a poll that has its day, `activity` for an
+ * event under another event), `done` what isDone()
  * says, `hub` the star of its group, `around` what it circles — the event it
  * hangs from when that event is shown, its group's star otherwise.
  * A link is `{ from, to, kind }`: `with`, or `order`, from what comes first
@@ -75,9 +76,10 @@ export function holoGraph(held, groupList = [], titleOf = (document_) => documen
     }
     hubOf.get(hub).count += 1;
     const parent = byId.get(parentId(document_));
+    const event = isEventDoc(document_);
     return {
       id: `d:${document_.id}`,
-      kind: isEventDoc(document_) ? 'event' : kindOf(document_) || 'game',
+      kind: event ? (parent && parent.id !== document_.id && isEventDoc(parent) ? 'activity' : 'event') : kindOf(document_) || 'game',
       label: String(titleOf(document_) || ''),
       ref: document_,
       done: holoDone(document_, today),
@@ -179,7 +181,7 @@ export function holoOrbits({ hubs = [], docs = [] } = {}) {
         const child = children[next];
         next += 1;
         bodies.push({ ...shape, id: child.id, phase: start + (i / size) * Math.PI * 2, speed, depth: depth + 1 });
-        lay(child.id, depth + 1, reach * 0.28 * 0.6 ** depth);
+        lay(child.id, depth + 1, reach * 0.34 * 0.6 ** depth);
       }
     });
   };
