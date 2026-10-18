@@ -19,7 +19,9 @@ import {
   deleteDocument, myName, openAttachDialog, openRelateDialog, organise, replaceAny, shownDocs, isOrganiser,
 } from './view-groups.js';
 import { t } from './i18n.js';
-import { readAmount } from './spends.js';
+import { readAmount, priceIn, withoutPrice } from './spends.js';
+import { money, typedAmount, splitEditorHtml, bindSplitEditor } from './view-spends.js';
+import { sameName } from './stats.js';
 import { archiveList } from './lists.js';
 import { archivePoll, setPollDate } from './polls.js';
 import { archiveSpend } from './spends.js';
@@ -31,9 +33,10 @@ import {
 } from './dashboard.js';
 import { getLanguage } from './i18n.js';
 import {
-  related, ideasFor, addIdea, pollFromIdeas, winnersOf, winnerOffers, addWinner, accountsFor, spentItems, spendFromLine,
+  related, ideasFor, addIdea, pollFromIdeas, winnersOf, winnerOffers, addWinner, accountsFor,
   unblockedNow, missingGoers, addGoers, activityFor, ideaActivities, choiceActivities, whenPoll, activityFromChoice,
-  activityVotes, settleAsActivity, splitPollActivity,
+  activityVotes, settleAsActivity, splitPollActivity, unspentItems, ticketGroups, ticketText, estimateOf, spendFromLines,
+  defaultForWhom, forWhomGroups,
 } from './flows.js';
 
 /**
@@ -92,10 +95,7 @@ export function listFlowsHtml(list) {
       offers.map((one) => offerButton('data-flow-winner', `${poll.id}|${one.option.id}`, choiceLabel(one.option)))));
   }
   for (const spend of accountsFor(list, all)) {
-    const spent = spentItems(spend, list);
-    const ticked = list.items.filter((item) => item.done && !spent.has(item.id)).slice(0, 12);
-    blocks.push(offersHtml(t('flows.toAccount', { name: documentTitle(spend) }),
-      ticked.map((item) => `<button type="button" class="chip" data-flow-spend="${escapeHtml(`${spend.id}|${item.id}`)}">💶 ${escapeHtml(item.text)}</button>`)));
+    blocks.push(ticketOffersHtml(list, spend, t('flows.toAccount', { name: documentTitle(spend) })));
   }
   const shown = blocks.filter(Boolean);
   return shown.length
@@ -103,63 +103,139 @@ export function listFlowsHtml(list) {
     : '';
 }
 
-/** Write a ticked line in the account: how much, and who paid. */
-function openSpendDialog(spend, list, item) {
-  const given = list.people.find((person) => person.id === item.who)?.name || '';
-  const names = [...new Set([given, ...spend.people.map((person) => person.name), ...list.people.map((person) => person.name)]
+/**
+ * What waits to go from a list into an account, one chip per receipt: the
+ * lines each person had and has ticked — « Alice : fromage, patates » —, then
+ * those nobody had. On the list, and on the account the other way round.
+ */
+export function ticketOffersHtml(list, spend, title) {
+  return offersHtml(title, ticketGroups(list, spend).map((group) => {
+    const words = group.items.slice(0, 3).map((item) => withoutPrice(item.text)).join(', ');
+    const more = group.items.length > 3 ? ` +${group.items.length - 3}` : '';
+    const label = group.who ? t('flows.ticketOf', { name: group.who, lines: `${words}${more}` }) : `${words}${more}`;
+    return `<button type="button" class="chip" data-flow-ticket="${escapeHtml(`${spend.id}|${list.id}|${group.whoId}`)}">💶 ${escapeHtml(label)}</button>`;
+  }));
+}
+
+/**
+ * Write ticked lines in an account, as one expense — the receipt: its lines
+ * ticked from the start, the other lines waiting there too, to add or leave;
+ * what it cost (what the lines said they would, to start with); who paid —
+ * whoever had them —; and who it is for, as any expense is shared.
+ */
+export function openTicketDialog(spend, list, picked) {
+  const account = byId(spend.id) || spend;
+  const source = byId(list.id) || list;
+  const waiting = unspentItems(source, account);
+  const chosen = new Set(picked.map((item) => item.id).filter((id) => waiting.some((item) => item.id === id)));
+  if (!chosen.size) return;
+  const lines = () => waiting.filter((item) => chosen.has(item.id));
+  const holders = [...new Set(lines().map((item) => item.who))];
+  const holder = holders.length === 1 ? source.people.find((person) => person.id === holders[0])?.name || '' : '';
+  const names = [...new Set([holder, ...account.people.map((person) => person.name), ...source.people.map((person) => person.name)]
     .map((name) => String(name || '').trim()).filter(Boolean))];
-  let payer = given || myName() || names[0] || '';
+  let payer = holder || names.find((name) => sameName(name) === sameName(myName())) || names[0] || '';
+  const all = everything();
+  const guess = () => estimateOf(lines());
+
   const dialog = makeDialog();
-  const draw = () => {
-    dialog.innerHTML = `
-      <form class="stack" method="dialog">
-        <h2>${escapeHtml(t('flows.spendTitle', { name: item.text }))}</h2>
-        <label class="stack stack--tight">
-          <span class="small">${escapeHtml(t('flows.amount'))}</span>
-          <input type="text" inputmode="decimal" id="flow-amount" autocomplete="off" placeholder="0,00" />
-        </label>
-        ${
-          names.length
-            ? `<span class="small">${escapeHtml(t('flows.paidBy'))}</span>
-               <div class="row row--chips" role="group">${names.map((name) => `
-                 <button type="button" class="chip ${name === payer ? 'chip--on' : ''}" data-flow-payer="${escapeHtml(name)}"
-                         aria-pressed="${name === payer ? 'true' : 'false'}">${escapeHtml(name)}</button>`).join('')}
-               </div>`
-            : ''
-        }
-        <p class="muted small">${escapeHtml(t('flows.spendHint', { name: documentTitle(spend) }))}</p>
-        <div class="row">
-          <button type="submit" class="button button--primary" id="flow-spend-ok">${escapeHtml(t('flows.spendAdd'))}</button>
-          <button type="button" class="button" data-flow-cancel>${escapeHtml(t('action.cancel'))}</button>
-        </div>
-      </form>`;
-    dialog.querySelector('[data-flow-cancel]').addEventListener('click', () => dialog.close());
-    dialog.querySelectorAll('[data-flow-payer]').forEach((node) => {
-      node.addEventListener('click', () => {
-        const amount = dialog.querySelector('#flow-amount').value;
-        payer = node.dataset.flowPayer;
-        draw();
-        dialog.querySelector('#flow-amount').value = amount;
+  dialog.innerHTML = `
+    <form class="stack" method="dialog">
+      <h2>${escapeHtml(t('flows.ticketTitle', { name: documentTitle(account) }))}</h2>
+      <div class="ticket-lines" role="group" aria-label="${escapeHtml(t('flows.ticketLines'))}">
+        ${waiting.map((item) => {
+          const price = priceIn(item.text);
+          return `
+            <label class="split-row">
+              <input type="checkbox" data-ticket-line="${escapeHtml(item.id)}" ${chosen.has(item.id) ? 'checked' : ''} />
+              <span class="split-row__name">${escapeHtml(withoutPrice(item.text))}</span>
+              ${price ? `<span class="split-row__share">≈ ${escapeHtml(money(price, account))}</span>` : ''}
+            </label>`;
+        }).join('')}
+      </div>
+      <label>
+        ${escapeHtml(t('spends.what'))}
+        <input type="text" id="ticket-text" autocomplete="off" value="${escapeHtml(ticketText(source, lines()))}" />
+      </label>
+      <label>
+        ${escapeHtml(t('spends.amount'))}
+        <input type="text" inputmode="decimal" id="ticket-amount" autocomplete="off" placeholder="0,00"
+               value="${guess() ? escapeHtml(typedAmount(guess())) : ''}" />
+      </label>
+      ${
+        names.length
+          ? `<span class="small">${escapeHtml(t('flows.paidBy'))}</span>
+             <div class="row row--chips" role="group" aria-label="${escapeHtml(t('flows.paidBy'))}">${names.map((name) => `
+               <button type="button" class="chip ${name === payer ? 'chip--on' : ''}" data-flow-payer="${escapeHtml(name)}"
+                       aria-pressed="${name === payer ? 'true' : 'false'}">${escapeHtml(name)}</button>`).join('')}
+             </div>`
+          : ''
+      }
+      ${account.people.length > 1 ? splitEditorHtml(account, { forWhom: defaultForWhom(source, account, all), groups: forWhomGroups(account, all) }) : ''}
+      <p class="late small" id="ticket-error" hidden></p>
+      <div class="row">
+        <button type="submit" class="button button--primary" id="ticket-ok">${escapeHtml(t('flows.spendAdd'))}</button>
+        <button type="button" class="button" data-flow-cancel>${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </form>`;
+
+  const text = dialog.querySelector('#ticket-text');
+  const amount = dialog.querySelector('#ticket-amount');
+  // What the box says is the app's guess until someone writes over it.
+  let ownText = false;
+  let ownAmount = false;
+  text.addEventListener('input', () => { ownText = true; });
+  const split = bindSplitEditor(dialog, account, () => readAmount(amount.value));
+  amount.addEventListener('input', () => {
+    ownAmount = true;
+    split.refresh();
+  });
+  dialog.querySelectorAll('[data-ticket-line]').forEach((box) => {
+    box.addEventListener('change', () => {
+      if (box.checked) chosen.add(box.dataset.ticketLine);
+      else chosen.delete(box.dataset.ticketLine);
+      if (!ownText) text.value = lines().length ? ticketText(source, lines()) : '';
+      if (!ownAmount) amount.value = guess() ? typedAmount(guess()) : '';
+      split.refresh();
+    });
+  });
+  dialog.querySelectorAll('[data-flow-payer]').forEach((node) => {
+    node.addEventListener('click', () => {
+      payer = node.dataset.flowPayer;
+      dialog.querySelectorAll('[data-flow-payer]').forEach((one) => {
+        const on = one === node;
+        one.classList.toggle('chip--on', on);
+        one.setAttribute('aria-pressed', on ? 'true' : 'false');
       });
     });
-    dialog.querySelector('form').addEventListener('submit', (event) => {
-      event.preventDefault();
-      const cents = readAmount(dialog.querySelector('#flow-amount').value);
-      if (!cents) {
-        dialog.querySelector('#flow-amount').focus();
-        return;
-      }
-      const fresh = byId(spend.id) || spend;
-      const next = spendFromLine(fresh, byId(list.id) || list, item, cents, payer);
-      dialog.close();
-      if (next === fresh) return;
-      flash(t('flows.spent', { name: item.text, account: documentTitle(spend) }));
-      replaceAny(next);
-    });
+  });
+  const problem = (message) => {
+    const error = dialog.querySelector('#ticket-error');
+    error.textContent = message;
+    error.hidden = false;
   };
-  draw();
+  dialog.querySelector('[data-flow-cancel]').addEventListener('click', () => dialog.close());
+  dialog.querySelector('form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const cents = readAmount(amount.value);
+    if (!lines().length) return problem(t('flows.ticketNoLine'));
+    if (!cents) {
+      amount.focus();
+      return problem(t('spends.notAnAmount'));
+    }
+    const shared = split.read();
+    if (shared.error) return problem(shared.error);
+    const fresh = byId(spend.id) || spend;
+    const next = spendFromLines(fresh, byId(list.id) || list, lines(), cents, {
+      byName: payer, text: text.value, forWhom: shared.forWhom, parts: shared.parts, fixed: shared.fixed,
+    });
+    dialog.close();
+    if (next === fresh) return;
+    flash(t('flows.spent', { name: next.lines[next.lines.length - 1].text, account: documentTitle(spend) }));
+    replaceAny(next);
+  });
   dialog.showModal();
-  dialog.querySelector('#flow-amount').focus();
+  amount.focus();
 }
 
 /* ---------------------------------------------------------------- a board --- */
@@ -501,13 +577,13 @@ export function bindFlows(root) {
       addFrom(current(listId), poll.id, (target, source) => addWinner(target, source, source.options.find((option) => option.id === optionId), getLanguage()));
     });
   });
-  root.querySelectorAll('[data-flow-spend]').forEach((node) => {
+  root.querySelectorAll('[data-flow-ticket]').forEach((node) => {
     node.addEventListener('click', () => {
-      const [spendId, itemId] = pair(node.dataset.flowSpend);
-      const list = owner(node);
+      const [spendId, listId, whoId] = pair(node.dataset.flowTicket);
       const spend = current(spendId);
-      const item = list?.items.find((one) => one.id === itemId);
-      if (list && spend && item) openSpendDialog(spend, list, item);
+      const list = current(listId);
+      const group = list && spend && ticketGroups(list, spend).find((one) => one.whoId === whoId);
+      if (group) openTicketDialog(spend, list, group.items);
     });
   });
   root.querySelectorAll('[data-flow-vote]').forEach((node) => {

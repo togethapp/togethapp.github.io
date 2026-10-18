@@ -103,9 +103,11 @@ check('deux virements suffisent, et vers Gui',
 
 await spend('Taxi', '30', 'Gui');
 await page.locator('.line__text', { hasText: 'Taxi' }).click();
-await page.waitForSelector('dialog[open] #line-for');
-await page.locator('dialog[open] [data-for]').nth(0).click();
-await page.locator('dialog[open] [data-for]').nth(2).click();
+await page.waitForSelector('dialog[open] [data-split]');
+check('la dépense se corrige avec tout le monde coché',
+  (await page.locator('dialog[open] [data-for]:checked').count()) === 3);
+// Alice n'était pas dans le taxi : on la décoche.
+await page.locator('dialog[open] [data-for]').nth(1).uncheck();
 await page.click('#line-save');
 await page.waitForFunction(() => document.querySelector('.line__text')?.textContent.includes('Taxi') || true);
 await page.waitForTimeout(300);

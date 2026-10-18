@@ -77,17 +77,17 @@ check('le choix du sondage devient une ligne', (await stored('lists', courses.id
 
 const pain = (await stored('lists', courses.id)).items.find((i) => i.text === 'Pain');
 await page.click(`[data-tick="${pain.id}"]`);
-await page.waitForSelector('.flows [data-flow-spend]');
+await page.waitForSelector('.flows [data-flow-ticket]');
 check('cochée, la ligne est proposée au compte lié', /Cochées, pas encore dans « Compte ».*Pain/.test(await text('.flows')));
 check('et au compte du même événement, sans lien', /Cochées, pas encore dans « Cagnotte ».*Pain/.test(await text('.flows')), await text('.flows'));
-await page.click(`.flows [data-flow-spend^="${compte.id}|"]`);
-await page.waitForSelector('dialog[open] #flow-amount');
-await page.fill('dialog[open] #flow-amount', '3,20');
+await page.click(`.flows [data-flow-ticket^="${compte.id}|"]`);
+await page.waitForSelector('dialog[open] #ticket-amount');
+await page.fill('dialog[open] #ticket-amount', '3,20');
 await page.click('dialog[open] [data-flow-payer="Alice"]');
-check('le montant reste quand on choisit qui a payé', (await page.inputValue('dialog[open] #flow-amount')) === '3,20');
-await page.click('dialog[open] #flow-spend-ok');
-await page.waitForFunction((id) => !document.querySelector(`.flows [data-flow-spend^="${id}|"]`), compte.id);
-check('la Cagnotte la propose toujours', (await page.locator(`.flows [data-flow-spend^="${cagnotte.id}|"]`).count()) === 1);
+check('le montant reste quand on choisit qui a payé', (await page.inputValue('dialog[open] #ticket-amount')) === '3,20');
+await page.click('dialog[open] #ticket-ok');
+await page.waitForFunction((id) => !document.querySelector(`.flows [data-flow-ticket^="${id}|"]`), compte.id);
+check('la Cagnotte la propose toujours', (await page.locator(`.flows [data-flow-ticket^="${cagnotte.id}|"]`).count()) === 1);
 const spend = await stored('spends', compte.id);
 check('la dépense est écrite, payée par Alice, entrée dans le compte',
   spend.lines.length === 1 && spend.lines[0].amount === 320 && spend.people.find((p) => p.id === spend.lines[0].by)?.name === 'Alice', JSON.stringify(spend.lines));

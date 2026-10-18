@@ -740,14 +740,14 @@ export function kindsHtml(active) {
  * Ask for one line of text, the same way the app asks anything else: a dialog
  * that removes itself, Escape answering null.
  */
-export function askForText({ title, hint, value = '', confirmLabel }) {
+export function askForText({ title, hint, value = '', confirmLabel, maxLength = 40 }) {
   return new Promise((resolve) => {
     const dialog = makeDialog('dialog dialog--ask');
     dialog.innerHTML = `
       <div class="stack">
         <h2>${escapeHtml(title)}</h2>
         <p class="muted small">${escapeHtml(hint)}</p>
-        <input type="text" id="asked-text" value="${escapeHtml(value)}" maxlength="40" />
+        <input type="text" id="asked-text" value="${escapeHtml(value)}" maxlength="${Number(maxLength) || 40}" />
         <div class="row">
           <button type="button" class="button button--primary" id="asked-ok">${escapeHtml(confirmLabel)}</button>
           <button type="button" class="button" id="asked-cancel">${escapeHtml(t('action.cancel'))}</button>

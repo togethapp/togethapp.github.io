@@ -77,27 +77,205 @@ export function showAmount(cents, language = 'fr', currency = 'EUR') {
   }
 }
 
+// A number then a currency, or a currency then a number. A word after the
+// currency does not count: « 12 eurovision » is not money.
+const PRICE = /(?:\b(\d+(?:[.,]\d{1,2})?)\s?(?:€|eur(?:os?)?\b|chf\b|£|\$)|(?:€|£|\$|\bchf)\s?(\d+(?:[.,]\d{1,2})?)\b)/gi;
+
+/**
+ * A price written into a text — « Fromage 25 € », « Vin (12,50€) » —, in
+ * cents, or null. Only an amount that says it is money counts: « 2 baguettes »
+ * is two baguettes, not two euros. The last one wins, as in « 2 × 8 € = 16 € ».
+ */
+export function priceIn(text) {
+  const found = [...String(text || '').matchAll(PRICE)];
+  if (!found.length) return null;
+  const last = found[found.length - 1];
+  return readAmount(last[1] || last[2]);
+}
+
+/** The currency a text's price is written in — « 30 CHF » —, or null. */
+export function priceCurrency(text) {
+  const found = [...String(text || '').matchAll(PRICE)];
+  if (!found.length) return null;
+  const sign = found[found.length - 1][0].toLowerCase();
+  if (sign.includes('chf')) return 'CHF';
+  if (sign.includes('£')) return 'GBP';
+  if (sign.includes('$')) return 'USD';
+  return 'EUR';
+}
+
+/** The text without its price: what an expense made of the line is called. */
+export function withoutPrice(text) {
+  const clean = String(text || '').replace(PRICE, ' ').replace(/\(\s*\)/g, ' ')
+    .replace(/\s+([,.;:])/g, '$1').replace(/[\s:=—–-]+$/, '').replace(/\s{2,}/g, ' ').trim();
+  return clean || String(text || '').trim();
+}
+
+/* ------------------------------------------------------------- les parts --- */
+
+/**
+ * How many parts someone counts for. A couple counts for two, a family for
+ * four, a child for half: the account then shares by parts without anyone
+ * having to think about it again. Halves only, up to MOST_PARTS — nights in a
+ * holiday house are counted the same way.
+ */
+export const MOST_PARTS = 99;
+
+/** A number of parts as typed or stored, or null when it is not one. */
+export function readParts(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(String(value).replace(',', '.'));
+  if (!Number.isFinite(number)) return null;
+  const halves = number * 2;
+  return Number.isInteger(halves) && halves >= 1 && halves <= MOST_PARTS * 2 ? halves / 2 : null;
+}
+
+/** What someone counts for in this account when nothing else is said: one part. */
+export function weightOf(person) {
+  return readParts(person?.weight) ?? 1;
+}
+
+/** One step up or down: ½, 1, 2, 3… — below one part, only a half. */
+export function stepParts(value, step) {
+  const now = readParts(value) ?? 1;
+  if (step > 0) return now < 1 ? 1 : Math.min(MOST_PARTS, Math.floor(now) + 1);
+  return now <= 1 ? 0.5 : Math.max(1, Math.ceil(now) - 1);
+}
+
+/**
+ * Someone counts for that many parts from now on, in every expense that does
+ * not say otherwise — those already noted included: « les Martin sont
+ * quatre » is true of the whole holiday, not only of what comes next.
+ */
+export function setSpendWeight(spend, personId, weight) {
+  const parts = readParts(weight) ?? 1;
+  return patchPerson(spend, personId, (person) => {
+    if (weightOf(person) === parts) return person;
+    const next = { ...person, weight: parts };
+    if (parts === 1) delete next.weight;
+    return next;
+  });
+}
+
+/** How someone wants to be paid back, as they wrote it: an IBAN, a number, a link. */
+export function payOf(person) {
+  return typeof person?.pay === 'string' ? person.pay.trim() : '';
+}
+
+/** Write down how someone wants to be paid back, or forget it with ''. */
+export function setSpendPay(spend, personId, text) {
+  const clean = String(text || '').trim().slice(0, 300);
+  return patchPerson(spend, personId, (person) => {
+    if (payOf(person) === clean) return person;
+    const next = { ...person, pay: clean };
+    if (!clean) delete next.pay;
+    return next;
+  });
+}
+
+/** Change one person, on the people's own clock — they merge as a whole. */
+function patchPerson(spend, personId, change) {
+  let changed = false;
+  const people = spend.people.map((person) => {
+    if (person.id !== personId) return person;
+    const next = change(person);
+    if (next !== person) changed = true;
+    return next;
+  });
+  return changed ? touch(spend, { people, peopleAt: later(spend.peopleAt) }) : spend;
+}
+
+/** The people an expense is for: those ticked, or everyone when none is. */
+function concernedBy(spend, forWhom) {
+  const known = spend.people.map((person) => person.id);
+  return forWhom?.length ? forWhom.filter((id) => known.includes(id)) : known;
+}
+
+/** Parts given for this expense alone, for those concerned, unlike their usual. */
+function cleanParts(spend, parts, concerned) {
+  const kept = {};
+  for (const id of concerned) {
+    const value = readParts(parts?.[id]);
+    if (value !== null && value !== weightOf(spend.people.find((person) => person.id === id))) kept[id] = value;
+  }
+  return kept;
+}
+
+/** Amounts set apart for some of those concerned: whole cents, more than none. */
+function cleanFixed(fixed, concerned) {
+  const kept = {};
+  for (const id of concerned) {
+    const cents = fixed?.[id];
+    if (Number.isInteger(cents) && cents > 0) kept[id] = cents;
+  }
+  return kept;
+}
+
+const centsIn = (amounts) => Object.values(amounts).reduce((sum, cents) => sum + cents, 0);
+
+/**
+ * What is wrong with a way of sharing an expense, or null: more set apart
+ * than was paid (`over`), or something left over and nobody left to share it
+ * (`left`) — everyone concerned has an amount of their own, and they do not
+ * add up. Said before writing, so the form can say how much is out.
+ */
+export function splitProblem(spend, { amount, forWhom = [], fixed = null } = {}) {
+  const concerned = concernedBy(spend, forWhom);
+  const apart = cleanFixed(fixed, concerned);
+  const total = centsIn(apart);
+  if (total > amount) return 'over';
+  if (total < amount && concerned.length && concerned.every((id) => id in apart)) return 'left';
+  return null;
+}
+
+/** The way an expense is shared, as a line keeps it: only what is not the usual. */
+function splitFields(spend, { amount, forWhom, parts, fixed }) {
+  if (splitProblem(spend, { amount, forWhom, fixed })) return null;
+  const concerned = concernedBy(spend, forWhom);
+  const ownParts = cleanParts(spend, parts, concerned);
+  const apart = cleanFixed(fixed, concerned);
+  return {
+    parts: Object.keys(ownParts).length ? ownParts : undefined,
+    fixed: Object.keys(apart).length ? apart : undefined,
+  };
+}
+
+/** A line without the fields left undefined: what is not said is not stored. */
+function tidy(line) {
+  for (const key of Object.keys(line)) if (line[key] === undefined) delete line[key];
+  return line;
+}
+
 /**
  * Ajouter une dépense. `forWhom` vide veut dire « pour tout le monde » : c'est
  * le cas courant, et l'écrire à chaque fois serait une corvée.
+ *
+ * `parts` donne, pour cette dépense seulement, des parts autres que celles de
+ * chacun (deux nuits pour l'une, cinq pour l'autre) ; `fixed`, un montant à
+ * part pour certains (la pizza d'Alice), le reste se partageant entre les
+ * autres.
  */
-export function addSpend(spend, { text = '', amount = 0, by = null, forWhom = [], day = null } = {}) {
+export function addSpend(spend, { text = '', amount = 0, by = null, forWhom = [], day = null, parts = null, fixed = null } = {}) {
   const cents = Number.isInteger(amount) ? amount : readAmount(amount);
   if (!cents) return spend;
 
   const known = new Set(spend.people.map((person) => person.id));
-  const line = {
+  // Rangé dans l'ordre des personnes du compte : deux téléphones qui cochent
+  // les mêmes personnes dans un ordre différent écrivent la même ligne.
+  const whom = spend.people.filter((person) => forWhom.includes(person.id)).map((person) => person.id);
+  const shared = splitFields(spend, { amount: cents, forWhom: whom, parts, fixed });
+  if (!shared) return spend;
+  const line = tidy({
     id: uid('s'),
     text: String(text || '').trim(),
     amount: cents,
     by: known.has(by) ? by : null,
-    // Rangé dans l'ordre des personnes du compte : deux téléphones qui cochent
-    // les mêmes personnes dans un ordre différent écrivent la même ligne.
-    forWhom: spend.people.filter((person) => forWhom.includes(person.id)).map((person) => person.id),
+    forWhom: whom,
+    ...shared,
     day: /^\d{4}-\d{2}-\d{2}$/.test(String(day || '')) ? String(day) : null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
-  };
+  });
   return touch(spend, { lines: [...spend.lines, line] });
 }
 
@@ -128,12 +306,19 @@ function patchLine(spend, lineId, patch) {
   const lines = spend.lines.map((line) => {
     if (line.id !== lineId) return line;
     changed = true;
-    return { ...line, ...patch, updatedAt: later(line.updatedAt) };
+    return tidy({ ...line, ...patch, updatedAt: later(line.updatedAt) });
   });
   return changed ? touch(spend, { lines }) : spend;
 }
 
-export function editSpend(spend, lineId, { text, amount, by, forWhom, day } = {}) {
+/**
+ * Correct an expense. Its parts and amounts apart follow whoever it is for
+ * now — someone no longer concerned keeps neither — and a correction that
+ * would set apart more than was paid is not made: splitProblem() says why.
+ */
+export function editSpend(spend, lineId, { text, amount, by, forWhom, day, parts, fixed } = {}) {
+  const line = spend.lines.find((entry) => entry.id === lineId);
+  if (!line) return spend;
   const patch = {};
   if (text !== undefined) patch.text = String(text || '').trim();
   if (amount !== undefined) {
@@ -148,6 +333,16 @@ export function editSpend(spend, lineId, { text, amount, by, forWhom, day } = {}
   }
   if (day !== undefined) {
     patch.day = /^\d{4}-\d{2}-\d{2}$/.test(String(day || '')) ? String(day) : null;
+  }
+  if (!isRepayment(line) && (forWhom !== undefined || parts !== undefined || fixed !== undefined || patch.amount)) {
+    const shared = splitFields(spend, {
+      amount: patch.amount || line.amount,
+      forWhom: patch.forWhom || line.forWhom,
+      parts: parts !== undefined ? parts : line.parts,
+      fixed: fixed !== undefined ? fixed : line.fixed,
+    });
+    if (!shared) return spend;
+    Object.assign(patch, shared);
   }
   return Object.keys(patch).length ? patchLine(spend, lineId, patch) : spend;
 }
@@ -176,25 +371,40 @@ export const renameSpendPerson = renamePerson;
  * plus si une ligne ne concerne qu'elle : « pour personne » se lit « pour tout
  * le monde », et le taxi qu'elle a pris seule deviendrait l'affaire de tous.
  *
- * Dans les deux cas, ses lignes se corrigent ou se retirent d'abord — un geste
+ * Non plus, enfin, si une dépense lui met un montant à part : la pizza qu'elle
+ * a prise retomberait sur les autres.
+ *
+ * Dans tous les cas, ses lignes se corrigent ou se retirent d'abord — un geste
  * de plus, mais un compte juste.
  */
 export function canRemovePerson(spend, personId) {
   if (spend.lines.some((line) => line.by === personId)) return 'paid';
   if (spend.lines.some((line) => line.forWhom.length === 1 && line.forWhom[0] === personId)) return 'alone';
+  if (spend.lines.some((line) => !isRepayment(line) && Number.isInteger(line.fixed?.[personId]))) return 'apart';
   return 'ok';
 }
 
 /**
  * Retirer quelqu'un du compte. Sans effet quand ses lignes l'en empêchent :
- * `canRemovePerson` dit pourquoi, et l'app le répète.
+ * `canRemovePerson` dit pourquoi, et l'app le répète. Ses parts sur une
+ * dépense partent avec lui.
  */
 export function removeSpendPerson(spend, personId) {
   if (canRemovePerson(spend, personId) !== 'ok') return spend;
+  const without = (parts) => {
+    const kept = { ...parts };
+    delete kept[personId];
+    return Object.keys(kept).length ? kept : undefined;
+  };
   return removePerson(spend, personId, (current) => ({
     lines: current.lines.map((line) =>
-      (line.forWhom.includes(personId)
-        ? { ...line, forWhom: line.forWhom.filter((id) => id !== personId), updatedAt: later(line.updatedAt) }
+      (line.forWhom.includes(personId) || line.parts?.[personId] !== undefined
+        ? tidy({
+          ...line,
+          forWhom: line.forWhom.filter((id) => id !== personId),
+          parts: line.parts ? without(line.parts) : undefined,
+          updatedAt: later(line.updatedAt),
+        })
         : line)),
   }));
 }
@@ -211,6 +421,61 @@ export function split(amount, count) {
   const each = Math.floor(amount / count);
   const extra = amount - each * count;
   return Array.from({ length: count }, (_, index) => each + (index < extra ? 1 : 0));
+}
+
+/**
+ * Répartir un montant selon des parts (des entiers), sans perdre de centime.
+ *
+ * Chacun reçoit sa part arrondie au centime du dessous ; les centimes qui
+ * restent vont à ceux qui en étaient le plus près, et entre égaux au premier.
+ * À parts égales, c'est exactement split() : les comptes d'avant les parts
+ * tombent sur les mêmes centimes.
+ */
+export function splitBy(amount, parts) {
+  const total = parts.reduce((sum, part) => sum + part, 0);
+  if (total <= 0) return parts.map(() => 0);
+  // In integers all along: a quotient in floating point can land a hair
+  // under a whole number, and a cent would go astray.
+  const shares = parts.map((part) => (amount * part - ((amount * part) % total)) / total);
+  let left = amount - shares.reduce((sum, share) => sum + share, 0);
+  const order = parts
+    .map((part, index) => ({ index, rest: (amount * part) % total }))
+    .sort((a, b) => b.rest - a.rest || a.index - b.index);
+  for (const { index } of order) {
+    if (left <= 0) break;
+    shares[index] += 1;
+    left -= 1;
+  }
+  return shares;
+}
+
+/**
+ * Ce que chacun doit pour une dépense : id → centimes, pour ceux qu'elle
+ * concerne.
+ *
+ * Les montants mis à part d'abord — la pizza d'Alice —, puis le reste entre
+ * les autres, selon leurs parts : celles de la dépense, sinon celles de
+ * chacun dans le compte. Si tout le monde a son montant à part, ce qui
+ * resterait se partage entre tous, selon leurs parts : la somme fait toujours
+ * le montant, au centime.
+ */
+export function lineShares(spend, line) {
+  const concerned = concernedBy(spend, line.forWhom);
+  const owed = new Map(concerned.map((id) => [id, 0]));
+  if (!concerned.length) return owed;
+  let apart = cleanFixed(line.fixed, concerned);
+  // Set apart beyond what was paid cannot be right: then nothing is apart.
+  if (centsIn(apart) > line.amount) apart = {};
+  for (const [id, cents] of Object.entries(apart)) owed.set(id, cents);
+  const free = concerned.filter((id) => !(id in apart));
+  const pool = free.length ? free : concerned;
+  const halves = pool.map((id) => {
+    const own = readParts(line.parts?.[id]);
+    return (own ?? weightOf(spend.people.find((person) => person.id === id))) * 2;
+  });
+  const shares = splitBy(line.amount - centsIn(apart), halves);
+  pool.forEach((id, index) => owed.set(id, owed.get(id) + shares[index]));
+  return owed;
 }
 
 /**
@@ -238,12 +503,7 @@ export function balances(spend) {
       continue;
     }
     if (line.by && paid.has(line.by)) paid.set(line.by, paid.get(line.by) + line.amount);
-    const concerned = line.forWhom.length
-      ? line.forWhom.filter((id) => owed.has(id))
-      : spend.people.map((person) => person.id);
-    if (!concerned.length) continue;
-    const parts = split(line.amount, concerned.length);
-    concerned.forEach((id, index) => owed.set(id, owed.get(id) + parts[index]));
+    for (const [id, cents] of lineShares(spend, line)) owed.set(id, owed.get(id) + cents);
   }
 
   return spend.people.map((person) => ({

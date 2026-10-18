@@ -1550,7 +1550,13 @@ button.tile:hover { background: var(--accent-soft); border-color: color-mix(in s
 .move:first-child { border-top: 0; }
 .move .entry { border-top: 0; }
 .move .button { width: 100%; }
+/* How to pay the one owed back, then what to do: note it paid, or send it. */
+.move__pay { margin: 0; overflow-wrap: anywhere; }
+.move__pay-text { font-weight: 600; user-select: all; }
+.move__actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5em, 1fr)); gap: 8px; }
+.move .move__pay-edit { justify-content: flex-start; padding: 0; min-height: 32px; }
 .entry__what { min-width: 0; overflow-wrap: anywhere; }
+.entry__detail { display: block; }
 .entry__value { flex: none; color: var(--muted); font-size: 0.85rem; }
 .entry__value--good { color: var(--good); font-weight: 600; }
 .entry__value--bad { color: var(--bad); font-weight: 600; }
@@ -1892,6 +1898,10 @@ table.scores .meta-cell { color: var(--muted); }
 .line--repay .line__amount { color: var(--muted); font-weight: 500; }
 .line__due--late { color: var(--bad); font-weight: 600; }
 .line--done .line__due { color: var(--muted); font-weight: 400; }
+/* Paid, under a ticked line: the line is struck through, the money is not —
+   an inline block is the one box a parent's line-through does not cross. */
+.line__paid { display: inline-block; width: 100%; text-decoration: none; }
+.list-money { margin: 0; }
 
 /* What has gone past its day, wherever it is counted. */
 .late { color: var(--bad); font-weight: 600; }
@@ -2097,6 +2107,59 @@ select.field-pill {
 
 .split-row:not(:last-child) { border-bottom: 1px solid var(--border); }
 .split-row input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; }
+
+/* A row of the split: who, ticked, on the left — what they owe on the right,
+   once the amount is known. The name gives way before the figure does. */
+.split-row { flex-wrap: wrap; row-gap: 8px; }
+.split-row__who { display: flex; flex: 1 1 8em; align-items: center; gap: 10px; min-width: 0; font-size: inherit; font-weight: inherit; cursor: pointer; }
+.split-row__name { min-width: 0; overflow-wrap: anywhere; }
+.split-row__weight { color: var(--muted); font-size: 0.8rem; font-weight: 650; }
+.split-row__share { flex: none; color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.split-row__more { display: none; flex: 1 1 100%; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.split-row__more input.split-row__apart { width: 5em; min-width: 0; min-height: 36px; margin-left: auto; padding: 4px 10px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* « Répartir autrement »: for this expense alone, parts and amounts apart.
+   The figure each owes moves into the field where an amount would go. */
+.split-list--open .split-row__more { display: flex; }
+.split-list--open .split-row__share,
+.split-list--open .split-list__open { display: none; }
+.split-list__open {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+.split-list__groups { padding: 0 14px 10px; }
+.split-list [data-split-note].late { color: var(--bad); }
+
+/* So many parts, a step at a time: ½, 1, 2, 3… */
+.stepper { display: inline-flex; flex: none; align-items: center; gap: 4px; }
+.stepper__button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.stepper__value { min-width: 3.6em; font-size: 0.85rem; font-weight: 600; text-align: center; white-space: nowrap; }
+
+/* The lines a receipt from a list pays for: ticked, each with its price. */
+.ticket-lines { display: grid; border-radius: var(--radius); overflow: hidden; background: var(--surface-alt); }
+.ticket-lines .split-row { flex-wrap: nowrap; }
+.ticket-lines .split-row__name { flex: 1 1 0; }
 
 /* The balances tab once nothing is left to settle: a plain state deserves a
    plain, good-news answer rather than an empty section. */
@@ -3503,12 +3566,15 @@ const STRINGS = {
     'flows.toAccount': 'Cochées, pas encore dans « {name} »',
     'flows.intoList': 'Ajouter le choix à « {name} »',
     'flows.added': '« {name} » ajouté à « {list} ».',
-    'flows.spendTitle': 'Dépense : {name}',
-    'flows.amount': 'Montant',
     'flows.paidBy': 'Payé par',
-    'flows.spendHint': 'Écrite dans « {name} », pour tout le monde.',
     'flows.spendAdd': 'Ajouter la dépense',
     'flows.spent': '« {name} » écrit dans « {account} ».',
+    'flows.fromList': 'Cochées dans « {name} », pas encore notées',
+    'flows.waiting': 'Achats à noter',
+    'flows.ticketOf': '{name} : {lines}',
+    'flows.ticketTitle': 'Dépense dans « {name} »',
+    'flows.ticketLines': 'Ce que la dépense a payé',
+    'flows.ticketNoLine': 'Cochez au moins une ligne.',
     'flows.vote': 'Faire voter ces idées',
     'flows.voteTitle': 'Faire voter ces idées',
     'flows.voteHint': 'Un sondage dont les choix sont les idées du tableau. La question :',
@@ -3721,7 +3787,6 @@ const STRINGS = {
     'spends.paidBy': 'payé par {name}',
     'spends.paidByNobody': 'payé par personne',
     'spends.forWhom': 'pour {names}',
-    'spends.forWhomHint': 'Pour qui ? Rien de coché veut dire tout le monde.',
     'spends.everyone': 'tout le monde',
     'spends.lineTitle': 'Cette dépense',
     'spends.balances': 'Où en est chacun',
@@ -3752,6 +3817,29 @@ const STRINGS = {
     'spends.confirmRemovePerson': 'Retirer cette personne du compte ?',
     'spends.confirmDelete': 'Supprimer ce compte et toutes ses dépenses ? C’est définitif.',
     'spends.loading': 'On va chercher ce compte…',
+    'spends.partsCount': '{shown} {count|part|parts}',
+    'spends.partsOf': 'Parts de {name}',
+    'spends.partsLess': 'Une part de moins',
+    'spends.partsMore': 'Une part de plus',
+    'spends.peoplePartsHint': 'Entre qui ? Les dépenses se partagent selon les parts de chacun : un couple compte pour 2, une famille pour 4, un enfant pour ½.',
+    'spends.everyoneChip': 'Tout le monde',
+    'spends.splitOther': 'Répartir autrement',
+    'spends.splitPartsHint': 'Partagé entre les personnes cochées, selon leurs parts.',
+    'spends.splitOpenHint': 'Pour cette dépense seulement : les parts de chacun, et un montant à part pour qui a pris quelque chose seul. Le reste se partage entre les autres.',
+    'spends.splitOwn': 'réparti autrement',
+    'spends.apartOf': 'Montant à part pour {name}',
+    'spends.apartOver': 'Les montants à part dépassent la dépense de {amount}.',
+    'spends.apartLeft': 'Il reste {amount} que personne ne prend : videz un montant à part, ou cochez quelqu’un de plus.',
+    'spends.shareTotal': 'sa part {amount}',
+    'spends.payTo': 'Pour rembourser {name} :',
+    'spends.payAdd': '+ Comment rembourser {name} ?',
+    'spends.payEdit': 'Changer les coordonnées de {name}',
+    'spends.payTitle': 'Pour rembourser {name}',
+    'spends.payHint': 'IBAN, numéro Wero ou Lydia, lien PayPal… Écrit une fois, montré à qui doit, et dans le message envoyé. Tous ceux qui voient ce compte le voient.',
+    'spends.remind': 'Envoyer à {name}',
+    'spends.remindTitle': 'Pour {name}',
+    'spends.remindHint': 'Copiez ce message, ou envoyez-le d’ici.',
+    'spends.remindText': '« {name} » : {from} → {to}, {amount}.',
     'tab.ideas': 'Idées',
     'kinds.ongoing': 'En cours',
     'ideas.new': 'Nouveau tableau d’idées',
@@ -3807,6 +3895,8 @@ const STRINGS = {
       'Cette personne a avancé de l’argent : ses dépenses sont à corriger ou à retirer d’abord, sinon le compte ne tomberait plus juste.',
     'spends.cannotDropAlone':
       'Une dépense ne concerne qu’elle : corrigez-la d’abord, sinon elle deviendrait l’affaire de tout le monde.',
+    'spends.cannotDropApart':
+      'Une dépense lui met un montant à part : corrigez-la d’abord, sinon il retomberait sur les autres.',
     'agenda.group': 'L’agenda du groupe',
     'agenda.title': 'L’agenda de {name}',
     'agenda.hint':
@@ -4182,6 +4272,12 @@ const STRINGS = {
     'lists.none': 'Aucune liste pour l’instant. Créez-en une : courses, valise, corvées, ce que vous voulez.',
     'lists.empty': 'vide',
     'lists.progress': '{done} sur {total}',
+    'lists.estimate': 'Prévu ≈ {amount}',
+    'lists.spent': 'Payé {amount}',
+    'lists.paidOne': '{name} a payé {amount}',
+    'lists.paidNobody': 'Payé {amount}',
+    'lists.paidTicket': '{name} a payé {amount} pour {count} lignes',
+    'lists.paidTicketNobody': 'Payé {amount} pour {count} lignes',
     'lists.addLine': 'Ajouter une ligne',
     'lists.addFirst': 'Écrivez la première ligne ci-dessus.',
     'lists.nothingHere': 'Rien ici pour l’instant.',
@@ -4715,12 +4811,15 @@ const STRINGS = {
     'flows.toAccount': 'Ticked, not yet in “{name}”',
     'flows.intoList': 'Add the choice to “{name}”',
     'flows.added': '“{name}” added to “{list}”.',
-    'flows.spendTitle': 'Expense: {name}',
-    'flows.amount': 'Amount',
     'flows.paidBy': 'Paid by',
-    'flows.spendHint': 'Written in “{name}”, for everyone.',
     'flows.spendAdd': 'Add the expense',
     'flows.spent': '“{name}” written in “{account}”.',
+    'flows.fromList': 'Ticked in “{name}”, not written yet',
+    'flows.waiting': 'Purchases to write down',
+    'flows.ticketOf': '{name}: {lines}',
+    'flows.ticketTitle': 'Expense in “{name}”',
+    'flows.ticketLines': 'What the expense paid for',
+    'flows.ticketNoLine': 'Tick at least one line.',
     'flows.vote': 'Vote on these ideas',
     'flows.voteTitle': 'Vote on these ideas',
     'flows.voteHint': 'A poll whose choices are the board’s ideas. The question:',
@@ -4933,7 +5032,6 @@ const STRINGS = {
     'spends.paidBy': 'paid by {name}',
     'spends.paidByNobody': 'paid by nobody',
     'spends.forWhom': 'for {names}',
-    'spends.forWhomHint': 'For whom? Nothing ticked means everyone.',
     'spends.everyone': 'everyone',
     'spends.lineTitle': 'This expense',
     'spends.balances': 'Where everyone stands',
@@ -4964,6 +5062,29 @@ const STRINGS = {
     'spends.confirmRemovePerson': 'Remove this person from the account?',
     'spends.confirmDelete': 'Delete this account and everything spent on it? This cannot be undone.',
     'spends.loading': 'Fetching that account…',
+    'spends.partsCount': '{shown} {count|part|parts}',
+    'spends.partsOf': 'Parts for {name}',
+    'spends.partsLess': 'One part less',
+    'spends.partsMore': 'One part more',
+    'spends.peoplePartsHint': 'Between whom? Expenses are shared by everyone’s parts: a couple counts for 2, a family for 4, a child for ½.',
+    'spends.everyoneChip': 'Everyone',
+    'spends.splitOther': 'Share differently',
+    'spends.splitPartsHint': 'Split between those ticked, by their parts.',
+    'spends.splitOpenHint': 'For this expense only: each one’s parts, and an amount apart for whoever had something alone. The rest is shared between the others.',
+    'spends.splitOwn': 'shared differently',
+    'spends.apartOf': 'Amount apart for {name}',
+    'spends.apartOver': 'The amounts apart are {amount} more than the expense.',
+    'spends.apartLeft': '{amount} is left that nobody takes: clear an amount apart, or tick someone else.',
+    'spends.shareTotal': 'their share {amount}',
+    'spends.payTo': 'To pay {name} back:',
+    'spends.payAdd': '+ How to pay {name} back?',
+    'spends.payEdit': 'Change {name}’s details',
+    'spends.payTitle': 'To pay {name} back',
+    'spends.payHint': 'IBAN, PayPal link, phone number for a payment app… Written once, shown to whoever owes, and in the message sent. Everyone who sees this account sees it.',
+    'spends.remind': 'Send to {name}',
+    'spends.remindTitle': 'For {name}',
+    'spends.remindHint': 'Copy this message, or send it from here.',
+    'spends.remindText': '“{name}”: {from} → {to}, {amount}.',
     'tab.ideas': 'Ideas',
     'kinds.ongoing': 'In progress',
     'ideas.new': 'New idea board',
@@ -5019,6 +5140,8 @@ const STRINGS = {
       'This person put money in: their expenses have to be corrected or removed first, or the account would stop adding up.',
     'spends.cannotDropAlone':
       'An expense concerns them alone: correct it first, or it would become everyone’s.',
+    'spends.cannotDropApart':
+      'An expense gives them an amount apart: correct it first, or it would fall on the others.',
     'agenda.group': 'The group’s calendar',
     'agenda.title': '{name}’s calendar',
     'agenda.hint':
@@ -5384,6 +5507,12 @@ const STRINGS = {
     'lists.none': 'No lists yet. Make one: shopping, a suitcase, the chores — whatever you like.',
     'lists.empty': 'empty',
     'lists.progress': '{done} of {total}',
+    'lists.estimate': 'Expected ≈ {amount}',
+    'lists.spent': 'Paid {amount}',
+    'lists.paidOne': '{name} paid {amount}',
+    'lists.paidNobody': 'Paid {amount}',
+    'lists.paidTicket': '{name} paid {amount} for {count} lines',
+    'lists.paidTicketNobody': 'Paid {amount} for {count} lines',
     'lists.addLine': 'Add a line',
     'lists.addFirst': 'Write the first line above.',
     'lists.nothingHere': 'Nothing here for now.',
@@ -8205,27 +8334,205 @@ function showAmount(cents, language = 'fr', currency = 'EUR') {
   }
 }
 
+// A number then a currency, or a currency then a number. A word after the
+// currency does not count: « 12 eurovision » is not money.
+const PRICE = /(?:\b(\d+(?:[.,]\d{1,2})?)\s?(?:€|eur(?:os?)?\b|chf\b|£|\$)|(?:€|£|\$|\bchf)\s?(\d+(?:[.,]\d{1,2})?)\b)/gi;
+
+/**
+ * A price written into a text — « Fromage 25 € », « Vin (12,50€) » —, in
+ * cents, or null. Only an amount that says it is money counts: « 2 baguettes »
+ * is two baguettes, not two euros. The last one wins, as in « 2 × 8 € = 16 € ».
+ */
+function priceIn(text) {
+  const found = [...String(text || '').matchAll(PRICE)];
+  if (!found.length) return null;
+  const last = found[found.length - 1];
+  return readAmount(last[1] || last[2]);
+}
+
+/** The currency a text's price is written in — « 30 CHF » —, or null. */
+function priceCurrency(text) {
+  const found = [...String(text || '').matchAll(PRICE)];
+  if (!found.length) return null;
+  const sign = found[found.length - 1][0].toLowerCase();
+  if (sign.includes('chf')) return 'CHF';
+  if (sign.includes('£')) return 'GBP';
+  if (sign.includes('$')) return 'USD';
+  return 'EUR';
+}
+
+/** The text without its price: what an expense made of the line is called. */
+function withoutPrice(text) {
+  const clean = String(text || '').replace(PRICE, ' ').replace(/\(\s*\)/g, ' ')
+    .replace(/\s+([,.;:])/g, '$1').replace(/[\s:=—–-]+$/, '').replace(/\s{2,}/g, ' ').trim();
+  return clean || String(text || '').trim();
+}
+
+/* ------------------------------------------------------------- les parts --- */
+
+/**
+ * How many parts someone counts for. A couple counts for two, a family for
+ * four, a child for half: the account then shares by parts without anyone
+ * having to think about it again. Halves only, up to MOST_PARTS — nights in a
+ * holiday house are counted the same way.
+ */
+const MOST_PARTS = 99;
+
+/** A number of parts as typed or stored, or null when it is not one. */
+function readParts(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(String(value).replace(',', '.'));
+  if (!Number.isFinite(number)) return null;
+  const halves = number * 2;
+  return Number.isInteger(halves) && halves >= 1 && halves <= MOST_PARTS * 2 ? halves / 2 : null;
+}
+
+/** What someone counts for in this account when nothing else is said: one part. */
+function weightOf(person) {
+  return readParts(person?.weight) ?? 1;
+}
+
+/** One step up or down: ½, 1, 2, 3… — below one part, only a half. */
+function stepParts(value, step) {
+  const now = readParts(value) ?? 1;
+  if (step > 0) return now < 1 ? 1 : Math.min(MOST_PARTS, Math.floor(now) + 1);
+  return now <= 1 ? 0.5 : Math.max(1, Math.ceil(now) - 1);
+}
+
+/**
+ * Someone counts for that many parts from now on, in every expense that does
+ * not say otherwise — those already noted included: « les Martin sont
+ * quatre » is true of the whole holiday, not only of what comes next.
+ */
+function setSpendWeight(spend, personId, weight) {
+  const parts = readParts(weight) ?? 1;
+  return patchPerson(spend, personId, (person) => {
+    if (weightOf(person) === parts) return person;
+    const next = { ...person, weight: parts };
+    if (parts === 1) delete next.weight;
+    return next;
+  });
+}
+
+/** How someone wants to be paid back, as they wrote it: an IBAN, a number, a link. */
+function payOf(person) {
+  return typeof person?.pay === 'string' ? person.pay.trim() : '';
+}
+
+/** Write down how someone wants to be paid back, or forget it with ''. */
+function setSpendPay(spend, personId, text) {
+  const clean = String(text || '').trim().slice(0, 300);
+  return patchPerson(spend, personId, (person) => {
+    if (payOf(person) === clean) return person;
+    const next = { ...person, pay: clean };
+    if (!clean) delete next.pay;
+    return next;
+  });
+}
+
+/** Change one person, on the people's own clock — they merge as a whole. */
+function patchPerson(spend, personId, change) {
+  let changed = false;
+  const people = spend.people.map((person) => {
+    if (person.id !== personId) return person;
+    const next = change(person);
+    if (next !== person) changed = true;
+    return next;
+  });
+  return changed ? touch(spend, { people, peopleAt: later(spend.peopleAt) }) : spend;
+}
+
+/** The people an expense is for: those ticked, or everyone when none is. */
+function concernedBy(spend, forWhom) {
+  const known = spend.people.map((person) => person.id);
+  return forWhom?.length ? forWhom.filter((id) => known.includes(id)) : known;
+}
+
+/** Parts given for this expense alone, for those concerned, unlike their usual. */
+function cleanParts(spend, parts, concerned) {
+  const kept = {};
+  for (const id of concerned) {
+    const value = readParts(parts?.[id]);
+    if (value !== null && value !== weightOf(spend.people.find((person) => person.id === id))) kept[id] = value;
+  }
+  return kept;
+}
+
+/** Amounts set apart for some of those concerned: whole cents, more than none. */
+function cleanFixed(fixed, concerned) {
+  const kept = {};
+  for (const id of concerned) {
+    const cents = fixed?.[id];
+    if (Number.isInteger(cents) && cents > 0) kept[id] = cents;
+  }
+  return kept;
+}
+
+const centsIn = (amounts) => Object.values(amounts).reduce((sum, cents) => sum + cents, 0);
+
+/**
+ * What is wrong with a way of sharing an expense, or null: more set apart
+ * than was paid (`over`), or something left over and nobody left to share it
+ * (`left`) — everyone concerned has an amount of their own, and they do not
+ * add up. Said before writing, so the form can say how much is out.
+ */
+function splitProblem(spend, { amount, forWhom = [], fixed = null } = {}) {
+  const concerned = concernedBy(spend, forWhom);
+  const apart = cleanFixed(fixed, concerned);
+  const total = centsIn(apart);
+  if (total > amount) return 'over';
+  if (total < amount && concerned.length && concerned.every((id) => id in apart)) return 'left';
+  return null;
+}
+
+/** The way an expense is shared, as a line keeps it: only what is not the usual. */
+function splitFields(spend, { amount, forWhom, parts, fixed }) {
+  if (splitProblem(spend, { amount, forWhom, fixed })) return null;
+  const concerned = concernedBy(spend, forWhom);
+  const ownParts = cleanParts(spend, parts, concerned);
+  const apart = cleanFixed(fixed, concerned);
+  return {
+    parts: Object.keys(ownParts).length ? ownParts : undefined,
+    fixed: Object.keys(apart).length ? apart : undefined,
+  };
+}
+
+/** A line without the fields left undefined: what is not said is not stored. */
+function tidy(line) {
+  for (const key of Object.keys(line)) if (line[key] === undefined) delete line[key];
+  return line;
+}
+
 /**
  * Ajouter une dépense. `forWhom` vide veut dire « pour tout le monde » : c'est
  * le cas courant, et l'écrire à chaque fois serait une corvée.
+ *
+ * `parts` donne, pour cette dépense seulement, des parts autres que celles de
+ * chacun (deux nuits pour l'une, cinq pour l'autre) ; `fixed`, un montant à
+ * part pour certains (la pizza d'Alice), le reste se partageant entre les
+ * autres.
  */
-function addSpend(spend, { text = '', amount = 0, by = null, forWhom = [], day = null } = {}) {
+function addSpend(spend, { text = '', amount = 0, by = null, forWhom = [], day = null, parts = null, fixed = null } = {}) {
   const cents = Number.isInteger(amount) ? amount : readAmount(amount);
   if (!cents) return spend;
 
   const known = new Set(spend.people.map((person) => person.id));
-  const line = {
+  // Rangé dans l'ordre des personnes du compte : deux téléphones qui cochent
+  // les mêmes personnes dans un ordre différent écrivent la même ligne.
+  const whom = spend.people.filter((person) => forWhom.includes(person.id)).map((person) => person.id);
+  const shared = splitFields(spend, { amount: cents, forWhom: whom, parts, fixed });
+  if (!shared) return spend;
+  const line = tidy({
     id: uid('s'),
     text: String(text || '').trim(),
     amount: cents,
     by: known.has(by) ? by : null,
-    // Rangé dans l'ordre des personnes du compte : deux téléphones qui cochent
-    // les mêmes personnes dans un ordre différent écrivent la même ligne.
-    forWhom: spend.people.filter((person) => forWhom.includes(person.id)).map((person) => person.id),
+    forWhom: whom,
+    ...shared,
     day: /^\d{4}-\d{2}-\d{2}$/.test(String(day || '')) ? String(day) : null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
-  };
+  });
   return touch(spend, { lines: [...spend.lines, line] });
 }
 
@@ -8256,12 +8563,19 @@ function patchLine(spend, lineId, patch) {
   const lines = spend.lines.map((line) => {
     if (line.id !== lineId) return line;
     changed = true;
-    return { ...line, ...patch, updatedAt: later(line.updatedAt) };
+    return tidy({ ...line, ...patch, updatedAt: later(line.updatedAt) });
   });
   return changed ? touch(spend, { lines }) : spend;
 }
 
-function editSpend(spend, lineId, { text, amount, by, forWhom, day } = {}) {
+/**
+ * Correct an expense. Its parts and amounts apart follow whoever it is for
+ * now — someone no longer concerned keeps neither — and a correction that
+ * would set apart more than was paid is not made: splitProblem() says why.
+ */
+function editSpend(spend, lineId, { text, amount, by, forWhom, day, parts, fixed } = {}) {
+  const line = spend.lines.find((entry) => entry.id === lineId);
+  if (!line) return spend;
   const patch = {};
   if (text !== undefined) patch.text = String(text || '').trim();
   if (amount !== undefined) {
@@ -8276,6 +8590,16 @@ function editSpend(spend, lineId, { text, amount, by, forWhom, day } = {}) {
   }
   if (day !== undefined) {
     patch.day = /^\d{4}-\d{2}-\d{2}$/.test(String(day || '')) ? String(day) : null;
+  }
+  if (!isRepayment(line) && (forWhom !== undefined || parts !== undefined || fixed !== undefined || patch.amount)) {
+    const shared = splitFields(spend, {
+      amount: patch.amount || line.amount,
+      forWhom: patch.forWhom || line.forWhom,
+      parts: parts !== undefined ? parts : line.parts,
+      fixed: fixed !== undefined ? fixed : line.fixed,
+    });
+    if (!shared) return spend;
+    Object.assign(patch, shared);
   }
   return Object.keys(patch).length ? patchLine(spend, lineId, patch) : spend;
 }
@@ -8304,25 +8628,40 @@ const renameSpendPerson = renamePerson;
  * plus si une ligne ne concerne qu'elle : « pour personne » se lit « pour tout
  * le monde », et le taxi qu'elle a pris seule deviendrait l'affaire de tous.
  *
- * Dans les deux cas, ses lignes se corrigent ou se retirent d'abord — un geste
+ * Non plus, enfin, si une dépense lui met un montant à part : la pizza qu'elle
+ * a prise retomberait sur les autres.
+ *
+ * Dans tous les cas, ses lignes se corrigent ou se retirent d'abord — un geste
  * de plus, mais un compte juste.
  */
 function canRemovePerson(spend, personId) {
   if (spend.lines.some((line) => line.by === personId)) return 'paid';
   if (spend.lines.some((line) => line.forWhom.length === 1 && line.forWhom[0] === personId)) return 'alone';
+  if (spend.lines.some((line) => !isRepayment(line) && Number.isInteger(line.fixed?.[personId]))) return 'apart';
   return 'ok';
 }
 
 /**
  * Retirer quelqu'un du compte. Sans effet quand ses lignes l'en empêchent :
- * `canRemovePerson` dit pourquoi, et l'app le répète.
+ * `canRemovePerson` dit pourquoi, et l'app le répète. Ses parts sur une
+ * dépense partent avec lui.
  */
 function removeSpendPerson(spend, personId) {
   if (canRemovePerson(spend, personId) !== 'ok') return spend;
+  const without = (parts) => {
+    const kept = { ...parts };
+    delete kept[personId];
+    return Object.keys(kept).length ? kept : undefined;
+  };
   return removePerson(spend, personId, (current) => ({
     lines: current.lines.map((line) =>
-      (line.forWhom.includes(personId)
-        ? { ...line, forWhom: line.forWhom.filter((id) => id !== personId), updatedAt: later(line.updatedAt) }
+      (line.forWhom.includes(personId) || line.parts?.[personId] !== undefined
+        ? tidy({
+          ...line,
+          forWhom: line.forWhom.filter((id) => id !== personId),
+          parts: line.parts ? without(line.parts) : undefined,
+          updatedAt: later(line.updatedAt),
+        })
         : line)),
   }));
 }
@@ -8339,6 +8678,61 @@ function split(amount, count) {
   const each = Math.floor(amount / count);
   const extra = amount - each * count;
   return Array.from({ length: count }, (_, index) => each + (index < extra ? 1 : 0));
+}
+
+/**
+ * Répartir un montant selon des parts (des entiers), sans perdre de centime.
+ *
+ * Chacun reçoit sa part arrondie au centime du dessous ; les centimes qui
+ * restent vont à ceux qui en étaient le plus près, et entre égaux au premier.
+ * À parts égales, c'est exactement split() : les comptes d'avant les parts
+ * tombent sur les mêmes centimes.
+ */
+function splitBy(amount, parts) {
+  const total = parts.reduce((sum, part) => sum + part, 0);
+  if (total <= 0) return parts.map(() => 0);
+  // In integers all along: a quotient in floating point can land a hair
+  // under a whole number, and a cent would go astray.
+  const shares = parts.map((part) => (amount * part - ((amount * part) % total)) / total);
+  let left = amount - shares.reduce((sum, share) => sum + share, 0);
+  const order = parts
+    .map((part, index) => ({ index, rest: (amount * part) % total }))
+    .sort((a, b) => b.rest - a.rest || a.index - b.index);
+  for (const { index } of order) {
+    if (left <= 0) break;
+    shares[index] += 1;
+    left -= 1;
+  }
+  return shares;
+}
+
+/**
+ * Ce que chacun doit pour une dépense : id → centimes, pour ceux qu'elle
+ * concerne.
+ *
+ * Les montants mis à part d'abord — la pizza d'Alice —, puis le reste entre
+ * les autres, selon leurs parts : celles de la dépense, sinon celles de
+ * chacun dans le compte. Si tout le monde a son montant à part, ce qui
+ * resterait se partage entre tous, selon leurs parts : la somme fait toujours
+ * le montant, au centime.
+ */
+function lineShares(spend, line) {
+  const concerned = concernedBy(spend, line.forWhom);
+  const owed = new Map(concerned.map((id) => [id, 0]));
+  if (!concerned.length) return owed;
+  let apart = cleanFixed(line.fixed, concerned);
+  // Set apart beyond what was paid cannot be right: then nothing is apart.
+  if (centsIn(apart) > line.amount) apart = {};
+  for (const [id, cents] of Object.entries(apart)) owed.set(id, cents);
+  const free = concerned.filter((id) => !(id in apart));
+  const pool = free.length ? free : concerned;
+  const halves = pool.map((id) => {
+    const own = readParts(line.parts?.[id]);
+    return (own ?? weightOf(spend.people.find((person) => person.id === id))) * 2;
+  });
+  const shares = splitBy(line.amount - centsIn(apart), halves);
+  pool.forEach((id, index) => owed.set(id, owed.get(id) + shares[index]));
+  return owed;
 }
 
 /**
@@ -8366,12 +8760,7 @@ function balances(spend) {
       continue;
     }
     if (line.by && paid.has(line.by)) paid.set(line.by, paid.get(line.by) + line.amount);
-    const concerned = line.forWhom.length
-      ? line.forWhom.filter((id) => owed.has(id))
-      : spend.people.map((person) => person.id);
-    if (!concerned.length) continue;
-    const parts = split(line.amount, concerned.length);
-    concerned.forEach((id, index) => owed.set(id, owed.get(id) + parts[index]));
+    for (const [id, cents] of lineShares(spend, line)) owed.set(id, owed.get(id) + cents);
   }
 
   return spend.people.map((person) => ({
@@ -9875,14 +10264,19 @@ function skyMoonLine(phase) {
  * - a board's ideas become lines of the list it goes with;
  * - a board's ideas become the choices of a poll, to vote on them;
  * - what a closed poll chose becomes a line of the list it goes with;
- * - a line ticked becomes an expense of the account it goes with — or of
- *   any account in its chain: a list and an account of the same event need
- *   no link for that;
+ * - lines ticked become an expense of the account they go with — or of any
+ *   account in their chain: a list and an account of the same event need no
+ *   link for that. One line, or the whole receipt of what was bought
+ *   together; the price written in a line says what to expect, and the list
+ *   then says who paid what;
+ * - an event's activities say who an expense is for: the kayak, for those
+ *   who went;
  * - whoever joins an event comes into its lists and accounts.
  *
  * What came from where is written on what it made — `from: { doc, part }` on
- * a line or an expense — so nothing is offered twice. Nothing happens by
- * itself: two phones doing it at once would do it twice.
+ * a line or an expense, `parts` too for a receipt — so nothing is offered
+ * twice. Nothing happens by itself: two phones doing it at once would do it
+ * twice.
  *
  * Pure, like the models.
  */
@@ -10001,28 +10395,144 @@ function accountsFor(list, all) {
   return [...linked, ...chain.filter((one) => !linked.some((other) => other.id === one.id))];
 }
 
+/** The lines of the list an expense came from: one, or a whole receipt's. */
+function partsOf(line) {
+  if (Array.isArray(line.from?.parts) && line.from.parts.length) return line.from.parts;
+  return line.from?.part ? [line.from.part] : [];
+}
+
 /** The lines of a list already written in an account. */
 function spentItems(spend, list) {
-  return new Set((spend.lines || []).filter((line) => line.from?.doc === list.id).map((line) => line.from.part));
+  return new Set((spend.lines || []).filter((line) => line.from?.doc === list.id).flatMap(partsOf));
+}
+
+/** The lines of a list ticked and not yet written in that account. */
+function unspentItems(list, spend) {
+  const spent = spentItems(spend, list);
+  return list.items.filter((item) => item.done && !spent.has(item.id));
 }
 
 /**
- * Write a line of a list as an expense: its text, the amount given, paid by
- * whoever the line was for — found by name, brought into the account if it
- * does not have them — and shared by everyone.
+ * What waits to go into an account, by whoever the lines were given to: what
+ * one person bought is one receipt, nine times out of ten — and what nobody
+ * had taken, last. Each with whoever had them — `whoId` and `who`, their
+ * name —, or '' for both.
  */
-function spendFromLine(spend, list, item, amount, byName = null) {
-  if (spentItems(spend, list).has(item.id)) return spend;
-  const name = String(byName || list.people.find((person) => person.id === item.who)?.name || '').trim();
+function ticketGroups(list, spend) {
+  const byWho = new Map();
+  for (const item of unspentItems(list, spend)) {
+    const who = list.people.some((person) => person.id === item.who) ? item.who : '';
+    byWho.set(who, [...(byWho.get(who) || []), item]);
+  }
+  return [...list.people.map((person) => person.id), '']
+    .filter((who) => byWho.has(who))
+    .map((who) => ({ whoId: who, who: list.people.find((person) => person.id === who)?.name || '', items: byWho.get(who) }));
+}
+
+/** What an expense made of lines is called: the line, or the list and its lines. */
+function ticketText(list, items) {
+  const words = items.map((item) => withoutPrice(oneLine(item.text))).filter(Boolean);
+  if (words.length === 1) return words[0];
+  const text = list.name ? `${String(list.name).trim()} : ${words.join(', ')}` : words.join(', ');
+  return text.length > 120 ? `${text.slice(0, 119).trimEnd()}…` : text;
+}
+
+/** What the lines are expected to cost, from the prices written in them; null if none says. */
+function estimateOf(items) {
+  const prices = items.map((item) => priceIn(item.text)).filter((cents) => cents);
+  return prices.length ? prices.reduce((sum, cents) => sum + cents, 0) : null;
+}
+
+/**
+ * Write lines of a list as one expense — the receipt of what was bought
+ * together, or a single line: the amount given, paid by `byName` — or by
+ * whoever all the lines were for —, found by name and brought into the
+ * account if it does not have them; shared as `share` says (`forWhom`,
+ * `parts`, `fixed`, as addSpend takes them), by everyone otherwise. Lines
+ * already written are left out; none left, nothing is written.
+ */
+function spendFromLines(spend, list, items, amount, { byName = null, text = '', forWhom = [], parts = null, fixed = null } = {}) {
+  const spent = spentItems(spend, list);
+  const fresh = items.filter((item) => item && !spent.has(item.id));
+  if (!fresh.length) return spend;
+  const holders = [...new Set(fresh.map((item) => item.who))];
+  const holder = holders.length === 1 ? list.people.find((person) => person.id === holders[0])?.name : '';
+  const name = String(byName || holder || '').trim();
   let next = spend;
   let payer = name ? next.people.find((person) => sameName(person.name) === sameName(name)) : null;
   if (name && !payer) {
     next = addPerson(next, name);
     payer = next.people[next.people.length - 1];
   }
-  const added = addSpend(next, { text: oneLine(item.text), amount, by: payer?.id || null });
+  const added = addSpend(next, {
+    text: String(text || '').trim() || ticketText(list, fresh), amount, by: payer?.id || null, forWhom, parts, fixed,
+  });
   if (added === next) return spend;
-  return markLast(added, 'lines', { doc: list.id, part: item.id });
+  const ids = fresh.map((item) => item.id);
+  // `part` stays the first line's, so that an app from before receipts still
+  // sees that one as written.
+  return markLast(added, 'lines', ids.length === 1 ? { doc: list.id, part: ids[0] } : { doc: list.id, part: ids[0], parts: ids });
+}
+
+/** One line of a list as an expense: see spendFromLines(). */
+function spendFromLine(spend, list, item, amount, byName = null) {
+  return spendFromLines(spend, list, [item], amount, { byName });
+}
+
+/** The lists whose ticked lines go to this account: the other way round from accountsFor(). */
+function listsFeeding(spend, all) {
+  return all.filter((one) => kindOf(one) === 'list' && isLive(one) && accountsFor(one, all).some((other) => other.id === spend.id));
+}
+
+/**
+ * Which lines of a list were paid, and how: line id → the account, the
+ * expense, and how many lines that expense paid for together.
+ */
+function paidLines(list, all) {
+  const paid = new Map();
+  for (const spend of all) {
+    if (kindOf(spend) !== 'spend') continue;
+    for (const line of spend.lines || []) {
+      if (line.from?.doc !== list.id || isRepayment(line)) continue;
+      const parts = partsOf(line);
+      for (const part of parts) paid.set(part, { spend, line, count: parts.length });
+    }
+  }
+  return paid;
+}
+
+/**
+ * Who an expense from this list is for, unless told otherwise: everyone in
+ * the account — but a list of an activity, written in the account of the
+ * event above it, is for those doing the activity. Ids of the account's
+ * people; [] for everyone.
+ */
+function defaultForWhom(list, spend, all) {
+  const event = eventOf(list, all);
+  if (!event || !isActivity(event, all) || eventOf(spend, all)?.id === event.id) return [];
+  const names = goers(event);
+  const ids = spend.people.filter((person) => names.some((name) => sameName(name) === sameName(person.name))).map((person) => person.id);
+  return ids.length < spend.people.length ? ids : [];
+}
+
+/**
+ * The quick « for whom » of an account of an event: each activity of it,
+ * with those of the account doing it — the kayak, for the four who went.
+ * Only those that are some of the account, not all or none.
+ */
+function forWhomGroups(spend, all) {
+  const event = topEventOf(spend, all);
+  if (!event) return [];
+  return programmeOf(event, all)
+    .map((activity) => {
+      const names = goers(activity);
+      return {
+        id: activity.id,
+        name: eventName(activity),
+        ids: spend.people.filter((person) => names.some((name) => sameName(name) === sameName(person.name))).map((person) => person.id),
+      };
+    })
+    .filter((group) => group.ids.length && group.ids.length < spend.people.length);
 }
 
 /* ------------------------------------------------------- what is freed --- */
@@ -14535,6 +15045,9 @@ function watchSpend(id) {
 
 
 
+
+
+
 /* ------------------------------------------------------------------ lists --- */
 
 /**
@@ -14716,17 +15229,28 @@ function newListView() {
  * list, the eye goes straight to what is still to get. The order within each
  * part is the list's own.
  */
-function linesHtml(list, items) {
+function linesHtml(list, items, paid = new Map()) {
   const left = items.filter((item) => !item.done);
   const done = items.filter((item) => item.done);
-  const ul = (part) => `<ul class="lines">${part.map((item) => listItemHtml(list, item)).join('')}</ul>`;
+  const ul = (part) => `<ul class="lines">${part.map((item) => listItemHtml(list, item, paid.get(item.id))).join('')}</ul>`;
   if (!done.length || !left.length) return ul(items);
   return `${ul(left)}
     <p class="muted small lines__done">${escapeHtml(t('lists.doneHeading', { count: done.length }))}</p>
     ${ul(done)}`;
 }
 
-function listItemHtml(list, item) {
+/**
+ * What a line of the list cost, once an account has it: who paid, and how
+ * much — or how much the whole receipt it was on came to.
+ */
+function paidText({ spend, line, count }) {
+  const name = spend.people.find((person) => person.id === line.by)?.name || '';
+  const amount = money(line.amount, spend);
+  if (count > 1) return name ? t('lists.paidTicket', { name, amount, count }) : t('lists.paidTicketNobody', { amount, count });
+  return name ? t('lists.paidOne', { name, amount }) : t('lists.paidNobody', { amount });
+}
+
+function listItemHtml(list, item, paid = null) {
   const who = personName(list, item.who);
   const late = isLate(item);
   return swipeHtml(item.id, `
@@ -14745,6 +15269,7 @@ function listItemHtml(list, item) {
               )}</span>`
             : ''
         }
+        ${paid ? `<span class="line__due line__paid">💶 ${escapeHtml(paidText(paid))}</span>` : ''}
       </button>
       ${
         // Who takes it, once someone does. Until then a small « + » — the
@@ -14759,6 +15284,30 @@ function listItemHtml(list, item) {
     { kind: 'item', tag: 'li', bodyClass: `line ${item.done ? 'line--done' : ''}` });
 }
 
+/**
+ * What a list says about money, under its title: what its lines said they
+ * would cost — « Fromage 25 € » —, and what the accounts were given for it.
+ * In the currency of the account it goes to, or the one its prices are
+ * written in. Empty when it says nothing of money, as most lists do.
+ */
+function moneyOfList(list, all, paid) {
+  const parts = [];
+  const estimate = estimateOf(list.items);
+  if (estimate) {
+    const account = accountsFor(list, all)[0];
+    const currency = account ? spendCurrency(account) : list.items.map((item) => priceCurrency(item.text)).find(Boolean) || 'EUR';
+    parts.push(t('lists.estimate', { amount: showAmount(estimate, getLanguage(), currency) }));
+  }
+  // Each expense once, however many lines it paid for; by currency.
+  const spent = new Map();
+  for (const { spend, line } of new Map([...paid.values()].map((one) => [one.line.id, one])).values()) {
+    const currency = spendCurrency(spend);
+    spent.set(currency, (spent.get(currency) || 0) + line.amount);
+  }
+  for (const [currency, cents] of spent) parts.push(t('lists.spent', { amount: showAmount(cents, getLanguage(), currency) }));
+  return parts.join(' · ');
+}
+
 function listView(list) {
   const filter = state.listFilter;
   const known = filter === null || filter === 'none' || list.people.some((person) => person.id === filter);
@@ -14766,6 +15315,9 @@ function listView(list) {
     ? list.items
     : list.items.filter((item) => (filter === 'none' ? !item.who : item.who === filter));
   const { done, total } = progress(list);
+  const all = everything();
+  const paid = paidLines(list, all);
+  const moneyLine = moneyOfList(list, all, paid);
 
   const chip = (value, label, count) => `
     <button type="button" class="chip ${(!known ? null : filter) === value ? 'chip--on' : ''}" data-filter="${value === null ? '' : escapeHtml(value)}">
@@ -14782,6 +15334,7 @@ function listView(list) {
           ${escapeHtml(total ? t('lists.progress', { done, total }) : t('lists.empty'))}
           ${list.shared ? ` · ${escapeHtml(t('lists.sharedMark'))}` : ''}
         </p>
+        ${moneyLine ? `<p class="muted small list-money">${escapeHtml(moneyLine)}</p>` : ''}
         ${signedByHtml(list)}
       </div>
     </div>
@@ -14814,7 +15367,7 @@ function listView(list) {
 
     ${
       shown.length
-        ? linesHtml(list, shown)
+        ? linesHtml(list, shown, paid)
         : `<p class="muted small">${escapeHtml(list.items.length ? t('lists.nothingHere') : t('lists.addFirst'))}</p>`
     }
     ${list.items.length <= 2 ? hintHtml('lists', t('hint.list')) : ''}
@@ -15212,8 +15765,11 @@ function openLineDialog(list, itemId) {
  *
  * `people()` reads the current people; `add`, `rename` and `remove` write.
  * `blocked(id)` may say why someone cannot go — said before asking anything.
+ * `extra`, when given, adds to each person what only this kind of document
+ * knows of them — an account's parts —: `html(person)`, and `bind(dialog,
+ * redraw)` for its buttons, which write at once like the others.
  */
-function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remove, blocked = () => null }) {
+function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remove, blocked = () => null, extra = null }) {
   const dialog = makeDialog();
 
   const draw = () => {
@@ -15228,6 +15784,7 @@ function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remov
               (person) => `
                 <div class="knock">
                   <strong>${escapeHtml(person.name)}</strong>
+                  ${extra ? extra.html(person) : ''}
                   <div class="row">
                     <button type="button" class="button button--small" data-rename="${escapeHtml(person.id)}">
                       ${escapeHtml(t('action.rename'))}
@@ -15296,6 +15853,7 @@ function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remov
     });
 
     dialog.querySelector('#people-close').addEventListener('click', () => dialog.close());
+    extra?.bind(dialog, draw);
   };
 
   // The view behind is only redrawn once, when the dialog is done with.
@@ -15397,6 +15955,8 @@ function adoptList(stored) {
  * Split out of app.js, which it calls back into: only from inside functions,
  * so the two may import each other.
  */
+
+
 
 
 
@@ -15771,17 +16331,45 @@ function newSpendView() {
     </form>`;
 }
 
-/** An amount of an account, in that account's currency. */
-/** Who pays whom, as text: what the group chat needs to settle up. */
+/** Who pays whom, as text: what the group chat needs to settle up — and how to pay each back. */
 function settleText(spend) {
+  const moves = settle(spend);
+  const paidTo = [...new Set(moves.map((move) => move.toId))]
+    .map((id) => spend.people.find((person) => person.id === id))
+    .filter((person) => payOf(person));
   return [
     `${spendTitle(spend)} — ${t('spends.total', { amount: money(spendTotal(spend), spend) })}`,
     '',
     t('spends.settle'),
-    ...settle(spend).map((move) => `${t('spends.move', { from: move.from, to: move.to })} — ${money(move.amount, spend)}`),
+    ...moves.map((move) => `${t('spends.move', { from: move.from, to: move.to })} — ${money(move.amount, spend)}`),
+    ...(paidTo.length ? ['', ...paidTo.map((person) => `${t('spends.payTo', { name: person.name })} ${payOf(person)}`)] : []),
   ].join('\n');
 }
 
+/** One transfer, as a message to whoever owes it: how much, to whom, for what, and how. */
+function remindText(spend, move) {
+  const pay = payOf(spend.people.find((person) => person.id === move.toId));
+  return [
+    t('spends.remindText', { from: move.from, to: move.to, amount: money(move.amount, spend), name: spendTitle(spend) }),
+    ...(pay ? [`${t('spends.payTo', { name: move.to })} ${pay}`] : []),
+  ].join('\n');
+}
+
+/**
+ * How someone wrote they want to be paid back in another account, the most
+ * recent first: written once, offered everywhere — the same IBAN for the
+ * holidays and the flatshare.
+ */
+function payElsewhere(name) {
+  const key = sameName(name);
+  for (const other of [...state.spends].sort((a, b) => (b.peopleAt || 0) - (a.peopleAt || 0))) {
+    const person = other.people.find((one) => sameName(one.name) === key && payOf(one));
+    if (person) return payOf(person);
+  }
+  return '';
+}
+
+/** An amount of an account, in that account's currency. */
 function money(cents, spend) {
   return showAmount(cents, getLanguage(), spendCurrency(spend));
 }
@@ -15807,6 +16395,181 @@ function currencyName(code) {
   }
 }
 
+/** An amount as it is typed back into a field: « 12,50 », « 12.50 » in English. */
+function typedAmount(cents) {
+  const text = ((Number(cents) || 0) / 100).toFixed(2);
+  return getLanguage() === 'fr' ? text.replace('.', ',') : text;
+}
+
+/** « ½ », « 2 », « 1½ »: a number of parts as one reads it. */
+function partsShown(value) {
+  const whole = Math.floor(value);
+  return `${whole || ''}${value % 1 ? '½' : ''}`;
+}
+
+/** « 2 parts », « ½ part ». */
+function partsText(value) {
+  return t('spends.partsCount', { count: value, shown: partsShown(value) });
+}
+
+/** What someone counts for, beside their name — only when it is not one part. */
+function weightMarkHtml(person) {
+  const weight = weightOf(person);
+  return weight === 1 ? '' : ` <span class="split-row__weight">×${escapeHtml(partsShown(weight))}</span>`;
+}
+
+/**
+ * Who an expense is for, and how it is shared — the same wherever an expense
+ * is written: the form, the dialog that corrects it, a receipt from a list.
+ *
+ * A checklist ticked by default, each with what they owe as soon as the
+ * amount is known. « Répartir autrement » gives, for this expense alone,
+ * each one's parts and an amount apart (the pizza Alice had alone); the rest
+ * is shared between the others. The activities of the account's event come
+ * first, as quick choices: the kayak, for those who went.
+ *
+ * Everything is held by the markup itself: nothing has to redraw the page
+ * while it is being filled in, which would lose what was typed.
+ */
+function splitEditorHtml(spend, { forWhom = [], parts = null, fixed = null, groups = [] } = {}) {
+  const open = Boolean(Object.keys(parts || {}).length || Object.keys(fixed || {}).length);
+  const rows = spend.people.map((person) => {
+    const id = escapeHtml(person.id);
+    const ticked = !forWhom.length || forWhom.includes(person.id);
+    const own = readParts(parts?.[person.id]) ?? weightOf(person);
+    const apart = Number.isInteger(fixed?.[person.id]) ? fixed[person.id] : null;
+    return `
+      <div class="split-row" data-split-row="${id}">
+        <label class="split-row__who">
+          <input type="checkbox" data-for="${id}" ${ticked ? 'checked' : ''} />
+          <span class="split-row__name">${escapeHtml(person.name)}${weightMarkHtml(person)}</span>
+        </label>
+        <span class="split-row__share" data-share-of="${id}"></span>
+        <span class="split-row__more">
+          <span class="stepper" role="group" aria-label="${escapeHtml(t('spends.partsOf', { name: person.name }))}">
+            <button type="button" class="stepper__button" data-parts-step="-1" aria-label="${escapeHtml(t('spends.partsLess'))}">−</button>
+            <span class="stepper__value" data-parts-of="${id}" data-value="${own}">${escapeHtml(partsText(own))}</span>
+            <button type="button" class="stepper__button" data-parts-step="1" aria-label="${escapeHtml(t('spends.partsMore'))}">+</button>
+          </span>
+          <input type="text" inputmode="decimal" class="split-row__apart" data-apart-of="${id}" autocomplete="off"
+                 value="${apart ? escapeHtml(typedAmount(apart)) : ''}"
+                 aria-label="${escapeHtml(t('spends.apartOf', { name: person.name }))}" />
+        </span>
+      </div>`;
+  });
+  return `
+    <div class="split-list ${open ? 'split-list--open' : ''}" data-split>
+      <div class="split-list__head">
+        <span>${escapeHtml(t('spends.splitTitle'))}</span>
+        <span class="muted small" data-split-note aria-live="polite"></span>
+      </div>
+      ${
+        groups.length
+          ? `<div class="row row--chips split-list__groups">
+               <button type="button" class="chip" data-split-group="">${escapeHtml(t('spends.everyoneChip'))}</button>
+               ${groups.map((group) => `<button type="button" class="chip" data-split-group="${escapeHtml(group.ids.join(' '))}">${escapeHtml(group.name)}</button>`).join('')}
+             </div>`
+          : ''
+      }
+      ${rows.join('')}
+      <button type="button" class="split-list__open" data-split-open>${escapeHtml(t('spends.splitOther'))}</button>
+    </div>`;
+}
+
+/**
+ * Make a split editor work. `amount()` reads the amount being typed, in
+ * cents or null. Returns `read()` — { forWhom, parts, fixed } as addSpend
+ * takes them, and what is wrong if anything is (`error`, a sentence) — and
+ * `refresh()`, for when the amount changes.
+ */
+function bindSplitEditor(root, spend, amount) {
+  const box = root.querySelector('[data-split]');
+  if (!box) return { read: () => ({ forWhom: [], parts: null, fixed: null, error: null }), refresh: () => {} };
+  const boxes = () => [...box.querySelectorAll('[data-for]')];
+  const isOpen = () => box.classList.contains('split-list--open');
+
+  const read = () => {
+    const ticked = boxes().filter((one) => one.checked).map((one) => one.dataset.for);
+    const forWhom = ticked.length === boxes().length ? [] : ticked;
+    const parts = {};
+    const fixed = {};
+    let unreadable = false;
+    if (isOpen()) {
+      for (const node of box.querySelectorAll('[data-parts-of]')) parts[node.dataset.partsOf] = Number(node.dataset.value);
+      for (const input of box.querySelectorAll('[data-apart-of]')) {
+        if (!input.value.trim() || !ticked.includes(input.dataset.apartOf)) continue;
+        const cents = readAmount(input.value);
+        if (cents) fixed[input.dataset.apartOf] = cents;
+        else unreadable = true;
+      }
+    }
+    const total = amount();
+    const apart = Object.values(fixed).reduce((sum, cents) => sum + cents, 0);
+    const problem = total ? splitProblem(spend, { amount: total, forWhom, fixed }) : null;
+    let error = null;
+    if (!ticked.length) error = t('spends.noOneChosen');
+    else if (unreadable) error = t('spends.notAnAmount');
+    else if (problem === 'over') error = t('spends.apartOver', { amount: money(apart - total, spend) });
+    else if (problem === 'left') error = t('spends.apartLeft', { amount: money(total - apart, spend) });
+    return { forWhom, parts, fixed, error };
+  };
+
+  const refresh = () => {
+    const now = read();
+    const total = amount();
+    const shares = total && !now.error
+      ? lineShares(spend, { amount: total, forWhom: now.forWhom, parts: now.parts, fixed: now.fixed })
+      : new Map();
+    for (const node of box.querySelectorAll('[data-share-of]')) {
+      const cents = shares.get(node.dataset.shareOf);
+      node.textContent = cents === undefined ? '' : money(cents, spend);
+    }
+    // What each would owe, written where an amount apart would go.
+    for (const input of box.querySelectorAll('[data-apart-of]')) {
+      const cents = shares.get(input.dataset.apartOf);
+      input.placeholder = cents === undefined ? '' : typedAmount(cents);
+    }
+    const weighted = spend.people.some((person) => weightOf(person) !== 1);
+    const note = box.querySelector('[data-split-note]');
+    note.textContent = now.error || t(isOpen() ? 'spends.splitOpenHint' : weighted ? 'spends.splitPartsHint' : 'spends.splitHint');
+    note.classList.toggle('late', Boolean(now.error));
+  };
+
+  box.addEventListener('change', refresh);
+  box.addEventListener('input', (event) => {
+    // An amount apart for someone unticked: they are concerned after all.
+    const id = event.target.dataset?.apartOf;
+    if (id && event.target.value.trim()) {
+      const tick = boxes().find((one) => one.dataset.for === id);
+      if (tick) tick.checked = true;
+    }
+    refresh();
+  });
+  box.querySelectorAll('[data-parts-step]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const value = button.closest('.stepper').querySelector('[data-parts-of]');
+      const next = stepParts(Number(value.dataset.value), Number(button.dataset.partsStep));
+      value.dataset.value = String(next);
+      value.textContent = partsText(next);
+      refresh();
+    });
+  });
+  box.querySelector('[data-split-open]')?.addEventListener('click', () => {
+    box.classList.add('split-list--open');
+    refresh();
+    box.querySelector('[data-parts-step]')?.focus();
+  });
+  box.querySelectorAll('[data-split-group]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const ids = chip.dataset.splitGroup ? chip.dataset.splitGroup.split(' ') : null;
+      for (const tick of boxes()) tick.checked = !ids || ids.includes(tick.dataset.for);
+      refresh();
+    });
+  });
+  refresh();
+  return { read, refresh };
+}
+
 /** Une dépense, telle qu'elle se lit dans la liste : qui, combien, pour qui. */
 function spendLineHtml(spend, line) {
   const who = spend.people.find((person) => person.id === line.by)?.name || '';
@@ -15828,7 +16591,9 @@ function spendLineHtml(spend, line) {
         <span>${escapeHtml(line.text || t('spends.untitledLine'))}</span>
         <span class="line__due">
           ${escapeHtml(who ? t('spends.paidBy', { name: who }) : t('spends.paidByNobody'))}
-          · ${escapeHtml(t('spends.forWhom', { names: forWhom }))}${line.day ? ` · ${escapeHtml(formatDay(line.day))}` : ''}
+          · ${escapeHtml(t('spends.forWhom', { names: forWhom }))}${
+            line.parts || line.fixed ? ` · ${escapeHtml(t('spends.splitOwn'))}` : ''
+          }${line.day ? ` · ${escapeHtml(formatDay(line.day))}` : ''}
         </span>
       </button>
       <span class="line__amount">${escapeHtml(money(line.amount, spend))}</span>`,
@@ -15859,7 +16624,16 @@ function spendView(spend) {
     </div>`;
 
   const formShut = spend.lines.length > 0 && state.spendFormOpen !== spend.id;
+  // What lists of the same event have ticked and nobody has written here yet.
+  const waiting = listsFeeding(spend, everything())
+    .map((list) => ticketOffersHtml(list, spend, t('flows.fromList', { name: documentTitle(list) })))
+    .filter(Boolean);
   const expensesTab = `
+    ${
+      waiting.length
+        ? `<section class="card stack flows" aria-label="${escapeHtml(t('flows.waiting'))}">${waiting.join('')}</section>`
+        : ''
+    }
     ${
       spend.people.length && formShut
         ? `<button type="button" class="button button--block" id="spend-add-open">+ ${escapeHtml(t('spends.addOpen'))}</button>`
@@ -15898,25 +16672,7 @@ function spendView(spend) {
                </label>
              </div>
 
-             ${
-               spend.people.length > 1
-                 ? `<div class="split-list">
-                      <div class="split-list__head">
-                        <span>${escapeHtml(t('spends.splitTitle'))}</span>
-                        <span class="muted small">${escapeHtml(t('spends.splitHint'))}</span>
-                      </div>
-                      ${spend.people
-                        .map(
-                          (person) => `
-                            <label class="split-row">
-                              <input type="checkbox" data-for="${escapeHtml(person.id)}" checked />
-                              <span class="split-row__name">${escapeHtml(person.name)}</span>
-                            </label>`,
-                        )
-                        .join('')}
-                    </div>`
-                 : ''
-             }
+             ${spend.people.length > 1 ? splitEditorHtml(spend, { groups: forWhomGroups(spend, everything()) }) : ''}
 
              <button type="submit" class="button button--primary button--block field-pill--submit">
                ${escapeHtml(t('spends.add'))}
@@ -15946,8 +16702,11 @@ function spendView(spend) {
             (row) => `
               <div class="entry">
                 <span class="entry__what">
-                  ${escapeHtml(row.name)}
-                  <span class="muted small">${escapeHtml(t('spends.paidTotal', { amount: money(row.paid, spend) }))}</span>
+                  ${escapeHtml(row.name)}${weightMarkHtml(spend.people.find((person) => person.id === row.id))}
+                  <span class="muted small entry__detail">${escapeHtml([
+                    row.paid ? t('spends.paidTotal', { amount: money(row.paid, spend) }) : '',
+                    t('spends.shareTotal', { amount: money(row.owed, spend) }),
+                  ].filter(Boolean).join(' · '))}</span>
                 </span>
                 <span class="entry__value ${row.balance > 0 ? 'entry__value--good' : row.balance < 0 ? 'entry__value--bad' : ''}">
                   ${escapeHtml(
@@ -15971,16 +16730,41 @@ function spendView(spend) {
              <div class="entries">
                ${moves
                  .map(
-                   (move, index) => `
+                   (move, index, all) => {
+                     const pay = payOf(spend.people.find((person) => person.id === move.toId));
+                     // How to pay someone back is said once, at the first transfer to them.
+                     const first = all.findIndex((other) => other.toId === move.toId) === index;
+                     return `
                      <div class="move">
                        <div class="entry">
                          <span class="entry__what">${escapeHtml(t('spends.move', { from: move.from, to: move.to }))}</span>
                          <span class="entry__value">${escapeHtml(money(move.amount, spend))}</span>
                        </div>
-                       <button type="button" class="button button--small button--primary" data-repay="${index}">
-                         ${escapeHtml(t('spends.markPaid'))}
-                       </button>
-                     </div>`,
+                       ${
+                         pay && first
+                           ? `<p class="move__pay small">
+                                <span class="muted">${escapeHtml(t('spends.payTo', { name: move.to }))}</span>
+                                <span class="move__pay-text">${escapeHtml(pay)}</span>
+                              </p>`
+                           : ''
+                       }
+                       <div class="move__actions">
+                         <button type="button" class="button button--small button--primary" data-repay="${index}">
+                           ${escapeHtml(t('spends.markPaid'))}
+                         </button>
+                         <button type="button" class="button button--small" data-remind="${index}">
+                           ${escapeHtml(t('spends.remind', { name: move.from }))}
+                         </button>
+                       </div>
+                       ${
+                         first
+                           ? `<button type="button" class="button button--small button--ghost move__pay-edit" data-pay-edit="${escapeHtml(move.toId)}">
+                                ${escapeHtml(pay ? t('spends.payEdit', { name: move.to }) : t('spends.payAdd', { name: move.to }))}
+                              </button>`
+                           : ''
+                       }
+                     </div>`;
+                   },
                  )
                  .join('')}
              </div>
@@ -16118,31 +16902,36 @@ function bindSpend(spend) {
     view.querySelector('#spend-text')?.focus();
   });
 
-  view.querySelector('#add-spend')?.addEventListener('submit', (event) => {
+  const addForm = view.querySelector('#add-spend');
+  const amountField = view.querySelector('#spend-amount');
+  const split = addForm ? bindSplitEditor(addForm, spend, () => readAmount(amountField.value)) : null;
+  amountField?.addEventListener('input', () => split.refresh());
+
+  addForm?.addEventListener('submit', (event) => {
     event.preventDefault();
     const text = view.querySelector('#spend-text');
-    const amount = view.querySelector('#spend-amount');
-    const cents = readAmount(amount.value);
+    const cents = readAmount(amountField.value);
     if (!cents) {
       flash(t('spends.notAnAmount'), 'error');
       render();
       return;
     }
-    const boxes = [...view.querySelectorAll('#add-spend [data-for]')];
-    const checked = boxes.filter((box) => box.checked).map((box) => box.dataset.for);
-    if (boxes.length && !checked.length) {
-      flash(t('spends.noOneChosen'), 'error');
-      render();
-      return;
-    }
     // Tous cochés (ou une seule personne, sans case) : « tout le monde » au
     // sens large, qui inclut qui rejoint le compte plus tard. Voir addSpend().
+    const shared = split.read();
+    if (shared.error) {
+      // Said where it is wrong, without redrawing what has been typed.
+      addForm.querySelector('[data-split-note]')?.scrollIntoView({ block: 'center' });
+      return;
+    }
     state.spendFormOpen = null;
     replaceSpend(addSpend(spend, {
       text: text.value,
       amount: cents,
       by: view.querySelector('#spend-by').value,
-      forWhom: checked.length === boxes.length ? [] : checked,
+      forWhom: shared.forWhom,
+      parts: shared.parts,
+      fixed: shared.fixed,
       day: view.querySelector('#spend-day')?.value || dayNow(),
     }));
   });
@@ -16163,6 +16952,30 @@ function bindSpend(spend) {
     button.addEventListener('click', () => {
       const move = settle(spend)[Number(button.dataset.repay)];
       if (move) openRepayDialog(spend, { move });
+    });
+  });
+
+  view.querySelectorAll('[data-remind]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const move = settle(spend)[Number(button.dataset.remind)];
+      if (!move) return;
+      showCopyDialog({ title: t('spends.remindTitle', { name: move.from }), hint: t('spends.remindHint'), text: remindText(spend, move), send: true });
+    });
+  });
+
+  view.querySelectorAll('[data-pay-edit]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const person = spend.people.find((one) => one.id === button.dataset.payEdit);
+      if (!person) return;
+      const text = await askForText({
+        title: t('spends.payTitle', { name: person.name }),
+        hint: t('spends.payHint'),
+        value: payOf(person) || payElsewhere(person.name),
+        confirmLabel: t('action.save'),
+        maxLength: 300,
+      });
+      if (text === null) return;
+      replaceSpend(setSpendPay(getSpend(spend.id) || spend, person.id, text));
     });
   });
 
@@ -16215,7 +17028,6 @@ function openSpendLineDialog(spend, lineId) {
   if (!line) return;
 
   const dialog = makeDialog();
-  const chosen = new Set(line.forWhom);
   dialog.innerHTML = `
     <form method="dialog" class="stack">
       <h2>${escapeHtml(t('spends.lineTitle'))}</h2>
@@ -16225,7 +17037,7 @@ function openSpendLineDialog(spend, lineId) {
       </label>
       <label>
         ${escapeHtml(t('spends.amount'))}
-        <input type="text" id="line-amount" inputmode="decimal" value="${escapeHtml((line.amount / 100).toFixed(2).replace('.', ','))}" />
+        <input type="text" id="line-amount" inputmode="decimal" value="${escapeHtml(typedAmount(line.amount))}" />
       </label>
       <label>
         ${escapeHtml(t('spends.by'))}
@@ -16239,24 +17051,16 @@ function openSpendLineDialog(spend, lineId) {
             .join('')}
         </select>
       </label>
-      <div class="stack stack--tight">
-        <span class="muted small">${escapeHtml(t('spends.forWhomHint'))}</span>
-        <div class="row" id="line-for">
-          ${spend.people
-            .map(
-              (person) => `
-                <button type="button" class="chip ${chosen.has(person.id) ? 'chip--on' : ''}"
-                        data-for="${escapeHtml(person.id)}" aria-pressed="${chosen.has(person.id) ? 'true' : 'false'}">
-                  ${escapeHtml(person.name)}
-                </button>`,
-            )
-            .join('')}
-        </div>
-      </div>
+      ${
+        spend.people.length > 1
+          ? splitEditorHtml(spend, { forWhom: line.forWhom, parts: line.parts, fixed: line.fixed, groups: forWhomGroups(spend, everything()) })
+          : ''
+      }
       <label>
         ${escapeHtml(t('lists.due'))}
         <input type="date" id="line-day" value="${escapeHtml(line.day || '')}" />
       </label>
+      <p class="late small" id="line-error" hidden></p>
       <div class="row">
         <button type="button" class="button button--primary" id="line-save">${escapeHtml(t('action.save'))}</button>
         <button type="button" class="button" id="line-cancel">${escapeHtml(t('action.cancel'))}</button>
@@ -16264,30 +17068,35 @@ function openSpendLineDialog(spend, lineId) {
       </div>
     </form>`;
 
-  dialog.querySelectorAll('[data-for]').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      const id = chip.dataset.for;
-      if (chosen.has(id)) chosen.delete(id);
-      else chosen.add(id);
-      chip.classList.toggle('chip--on', chosen.has(id));
-      chip.setAttribute('aria-pressed', chosen.has(id) ? 'true' : 'false');
-    });
-  });
+  const amountField = dialog.querySelector('#line-amount');
+  const split = bindSplitEditor(dialog, spend, () => readAmount(amountField.value));
+  amountField.addEventListener('input', () => split.refresh());
+  const problem = (text) => {
+    const error = dialog.querySelector('#line-error');
+    error.textContent = text;
+    error.hidden = false;
+  };
 
   dialog.querySelector('#line-save').addEventListener('click', () => {
-    const amount = dialog.querySelector('#line-amount').value;
-    if (!readAmount(amount)) {
-      flash(t('spends.notAnAmount'), 'error');
-      dialog.close();
-      render();
+    const cents = readAmount(amountField.value);
+    if (!cents) {
+      problem(t('spends.notAnAmount'));
+      amountField.focus();
+      return;
+    }
+    const shared = split.read();
+    if (shared.error) {
+      problem(shared.error);
       return;
     }
     dialog.close();
-    replaceSpend(editSpend(spend, lineId, {
+    replaceSpend(editSpend(getSpend(spend.id) || spend, lineId, {
       text: dialog.querySelector('#line-what').value,
-      amount,
+      amount: cents,
       by: dialog.querySelector('#line-by').value,
-      forWhom: [...chosen],
+      forWhom: shared.forWhom,
+      parts: shared.parts,
+      fixed: shared.fixed,
       day: dialog.querySelector('#line-day').value,
     }));
   });
@@ -16295,7 +17104,7 @@ function openSpendLineDialog(spend, lineId) {
   dialog.querySelector('#line-cancel').addEventListener('click', () => dialog.close());
   dialog.querySelector('#line-delete').addEventListener('click', () => {
     dialog.close();
-    replaceSpend(removeSpend(spend, lineId));
+    replaceSpend(removeSpend(getSpend(spend.id) || spend, lineId));
   });
 
   dialog.showModal();
@@ -16379,11 +17188,37 @@ function openRepayDialog(spend, { move = null, line = null }) {
   dialog.showModal();
 }
 
-/** Qui ce compte concerne : ajouter, renommer, retirer — quand c'est possible. */
+/**
+ * Qui ce compte concerne : ajouter, renommer, retirer — quand c'est possible
+ * —, et pour combien de parts chacun compte : un couple pour deux, une
+ * famille pour quatre, un enfant pour moitié.
+ */
 function openSpendPeopleDialog(spend) {
   const held = () => getSpend(spend.id) || spend;
   openPeopleEditor({
-    hint: t('spends.peopleHint'),
+    hint: t('spends.peoplePartsHint'),
+    extra: {
+      html: (person) => `
+        <span class="stepper" role="group" aria-label="${escapeHtml(t('spends.partsOf', { name: person.name }))}">
+          <button type="button" class="stepper__button" data-weight-step="-1" data-weight-of="${escapeHtml(person.id)}"
+                  aria-label="${escapeHtml(t('spends.partsLess'))}">−</button>
+          <span class="stepper__value">${escapeHtml(partsText(weightOf(person)))}</span>
+          <button type="button" class="stepper__button" data-weight-step="1" data-weight-of="${escapeHtml(person.id)}"
+                  aria-label="${escapeHtml(t('spends.partsMore'))}">+</button>
+        </span>`,
+      bind: (dialog, redraw) => {
+        dialog.querySelectorAll('[data-weight-step]').forEach((button) => {
+          button.addEventListener('click', () => {
+            const current = held();
+            const person = current.people.find((one) => one.id === button.dataset.weightOf);
+            if (!person) return;
+            replaceSpend(setSpendWeight(current, person.id, stepParts(weightOf(person), Number(button.dataset.weightStep))), { redraw: false });
+            redraw();
+            dialog.querySelector(`[data-weight-of="${CSS.escape(person.id)}"][data-weight-step="${button.dataset.weightStep}"]`)?.focus();
+          });
+        });
+      },
+    },
     confirmRemove: t('spends.confirmRemovePerson'),
     people: () => held().people,
     add: (name) => replaceSpend(addSpendPerson(held(), name), { redraw: false }),
@@ -16393,7 +17228,8 @@ function openSpendPeopleDialog(spend) {
     // refuser en expliquant que rendre un remboursement faux.
     blocked: (id) => {
       const why = canRemovePerson(held(), id);
-      return why === 'ok' ? null : t(why === 'paid' ? 'spends.cannotDropPaid' : 'spends.cannotDropAlone');
+      if (why === 'ok') return null;
+      return t({ paid: 'spends.cannotDropPaid', alone: 'spends.cannotDropAlone', apart: 'spends.cannotDropApart' }[why]);
     },
   });
 }
@@ -20554,6 +21390,8 @@ function bindData() {
 
 
 
+
+
 /**
  * A poll under an event settled on a day: the activity it makes, kept as an
  * element of its own, and the poll, closed. False when it makes none, for
@@ -20610,10 +21448,7 @@ function listFlowsHtml(list) {
       offers.map((one) => offerButton('data-flow-winner', `${poll.id}|${one.option.id}`, choiceLabel(one.option)))));
   }
   for (const spend of accountsFor(list, all)) {
-    const spent = spentItems(spend, list);
-    const ticked = list.items.filter((item) => item.done && !spent.has(item.id)).slice(0, 12);
-    blocks.push(offersHtml(t('flows.toAccount', { name: documentTitle(spend) }),
-      ticked.map((item) => `<button type="button" class="chip" data-flow-spend="${escapeHtml(`${spend.id}|${item.id}`)}">💶 ${escapeHtml(item.text)}</button>`)));
+    blocks.push(ticketOffersHtml(list, spend, t('flows.toAccount', { name: documentTitle(spend) })));
   }
   const shown = blocks.filter(Boolean);
   return shown.length
@@ -20621,63 +21456,139 @@ function listFlowsHtml(list) {
     : '';
 }
 
-/** Write a ticked line in the account: how much, and who paid. */
-function openSpendDialog(spend, list, item) {
-  const given = list.people.find((person) => person.id === item.who)?.name || '';
-  const names = [...new Set([given, ...spend.people.map((person) => person.name), ...list.people.map((person) => person.name)]
+/**
+ * What waits to go from a list into an account, one chip per receipt: the
+ * lines each person had and has ticked — « Alice : fromage, patates » —, then
+ * those nobody had. On the list, and on the account the other way round.
+ */
+function ticketOffersHtml(list, spend, title) {
+  return offersHtml(title, ticketGroups(list, spend).map((group) => {
+    const words = group.items.slice(0, 3).map((item) => withoutPrice(item.text)).join(', ');
+    const more = group.items.length > 3 ? ` +${group.items.length - 3}` : '';
+    const label = group.who ? t('flows.ticketOf', { name: group.who, lines: `${words}${more}` }) : `${words}${more}`;
+    return `<button type="button" class="chip" data-flow-ticket="${escapeHtml(`${spend.id}|${list.id}|${group.whoId}`)}">💶 ${escapeHtml(label)}</button>`;
+  }));
+}
+
+/**
+ * Write ticked lines in an account, as one expense — the receipt: its lines
+ * ticked from the start, the other lines waiting there too, to add or leave;
+ * what it cost (what the lines said they would, to start with); who paid —
+ * whoever had them —; and who it is for, as any expense is shared.
+ */
+function openTicketDialog(spend, list, picked) {
+  const account = byId(spend.id) || spend;
+  const source = byId(list.id) || list;
+  const waiting = unspentItems(source, account);
+  const chosen = new Set(picked.map((item) => item.id).filter((id) => waiting.some((item) => item.id === id)));
+  if (!chosen.size) return;
+  const lines = () => waiting.filter((item) => chosen.has(item.id));
+  const holders = [...new Set(lines().map((item) => item.who))];
+  const holder = holders.length === 1 ? source.people.find((person) => person.id === holders[0])?.name || '' : '';
+  const names = [...new Set([holder, ...account.people.map((person) => person.name), ...source.people.map((person) => person.name)]
     .map((name) => String(name || '').trim()).filter(Boolean))];
-  let payer = given || myName() || names[0] || '';
+  let payer = holder || names.find((name) => sameName(name) === sameName(myName())) || names[0] || '';
+  const all = everything();
+  const guess = () => estimateOf(lines());
+
   const dialog = makeDialog();
-  const draw = () => {
-    dialog.innerHTML = `
-      <form class="stack" method="dialog">
-        <h2>${escapeHtml(t('flows.spendTitle', { name: item.text }))}</h2>
-        <label class="stack stack--tight">
-          <span class="small">${escapeHtml(t('flows.amount'))}</span>
-          <input type="text" inputmode="decimal" id="flow-amount" autocomplete="off" placeholder="0,00" />
-        </label>
-        ${
-          names.length
-            ? `<span class="small">${escapeHtml(t('flows.paidBy'))}</span>
-               <div class="row row--chips" role="group">${names.map((name) => `
-                 <button type="button" class="chip ${name === payer ? 'chip--on' : ''}" data-flow-payer="${escapeHtml(name)}"
-                         aria-pressed="${name === payer ? 'true' : 'false'}">${escapeHtml(name)}</button>`).join('')}
-               </div>`
-            : ''
-        }
-        <p class="muted small">${escapeHtml(t('flows.spendHint', { name: documentTitle(spend) }))}</p>
-        <div class="row">
-          <button type="submit" class="button button--primary" id="flow-spend-ok">${escapeHtml(t('flows.spendAdd'))}</button>
-          <button type="button" class="button" data-flow-cancel>${escapeHtml(t('action.cancel'))}</button>
-        </div>
-      </form>`;
-    dialog.querySelector('[data-flow-cancel]').addEventListener('click', () => dialog.close());
-    dialog.querySelectorAll('[data-flow-payer]').forEach((node) => {
-      node.addEventListener('click', () => {
-        const amount = dialog.querySelector('#flow-amount').value;
-        payer = node.dataset.flowPayer;
-        draw();
-        dialog.querySelector('#flow-amount').value = amount;
+  dialog.innerHTML = `
+    <form class="stack" method="dialog">
+      <h2>${escapeHtml(t('flows.ticketTitle', { name: documentTitle(account) }))}</h2>
+      <div class="ticket-lines" role="group" aria-label="${escapeHtml(t('flows.ticketLines'))}">
+        ${waiting.map((item) => {
+          const price = priceIn(item.text);
+          return `
+            <label class="split-row">
+              <input type="checkbox" data-ticket-line="${escapeHtml(item.id)}" ${chosen.has(item.id) ? 'checked' : ''} />
+              <span class="split-row__name">${escapeHtml(withoutPrice(item.text))}</span>
+              ${price ? `<span class="split-row__share">≈ ${escapeHtml(money(price, account))}</span>` : ''}
+            </label>`;
+        }).join('')}
+      </div>
+      <label>
+        ${escapeHtml(t('spends.what'))}
+        <input type="text" id="ticket-text" autocomplete="off" value="${escapeHtml(ticketText(source, lines()))}" />
+      </label>
+      <label>
+        ${escapeHtml(t('spends.amount'))}
+        <input type="text" inputmode="decimal" id="ticket-amount" autocomplete="off" placeholder="0,00"
+               value="${guess() ? escapeHtml(typedAmount(guess())) : ''}" />
+      </label>
+      ${
+        names.length
+          ? `<span class="small">${escapeHtml(t('flows.paidBy'))}</span>
+             <div class="row row--chips" role="group" aria-label="${escapeHtml(t('flows.paidBy'))}">${names.map((name) => `
+               <button type="button" class="chip ${name === payer ? 'chip--on' : ''}" data-flow-payer="${escapeHtml(name)}"
+                       aria-pressed="${name === payer ? 'true' : 'false'}">${escapeHtml(name)}</button>`).join('')}
+             </div>`
+          : ''
+      }
+      ${account.people.length > 1 ? splitEditorHtml(account, { forWhom: defaultForWhom(source, account, all), groups: forWhomGroups(account, all) }) : ''}
+      <p class="late small" id="ticket-error" hidden></p>
+      <div class="row">
+        <button type="submit" class="button button--primary" id="ticket-ok">${escapeHtml(t('flows.spendAdd'))}</button>
+        <button type="button" class="button" data-flow-cancel>${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </form>`;
+
+  const text = dialog.querySelector('#ticket-text');
+  const amount = dialog.querySelector('#ticket-amount');
+  // What the box says is the app's guess until someone writes over it.
+  let ownText = false;
+  let ownAmount = false;
+  text.addEventListener('input', () => { ownText = true; });
+  const split = bindSplitEditor(dialog, account, () => readAmount(amount.value));
+  amount.addEventListener('input', () => {
+    ownAmount = true;
+    split.refresh();
+  });
+  dialog.querySelectorAll('[data-ticket-line]').forEach((box) => {
+    box.addEventListener('change', () => {
+      if (box.checked) chosen.add(box.dataset.ticketLine);
+      else chosen.delete(box.dataset.ticketLine);
+      if (!ownText) text.value = lines().length ? ticketText(source, lines()) : '';
+      if (!ownAmount) amount.value = guess() ? typedAmount(guess()) : '';
+      split.refresh();
+    });
+  });
+  dialog.querySelectorAll('[data-flow-payer]').forEach((node) => {
+    node.addEventListener('click', () => {
+      payer = node.dataset.flowPayer;
+      dialog.querySelectorAll('[data-flow-payer]').forEach((one) => {
+        const on = one === node;
+        one.classList.toggle('chip--on', on);
+        one.setAttribute('aria-pressed', on ? 'true' : 'false');
       });
     });
-    dialog.querySelector('form').addEventListener('submit', (event) => {
-      event.preventDefault();
-      const cents = readAmount(dialog.querySelector('#flow-amount').value);
-      if (!cents) {
-        dialog.querySelector('#flow-amount').focus();
-        return;
-      }
-      const fresh = byId(spend.id) || spend;
-      const next = spendFromLine(fresh, byId(list.id) || list, item, cents, payer);
-      dialog.close();
-      if (next === fresh) return;
-      flash(t('flows.spent', { name: item.text, account: documentTitle(spend) }));
-      replaceAny(next);
-    });
+  });
+  const problem = (message) => {
+    const error = dialog.querySelector('#ticket-error');
+    error.textContent = message;
+    error.hidden = false;
   };
-  draw();
+  dialog.querySelector('[data-flow-cancel]').addEventListener('click', () => dialog.close());
+  dialog.querySelector('form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const cents = readAmount(amount.value);
+    if (!lines().length) return problem(t('flows.ticketNoLine'));
+    if (!cents) {
+      amount.focus();
+      return problem(t('spends.notAnAmount'));
+    }
+    const shared = split.read();
+    if (shared.error) return problem(shared.error);
+    const fresh = byId(spend.id) || spend;
+    const next = spendFromLines(fresh, byId(list.id) || list, lines(), cents, {
+      byName: payer, text: text.value, forWhom: shared.forWhom, parts: shared.parts, fixed: shared.fixed,
+    });
+    dialog.close();
+    if (next === fresh) return;
+    flash(t('flows.spent', { name: next.lines[next.lines.length - 1].text, account: documentTitle(spend) }));
+    replaceAny(next);
+  });
   dialog.showModal();
-  dialog.querySelector('#flow-amount').focus();
+  amount.focus();
 }
 
 /* ---------------------------------------------------------------- a board --- */
@@ -21019,13 +21930,13 @@ function bindFlows(root) {
       addFrom(current(listId), poll.id, (target, source) => addWinner(target, source, source.options.find((option) => option.id === optionId), getLanguage()));
     });
   });
-  root.querySelectorAll('[data-flow-spend]').forEach((node) => {
+  root.querySelectorAll('[data-flow-ticket]').forEach((node) => {
     node.addEventListener('click', () => {
-      const [spendId, itemId] = pair(node.dataset.flowSpend);
-      const list = owner(node);
+      const [spendId, listId, whoId] = pair(node.dataset.flowTicket);
       const spend = current(spendId);
-      const item = list?.items.find((one) => one.id === itemId);
-      if (list && spend && item) openSpendDialog(spend, list, item);
+      const list = current(listId);
+      const group = list && spend && ticketGroups(list, spend).find((one) => one.whoId === whoId);
+      if (group) openTicketDialog(spend, list, group.items);
     });
   });
   root.querySelectorAll('[data-flow-vote]').forEach((node) => {
@@ -26165,14 +27076,14 @@ function kindsHtml(active) {
  * Ask for one line of text, the same way the app asks anything else: a dialog
  * that removes itself, Escape answering null.
  */
-function askForText({ title, hint, value = '', confirmLabel }) {
+function askForText({ title, hint, value = '', confirmLabel, maxLength = 40 }) {
   return new Promise((resolve) => {
     const dialog = makeDialog('dialog dialog--ask');
     dialog.innerHTML = `
       <div class="stack">
         <h2>${escapeHtml(title)}</h2>
         <p class="muted small">${escapeHtml(hint)}</p>
-        <input type="text" id="asked-text" value="${escapeHtml(value)}" maxlength="40" />
+        <input type="text" id="asked-text" value="${escapeHtml(value)}" maxlength="${Number(maxLength) || 40}" />
         <div class="row">
           <button type="button" class="button button--primary" id="asked-ok">${escapeHtml(confirmLabel)}</button>
           <button type="button" class="button" id="asked-cancel">${escapeHtml(t('action.cancel'))}</button>

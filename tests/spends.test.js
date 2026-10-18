@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import {
   createSpend, readAmount, showAmount, spendCurrency, addSpend, editSpend, removeSpend, archiveSpend,
   addSpendPerson, removeSpendPerson, canRemovePerson, split, balances, spendTotal, settle, mergeSpends, isValidSpend,
-  addRepayment, isRepayment,
+  addRepayment, isRepayment, splitBy, lineShares, readParts, weightOf, stepParts, setSpendWeight, splitProblem,
+  payOf, setSpendPay, priceIn, withoutPrice, priceCurrency,
 } from '../src/spends.js';
 
 /** Un week-end à trois : Gui paie le gîte, Alice les courses. */
@@ -308,4 +309,210 @@ test('an account keeps its own currency, euros by default', () => {
   assert.equal(readAmount('£12.50'), 1250);
   assert.equal(readAmount('12,50 CHF'), 1250);
   assert.equal(readAmount('$3'), 300);
+});
+
+/* ------------------------------------------------------------- les parts --- */
+
+const owedBy = (spend) => Object.fromEntries(balances(spend).map((row) => [row.name, row.owed]));
+
+test('à parts égales, le partage tombe sur les mêmes centimes qu’avant', () => {
+  for (const [amount, count] of [[1000, 3], [9999, 7], [1, 2], [123456, 11], [1, 3]]) {
+    assert.deepEqual(splitBy(amount, Array(count).fill(2)), split(amount, count), `${amount}/${count}`);
+  }
+});
+
+test('selon des parts, sans perdre de centime, au plus près', () => {
+  assert.deepEqual(splitBy(1000, [2, 1, 1]), [500, 250, 250]);
+  assert.deepEqual(splitBy(1000, [1, 2]), [333, 667], 'le centime va à qui en était le plus près');
+  assert.deepEqual(splitBy(0, [1, 2]), [0, 0]);
+  assert.deepEqual(splitBy(500, [0, 0]), [0, 0], 'sans parts, personne');
+  for (let run = 0; run < 500; run += 1) {
+    const parts = Array.from({ length: 1 + Math.floor(Math.random() * 8) }, () => 1 + Math.floor(Math.random() * 40));
+    const amount = Math.floor(Math.random() * 10_000_000);
+    const shares = splitBy(amount, parts);
+    assert.equal(shares.reduce((sum, share) => sum + share, 0), amount);
+    const total = parts.reduce((sum, part) => sum + part, 0);
+    shares.forEach((share, index) => assert.ok(Math.abs(share - (amount * parts[index]) / total) < 1, 'à moins d’un centime de sa part'));
+  }
+});
+
+test('des parts se lisent par moitiés, de ½ à 99', () => {
+  assert.equal(readParts(2), 2);
+  assert.equal(readParts('1,5'), 1.5);
+  assert.equal(readParts(0.5), 0.5);
+  assert.equal(readParts(0), null, 'zéro part, c’est ne pas être concerné : une case à décocher');
+  assert.equal(readParts(0.3), null);
+  assert.equal(readParts(100), null);
+  assert.equal(readParts('deux'), null);
+  assert.equal(readParts(null), null);
+  assert.equal(weightOf({ name: 'A' }), 1, 'une part quand rien n’est dit');
+  assert.equal(weightOf({ name: 'A', weight: 'n’importe quoi' }), 1);
+  // ½, 1, 2, 3… : sous une part, seulement une demie.
+  assert.deepEqual([0.5, 1, 1.5, 2, 99].map((value) => stepParts(value, 1)), [1, 2, 2, 3, 99]);
+  assert.deepEqual([0.5, 1, 1.5, 2, 99].map((value) => stepParts(value, -1)), [0.5, 0.5, 1, 1, 98]);
+});
+
+test('une famille compte pour quatre, dans tout le compte, même ce qui est déjà noté', () => {
+  const spend = createSpend({ name: 'Vacances', names: ['Martin', 'Durand', 'Zoé'] });
+  let held = addSpend(spend, { text: 'Gîte', amount: 80000, by: idOf(spend, 'Martin') });
+  held = setSpendWeight(held, idOf(spend, 'Martin'), 4);
+  held = setSpendWeight(held, idOf(spend, 'Durand'), 3);
+  held = addSpend(held, { text: 'Courses', amount: 16000, by: idOf(spend, 'Durand') });
+  const owed = owedBy(held);
+  assert.equal(owed.Martin, 48000, '4 parts sur 8 de 960 €');
+  assert.equal(owed.Durand, 36000);
+  assert.equal(owed.Zoé, 12000);
+  assert.equal(balances(held).reduce((sum, row) => sum + row.balance, 0), 0);
+  assert.equal(held.people[0].weight, 4);
+  assert.ok(held.peopleAt > spend.peopleAt, 'les parts vont avec les personnes, sur leur horloge');
+  // Revenir à une part efface le réglage, plutôt que d'écrire « 1 ».
+  assert.equal('weight' in setSpendWeight(held, idOf(spend, 'Zoé'), 1).people[2], false);
+  assert.equal(setSpendWeight(held, idOf(spend, 'Zoé'), 1), held, 'rien ne change, rien ne s’écrit');
+});
+
+test('un enfant pour moitié', () => {
+  const spend = createSpend({ name: 'Resto', names: ['Gui', 'Alice', 'Léo'] });
+  const held = addSpend(setSpendWeight(spend, idOf(spend, 'Léo'), 0.5), { text: 'Resto', amount: 10000, by: idOf(spend, 'Gui') });
+  assert.deepEqual(owedBy(held), { Gui: 4000, Alice: 4000, Léo: 2000 });
+});
+
+test('une dépense peut donner ses propres parts : deux nuits pour l’une, cinq pour l’autre', () => {
+  const spend = createSpend({ name: 'Gîte', names: ['Alice', 'Bob', 'Couple'] });
+  const couple = idOf(spend, 'Couple');
+  const withWeight = setSpendWeight(spend, couple, 2);
+  const held = addSpend(withWeight, {
+    text: 'Nuits', amount: 9000, by: idOf(spend, 'Alice'),
+    parts: { [idOf(spend, 'Alice')]: 2, [idOf(spend, 'Bob')]: 5, [couple]: 2 },
+  });
+  // Seul ce qui n'est pas l'usage est gardé : le couple compte déjà pour deux.
+  assert.deepEqual(held.lines[0].parts, { [idOf(spend, 'Alice')]: 2, [idOf(spend, 'Bob')]: 5 });
+  assert.deepEqual(owedBy(held), { Alice: 2000, Bob: 5000, Couple: 2000 });
+  // Une dépense sans parts à elle n'en porte pas.
+  assert.equal('parts' in addSpend(withWeight, { text: 'Pain', amount: 300, by: couple }).lines[0], false);
+  assert.equal(setSpendWeight(spend, 'personne', 3), spend, 'quelqu’un qui n’est pas là ne compte pour rien');
+});
+
+test('un montant à part pour certains, le reste partagé entre les autres', () => {
+  const spend = createSpend({ name: 'Resto', names: ['Gui', 'Alice', 'Bob'] });
+  const [gui, alice, bob] = spend.people.map((person) => person.id);
+  const held = addSpend(spend, { text: 'Addition', amount: 9000, by: gui, fixed: { [alice]: 1200 } });
+  // Alice a pris la pizza seule ; les 78 € qui restent vont aux deux autres.
+  assert.deepEqual(owedBy(held), { Gui: 3900, Alice: 1200, Bob: 3900 });
+  assert.deepEqual(held.lines[0].fixed, { [alice]: 1200 });
+  // À part, et concerné par le reste, ce sont deux choses : décochée, elle ne
+  // paie que son montant ; avec un montant pour chacun, rien ne reste.
+  const exact = addSpend(spend, { text: 'Addition', amount: 9000, by: gui, fixed: { [gui]: 3000, [alice]: 2500, [bob]: 3500 } });
+  assert.deepEqual(owedBy(exact), { Gui: 3000, Alice: 2500, Bob: 3500 });
+  const weighted = addSpend(setSpendWeight(spend, bob, 2), { text: 'Addition', amount: 9000, by: gui, fixed: { [alice]: 1200 } });
+  assert.deepEqual(owedBy(weighted), { Gui: 2600, Alice: 1200, Bob: 5200 }, 'le reste suit les parts');
+});
+
+test('ce qui ne tombe pas juste ne s’écrit pas, et se dit avant', () => {
+  const spend = createSpend({ name: 'Resto', names: ['Gui', 'Alice'] });
+  const [gui, alice] = spend.people.map((person) => person.id);
+  assert.equal(splitProblem(spend, { amount: 1000, fixed: { [alice]: 1500 } }), 'over');
+  assert.equal(splitProblem(spend, { amount: 1000, fixed: { [alice]: 300, [gui]: 300 } }), 'left',
+    'chacun a son montant, et il reste 4 € sans personne pour les prendre');
+  assert.equal(splitProblem(spend, { amount: 1000, fixed: { [alice]: 300 } }), null);
+  assert.equal(splitProblem(spend, { amount: 1000, forWhom: [gui], fixed: { [alice]: 1500 } }), null,
+    'un montant pour qui n’est pas concerné ne compte pas');
+  assert.equal(addSpend(spend, { amount: 1000, by: gui, fixed: { [alice]: 1500 } }), spend);
+  // Corriger le montant sous ce qui est mis à part est refusé de même.
+  const held = addSpend(spend, { amount: 1000, by: gui, fixed: { [alice]: 600 } });
+  assert.equal(editSpend(held, held.lines[0].id, { amount: 500 }), held);
+  assert.equal(editSpend(held, held.lines[0].id, { amount: 800 }).lines[0].amount, 800);
+});
+
+test('qui n’est plus concerné ne garde ni ses parts ni son montant à part', () => {
+  const spend = createSpend({ name: 'Resto', names: ['Gui', 'Alice', 'Bob'] });
+  const [gui, alice, bob] = spend.people.map((person) => person.id);
+  const held = addSpend(spend, { amount: 9000, by: gui, parts: { [bob]: 2 }, fixed: { [alice]: 1200 } });
+  const edited = editSpend(held, held.lines[0].id, { forWhom: [gui, bob] });
+  assert.equal('fixed' in edited.lines[0], false);
+  assert.deepEqual(edited.lines[0].parts, { [bob]: 2 });
+  const cleared = editSpend(edited, edited.lines[0].id, { parts: {} });
+  assert.equal('parts' in cleared.lines[0], false, 'des parts effacées ne laissent rien');
+  assert.deepEqual(owedBy(cleared), { Gui: 4500, Alice: 0, Bob: 4500 });
+});
+
+test('on ne retire pas quelqu’un qui a un montant à part, et ses parts partent avec lui', () => {
+  const spend = createSpend({ name: 'Resto', names: ['Gui', 'Alice', 'Bob'] });
+  const [gui, alice, bob] = spend.people.map((person) => person.id);
+  const apart = addSpend(spend, { amount: 9000, by: gui, fixed: { [alice]: 1200 } });
+  assert.equal(canRemovePerson(apart, alice), 'apart');
+  assert.equal(removeSpendPerson(apart, alice), apart);
+  const parted = addSpend(spend, { amount: 9000, by: gui, parts: { [bob]: 2 } });
+  const without = removeSpendPerson(parted, bob);
+  assert.equal(without.people.length, 2);
+  assert.equal('parts' in without.lines[0], false);
+  assert.deepEqual(owedBy(without), { Gui: 4500, Alice: 4500 });
+});
+
+test('les parts et les montants à part voyagent entre deux téléphones', () => {
+  const spend = createSpend({ name: 'Resto', names: ['Gui', 'Alice'] });
+  const [gui, alice] = spend.people.map((person) => person.id);
+  const mine = setSpendWeight(addSpend(spend, { amount: 9000, by: gui, fixed: { [alice]: 1200 } }), alice, 2);
+  const theirs = addSpend({ ...spend, updatedAt: spend.updatedAt - 1 }, { amount: 500, by: alice });
+  const merged = mergeSpends(mine, theirs);
+  assert.equal(merged.lines.length, 2);
+  assert.deepEqual(merged.lines.find((line) => line.amount === 9000).fixed, { [alice]: 1200 });
+  assert.equal(merged.people.find((person) => person.id === alice).weight, 2);
+  assert.ok(isValidSpend(merged));
+});
+
+test('et le compte tombe juste, avec des parts et des montants à part', () => {
+  for (let run = 0; run < 300; run += 1) {
+    const count = 2 + Math.floor(Math.random() * 5);
+    let spend = createSpend({ name: 'x', names: Array.from({ length: count }, (_, i) => `P${i}`) });
+    for (const person of spend.people) if (Math.random() < 0.4) spend = setSpendWeight(spend, person.id, 0.5 + Math.floor(Math.random() * 8) / 2);
+    for (let i = 0; i < 1 + Math.floor(Math.random() * 6); i += 1) {
+      const amount = 1 + Math.floor(Math.random() * 500000);
+      const forWhom = spend.people.filter(() => Math.random() < 0.6).map((person) => person.id);
+      const parts = Object.fromEntries(spend.people.filter(() => Math.random() < 0.3).map((person) => [person.id, 1 + Math.floor(Math.random() * 6)]));
+      const fixed = Math.random() < 0.3 ? { [spend.people[0].id]: Math.floor(amount / 3) } : null;
+      spend = addSpend(spend, { amount, by: spend.people[Math.floor(Math.random() * count)].id, forWhom, parts, fixed });
+    }
+    for (const line of spend.lines) {
+      assert.equal([...lineShares(spend, line).values()].reduce((sum, cents) => sum + cents, 0), line.amount, 'chaque dépense est partagée au centime');
+    }
+    const rows = balances(spend);
+    assert.equal(rows.reduce((sum, row) => sum + row.balance, 0), 0);
+    const after = new Map(rows.map((row) => [row.id, row.balance]));
+    for (const move of settle(spend)) {
+      after.set(move.fromId, after.get(move.fromId) + move.amount);
+      after.set(move.toId, after.get(move.toId) - move.amount);
+    }
+    assert.deepEqual([...after.values()].filter((value) => value !== 0), []);
+  }
+});
+
+test('comment rembourser quelqu’un, écrit une fois dans le compte', () => {
+  const spend = createSpend({ name: 'Vacances', names: ['Gui', 'Alice'] });
+  const gui = idOf(spend, 'Gui');
+  const held = setSpendPay(spend, gui, '  FR76 3000 6000 0112 3456 7890 189 ');
+  assert.equal(payOf(held.people[0]), 'FR76 3000 6000 0112 3456 7890 189');
+  assert.equal(payOf(held.people[1]), '');
+  assert.ok(held.peopleAt > spend.peopleAt);
+  assert.equal(setSpendPay(held, gui, 'FR76 3000 6000 0112 3456 7890 189'), held);
+  assert.equal('pay' in setSpendPay(held, gui, '').people[0], false);
+  assert.equal(payOf(setSpendPay(spend, gui, 'x'.repeat(500)).people[0]).length, 300, 'une adresse, pas un roman');
+});
+
+test('un prix écrit dans une ligne se lit, et seulement s’il dit que c’est de l’argent', () => {
+  assert.equal(priceIn('Fromage 25 €'), 2500);
+  assert.equal(priceIn('Vin (12,50€)'), 1250);
+  assert.equal(priceIn('€8 le pack'), 800);
+  assert.equal(priceIn('Train 45 euros'), 4500);
+  assert.equal(priceIn('Forfait 30 CHF'), 3000);
+  assert.equal(priceIn('2 × 8 € = 16 €'), 1600, 'le dernier l’emporte');
+  assert.equal(priceIn('2 baguettes'), null, 'deux baguettes, pas deux euros');
+  assert.equal(priceIn('12 eurovision'), null);
+  assert.equal(priceIn(''), null);
+  assert.equal(withoutPrice('Fromage 25 €'), 'Fromage');
+  assert.equal(withoutPrice('Vin (12,50€)'), 'Vin');
+  assert.equal(withoutPrice('Fromage — 25 €'), 'Fromage');
+  assert.equal(withoutPrice('Fromage 25 €, pain'), 'Fromage, pain');
+  assert.equal(withoutPrice('25 €'), '25 €', 'un prix tout seul reste ce qu’il est');
+  assert.equal(withoutPrice('2 baguettes'), '2 baguettes');
+  assert.deepEqual(['Fromage 25 €', 'Forfait 30 chf', '£3 tea', 'Pizza $12', 'Pain'].map(priceCurrency), ['EUR', 'CHF', 'GBP', 'USD', null]);
 });
