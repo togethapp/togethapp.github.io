@@ -9,7 +9,7 @@ import {
   askForText, escapeHtml, flash, flashHtml, formatDate, formatDay, groupChipsHtml, kindsHtml, navigate, render,
   state, view,
   attachedHtml, chainButtonsHtml, adoptGame,
-  backButtonHtml, hintHtml, markTouched, newButtonHtml, peopleHtml,
+  backButtonHtml, hintHtml, markTouched, newButtonHtml, peopleHtml, everything,
 } from './app.js';
 import {
   actionsHtml, eventLinkHtml, eventTagHtml, keptElsewhere, openSignatureDialog, pushFailed, pushMerged, shareBarHtml, signed,
@@ -23,6 +23,9 @@ import {
   removeEverywhere,
 } from './view-groups.js';
 import { listFlowsHtml } from './view-flows.js';
+import { money } from './view-spends.js';
+import { accountsFor, estimateOf, paidLines } from './flows.js';
+import { showAmount, spendCurrency, priceCurrency } from './spends.js';
 import { recentNames, isValidGame } from './model.js';
 import {
   createList, addItems, renameItem, assignItem, toggleItem, removeItem, reuseList, addListPerson,
@@ -34,7 +37,7 @@ import { isLive, isLate } from './dashboard.js';
 import { saveGames, saveLists } from './storage.js';
 import { listLink } from './remote.js';
 import { swipeHtml, swipeable, bindSwipes } from './swipe.js';
-import { t } from './i18n.js';
+import { t, getLanguage } from './i18n.js';
 
 /* ------------------------------------------------------------------ lists --- */
 
@@ -217,17 +220,28 @@ export function newListView() {
  * list, the eye goes straight to what is still to get. The order within each
  * part is the list's own.
  */
-function linesHtml(list, items) {
+function linesHtml(list, items, paid = new Map()) {
   const left = items.filter((item) => !item.done);
   const done = items.filter((item) => item.done);
-  const ul = (part) => `<ul class="lines">${part.map((item) => listItemHtml(list, item)).join('')}</ul>`;
+  const ul = (part) => `<ul class="lines">${part.map((item) => listItemHtml(list, item, paid.get(item.id))).join('')}</ul>`;
   if (!done.length || !left.length) return ul(items);
   return `${ul(left)}
     <p class="muted small lines__done">${escapeHtml(t('lists.doneHeading', { count: done.length }))}</p>
     ${ul(done)}`;
 }
 
-function listItemHtml(list, item) {
+/**
+ * What a line of the list cost, once an account has it: who paid, and how
+ * much — or how much the whole receipt it was on came to.
+ */
+function paidText({ spend, line, count }) {
+  const name = spend.people.find((person) => person.id === line.by)?.name || '';
+  const amount = money(line.amount, spend);
+  if (count > 1) return name ? t('lists.paidTicket', { name, amount, count }) : t('lists.paidTicketNobody', { amount, count });
+  return name ? t('lists.paidOne', { name, amount }) : t('lists.paidNobody', { amount });
+}
+
+function listItemHtml(list, item, paid = null) {
   const who = personName(list, item.who);
   const late = isLate(item);
   return swipeHtml(item.id, `
@@ -246,6 +260,7 @@ function listItemHtml(list, item) {
               )}</span>`
             : ''
         }
+        ${paid ? `<span class="line__due line__paid">💶 ${escapeHtml(paidText(paid))}</span>` : ''}
       </button>
       ${
         // Who takes it, once someone does. Until then a small « + » — the
@@ -260,6 +275,30 @@ function listItemHtml(list, item) {
     { kind: 'item', tag: 'li', bodyClass: `line ${item.done ? 'line--done' : ''}` });
 }
 
+/**
+ * What a list says about money, under its title: what its lines said they
+ * would cost — « Fromage 25 € » —, and what the accounts were given for it.
+ * In the currency of the account it goes to, or the one its prices are
+ * written in. Empty when it says nothing of money, as most lists do.
+ */
+function moneyOfList(list, all, paid) {
+  const parts = [];
+  const estimate = estimateOf(list.items);
+  if (estimate) {
+    const account = accountsFor(list, all)[0];
+    const currency = account ? spendCurrency(account) : list.items.map((item) => priceCurrency(item.text)).find(Boolean) || 'EUR';
+    parts.push(t('lists.estimate', { amount: showAmount(estimate, getLanguage(), currency) }));
+  }
+  // Each expense once, however many lines it paid for; by currency.
+  const spent = new Map();
+  for (const { spend, line } of new Map([...paid.values()].map((one) => [one.line.id, one])).values()) {
+    const currency = spendCurrency(spend);
+    spent.set(currency, (spent.get(currency) || 0) + line.amount);
+  }
+  for (const [currency, cents] of spent) parts.push(t('lists.spent', { amount: showAmount(cents, getLanguage(), currency) }));
+  return parts.join(' · ');
+}
+
 export function listView(list) {
   const filter = state.listFilter;
   const known = filter === null || filter === 'none' || list.people.some((person) => person.id === filter);
@@ -267,6 +306,9 @@ export function listView(list) {
     ? list.items
     : list.items.filter((item) => (filter === 'none' ? !item.who : item.who === filter));
   const { done, total } = progress(list);
+  const all = everything();
+  const paid = paidLines(list, all);
+  const moneyLine = moneyOfList(list, all, paid);
 
   const chip = (value, label, count) => `
     <button type="button" class="chip ${(!known ? null : filter) === value ? 'chip--on' : ''}" data-filter="${value === null ? '' : escapeHtml(value)}">
@@ -283,6 +325,7 @@ export function listView(list) {
           ${escapeHtml(total ? t('lists.progress', { done, total }) : t('lists.empty'))}
           ${list.shared ? ` · ${escapeHtml(t('lists.sharedMark'))}` : ''}
         </p>
+        ${moneyLine ? `<p class="muted small list-money">${escapeHtml(moneyLine)}</p>` : ''}
         ${signedByHtml(list)}
       </div>
     </div>
@@ -315,7 +358,7 @@ export function listView(list) {
 
     ${
       shown.length
-        ? linesHtml(list, shown)
+        ? linesHtml(list, shown, paid)
         : `<p class="muted small">${escapeHtml(list.items.length ? t('lists.nothingHere') : t('lists.addFirst'))}</p>`
     }
     ${list.items.length <= 2 ? hintHtml('lists', t('hint.list')) : ''}
@@ -713,8 +756,11 @@ function openLineDialog(list, itemId) {
  *
  * `people()` reads the current people; `add`, `rename` and `remove` write.
  * `blocked(id)` may say why someone cannot go — said before asking anything.
+ * `extra`, when given, adds to each person what only this kind of document
+ * knows of them — an account's parts —: `html(person)`, and `bind(dialog,
+ * redraw)` for its buttons, which write at once like the others.
  */
-export function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remove, blocked = () => null }) {
+export function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remove, blocked = () => null, extra = null }) {
   const dialog = makeDialog();
 
   const draw = () => {
@@ -729,6 +775,7 @@ export function openPeopleEditor({ hint = '', confirmRemove, people, add, rename
               (person) => `
                 <div class="knock">
                   <strong>${escapeHtml(person.name)}</strong>
+                  ${extra ? extra.html(person) : ''}
                   <div class="row">
                     <button type="button" class="button button--small" data-rename="${escapeHtml(person.id)}">
                       ${escapeHtml(t('action.rename'))}
@@ -797,6 +844,7 @@ export function openPeopleEditor({ hint = '', confirmRemove, people, add, rename
     });
 
     dialog.querySelector('#people-close').addEventListener('click', () => dialog.close());
+    extra?.bind(dialog, draw);
   };
 
   // The view behind is only redrawn once, when the dialog is done with.

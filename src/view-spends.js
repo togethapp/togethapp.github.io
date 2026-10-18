@@ -9,7 +9,7 @@ import {
   askForText, escapeHtml, flash, flashHtml, formatDate, formatDay, groupChipsHtml, kindsHtml,
   navigate, render, state, view, whenText,
   attachedHtml, chainButtonsHtml,
-  backButtonHtml, hintHtml, newButtonHtml, peopleHtml,
+  backButtonHtml, hintHtml, newButtonHtml, peopleHtml, everything, documentTitle,
 } from './app.js';
 import {
   actionsHtml, eventLinkHtml, eventTagHtml, getSpend, persistPoll, persistSpend, pollCardHtml, pollTitle,
@@ -30,8 +30,11 @@ import { createEvent, isEvent, seeksDay, lastDay } from './polls.js';
 import {
   createSpend, readAmount, showAmount, spendCurrency, CURRENCIES, addSpend, editSpend, removeSpend,
   archiveSpend, addSpendPerson, renameSpendPerson, removeSpendPerson, canRemovePerson, balances,
-  spendTotal, settle, addRepayment, isRepayment,
+  spendTotal, settle, addRepayment, isRepayment, readParts, weightOf, stepParts, splitProblem, lineShares,
+  setSpendWeight, setSpendPay, payOf,
 } from './spends.js';
+import { forWhomGroups, listsFeeding } from './flows.js';
+import { ticketOffersHtml } from './view-flows.js';
 import { recentPeople, withMeFirst } from './people.js';
 import { isLive, dayNow, eventParts } from './dashboard.js';
 import { saveSpends } from './storage.js';
@@ -395,17 +398,45 @@ export function newSpendView() {
     </form>`;
 }
 
-/** An amount of an account, in that account's currency. */
-/** Who pays whom, as text: what the group chat needs to settle up. */
+/** Who pays whom, as text: what the group chat needs to settle up — and how to pay each back. */
 function settleText(spend) {
+  const moves = settle(spend);
+  const paidTo = [...new Set(moves.map((move) => move.toId))]
+    .map((id) => spend.people.find((person) => person.id === id))
+    .filter((person) => payOf(person));
   return [
     `${spendTitle(spend)} — ${t('spends.total', { amount: money(spendTotal(spend), spend) })}`,
     '',
     t('spends.settle'),
-    ...settle(spend).map((move) => `${t('spends.move', { from: move.from, to: move.to })} — ${money(move.amount, spend)}`),
+    ...moves.map((move) => `${t('spends.move', { from: move.from, to: move.to })} — ${money(move.amount, spend)}`),
+    ...(paidTo.length ? ['', ...paidTo.map((person) => `${t('spends.payTo', { name: person.name })} ${payOf(person)}`)] : []),
   ].join('\n');
 }
 
+/** One transfer, as a message to whoever owes it: how much, to whom, for what, and how. */
+function remindText(spend, move) {
+  const pay = payOf(spend.people.find((person) => person.id === move.toId));
+  return [
+    t('spends.remindText', { from: move.from, to: move.to, amount: money(move.amount, spend), name: spendTitle(spend) }),
+    ...(pay ? [`${t('spends.payTo', { name: move.to })} ${pay}`] : []),
+  ].join('\n');
+}
+
+/**
+ * How someone wrote they want to be paid back in another account, the most
+ * recent first: written once, offered everywhere — the same IBAN for the
+ * holidays and the flatshare.
+ */
+function payElsewhere(name) {
+  const key = sameName(name);
+  for (const other of [...state.spends].sort((a, b) => (b.peopleAt || 0) - (a.peopleAt || 0))) {
+    const person = other.people.find((one) => sameName(one.name) === key && payOf(one));
+    if (person) return payOf(person);
+  }
+  return '';
+}
+
+/** An amount of an account, in that account's currency. */
 export function money(cents, spend) {
   return showAmount(cents, getLanguage(), spendCurrency(spend));
 }
@@ -431,6 +462,181 @@ function currencyName(code) {
   }
 }
 
+/** An amount as it is typed back into a field: « 12,50 », « 12.50 » in English. */
+export function typedAmount(cents) {
+  const text = ((Number(cents) || 0) / 100).toFixed(2);
+  return getLanguage() === 'fr' ? text.replace('.', ',') : text;
+}
+
+/** « ½ », « 2 », « 1½ »: a number of parts as one reads it. */
+function partsShown(value) {
+  const whole = Math.floor(value);
+  return `${whole || ''}${value % 1 ? '½' : ''}`;
+}
+
+/** « 2 parts », « ½ part ». */
+export function partsText(value) {
+  return t('spends.partsCount', { count: value, shown: partsShown(value) });
+}
+
+/** What someone counts for, beside their name — only when it is not one part. */
+function weightMarkHtml(person) {
+  const weight = weightOf(person);
+  return weight === 1 ? '' : ` <span class="split-row__weight">×${escapeHtml(partsShown(weight))}</span>`;
+}
+
+/**
+ * Who an expense is for, and how it is shared — the same wherever an expense
+ * is written: the form, the dialog that corrects it, a receipt from a list.
+ *
+ * A checklist ticked by default, each with what they owe as soon as the
+ * amount is known. « Répartir autrement » gives, for this expense alone,
+ * each one's parts and an amount apart (the pizza Alice had alone); the rest
+ * is shared between the others. The activities of the account's event come
+ * first, as quick choices: the kayak, for those who went.
+ *
+ * Everything is held by the markup itself: nothing has to redraw the page
+ * while it is being filled in, which would lose what was typed.
+ */
+export function splitEditorHtml(spend, { forWhom = [], parts = null, fixed = null, groups = [] } = {}) {
+  const open = Boolean(Object.keys(parts || {}).length || Object.keys(fixed || {}).length);
+  const rows = spend.people.map((person) => {
+    const id = escapeHtml(person.id);
+    const ticked = !forWhom.length || forWhom.includes(person.id);
+    const own = readParts(parts?.[person.id]) ?? weightOf(person);
+    const apart = Number.isInteger(fixed?.[person.id]) ? fixed[person.id] : null;
+    return `
+      <div class="split-row" data-split-row="${id}">
+        <label class="split-row__who">
+          <input type="checkbox" data-for="${id}" ${ticked ? 'checked' : ''} />
+          <span class="split-row__name">${escapeHtml(person.name)}${weightMarkHtml(person)}</span>
+        </label>
+        <span class="split-row__share" data-share-of="${id}"></span>
+        <span class="split-row__more">
+          <span class="stepper" role="group" aria-label="${escapeHtml(t('spends.partsOf', { name: person.name }))}">
+            <button type="button" class="stepper__button" data-parts-step="-1" aria-label="${escapeHtml(t('spends.partsLess'))}">−</button>
+            <span class="stepper__value" data-parts-of="${id}" data-value="${own}">${escapeHtml(partsText(own))}</span>
+            <button type="button" class="stepper__button" data-parts-step="1" aria-label="${escapeHtml(t('spends.partsMore'))}">+</button>
+          </span>
+          <input type="text" inputmode="decimal" class="split-row__apart" data-apart-of="${id}" autocomplete="off"
+                 value="${apart ? escapeHtml(typedAmount(apart)) : ''}"
+                 aria-label="${escapeHtml(t('spends.apartOf', { name: person.name }))}" />
+        </span>
+      </div>`;
+  });
+  return `
+    <div class="split-list ${open ? 'split-list--open' : ''}" data-split>
+      <div class="split-list__head">
+        <span>${escapeHtml(t('spends.splitTitle'))}</span>
+        <span class="muted small" data-split-note aria-live="polite"></span>
+      </div>
+      ${
+        groups.length
+          ? `<div class="row row--chips split-list__groups">
+               <button type="button" class="chip" data-split-group="">${escapeHtml(t('spends.everyoneChip'))}</button>
+               ${groups.map((group) => `<button type="button" class="chip" data-split-group="${escapeHtml(group.ids.join(' '))}">${escapeHtml(group.name)}</button>`).join('')}
+             </div>`
+          : ''
+      }
+      ${rows.join('')}
+      <button type="button" class="split-list__open" data-split-open>${escapeHtml(t('spends.splitOther'))}</button>
+    </div>`;
+}
+
+/**
+ * Make a split editor work. `amount()` reads the amount being typed, in
+ * cents or null. Returns `read()` — { forWhom, parts, fixed } as addSpend
+ * takes them, and what is wrong if anything is (`error`, a sentence) — and
+ * `refresh()`, for when the amount changes.
+ */
+export function bindSplitEditor(root, spend, amount) {
+  const box = root.querySelector('[data-split]');
+  if (!box) return { read: () => ({ forWhom: [], parts: null, fixed: null, error: null }), refresh: () => {} };
+  const boxes = () => [...box.querySelectorAll('[data-for]')];
+  const isOpen = () => box.classList.contains('split-list--open');
+
+  const read = () => {
+    const ticked = boxes().filter((one) => one.checked).map((one) => one.dataset.for);
+    const forWhom = ticked.length === boxes().length ? [] : ticked;
+    const parts = {};
+    const fixed = {};
+    let unreadable = false;
+    if (isOpen()) {
+      for (const node of box.querySelectorAll('[data-parts-of]')) parts[node.dataset.partsOf] = Number(node.dataset.value);
+      for (const input of box.querySelectorAll('[data-apart-of]')) {
+        if (!input.value.trim() || !ticked.includes(input.dataset.apartOf)) continue;
+        const cents = readAmount(input.value);
+        if (cents) fixed[input.dataset.apartOf] = cents;
+        else unreadable = true;
+      }
+    }
+    const total = amount();
+    const apart = Object.values(fixed).reduce((sum, cents) => sum + cents, 0);
+    const problem = total ? splitProblem(spend, { amount: total, forWhom, fixed }) : null;
+    let error = null;
+    if (!ticked.length) error = t('spends.noOneChosen');
+    else if (unreadable) error = t('spends.notAnAmount');
+    else if (problem === 'over') error = t('spends.apartOver', { amount: money(apart - total, spend) });
+    else if (problem === 'left') error = t('spends.apartLeft', { amount: money(total - apart, spend) });
+    return { forWhom, parts, fixed, error };
+  };
+
+  const refresh = () => {
+    const now = read();
+    const total = amount();
+    const shares = total && !now.error
+      ? lineShares(spend, { amount: total, forWhom: now.forWhom, parts: now.parts, fixed: now.fixed })
+      : new Map();
+    for (const node of box.querySelectorAll('[data-share-of]')) {
+      const cents = shares.get(node.dataset.shareOf);
+      node.textContent = cents === undefined ? '' : money(cents, spend);
+    }
+    // What each would owe, written where an amount apart would go.
+    for (const input of box.querySelectorAll('[data-apart-of]')) {
+      const cents = shares.get(input.dataset.apartOf);
+      input.placeholder = cents === undefined ? '' : typedAmount(cents);
+    }
+    const weighted = spend.people.some((person) => weightOf(person) !== 1);
+    const note = box.querySelector('[data-split-note]');
+    note.textContent = now.error || t(isOpen() ? 'spends.splitOpenHint' : weighted ? 'spends.splitPartsHint' : 'spends.splitHint');
+    note.classList.toggle('late', Boolean(now.error));
+  };
+
+  box.addEventListener('change', refresh);
+  box.addEventListener('input', (event) => {
+    // An amount apart for someone unticked: they are concerned after all.
+    const id = event.target.dataset?.apartOf;
+    if (id && event.target.value.trim()) {
+      const tick = boxes().find((one) => one.dataset.for === id);
+      if (tick) tick.checked = true;
+    }
+    refresh();
+  });
+  box.querySelectorAll('[data-parts-step]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const value = button.closest('.stepper').querySelector('[data-parts-of]');
+      const next = stepParts(Number(value.dataset.value), Number(button.dataset.partsStep));
+      value.dataset.value = String(next);
+      value.textContent = partsText(next);
+      refresh();
+    });
+  });
+  box.querySelector('[data-split-open]')?.addEventListener('click', () => {
+    box.classList.add('split-list--open');
+    refresh();
+    box.querySelector('[data-parts-step]')?.focus();
+  });
+  box.querySelectorAll('[data-split-group]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const ids = chip.dataset.splitGroup ? chip.dataset.splitGroup.split(' ') : null;
+      for (const tick of boxes()) tick.checked = !ids || ids.includes(tick.dataset.for);
+      refresh();
+    });
+  });
+  refresh();
+  return { read, refresh };
+}
+
 /** Une dépense, telle qu'elle se lit dans la liste : qui, combien, pour qui. */
 function spendLineHtml(spend, line) {
   const who = spend.people.find((person) => person.id === line.by)?.name || '';
@@ -452,7 +658,9 @@ function spendLineHtml(spend, line) {
         <span>${escapeHtml(line.text || t('spends.untitledLine'))}</span>
         <span class="line__due">
           ${escapeHtml(who ? t('spends.paidBy', { name: who }) : t('spends.paidByNobody'))}
-          · ${escapeHtml(t('spends.forWhom', { names: forWhom }))}${line.day ? ` · ${escapeHtml(formatDay(line.day))}` : ''}
+          · ${escapeHtml(t('spends.forWhom', { names: forWhom }))}${
+            line.parts || line.fixed ? ` · ${escapeHtml(t('spends.splitOwn'))}` : ''
+          }${line.day ? ` · ${escapeHtml(formatDay(line.day))}` : ''}
         </span>
       </button>
       <span class="line__amount">${escapeHtml(money(line.amount, spend))}</span>`,
@@ -483,7 +691,16 @@ export function spendView(spend) {
     </div>`;
 
   const formShut = spend.lines.length > 0 && state.spendFormOpen !== spend.id;
+  // What lists of the same event have ticked and nobody has written here yet.
+  const waiting = listsFeeding(spend, everything())
+    .map((list) => ticketOffersHtml(list, spend, t('flows.fromList', { name: documentTitle(list) })))
+    .filter(Boolean);
   const expensesTab = `
+    ${
+      waiting.length
+        ? `<section class="card stack flows" aria-label="${escapeHtml(t('flows.waiting'))}">${waiting.join('')}</section>`
+        : ''
+    }
     ${
       spend.people.length && formShut
         ? `<button type="button" class="button button--block" id="spend-add-open">+ ${escapeHtml(t('spends.addOpen'))}</button>`
@@ -522,25 +739,7 @@ export function spendView(spend) {
                </label>
              </div>
 
-             ${
-               spend.people.length > 1
-                 ? `<div class="split-list">
-                      <div class="split-list__head">
-                        <span>${escapeHtml(t('spends.splitTitle'))}</span>
-                        <span class="muted small">${escapeHtml(t('spends.splitHint'))}</span>
-                      </div>
-                      ${spend.people
-                        .map(
-                          (person) => `
-                            <label class="split-row">
-                              <input type="checkbox" data-for="${escapeHtml(person.id)}" checked />
-                              <span class="split-row__name">${escapeHtml(person.name)}</span>
-                            </label>`,
-                        )
-                        .join('')}
-                    </div>`
-                 : ''
-             }
+             ${spend.people.length > 1 ? splitEditorHtml(spend, { groups: forWhomGroups(spend, everything()) }) : ''}
 
              <button type="submit" class="button button--primary button--block field-pill--submit">
                ${escapeHtml(t('spends.add'))}
@@ -570,8 +769,11 @@ export function spendView(spend) {
             (row) => `
               <div class="entry">
                 <span class="entry__what">
-                  ${escapeHtml(row.name)}
-                  <span class="muted small">${escapeHtml(t('spends.paidTotal', { amount: money(row.paid, spend) }))}</span>
+                  ${escapeHtml(row.name)}${weightMarkHtml(spend.people.find((person) => person.id === row.id))}
+                  <span class="muted small entry__detail">${escapeHtml([
+                    row.paid ? t('spends.paidTotal', { amount: money(row.paid, spend) }) : '',
+                    t('spends.shareTotal', { amount: money(row.owed, spend) }),
+                  ].filter(Boolean).join(' · '))}</span>
                 </span>
                 <span class="entry__value ${row.balance > 0 ? 'entry__value--good' : row.balance < 0 ? 'entry__value--bad' : ''}">
                   ${escapeHtml(
@@ -595,16 +797,41 @@ export function spendView(spend) {
              <div class="entries">
                ${moves
                  .map(
-                   (move, index) => `
+                   (move, index, all) => {
+                     const pay = payOf(spend.people.find((person) => person.id === move.toId));
+                     // How to pay someone back is said once, at the first transfer to them.
+                     const first = all.findIndex((other) => other.toId === move.toId) === index;
+                     return `
                      <div class="move">
                        <div class="entry">
                          <span class="entry__what">${escapeHtml(t('spends.move', { from: move.from, to: move.to }))}</span>
                          <span class="entry__value">${escapeHtml(money(move.amount, spend))}</span>
                        </div>
-                       <button type="button" class="button button--small button--primary" data-repay="${index}">
-                         ${escapeHtml(t('spends.markPaid'))}
-                       </button>
-                     </div>`,
+                       ${
+                         pay && first
+                           ? `<p class="move__pay small">
+                                <span class="muted">${escapeHtml(t('spends.payTo', { name: move.to }))}</span>
+                                <span class="move__pay-text">${escapeHtml(pay)}</span>
+                              </p>`
+                           : ''
+                       }
+                       <div class="move__actions">
+                         <button type="button" class="button button--small button--primary" data-repay="${index}">
+                           ${escapeHtml(t('spends.markPaid'))}
+                         </button>
+                         <button type="button" class="button button--small" data-remind="${index}">
+                           ${escapeHtml(t('spends.remind', { name: move.from }))}
+                         </button>
+                       </div>
+                       ${
+                         first
+                           ? `<button type="button" class="button button--small button--ghost move__pay-edit" data-pay-edit="${escapeHtml(move.toId)}">
+                                ${escapeHtml(pay ? t('spends.payEdit', { name: move.to }) : t('spends.payAdd', { name: move.to }))}
+                              </button>`
+                           : ''
+                       }
+                     </div>`;
+                   },
                  )
                  .join('')}
              </div>
@@ -742,31 +969,36 @@ export function bindSpend(spend) {
     view.querySelector('#spend-text')?.focus();
   });
 
-  view.querySelector('#add-spend')?.addEventListener('submit', (event) => {
+  const addForm = view.querySelector('#add-spend');
+  const amountField = view.querySelector('#spend-amount');
+  const split = addForm ? bindSplitEditor(addForm, spend, () => readAmount(amountField.value)) : null;
+  amountField?.addEventListener('input', () => split.refresh());
+
+  addForm?.addEventListener('submit', (event) => {
     event.preventDefault();
     const text = view.querySelector('#spend-text');
-    const amount = view.querySelector('#spend-amount');
-    const cents = readAmount(amount.value);
+    const cents = readAmount(amountField.value);
     if (!cents) {
       flash(t('spends.notAnAmount'), 'error');
       render();
       return;
     }
-    const boxes = [...view.querySelectorAll('#add-spend [data-for]')];
-    const checked = boxes.filter((box) => box.checked).map((box) => box.dataset.for);
-    if (boxes.length && !checked.length) {
-      flash(t('spends.noOneChosen'), 'error');
-      render();
-      return;
-    }
     // Tous cochés (ou une seule personne, sans case) : « tout le monde » au
     // sens large, qui inclut qui rejoint le compte plus tard. Voir addSpend().
+    const shared = split.read();
+    if (shared.error) {
+      // Said where it is wrong, without redrawing what has been typed.
+      addForm.querySelector('[data-split-note]')?.scrollIntoView({ block: 'center' });
+      return;
+    }
     state.spendFormOpen = null;
     replaceSpend(addSpend(spend, {
       text: text.value,
       amount: cents,
       by: view.querySelector('#spend-by').value,
-      forWhom: checked.length === boxes.length ? [] : checked,
+      forWhom: shared.forWhom,
+      parts: shared.parts,
+      fixed: shared.fixed,
       day: view.querySelector('#spend-day')?.value || dayNow(),
     }));
   });
@@ -787,6 +1019,30 @@ export function bindSpend(spend) {
     button.addEventListener('click', () => {
       const move = settle(spend)[Number(button.dataset.repay)];
       if (move) openRepayDialog(spend, { move });
+    });
+  });
+
+  view.querySelectorAll('[data-remind]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const move = settle(spend)[Number(button.dataset.remind)];
+      if (!move) return;
+      showCopyDialog({ title: t('spends.remindTitle', { name: move.from }), hint: t('spends.remindHint'), text: remindText(spend, move), send: true });
+    });
+  });
+
+  view.querySelectorAll('[data-pay-edit]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const person = spend.people.find((one) => one.id === button.dataset.payEdit);
+      if (!person) return;
+      const text = await askForText({
+        title: t('spends.payTitle', { name: person.name }),
+        hint: t('spends.payHint'),
+        value: payOf(person) || payElsewhere(person.name),
+        confirmLabel: t('action.save'),
+        maxLength: 300,
+      });
+      if (text === null) return;
+      replaceSpend(setSpendPay(getSpend(spend.id) || spend, person.id, text));
     });
   });
 
@@ -839,7 +1095,6 @@ function openSpendLineDialog(spend, lineId) {
   if (!line) return;
 
   const dialog = makeDialog();
-  const chosen = new Set(line.forWhom);
   dialog.innerHTML = `
     <form method="dialog" class="stack">
       <h2>${escapeHtml(t('spends.lineTitle'))}</h2>
@@ -849,7 +1104,7 @@ function openSpendLineDialog(spend, lineId) {
       </label>
       <label>
         ${escapeHtml(t('spends.amount'))}
-        <input type="text" id="line-amount" inputmode="decimal" value="${escapeHtml((line.amount / 100).toFixed(2).replace('.', ','))}" />
+        <input type="text" id="line-amount" inputmode="decimal" value="${escapeHtml(typedAmount(line.amount))}" />
       </label>
       <label>
         ${escapeHtml(t('spends.by'))}
@@ -863,24 +1118,16 @@ function openSpendLineDialog(spend, lineId) {
             .join('')}
         </select>
       </label>
-      <div class="stack stack--tight">
-        <span class="muted small">${escapeHtml(t('spends.forWhomHint'))}</span>
-        <div class="row" id="line-for">
-          ${spend.people
-            .map(
-              (person) => `
-                <button type="button" class="chip ${chosen.has(person.id) ? 'chip--on' : ''}"
-                        data-for="${escapeHtml(person.id)}" aria-pressed="${chosen.has(person.id) ? 'true' : 'false'}">
-                  ${escapeHtml(person.name)}
-                </button>`,
-            )
-            .join('')}
-        </div>
-      </div>
+      ${
+        spend.people.length > 1
+          ? splitEditorHtml(spend, { forWhom: line.forWhom, parts: line.parts, fixed: line.fixed, groups: forWhomGroups(spend, everything()) })
+          : ''
+      }
       <label>
         ${escapeHtml(t('lists.due'))}
         <input type="date" id="line-day" value="${escapeHtml(line.day || '')}" />
       </label>
+      <p class="late small" id="line-error" hidden></p>
       <div class="row">
         <button type="button" class="button button--primary" id="line-save">${escapeHtml(t('action.save'))}</button>
         <button type="button" class="button" id="line-cancel">${escapeHtml(t('action.cancel'))}</button>
@@ -888,30 +1135,35 @@ function openSpendLineDialog(spend, lineId) {
       </div>
     </form>`;
 
-  dialog.querySelectorAll('[data-for]').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      const id = chip.dataset.for;
-      if (chosen.has(id)) chosen.delete(id);
-      else chosen.add(id);
-      chip.classList.toggle('chip--on', chosen.has(id));
-      chip.setAttribute('aria-pressed', chosen.has(id) ? 'true' : 'false');
-    });
-  });
+  const amountField = dialog.querySelector('#line-amount');
+  const split = bindSplitEditor(dialog, spend, () => readAmount(amountField.value));
+  amountField.addEventListener('input', () => split.refresh());
+  const problem = (text) => {
+    const error = dialog.querySelector('#line-error');
+    error.textContent = text;
+    error.hidden = false;
+  };
 
   dialog.querySelector('#line-save').addEventListener('click', () => {
-    const amount = dialog.querySelector('#line-amount').value;
-    if (!readAmount(amount)) {
-      flash(t('spends.notAnAmount'), 'error');
-      dialog.close();
-      render();
+    const cents = readAmount(amountField.value);
+    if (!cents) {
+      problem(t('spends.notAnAmount'));
+      amountField.focus();
+      return;
+    }
+    const shared = split.read();
+    if (shared.error) {
+      problem(shared.error);
       return;
     }
     dialog.close();
-    replaceSpend(editSpend(spend, lineId, {
+    replaceSpend(editSpend(getSpend(spend.id) || spend, lineId, {
       text: dialog.querySelector('#line-what').value,
-      amount,
+      amount: cents,
       by: dialog.querySelector('#line-by').value,
-      forWhom: [...chosen],
+      forWhom: shared.forWhom,
+      parts: shared.parts,
+      fixed: shared.fixed,
       day: dialog.querySelector('#line-day').value,
     }));
   });
@@ -919,7 +1171,7 @@ function openSpendLineDialog(spend, lineId) {
   dialog.querySelector('#line-cancel').addEventListener('click', () => dialog.close());
   dialog.querySelector('#line-delete').addEventListener('click', () => {
     dialog.close();
-    replaceSpend(removeSpend(spend, lineId));
+    replaceSpend(removeSpend(getSpend(spend.id) || spend, lineId));
   });
 
   dialog.showModal();
@@ -1003,11 +1255,37 @@ function openRepayDialog(spend, { move = null, line = null }) {
   dialog.showModal();
 }
 
-/** Qui ce compte concerne : ajouter, renommer, retirer — quand c'est possible. */
+/**
+ * Qui ce compte concerne : ajouter, renommer, retirer — quand c'est possible
+ * —, et pour combien de parts chacun compte : un couple pour deux, une
+ * famille pour quatre, un enfant pour moitié.
+ */
 function openSpendPeopleDialog(spend) {
   const held = () => getSpend(spend.id) || spend;
   openPeopleEditor({
-    hint: t('spends.peopleHint'),
+    hint: t('spends.peoplePartsHint'),
+    extra: {
+      html: (person) => `
+        <span class="stepper" role="group" aria-label="${escapeHtml(t('spends.partsOf', { name: person.name }))}">
+          <button type="button" class="stepper__button" data-weight-step="-1" data-weight-of="${escapeHtml(person.id)}"
+                  aria-label="${escapeHtml(t('spends.partsLess'))}">−</button>
+          <span class="stepper__value">${escapeHtml(partsText(weightOf(person)))}</span>
+          <button type="button" class="stepper__button" data-weight-step="1" data-weight-of="${escapeHtml(person.id)}"
+                  aria-label="${escapeHtml(t('spends.partsMore'))}">+</button>
+        </span>`,
+      bind: (dialog, redraw) => {
+        dialog.querySelectorAll('[data-weight-step]').forEach((button) => {
+          button.addEventListener('click', () => {
+            const current = held();
+            const person = current.people.find((one) => one.id === button.dataset.weightOf);
+            if (!person) return;
+            replaceSpend(setSpendWeight(current, person.id, stepParts(weightOf(person), Number(button.dataset.weightStep))), { redraw: false });
+            redraw();
+            dialog.querySelector(`[data-weight-of="${CSS.escape(person.id)}"][data-weight-step="${button.dataset.weightStep}"]`)?.focus();
+          });
+        });
+      },
+    },
     confirmRemove: t('spends.confirmRemovePerson'),
     people: () => held().people,
     add: (name) => replaceSpend(addSpendPerson(held(), name), { redraw: false }),
@@ -1017,7 +1295,8 @@ function openSpendPeopleDialog(spend) {
     // refuser en expliquant que rendre un remboursement faux.
     blocked: (id) => {
       const why = canRemovePerson(held(), id);
-      return why === 'ok' ? null : t(why === 'paid' ? 'spends.cannotDropPaid' : 'spends.cannotDropAlone');
+      if (why === 'ok') return null;
+      return t({ paid: 'spends.cannotDropPaid', alone: 'spends.cannotDropAlone', apart: 'spends.cannotDropApart' }[why]);
     },
   });
 }

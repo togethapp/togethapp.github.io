@@ -100,7 +100,7 @@ async function tour(label, seed, docs) {
   // Sur la liste : la ligne cochée proposée au compte de l'événement ; puis
   // « Lier à… », dont les phrases nomment les deux éléments, piégés tous deux.
   await page.goto(`${B}?n=${n + 1}#/list/${docs.list.id}`);
-  await page.waitForSelector('.flows [data-flow-spend]');
+  await page.waitForSelector('.flows [data-flow-ticket]');
   const offered = await look();
   await page.evaluate(() => document.querySelectorAll('#view details').forEach((d) => { d.open = true; }));
   await page.click('#view [data-relate-doc]');

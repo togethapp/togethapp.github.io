@@ -167,6 +167,10 @@ mélangés si besoin.
   que personne n'a pris.
 - **Coller une liste entière** d'un message : les puces et la numérotation sont
   nettoyées, les quantités gardées (« 2 baguettes » reste deux baguettes).
+- **Un prix dans une ligne** — « Fromage 25 € », « Vin (12,50€) » — se lit
+  tout seul : la liste dit sous son titre ce qu'elle annonce (*Prévu ≈ 55,50 €*),
+  et le ticket noté plus tard part de ce montant. Seul un nombre qui dit être
+  de l'argent compte (€, EUR, CHF, £, $) : « 2 baguettes » n'est pas un prix.
 - **Reprendre cette liste** décoche tout et garde les lignes — la valise, les
   courses de base, la liste de sortie, sans notion de modèle à gérer.
 - **Partager** comme une partie : un lien, un code QR, et chacun coche de son
@@ -351,12 +355,26 @@ d'une touche, sans rien faire tout seuls (deux téléphones le feraient deux foi
   tableau, au même endroit de la chaîne.
 - **Sondage clos → liste** : ce qu'il a choisi (égalités comprises) est
   proposé à la liste liée, sur la liste comme sur le sondage.
-- **Liste → compte** : les lignes cochées d'une liste sont proposées aux
-  comptes liés à elle, et à ceux de son événement, sans lien à faire (pour une
-  activité, aussi au compte de l'événement qui la porte ; mais la liste d'un
-  week-end ne va pas au compte d'une de ses activités) ; on tape le montant, on choisit qui a payé (celui à qui
-  la ligne était confiée, d'office ; il entre dans le compte s'il n'y est pas),
-  et la dépense est pour tout le monde.
+- **Liste → compte, le ticket** : les lignes cochées d'une liste attendent
+  les comptes liés à elle, et ceux de son événement, sans lien à faire (pour
+  une activité, aussi le compte de l'événement qui la porte ; mais la liste
+  d'un week-end ne va pas au compte d'une de ses activités). Elles attendent
+  **par personne**, une pastille 💶 chacune — « Alice : fromage, patates » —,
+  parce que ce qu'une personne a acheté, c'est un ticket : une touche, et les
+  lignes deviennent **une seule dépense** (« Courses : Fromage, Patates »),
+  payée par celle qui les avait, au montant qu'annonçaient leurs prix — à
+  corriger d'après le vrai ticket. Les autres lignes cochées sont là aussi,
+  pour les ajouter au même ticket ; et la dépense se partage comme toute
+  dépense (pour qui, parts, montants à part).
+- **La liste sait qui a payé** : sous chaque ligne notée, « Alice a payé
+  31,40 € pour 2 lignes » ; sous le titre, *Payé 43,90 €* à côté du prévu.
+- **Le compte sait ce qui l'attend** : en tête de ses dépenses, les mêmes
+  pastilles, « Cochées dans « Courses », pas encore notées » — qui tient les
+  comptes voit ce qui manque, sans ouvrir la liste.
+- **Activité → pour qui** : la liste d'une activité, notée dans le compte du
+  week-end, est d'office pour ceux qui font l'activité (le pique-nique du
+  kayak, pour les deux qui y vont) ; et dans le compte d'un événement, une
+  pastille par activité coche d'une touche ceux qui y vont.
 - **Événement → listes et comptes** : l'événement dit qui vient et manque dans
   les listes et comptes de sa chaîne ; **Mettre à jour les personnes** les y
   ajoute. On n'y retire personne.
@@ -364,7 +382,8 @@ d'une touche, sans rien faire tout seuls (deux téléphones le feraient deux foi
   depuis moins d'une semaine.
 
 Chaque ligne ou dépense née ainsi porte `from : { doc, part }` (d'où elle
-vient), pour ne jamais être proposée deux fois. Logique pure dans
+vient ; un ticket ajoute `parts`, toutes ses lignes), pour ne jamais être
+proposée deux fois. Logique pure dans
 `src/flows.js`, écrans dans `src/view-flows.js`.
 
 ### L'appui long
@@ -504,10 +523,35 @@ Chaque ligne dit ce qui a été payé, combien, par qui, et pour qui.
   de l'un à l'autre.
 - **Le partage est égal** entre les personnes cochées, toutes par défaut :
   noter une baguette ne demande que deux champs, et une case à décocher fait
-  qu'une ligne ne concerne que certains — le taxi de la gare.
+  qu'une ligne ne concerne que certains — le taxi de la gare. Ce que chacun
+  doit s'affiche à côté de son nom dès que le montant est tapé.
+- **Des parts, réglées une fois** : dans *Les personnes*, chacun compte pour
+  ½, 1, 2… parts — un couple pour 2, une famille pour 4, un enfant pour ½ —,
+  et toutes les dépenses suivent, celles déjà notées comprises (« les Martin
+  sont quatre » vaut pour toutes les vacances). Le partage reste au centime :
+  le centime qui reste va à qui en était le plus près, et à parts égales le
+  compte tombe exactement comme avant.
+- **Répartir autrement**, pour une seule dépense : les parts de chacun (deux
+  nuits pour l'une, cinq pour l'autre) et **un montant à part** pour qui a
+  pris quelque chose seul — la pizza d'Alice, 12 € —, le reste se partageant
+  entre les autres. Ce qui ne tombe pas juste se dit avant d'écrire (« Les
+  montants à part dépassent la dépense de 5,00 € »). La ligne dit alors
+  « réparti autrement ».
+- **Ceux d'une activité d'une touche** : dans le compte d'un événement, une
+  pastille par activité (« Kayak ») coche ceux qui y vont ; *Tout le monde*
+  recoche tout.
 - **Qui rembourse qui**, en aussi peu de virements que possible : le plus gros
   débiteur paie le plus gros créancier, et on recommence. Au plus une
   personne de moins qu'il n'y en a.
+- **Où en est chacun** : ce qu'il a avancé, **sa part**, et ce qu'on lui doit
+  ou ce qu'il doit ; « ×2 » à côté de qui compte pour deux.
+- **Comment rembourser** : sous le premier virement vers quelqu'un, « + Comment
+  rembourser Gui ? » garde son IBAN, son numéro Wero ou Lydia, un lien PayPal…
+  écrit une fois (et proposé d'office dans ses autres comptes), montré à qui
+  lui doit, et repris dans le texte pour le groupe.
+- **Envoyer à Bob**, sous chaque virement : le message tout prêt — « « Week-end »
+  : Bob → Gui, 96,00 € », et comment rembourser — à copier ou à envoyer
+  (Messenger, WhatsApp…).
 - **Un virement fait se note** : « Marquer comme payé », sous chaque virement,
   ajoute un remboursement (montant modifiable, pour un remboursement partiel).
   Il apparaît dans les dépenses, en gris, remet les soldes d'aplomb, et ne
@@ -516,8 +560,10 @@ Chaque ligne dit ce qui a été payé, combien, par qui, et pour qui.
 - **L'argent est compté en centimes, en entiers.** Dix euros entre trois font
   3,34 / 3,33 / 3,33, et le centime qui reste va toujours au même — sans quoi
   deux téléphones finiraient par ne pas être d'accord.
-- **On ne retire pas quelqu'un qui a avancé de l'argent** : le compte cesserait
-  de tomber juste sans rien dire. L'app refuse et explique quoi faire d'abord.
+- **On ne retire pas quelqu'un qui a avancé de l'argent**, ni quelqu'un
+  qu'une dépense concerne seul ou à qui elle met un montant à part : le
+  compte cesserait de tomber juste sans rien dire. L'app refuse et explique
+  quoi faire d'abord.
 - Partagé comme le reste : chacun note de son côté, et les lignes se réunissent
   sans qu'aucune n'en chasse une autre.
 

@@ -1548,7 +1548,13 @@ button.tile:hover { background: var(--accent-soft); border-color: color-mix(in s
 .move:first-child { border-top: 0; }
 .move .entry { border-top: 0; }
 .move .button { width: 100%; }
+/* How to pay the one owed back, then what to do: note it paid, or send it. */
+.move__pay { margin: 0; overflow-wrap: anywhere; }
+.move__pay-text { font-weight: 600; user-select: all; }
+.move__actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5em, 1fr)); gap: 8px; }
+.move .move__pay-edit { justify-content: flex-start; padding: 0; min-height: 32px; }
 .entry__what { min-width: 0; overflow-wrap: anywhere; }
+.entry__detail { display: block; }
 .entry__value { flex: none; color: var(--muted); font-size: 0.85rem; }
 .entry__value--good { color: var(--good); font-weight: 600; }
 .entry__value--bad { color: var(--bad); font-weight: 600; }
@@ -1890,6 +1896,10 @@ table.scores .meta-cell { color: var(--muted); }
 .line--repay .line__amount { color: var(--muted); font-weight: 500; }
 .line__due--late { color: var(--bad); font-weight: 600; }
 .line--done .line__due { color: var(--muted); font-weight: 400; }
+/* Paid, under a ticked line: the line is struck through, the money is not —
+   an inline block is the one box a parent's line-through does not cross. */
+.line__paid { display: inline-block; width: 100%; text-decoration: none; }
+.list-money { margin: 0; }
 
 /* What has gone past its day, wherever it is counted. */
 .late { color: var(--bad); font-weight: 600; }
@@ -2095,6 +2105,59 @@ select.field-pill {
 
 .split-row:not(:last-child) { border-bottom: 1px solid var(--border); }
 .split-row input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; }
+
+/* A row of the split: who, ticked, on the left — what they owe on the right,
+   once the amount is known. The name gives way before the figure does. */
+.split-row { flex-wrap: wrap; row-gap: 8px; }
+.split-row__who { display: flex; flex: 1 1 8em; align-items: center; gap: 10px; min-width: 0; font-size: inherit; font-weight: inherit; cursor: pointer; }
+.split-row__name { min-width: 0; overflow-wrap: anywhere; }
+.split-row__weight { color: var(--muted); font-size: 0.8rem; font-weight: 650; }
+.split-row__share { flex: none; color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.split-row__more { display: none; flex: 1 1 100%; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.split-row__more input.split-row__apart { width: 5em; min-width: 0; min-height: 36px; margin-left: auto; padding: 4px 10px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* « Répartir autrement »: for this expense alone, parts and amounts apart.
+   The figure each owes moves into the field where an amount would go. */
+.split-list--open .split-row__more { display: flex; }
+.split-list--open .split-row__share,
+.split-list--open .split-list__open { display: none; }
+.split-list__open {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+.split-list__groups { padding: 0 14px 10px; }
+.split-list [data-split-note].late { color: var(--bad); }
+
+/* So many parts, a step at a time: ½, 1, 2, 3… */
+.stepper { display: inline-flex; flex: none; align-items: center; gap: 4px; }
+.stepper__button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.stepper__value { min-width: 3.6em; font-size: 0.85rem; font-weight: 600; text-align: center; white-space: nowrap; }
+
+/* The lines a receipt from a list pays for: ticked, each with its price. */
+.ticket-lines { display: grid; border-radius: var(--radius); overflow: hidden; background: var(--surface-alt); }
+.ticket-lines .split-row { flex-wrap: nowrap; }
+.ticket-lines .split-row__name { flex: 1 1 0; }
 
 /* The balances tab once nothing is left to settle: a plain state deserves a
    plain, good-news answer rather than an empty section. */

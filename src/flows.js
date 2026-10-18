@@ -5,14 +5,19 @@
  * - a board's ideas become lines of the list it goes with;
  * - a board's ideas become the choices of a poll, to vote on them;
  * - what a closed poll chose becomes a line of the list it goes with;
- * - a line ticked becomes an expense of the account it goes with — or of
- *   any account in its chain: a list and an account of the same event need
- *   no link for that;
+ * - lines ticked become an expense of the account they go with — or of any
+ *   account in their chain: a list and an account of the same event need no
+ *   link for that. One line, or the whole receipt of what was bought
+ *   together; the price written in a line says what to expect, and the list
+ *   then says who paid what;
+ * - an event's activities say who an expense is for: the kayak, for those
+ *   who went;
  * - whoever joins an event comes into its lists and accounts.
  *
  * What came from where is written on what it made — `from: { doc, part }` on
- * a line or an expense — so nothing is offered twice. Nothing happens by
- * itself: two phones doing it at once would do it twice.
+ * a line or an expense, `parts` too for a receipt — so nothing is offered
+ * twice. Nothing happens by itself: two phones doing it at once would do it
+ * twice.
  *
  * Pure, like the models.
  */
@@ -23,7 +28,7 @@ import {
   isDayChoice,
 } from './polls.js';
 import { eventName } from './ics.js';
-import { addSpend } from './spends.js';
+import { addSpend, isRepayment, priceIn, withoutPrice } from './spends.js';
 import { cardsInOrder } from './ideas.js';
 import { addPerson } from './people.js';
 import { sameName } from './stats.js';
@@ -138,28 +143,144 @@ export function accountsFor(list, all) {
   return [...linked, ...chain.filter((one) => !linked.some((other) => other.id === one.id))];
 }
 
+/** The lines of the list an expense came from: one, or a whole receipt's. */
+function partsOf(line) {
+  if (Array.isArray(line.from?.parts) && line.from.parts.length) return line.from.parts;
+  return line.from?.part ? [line.from.part] : [];
+}
+
 /** The lines of a list already written in an account. */
 export function spentItems(spend, list) {
-  return new Set((spend.lines || []).filter((line) => line.from?.doc === list.id).map((line) => line.from.part));
+  return new Set((spend.lines || []).filter((line) => line.from?.doc === list.id).flatMap(partsOf));
+}
+
+/** The lines of a list ticked and not yet written in that account. */
+export function unspentItems(list, spend) {
+  const spent = spentItems(spend, list);
+  return list.items.filter((item) => item.done && !spent.has(item.id));
 }
 
 /**
- * Write a line of a list as an expense: its text, the amount given, paid by
- * whoever the line was for — found by name, brought into the account if it
- * does not have them — and shared by everyone.
+ * What waits to go into an account, by whoever the lines were given to: what
+ * one person bought is one receipt, nine times out of ten — and what nobody
+ * had taken, last. Each with whoever had them — `whoId` and `who`, their
+ * name —, or '' for both.
  */
-export function spendFromLine(spend, list, item, amount, byName = null) {
-  if (spentItems(spend, list).has(item.id)) return spend;
-  const name = String(byName || list.people.find((person) => person.id === item.who)?.name || '').trim();
+export function ticketGroups(list, spend) {
+  const byWho = new Map();
+  for (const item of unspentItems(list, spend)) {
+    const who = list.people.some((person) => person.id === item.who) ? item.who : '';
+    byWho.set(who, [...(byWho.get(who) || []), item]);
+  }
+  return [...list.people.map((person) => person.id), '']
+    .filter((who) => byWho.has(who))
+    .map((who) => ({ whoId: who, who: list.people.find((person) => person.id === who)?.name || '', items: byWho.get(who) }));
+}
+
+/** What an expense made of lines is called: the line, or the list and its lines. */
+export function ticketText(list, items) {
+  const words = items.map((item) => withoutPrice(oneLine(item.text))).filter(Boolean);
+  if (words.length === 1) return words[0];
+  const text = list.name ? `${String(list.name).trim()} : ${words.join(', ')}` : words.join(', ');
+  return text.length > 120 ? `${text.slice(0, 119).trimEnd()}…` : text;
+}
+
+/** What the lines are expected to cost, from the prices written in them; null if none says. */
+export function estimateOf(items) {
+  const prices = items.map((item) => priceIn(item.text)).filter((cents) => cents);
+  return prices.length ? prices.reduce((sum, cents) => sum + cents, 0) : null;
+}
+
+/**
+ * Write lines of a list as one expense — the receipt of what was bought
+ * together, or a single line: the amount given, paid by `byName` — or by
+ * whoever all the lines were for —, found by name and brought into the
+ * account if it does not have them; shared as `share` says (`forWhom`,
+ * `parts`, `fixed`, as addSpend takes them), by everyone otherwise. Lines
+ * already written are left out; none left, nothing is written.
+ */
+export function spendFromLines(spend, list, items, amount, { byName = null, text = '', forWhom = [], parts = null, fixed = null } = {}) {
+  const spent = spentItems(spend, list);
+  const fresh = items.filter((item) => item && !spent.has(item.id));
+  if (!fresh.length) return spend;
+  const holders = [...new Set(fresh.map((item) => item.who))];
+  const holder = holders.length === 1 ? list.people.find((person) => person.id === holders[0])?.name : '';
+  const name = String(byName || holder || '').trim();
   let next = spend;
   let payer = name ? next.people.find((person) => sameName(person.name) === sameName(name)) : null;
   if (name && !payer) {
     next = addPerson(next, name);
     payer = next.people[next.people.length - 1];
   }
-  const added = addSpend(next, { text: oneLine(item.text), amount, by: payer?.id || null });
+  const added = addSpend(next, {
+    text: String(text || '').trim() || ticketText(list, fresh), amount, by: payer?.id || null, forWhom, parts, fixed,
+  });
   if (added === next) return spend;
-  return markLast(added, 'lines', { doc: list.id, part: item.id });
+  const ids = fresh.map((item) => item.id);
+  // `part` stays the first line's, so that an app from before receipts still
+  // sees that one as written.
+  return markLast(added, 'lines', ids.length === 1 ? { doc: list.id, part: ids[0] } : { doc: list.id, part: ids[0], parts: ids });
+}
+
+/** One line of a list as an expense: see spendFromLines(). */
+export function spendFromLine(spend, list, item, amount, byName = null) {
+  return spendFromLines(spend, list, [item], amount, { byName });
+}
+
+/** The lists whose ticked lines go to this account: the other way round from accountsFor(). */
+export function listsFeeding(spend, all) {
+  return all.filter((one) => kindOf(one) === 'list' && isLive(one) && accountsFor(one, all).some((other) => other.id === spend.id));
+}
+
+/**
+ * Which lines of a list were paid, and how: line id → the account, the
+ * expense, and how many lines that expense paid for together.
+ */
+export function paidLines(list, all) {
+  const paid = new Map();
+  for (const spend of all) {
+    if (kindOf(spend) !== 'spend') continue;
+    for (const line of spend.lines || []) {
+      if (line.from?.doc !== list.id || isRepayment(line)) continue;
+      const parts = partsOf(line);
+      for (const part of parts) paid.set(part, { spend, line, count: parts.length });
+    }
+  }
+  return paid;
+}
+
+/**
+ * Who an expense from this list is for, unless told otherwise: everyone in
+ * the account — but a list of an activity, written in the account of the
+ * event above it, is for those doing the activity. Ids of the account's
+ * people; [] for everyone.
+ */
+export function defaultForWhom(list, spend, all) {
+  const event = eventOf(list, all);
+  if (!event || !isActivity(event, all) || eventOf(spend, all)?.id === event.id) return [];
+  const names = goers(event);
+  const ids = spend.people.filter((person) => names.some((name) => sameName(name) === sameName(person.name))).map((person) => person.id);
+  return ids.length < spend.people.length ? ids : [];
+}
+
+/**
+ * The quick « for whom » of an account of an event: each activity of it,
+ * with those of the account doing it — the kayak, for the four who went.
+ * Only those that are some of the account, not all or none.
+ */
+export function forWhomGroups(spend, all) {
+  const event = topEventOf(spend, all);
+  if (!event) return [];
+  return programmeOf(event, all)
+    .map((activity) => {
+      const names = goers(activity);
+      return {
+        id: activity.id,
+        name: eventName(activity),
+        ids: spend.people.filter((person) => names.some((name) => sameName(name) === sameName(person.name))).map((person) => person.id),
+      };
+    })
+    .filter((group) => group.ids.length && group.ids.length < spend.people.length);
 }
 
 /* ------------------------------------------------------- what is freed --- */
