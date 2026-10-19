@@ -5,7 +5,7 @@ import {
   createSpend, readAmount, showAmount, spendCurrency, addSpend, editSpend, removeSpend, archiveSpend,
   addSpendPerson, removeSpendPerson, canRemovePerson, split, balances, spendTotal, settle, mergeSpends, isValidSpend,
   addRepayment, isRepayment, splitBy, lineShares, readParts, weightOf, stepParts, setSpendWeight, splitProblem,
-  payOf, setSpendPay, priceIn, withoutPrice, priceCurrency,
+  payOf, setSpendPay, priceIn, withoutPrice, priceCurrency, addLatecomer, sharedWithEveryone,
 } from '../src/spends.js';
 
 /** Un week-end à trois : Gui paie le gîte, Alice les courses. */
@@ -515,4 +515,26 @@ test('un prix écrit dans une ligne se lit, et seulement s’il dit que c’est 
   assert.equal(withoutPrice('25 €'), '25 €', 'un prix tout seul reste ce qu’il est');
   assert.equal(withoutPrice('2 baguettes'), '2 baguettes');
   assert.deepEqual(['Fromage 25 €', 'Forfait 30 chf', '£3 tea', 'Pizza $12', 'Pain'].map(priceCurrency), ['EUR', 'CHF', 'GBP', 'USD', null]);
+});
+
+test('qui arrive en cours de route ne partage que ce qui vient, si on le dit', () => {
+  const spend = weekend();
+  assert.equal(sharedWithEveryone(spend), true, 'le gîte et les courses sont pour tout le monde');
+  const tard = addLatecomer(spend, 'Zoé');
+  const zoe = tard.people.find((person) => person.name === 'Zoé').id;
+  assert.ok(tard.lines.every((line) => line.forWhom.length === 3 && !line.forWhom.includes(zoe)),
+    'les dépenses déjà notées disent pour qui elles étaient');
+  assert.deepEqual(balances(tard).map((row) => row.owed), [12000, 12000, 12000, 0], 'Zoé ne doit rien du gîte');
+  const ensuite = addSpend(tard, { text: 'Resto', amount: 8000, by: zoe });
+  assert.deepEqual(balances(ensuite).map((row) => row.owed), [14000, 14000, 14000, 2000], 'mais partage ce qui vient');
+  // Ajoutée comme avant, elle partage tout : c'est l'oubli du premier jour.
+  assert.deepEqual(balances(addSpendPerson(spend, 'Zoé')).map((row) => row.owed), [9000, 9000, 9000, 9000]);
+  // Ce qui n'était que pour certains, et les remboursements, ne bougent pas.
+  const deux = createSpend({ name: 'x', names: ['Gui', 'Alice'] });
+  const [gui, alice] = deux.people.map((person) => person.id);
+  const mixte = addRepayment(addSpend(deux, { amount: 500, by: gui, forWhom: [alice] }), { from: alice, to: gui, amount: 100 });
+  assert.equal(sharedWithEveryone(mixte), false);
+  const sans = addLatecomer(mixte, 'Zoé');
+  assert.deepEqual(sans.lines.map((line) => line.forWhom), mixte.lines.map((line) => line.forWhom));
+  assert.equal(sans.people.length, 3);
 });

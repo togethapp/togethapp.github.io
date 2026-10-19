@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   related, ideasFor, addIdea, pollFromIdeas, winnersOf, winnerOffers, addWinner, accountsFor, spentItems, spendFromLine,
   unblockedNow, missingGoers, addGoers, unspentItems, ticketGroups, ticketText, estimateOf, spendFromLines, listsFeeding,
-  paidLines, defaultForWhom, forWhomGroups, activityFor,
+  paidLines, defaultForWhom, forWhomGroups, activityFor, purchasesToWrite,
 } from '../src/flows.js';
 import { linkTo, attach, parentId, relationsOf } from '../src/dashboard.js';
 import { createList, addItems, assignItem, toggleItem, mergeLists } from '../src/lists.js';
@@ -243,4 +243,35 @@ test('une liste d’activité va au compte de l’événement, pour ceux qui la 
   assert.deepEqual(forWhomGroups(spend, all).map((group) => [group.name, group.ids]), [['Kayak', [gui, zoe]]],
     'le resto, où tout le monde va, n’apprend rien : il ne se propose pas');
   assert.deepEqual(forWhomGroups({ ...createSpend({ name: 'Seul', names: ['Gui'] }), ...g }, all), [], 'hors de tout événement, rien');
+});
+
+test('un achat se paie une fois : noté dans un compte, il n’attend plus dans l’autre', () => {
+  const { event, list, spend } = courses();
+  const autre = attach({ ...createSpend({ name: 'Courses à part', names: ['Gui', 'Alice', 'Bob', 'Zoé'] }), ...g }, event.id);
+  const fromage = list.items[0];
+  const note = spendFromLines(autre, list, [fromage, list.items[1]], 3140);
+  const all = [event, list, spend, note];
+  assert.deepEqual(accountsFor(list, all).map((one) => one.id).sort(), [spend.id, note.id].sort(), 'les deux comptes de l’événement');
+  assert.ok(!unspentItems(list, spend, all).some((item) => item.id === fromage.id), 'le fromage n’attend plus le compte du week-end');
+  assert.deepEqual(ticketGroups(list, spend, all).map((group) => group.who), ['Gui', ''], 'le ticket d’Alice n’est plus proposé');
+  assert.ok(unspentItems(list, spend).some((item) => item.id === fromage.id), 'sans les autres comptes, on ne le sait pas');
+  // Retirée de l'autre compte, la dépense rend ses lignes : elles attendent de nouveau.
+  const retire = { ...note, lines: [] };
+  assert.ok(unspentItems(list, spend, [event, list, spend, retire]).some((item) => item.id === fromage.id));
+});
+
+test('ce que j’ai acheté et que personne n’a noté m’attend', () => {
+  const { event, list, spend } = courses();
+  const all = [event, list, spend];
+  const alice = purchasesToWrite('alice', [list], all);
+  assert.deepEqual(alice.map((row) => [row.account.id, row.items.map((item) => item.text)]),
+    [[spend.id, ['Fromage 25 €', 'Patates']]], 'ses deux lignes cochées, vers le compte du week-end');
+  assert.deepEqual(purchasesToWrite('Gui', [list], all)[0].items.map((item) => item.text), ['Vin (12,50€)']);
+  assert.deepEqual(purchasesToWrite('Bob', [list], all), [], 'Bob n’a rien acheté');
+  assert.deepEqual(purchasesToWrite('', [list], all), []);
+  const note = spendFromLines(spend, list, list.items.slice(0, 2), 3140);
+  assert.deepEqual(purchasesToWrite('Alice', [list], [event, list, note]), [], 'noté : plus rien n’attend');
+  const seule = { ...addItems(createList({ name: 'Seule', names: ['Alice'] }), 'Pain'), ...g };
+  const cochee = assignItem(toggleItem(seule, seule.items[0].id), seule.items[0].id, seule.people[0].id);
+  assert.deepEqual(purchasesToWrite('Alice', [cochee], [cochee]), [], 'une liste sans compte n’a rien à noter');
 });

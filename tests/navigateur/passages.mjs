@@ -87,7 +87,7 @@ await page.click('dialog[open] [data-flow-payer="Alice"]');
 check('le montant reste quand on choisit qui a payé', (await page.inputValue('dialog[open] #ticket-amount')) === '3,20');
 await page.click('dialog[open] #ticket-ok');
 await page.waitForFunction((id) => !document.querySelector(`.flows [data-flow-ticket^="${id}|"]`), compte.id);
-check('la Cagnotte la propose toujours', (await page.locator(`.flows [data-flow-ticket^="${cagnotte.id}|"]`).count()) === 1);
+check('un achat se paie une fois : la Cagnotte ne la propose plus', (await page.locator(`.flows [data-flow-ticket^="${cagnotte.id}|"]`).count()) === 0);
 const spend = await stored('spends', compte.id);
 check('la dépense est écrite, payée par Alice, entrée dans le compte',
   spend.lines.length === 1 && spend.lines[0].amount === 320 && spend.people.find((p) => p.id === spend.lines[0].by)?.name === 'Alice', JSON.stringify(spend.lines));

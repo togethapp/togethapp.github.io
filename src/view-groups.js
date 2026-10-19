@@ -162,8 +162,11 @@ export function openRelateDialog(document_) {
     const all = everything();
     const relations = relationsOf(document_, all);
     const targets = linkTargets(document_, all, 'with');
+    // Two ways, one verb each: goes with it, or waits for it. That the other
+    // waits for this one is said from the other one — the same link, seen
+    // from there; links made that way before keep their meaning.
     const ways = target
-      ? ['with', 'before', 'after'].filter((kind) => linkTargets(document_, all, kind).some((one) => one.id === target.id))
+      ? ['with', 'after'].filter((kind) => linkTargets(document_, all, kind).some((one) => one.id === target.id))
       : [];
     const close = `<button type="button" class="button button--ghost" data-relate-close>${escapeHtml(t('action.close'))}</button>`;
     dialog.innerHTML = `

@@ -31,7 +31,7 @@ import {
   createSpend, readAmount, showAmount, spendCurrency, CURRENCIES, addSpend, editSpend, removeSpend,
   archiveSpend, addSpendPerson, renameSpendPerson, removeSpendPerson, canRemovePerson, balances,
   spendTotal, settle, addRepayment, isRepayment, readParts, weightOf, stepParts, splitProblem, lineShares,
-  setSpendWeight, setSpendPay, payOf,
+  setSpendWeight, setSpendPay, payOf, sharedWithEveryone, addLatecomer,
 } from './spends.js';
 import { forWhomGroups, listsFeeding } from './flows.js';
 import { ticketOffersHtml } from './view-flows.js';
@@ -1256,6 +1256,36 @@ function openRepayDialog(spend, { move = null, line = null }) {
 }
 
 /**
+ * Someone joins an account whose expenses for everyone are already noted:
+ * do they share those too ('all'), or only what comes next ('next')? Null
+ * when called off.
+ */
+function askLatecomer(name) {
+  return new Promise((resolve) => {
+    const dialog = makeDialog('dialog dialog--ask');
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(t('spends.lateTitle', { name }))}</h2>
+        <p class="muted small">${escapeHtml(t('spends.lateHint', { name }))}</p>
+        <div class="stack stack--tight">
+          <button type="button" class="button" data-late="all">${escapeHtml(t('spends.lateAll'))}</button>
+          <button type="button" class="button" data-late="next">${escapeHtml(t('spends.lateNext'))}</button>
+          <button type="button" class="button button--ghost" data-late="">${escapeHtml(t('action.cancel'))}</button>
+        </div>
+      </div>`;
+    let answer = null;
+    dialog.querySelectorAll('[data-late]').forEach((button) => {
+      button.addEventListener('click', () => {
+        answer = button.dataset.late || null;
+        dialog.close();
+      });
+    });
+    dialog.addEventListener('close', () => resolve(answer));
+    dialog.showModal();
+  });
+}
+
+/**
  * Qui ce compte concerne : ajouter, renommer, retirer — quand c'est possible
  * —, et pour combien de parts chacun compte : un couple pour deux, une
  * famille pour quatre, un enfant pour moitié.
@@ -1288,7 +1318,17 @@ function openSpendPeopleDialog(spend) {
     },
     confirmRemove: t('spends.confirmRemovePerson'),
     people: () => held().people,
-    add: (name) => replaceSpend(addSpendPerson(held(), name), { redraw: false }),
+    // Someone added once expenses for everyone are noted: from now on, or all along?
+    add: async (name) => {
+      if (!sharedWithEveryone(held())) {
+        replaceSpend(addSpendPerson(held(), name), { redraw: false });
+        return true;
+      }
+      const since = await askLatecomer(String(name).trim());
+      if (!since) return false;
+      replaceSpend((since === 'next' ? addLatecomer : addSpendPerson)(held(), name), { redraw: false });
+      return true;
+    },
     rename: (id, name) => replaceSpend(renameSpendPerson(held(), id, name), { redraw: false }),
     remove: (id) => replaceSpend(removeSpendPerson(held(), id), { redraw: false }),
     // Retirer un payeur déséquilibrerait le compte sans rien dire : mieux vaut

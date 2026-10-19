@@ -800,9 +800,11 @@ export function openPeopleEditor({ hint = '', confirmRemove, people, add, rename
       </div>`;
 
     const field = dialog.querySelector('#person-new');
-    const addOne = () => {
+    // `add` may ask something first (an account: from now on, or all along?)
+    // and answer false when it was called off: the name typed stays.
+    const addOne = async () => {
       if (!field.value.trim()) return;
-      add(field.value);
+      if ((await add(field.value)) === false) return;
       draw();
       dialog.querySelector('#person-new').focus();
     };

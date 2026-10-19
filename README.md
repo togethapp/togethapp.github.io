@@ -276,12 +276,16 @@ La chaîne est un arbre : chaque élément n'a qu'un seul « parent ». Mais les
 choses ne se suivent pas qu'en ligne droite : la liste de courses attend que le
 sondage « quel vin ? » soit clos, le compte va avec la liste, la soirée jeux
 vient après la raclette. **Plus d'actions → Lier à…**, sur tout élément (les
-événements compris) : on choisit d'abord l'autre élément, puis l'une de trois
-phrases qui les nomment tous les deux :
+événements compris) : on choisit d'abord l'autre élément, puis l'une de deux
+phrases qui les nomment tous les deux, un seul verbe chacune :
 
 - « Courses » **va avec** « Compte » : ils vont ensemble, sans ordre ;
-- « Courses » **se fait avant** « Quel vin ? » : l'autre attend celui-ci ;
-- « Courses » **se fait après** « Quel vin ? » : celui-ci attend l'autre.
+- « Courses » **attend** « Quel vin ? » : la liste attend que le sondage soit
+  tranché.
+
+Que le sondage attende la liste se dit depuis le sondage : c'est le même lien,
+vu de l'autre côté. Dans la liste des liens déjà faits, chacun se lit avec le
+même verbe, dans le bon sens (« « Courses » attend « Quel vin ? » »).
 
 Une liste et un compte du même événement n'ont pas besoin de lien : les lignes
 cochées vont déjà au compte (voir *Liste → compte* plus bas).
@@ -296,7 +300,7 @@ déjà faits, chacun avec **Défaire**.
   encore fait porte ⏳.
 - **Dans l'arbre même**, à côté de chaque élément lié à la page où l'on est,
   une seule pastille dit ce qu'il est pour elle : **✓ À faire avant** (en
-  vert, c'est fait), **⏳ À faire avant** (pas encore fait), **Vient après**,
+  vert, c'est fait), **⏳ À faire avant** (pas encore fait), **L'attend**,
   **Va avec**. Ce qui est lié hors de la chaîne se range
   sous l'arbre, dans **Lié, hors de la chaîne** (ou **Liens** quand la page
   n'a pas de chaîne). Sur les cartes : « ⏳ Attend « … » ».
@@ -365,7 +369,9 @@ d'une touche, sans rien faire tout seuls (deux téléphones le feraient deux foi
   payée par celle qui les avait, au montant qu'annonçaient leurs prix — à
   corriger d'après le vrai ticket. Les autres lignes cochées sont là aussi,
   pour les ajouter au même ticket ; et la dépense se partage comme toute
-  dépense (pour qui, parts, montants à part).
+  dépense (pour qui, parts, montants à part). **Un achat se paie une fois** :
+  noté dans un compte, il n'est plus proposé aux autres comptes de
+  l'événement — pas de fromage compté deux fois.
 - **La liste sait qui a payé** : sous chaque ligne notée, « Alice a payé
   31,40 € pour 2 lignes » ; sous le titre, *Payé 43,90 €* à côté du prévu.
 - **Le compte sait ce qui l'attend** : en tête de ses dépenses, les mêmes
@@ -475,9 +481,10 @@ Avec plusieurs groupes, l'app ne mélange plus tout.
   par sorte ; les sortes sont la rangée du haut de l'Accueil, et leurs
   adresses (`#/lists`, `#/polls`, `#/games`, `#/spends`) marchent toujours.
 - **Pour vous**, sous les événements, sur l'Accueil : les sondages où votre prénom n'a pas
-  répondu, les lignes qui vous sont confiées (en retard d'abord), l'argent que
-  vous devez, et les personnes qui frappent à la porte d'un groupe que vous
-  ouvrez. Sans prénom (Réglages), l'Accueil le dit. Pile au
+  répondu, les lignes qui vous sont confiées (en retard d'abord), vos achats
+  cochés que personne n'a encore notés dans un compte (« 2 achats à noter dans
+  « Compte du week-end » »), l'argent que vous devez, et les personnes qui
+  frappent à la porte d'un groupe que vous ouvrez. Sans prénom (Réglages), l'Accueil le dit. Pile au
   milieu, à cheval sur la barre, un **« + »** crée une liste, un sondage, un
   événement, une partie ou un compte, depuis n'importe quelle page ; il dit
   dans quel groupe la chose ira (modifiable sur le formulaire).
@@ -525,6 +532,12 @@ Chaque ligne dit ce qui a été payé, combien, par qui, et pour qui.
   noter une baguette ne demande que deux champs, et une case à décocher fait
   qu'une ligne ne concerne que certains — le taxi de la gare. Ce que chacun
   doit s'affiche à côté de son nom dès que le montant est tapé.
+- **« Tout le monde », c'est qui est dans le compte** : quelqu'un d'oublié au
+  départ et ajouté ensuite partage aussi ce qui était pour tout le monde. Mais
+  quand le compte a déjà de telles dépenses, l'ajouter demande s'il arrive en
+  cours de route : *Seulement celles qui viennent* fige d'abord les dépenses
+  déjà notées sur ceux qui étaient là (le mercredi, pour des vacances
+  commencées le samedi).
 - **Des parts, réglées une fois** : dans *Les personnes*, chacun compte pour
   ½, 1, 2… parts — un couple pour 2, une famille pour 4, un enfant pour ½ —,
   et toutes les dépenses suivent, celles déjà notées comprises (« les Martin

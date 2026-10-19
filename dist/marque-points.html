@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="5912c327" />
+    <meta name="app-build" content="4eebbd2a" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -3508,6 +3508,7 @@ const STRINGS = {
     'forYou.noName': 'Votre prénom, et l’app vous montrera ici ce qui vous attend :',
     'forYou.vote': 'votre réponse est attendue',
     'forYou.lines': '{count} {count|chose|choses} pour vous',
+    'forYou.purchases': '{count} {count|achat|achats} à noter dans « {name} »',
     'forYou.knocks': '{count} {count|personne|personnes} {count|demande|demandent} à entrer',
     'forYou.knocksWhere': 'Groupes › {name}',
     'groups.noDatabase': 'Cette copie de l’app n’a pas de base partagée : il n’y a pas de groupe ici. Tout reste sur cet appareil.',
@@ -3600,13 +3601,13 @@ const STRINGS = {
     'chain.kind.game': 'Partie',
     'relate.button': 'Lier à…',
     'relate.title': 'Lier « {name} »',
-    'relate.hint': 'Dire ce qui se fait avant ou après, ou ce qui va avec. Seulement dans le même groupe. Inutile entre une liste et un compte du même événement : les lignes cochées vont déjà au compte.',
+    'relate.hint': 'Dire ce qui va avec, ou ce qu’il faut attendre. Seulement dans le même groupe. Inutile entre une liste et un compte du même événement : les lignes cochées vont déjà au compte.',
     'relate.current': 'Déjà lié',
     'relate.undo': 'Défaire',
     'relate.how': 'Comment ?',
     'relate.says.with': '«\u00a0{name}\u00a0» va avec «\u00a0{other}\u00a0»',
-    'relate.says.before': '«\u00a0{name}\u00a0» se fait avant «\u00a0{other}\u00a0»',
-    'relate.says.after': '«\u00a0{name}\u00a0» se fait après «\u00a0{other}\u00a0»',
+    'relate.says.before': '«\u00a0{other}\u00a0» attend «\u00a0{name}\u00a0»',
+    'relate.says.after': '«\u00a0{name}\u00a0» attend «\u00a0{other}\u00a0»',
     'relate.back': 'Choisir autre chose',
     'relate.pick': 'Avec quoi ?',
     'relate.nothing': 'Rien d’autre à lier dans ce groupe.',
@@ -3616,7 +3617,7 @@ const STRINGS = {
     'relate.outside': 'Lié, hors de la chaîne',
     'relate.with': 'Va avec',
     'relate.comesFirst': 'À faire avant',
-    'relate.comesAfter': 'Vient après',
+    'relate.comesAfter': 'L’attend',
     'relate.isDone': 'fait',
     'relate.notDone': 'pas encore fait',
     'relate.waiting': '⏳ Attend « {name} »',
@@ -3900,6 +3901,10 @@ const STRINGS = {
     'spends.remindTitle': 'Pour {name}',
     'spends.remindHint': 'Copiez ce message, ou envoyez-le d’ici.',
     'spends.remindText': '« {name} » : {from} → {to}, {amount}.',
+    'spends.lateTitle': '{name} arrive en cours de route ?',
+    'spends.lateHint': 'Ce compte a déjà des dépenses pour tout le monde. {name} les partage aussi, ou seulement celles qui viennent ?',
+    'spends.lateAll': 'Aussi celles déjà notées',
+    'spends.lateNext': 'Seulement celles qui viennent',
     'tab.ideas': 'Idées',
     'kinds.ongoing': 'En cours',
     'ideas.new': 'Nouveau tableau d’idées',
@@ -4753,6 +4758,7 @@ const STRINGS = {
     'forYou.noName': 'Your first name, and the app will show you here what is waiting on you:',
     'forYou.vote': 'your answer is awaited',
     'forYou.lines': '{count} {count|thing|things} for you',
+    'forYou.purchases': '{count} {count|purchase|purchases} to write in “{name}”',
     'forYou.knocks': '{count} {count|person|people} asking to join',
     'forYou.knocksWhere': 'Groups › {name}',
     'groups.noDatabase': 'This copy of the app has no shared database: there are no groups here. Everything stays on this device.',
@@ -4845,13 +4851,13 @@ const STRINGS = {
     'chain.kind.game': 'Game',
     'relate.button': 'Link to…',
     'relate.title': 'Link “{name}”',
-    'relate.hint': 'Say what comes before or after, or what goes with it. Only within the same group. No need between a list and an account of the same event: ticked lines already go to the account.',
+    'relate.hint': 'Say what goes with it, or what it has to wait for. Only within the same group. No need between a list and an account of the same event: ticked lines already go to the account.',
     'relate.current': 'Already linked',
     'relate.undo': 'Undo',
     'relate.how': 'How?',
     'relate.says.with': '“{name}” goes with “{other}”',
-    'relate.says.before': '“{name}” comes before “{other}”',
-    'relate.says.after': '“{name}” comes after “{other}”',
+    'relate.says.before': '“{other}” waits for “{name}”',
+    'relate.says.after': '“{name}” waits for “{other}”',
     'relate.back': 'Pick something else',
     'relate.pick': 'With what?',
     'relate.nothing': 'Nothing else to link in this group.',
@@ -4861,7 +4867,7 @@ const STRINGS = {
     'relate.outside': 'Linked, outside the chain',
     'relate.with': 'Goes with',
     'relate.comesFirst': 'Comes first',
-    'relate.comesAfter': 'Comes after',
+    'relate.comesAfter': 'Waits for it',
     'relate.isDone': 'done',
     'relate.notDone': 'not done yet',
     'relate.waiting': '⏳ Waits for “{name}”',
@@ -5145,6 +5151,10 @@ const STRINGS = {
     'spends.remindTitle': 'For {name}',
     'spends.remindHint': 'Copy this message, or send it from here.',
     'spends.remindText': '“{name}”: {from} → {to}, {amount}.',
+    'spends.lateTitle': '{name} joining on the way?',
+    'spends.lateHint': 'This account already has expenses for everyone. Does {name} share them too, or only those to come?',
+    'spends.lateAll': 'Those already noted too',
+    'spends.lateNext': 'Only those to come',
     'tab.ideas': 'Ideas',
     'kinds.ongoing': 'In progress',
     'ideas.new': 'New idea board',
@@ -8680,6 +8690,28 @@ function archiveSpend(spend, yes = true) {
 const addSpendPerson = addPerson;
 const renameSpendPerson = renamePerson;
 
+/** Whether an account has expenses for everyone, that whoever joins would share. */
+function sharedWithEveryone(spend) {
+  return spend.lines.some((line) => !isRepayment(line) && !line.forWhom.length);
+}
+
+/**
+ * Someone who joins on the way — on Wednesday, for a holiday begun on
+ * Saturday. « Pour tout le monde » means whoever is in the account, so the
+ * expenses already noted for everyone first say who they were for, name by
+ * name: the newcomer shares only what comes next.
+ */
+function addLatecomer(spend, name) {
+  const now = spend.people.map((person) => person.id);
+  let changed = false;
+  const lines = spend.lines.map((line) => {
+    if (isRepayment(line) || line.forWhom.length) return line;
+    changed = true;
+    return { ...line, forWhom: now, updatedAt: later(line.updatedAt) };
+  });
+  return addPerson(changed ? touch(spend, { lines }) : spend, name);
+}
+
 /**
  * Est-ce que ce compte tient encore debout sans cette personne ?
  *
@@ -10466,21 +10498,28 @@ function spentItems(spend, list) {
   return new Set((spend.lines || []).filter((line) => line.from?.doc === list.id).flatMap(partsOf));
 }
 
-/** The lines of a list ticked and not yet written in that account. */
-function unspentItems(list, spend) {
+/**
+ * The lines of a list ticked and not yet written in that account — nor in
+ * any other of `all`, when given: a purchase is paid once. Without that, two
+ * accounts of the same event would both keep offering the cheese, and
+ * whoever opened the second would write it again.
+ */
+function unspentItems(list, spend, all = null) {
   const spent = spentItems(spend, list);
-  return list.items.filter((item) => item.done && !spent.has(item.id));
+  const elsewhere = all ? paidLines(list, all) : new Map();
+  return list.items.filter((item) => item.done && !spent.has(item.id) && !elsewhere.has(item.id));
 }
 
 /**
  * What waits to go into an account, by whoever the lines were given to: what
  * one person bought is one receipt, nine times out of ten — and what nobody
  * had taken, last. Each with whoever had them — `whoId` and `who`, their
- * name —, or '' for both.
+ * name —, or '' for both. Lines written in another account of `all` are not
+ * waiting any more (see unspentItems).
  */
-function ticketGroups(list, spend) {
+function ticketGroups(list, spend, all = null) {
   const byWho = new Map();
-  for (const item of unspentItems(list, spend)) {
+  for (const item of unspentItems(list, spend, all)) {
     const who = list.people.some((person) => person.id === item.who) ? item.who : '';
     byWho.set(who, [...(byWho.get(who) || []), item]);
   }
@@ -10537,6 +10576,24 @@ function spendFromLines(spend, list, items, amount, { byName = null, text = '', 
 /** One line of a list as an expense: see spendFromLines(). */
 function spendFromLine(spend, list, item, amount, byName = null) {
   return spendFromLines(spend, list, [item], amount, { byName });
+}
+
+/**
+ * What someone bought and nobody has written down yet: on each list whose
+ * lines go to an account, the lines given to them, ticked, and in no
+ * account. Each with the account they would go to first.
+ */
+function purchasesToWrite(name, lists, all) {
+  const key = sameName(name);
+  if (!key) return [];
+  return lists.flatMap((list) => {
+    if (kindOf(list) !== 'list' || !isLive(list)) return [];
+    const mine = new Set(list.people.filter((person) => sameName(person.name) === key).map((person) => person.id));
+    if (!mine.size) return [];
+    const account = accountsFor(list, all)[0];
+    const items = account ? unspentItems(list, account, all).filter((item) => mine.has(item.who)) : [];
+    return items.length ? [{ list, account, items }] : [];
+  });
 }
 
 /** The lists whose ticked lines go to this account: the other way round from accountsFor(). */
@@ -15869,9 +15926,11 @@ function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remov
       </div>`;
 
     const field = dialog.querySelector('#person-new');
-    const addOne = () => {
+    // `add` may ask something first (an account: from now on, or all along?)
+    // and answer false when it was called off: the name typed stays.
+    const addOne = async () => {
       if (!field.value.trim()) return;
-      add(field.value);
+      if ((await add(field.value)) === false) return;
       draw();
       dialog.querySelector('#person-new').focus();
     };
@@ -17249,6 +17308,36 @@ function openRepayDialog(spend, { move = null, line = null }) {
 }
 
 /**
+ * Someone joins an account whose expenses for everyone are already noted:
+ * do they share those too ('all'), or only what comes next ('next')? Null
+ * when called off.
+ */
+function askLatecomer(name) {
+  return new Promise((resolve) => {
+    const dialog = makeDialog('dialog dialog--ask');
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(t('spends.lateTitle', { name }))}</h2>
+        <p class="muted small">${escapeHtml(t('spends.lateHint', { name }))}</p>
+        <div class="stack stack--tight">
+          <button type="button" class="button" data-late="all">${escapeHtml(t('spends.lateAll'))}</button>
+          <button type="button" class="button" data-late="next">${escapeHtml(t('spends.lateNext'))}</button>
+          <button type="button" class="button button--ghost" data-late="">${escapeHtml(t('action.cancel'))}</button>
+        </div>
+      </div>`;
+    let answer = null;
+    dialog.querySelectorAll('[data-late]').forEach((button) => {
+      button.addEventListener('click', () => {
+        answer = button.dataset.late || null;
+        dialog.close();
+      });
+    });
+    dialog.addEventListener('close', () => resolve(answer));
+    dialog.showModal();
+  });
+}
+
+/**
  * Qui ce compte concerne : ajouter, renommer, retirer — quand c'est possible
  * —, et pour combien de parts chacun compte : un couple pour deux, une
  * famille pour quatre, un enfant pour moitié.
@@ -17281,7 +17370,17 @@ function openSpendPeopleDialog(spend) {
     },
     confirmRemove: t('spends.confirmRemovePerson'),
     people: () => held().people,
-    add: (name) => replaceSpend(addSpendPerson(held(), name), { redraw: false }),
+    // Someone added once expenses for everyone are noted: from now on, or all along?
+    add: async (name) => {
+      if (!sharedWithEveryone(held())) {
+        replaceSpend(addSpendPerson(held(), name), { redraw: false });
+        return true;
+      }
+      const since = await askLatecomer(String(name).trim());
+      if (!since) return false;
+      replaceSpend((since === 'next' ? addLatecomer : addSpendPerson)(held(), name), { redraw: false });
+      return true;
+    },
     rename: (id, name) => replaceSpend(renameSpendPerson(held(), id, name), { redraw: false }),
     remove: (id) => replaceSpend(removeSpendPerson(held(), id), { redraw: false }),
     // Retirer un payeur déséquilibrerait le compte sans rien dire : mieux vaut
@@ -19718,8 +19817,11 @@ function openRelateDialog(document_) {
     const all = everything();
     const relations = relationsOf(document_, all);
     const targets = linkTargets(document_, all, 'with');
+    // Two ways, one verb each: goes with it, or waits for it. That the other
+    // waits for this one is said from the other one — the same link, seen
+    // from there; links made that way before keep their meaning.
     const ways = target
-      ? ['with', 'before', 'after'].filter((kind) => linkTargets(document_, all, kind).some((one) => one.id === target.id))
+      ? ['with', 'after'].filter((kind) => linkTargets(document_, all, kind).some((one) => one.id === target.id))
       : [];
     const close = `<button type="button" class="button button--ghost" data-relate-close>${escapeHtml(t('action.close'))}</button>`;
     dialog.innerHTML = `
@@ -21522,7 +21624,7 @@ function listFlowsHtml(list) {
  * those nobody had. On the list, and on the account the other way round.
  */
 function ticketOffersHtml(list, spend, title) {
-  return offersHtml(title, ticketGroups(list, spend).map((group) => {
+  return offersHtml(title, ticketGroups(list, spend, everything()).map((group) => {
     const words = group.items.slice(0, 3).map((item) => withoutPrice(item.text)).join(', ');
     const more = group.items.length > 3 ? ` +${group.items.length - 3}` : '';
     const label = group.who ? t('flows.ticketOf', { name: group.who, lines: `${words}${more}` }) : `${words}${more}`;
@@ -21539,7 +21641,8 @@ function ticketOffersHtml(list, spend, title) {
 function openTicketDialog(spend, list, picked) {
   const account = byId(spend.id) || spend;
   const source = byId(list.id) || list;
-  const waiting = unspentItems(source, account);
+  const all = everything();
+  const waiting = unspentItems(source, account, all);
   const chosen = new Set(picked.map((item) => item.id).filter((id) => waiting.some((item) => item.id === id)));
   if (!chosen.size) return;
   const lines = () => waiting.filter((item) => chosen.has(item.id));
@@ -21548,7 +21651,6 @@ function openTicketDialog(spend, list, picked) {
   const names = [...new Set([holder, ...account.people.map((person) => person.name), ...source.people.map((person) => person.name)]
     .map((name) => String(name || '').trim()).filter(Boolean))];
   let payer = holder || names.find((name) => sameName(name) === sameName(myName())) || names[0] || '';
-  const all = everything();
   const guess = () => estimateOf(lines());
 
   const dialog = makeDialog();
@@ -21995,7 +22097,7 @@ function bindFlows(root) {
       const [spendId, listId, whoId] = pair(node.dataset.flowTicket);
       const spend = current(spendId);
       const list = current(listId);
-      const group = list && spend && ticketGroups(list, spend).find((one) => one.whoId === whoId);
+      const group = list && spend && ticketGroups(list, spend, everything()).find((one) => one.whoId === whoId);
       if (group) openTicketDialog(spend, list, group.items);
     });
   });
@@ -23891,6 +23993,7 @@ function bindLook(view) {
 
 
 
+
 /* --------------------------------------------------------------- overview --- */
 
 /**
@@ -24762,6 +24865,14 @@ function forYouItems() {
       title: listTitle(row.list),
       meta: t('forYou.lines', { count: row.left }) + forEventText(row.list),
       late: row.late ? t('lists.late', { count: row.late }) : '',
+    });
+  }
+  // Bought, ticked, and in no account yet: the receipt is still in a pocket.
+  for (const row of purchasesToWrite(me, shownDocs(state.lists), everything())) {
+    items.push({
+      goto: `#/list/${row.list.id}`,
+      title: listTitle(row.list),
+      meta: t('forYou.purchases', { count: row.items.length, name: spendTitle(row.account) }) + forEventText(row.list),
     });
   }
   for (const row of file.accounts.filter((one) => one.balance < 0)) {
