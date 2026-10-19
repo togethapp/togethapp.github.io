@@ -979,10 +979,13 @@ a { color: inherit; }
   margin: 0 auto;
   padding: 20px 16px 64px;
   display: grid;
+  /* One column as wide as the screen: a card too wide for it must give way,
+     never widen the page (the "+ Create" button then ran off the right edge). */
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
 
-.section { display: grid; gap: 12px; }
+.section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 
 .section__head {
   display: flex;
@@ -1426,7 +1429,7 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
 .hint { color: var(--muted); font-size: 0.78rem; font-weight: 400; }
 
 /* ------------------------------------------------------------ game cards --- */
-.game-list { display: grid; gap: 10px; }
+.game-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 
 .game-card {
   display: grid;
@@ -1451,7 +1454,10 @@ input[type='time']::-webkit-date-and-time-value { text-align: left; }
   .game-card:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); box-shadow: var(--shadow-lift); transform: translateY(-1px); }
 }
 .game-card:active:not(.pressable--held) { transform: scale(0.99); }
-.game-card__title { display: flex; align-items: center; gap: 8px; font-weight: 650; }
+.game-card__title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-weight: 650; }
+/* A long date ("Sat, Nov 21 to Mon, Nov 23 · 08:30") goes under the title,
+   and breaks only if the card is narrower still. */
+.game-card__title > .pill { white-space: normal; max-width: 100%; }
 .game-card__meta { color: var(--muted); font-size: 0.82rem; }
 /* The event a card belongs to: the thread that ties it to the rest. */
 .game-card__event { color: var(--accent); font-weight: 600; }
