@@ -24,6 +24,7 @@ import {
   accountHtml, accountNeededHtml, accountOfferHtml, accountToken, leaveWithAccount, syncAccount,
 } from './view-account.js';
 import { openActivityDialog, openActivityPicker, unblockedHtml } from './view-flows.js';
+import { purchasesToWrite } from './flows.js';
 import { ask, makeDialog, shareMessage, showCopyDialog } from './view-games.js';
 import {
   bindData, bindInAppWarning, catchUpWith, checkPending, chooseEvent, destinationForNew, deviceLabel, forgetGate,
@@ -912,6 +913,14 @@ function forYouItems() {
       title: listTitle(row.list),
       meta: t('forYou.lines', { count: row.left }) + forEventText(row.list),
       late: row.late ? t('lists.late', { count: row.late }) : '',
+    });
+  }
+  // Bought, ticked, and in no account yet: the receipt is still in a pocket.
+  for (const row of purchasesToWrite(me, shownDocs(state.lists), everything())) {
+    items.push({
+      goto: `#/list/${row.list.id}`,
+      title: listTitle(row.list),
+      meta: t('forYou.purchases', { count: row.items.length, name: spendTitle(row.account) }) + forEventText(row.list),
     });
   }
   for (const row of file.accounts.filter((one) => one.balance < 0)) {

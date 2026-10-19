@@ -363,6 +363,28 @@ export function archiveSpend(spend, yes = true) {
 export const addSpendPerson = addPerson;
 export const renameSpendPerson = renamePerson;
 
+/** Whether an account has expenses for everyone, that whoever joins would share. */
+export function sharedWithEveryone(spend) {
+  return spend.lines.some((line) => !isRepayment(line) && !line.forWhom.length);
+}
+
+/**
+ * Someone who joins on the way — on Wednesday, for a holiday begun on
+ * Saturday. « Pour tout le monde » means whoever is in the account, so the
+ * expenses already noted for everyone first say who they were for, name by
+ * name: the newcomer shares only what comes next.
+ */
+export function addLatecomer(spend, name) {
+  const now = spend.people.map((person) => person.id);
+  let changed = false;
+  const lines = spend.lines.map((line) => {
+    if (isRepayment(line) || line.forWhom.length) return line;
+    changed = true;
+    return { ...line, forWhom: now, updatedAt: later(line.updatedAt) };
+  });
+  return addPerson(changed ? touch(spend, { lines }) : spend, name);
+}
+
 /**
  * Est-ce que ce compte tient encore debout sans cette personne ?
  *

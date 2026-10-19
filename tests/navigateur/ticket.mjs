@@ -33,6 +33,9 @@ piquenique = toggleItem(piquenique, piquenique.items[0].id);
 let compte = attach(createSpend({ name: 'Compte du week-end', names: ['Gui', 'Alice', 'Bob', 'Zoé'] }), event.id);
 compte = addSpend(compte, { text: 'Gîte', amount: 48000, by: compte.people[0].id });
 
+// Created later, beside the first: the same event's lines must not go in twice.
+const autre = attach(createSpend({ name: 'Courses à part', names: ['Gui', 'Alice', 'Bob', 'Zoé'] }), event.id);
+
 const seed = {
   'marque-points:prefs:v1': { me: 'Gui' },
   'marque-points:polls:v1': [event, kayak],
@@ -55,6 +58,13 @@ const goto = async (hash) => {
   await page.waitForSelector('.app-bar');
   await page.waitForTimeout(250);
 };
+
+/* --- 0. l'Accueil : ce que j'ai acheté attend d'être noté ---------------- */
+
+await goto('#/');
+check('« Pour vous » dit l’achat de Gui, pas encore noté',
+  /Courses/.test(await text(page.locator('#for-you'))) && /1 achat à noter dans « Compte du week-end »/.test(await text(page.locator('#for-you'))),
+  await text(page.locator('#view')));
 
 /* --- 1. la liste : ce qu'on prévoit, et un ticket par personne ------------ */
 
@@ -111,6 +121,8 @@ saved = await account();
 check('le second ticket n’est pas pour Bob', saved.lines[2].forWhom.length === 3
   && !saved.lines[2].forWhom.includes(saved.people[2].id), JSON.stringify(saved.lines[2].forWhom));
 check('plus rien n’attend le compte', (await page.locator('[data-flow-ticket]').count()) === 0);
+await goto('#/');
+check('noté, l’achat quitte « Pour vous »', !/à noter/.test(await text(page.locator('#view'))));
 
 /* --- 2. le compte : la liste de l'activité l'attend ----------------------- */
 
@@ -200,6 +212,42 @@ await page.click('#export-close');
 saved = await account();
 check('cinq dépenses, le montant à part de Gui compris',
   saved.lines.length === 5 && saved.lines[4].fixed?.[saved.people[0].id] === 1200, JSON.stringify(saved.lines[4]));
+
+/* --- 7. un second compte dans l'événement : pas de doublon --------------- */
+
+await page.evaluate((more) => {
+  const spends = JSON.parse(localStorage.getItem('marque-points:spends:v1'));
+  localStorage.setItem('marque-points:spends:v1', JSON.stringify([...spends, more]));
+}, autre);
+await goto(`#/list/${courses.id}`);
+check('ce qui est noté dans un compte n’est plus proposé à l’autre', (await page.locator('[data-flow-ticket]').count()) === 0
+  && /Payé 43,90/.test(await text(page.locator('.list-money'))), await text(page.locator('.list-money')));
+await goto(`#/spend/${autre.id}`);
+check('et l’autre compte n’attend rien de la liste', !/Cochées dans/.test(await text(page.locator('#view'))));
+
+/* --- 8. quelqu'un qui arrive en cours de route ---------------------------- */
+
+await goto(`#/spend/${compte.id}`);
+await page.click('#spend-people');
+await page.waitForSelector('dialog[open] #person-new');
+await page.fill('dialog[open] #person-new', 'Léa');
+await page.click('dialog[open] #person-add');
+await page.waitForSelector('dialog[open] [data-late="next"]');
+check('le compte demande si Léa partage ce qui est déjà noté',
+  /Léa arrive en cours de route/.test(await text(page.locator('dialog[open]').last())));
+await page.click('dialog[open] [data-late="next"]');
+await page.waitForFunction(() => [...document.querySelectorAll('dialog[open] .knock')].some((n) => n.textContent.includes('Léa')));
+await page.click('dialog[open] #people-close');
+await page.waitForTimeout(200);
+saved = await account();
+const lea = saved.people.find((person) => person.name === 'Léa');
+check('Léa entre dans le compte, sans les dépenses d’avant',
+  Boolean(lea) && saved.lines.every((line) => !line.forWhom.includes(lea.id) && line.forWhom.length > 0), JSON.stringify(saved.lines.map((l) => l.forWhom.length)));
+await page.click('[data-spend-tab="balances"]');
+await page.waitForSelector('.move');
+check('elle ne doit rien, et Gui toujours 382,59 €',
+  /sa part 0,00/.test(await row('Léa')) && /à jour/.test(await row('Léa')) && /on lui doit 382,59/.test(await row('Gui')),
+  `${await row('Léa')} / ${await row('Gui')}`);
 
 check('aucune erreur de page', errors.length === 0, errors.join(' | '));
 await browser.close();

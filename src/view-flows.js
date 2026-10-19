@@ -109,7 +109,7 @@ export function listFlowsHtml(list) {
  * those nobody had. On the list, and on the account the other way round.
  */
 export function ticketOffersHtml(list, spend, title) {
-  return offersHtml(title, ticketGroups(list, spend).map((group) => {
+  return offersHtml(title, ticketGroups(list, spend, everything()).map((group) => {
     const words = group.items.slice(0, 3).map((item) => withoutPrice(item.text)).join(', ');
     const more = group.items.length > 3 ? ` +${group.items.length - 3}` : '';
     const label = group.who ? t('flows.ticketOf', { name: group.who, lines: `${words}${more}` }) : `${words}${more}`;
@@ -126,7 +126,8 @@ export function ticketOffersHtml(list, spend, title) {
 export function openTicketDialog(spend, list, picked) {
   const account = byId(spend.id) || spend;
   const source = byId(list.id) || list;
-  const waiting = unspentItems(source, account);
+  const all = everything();
+  const waiting = unspentItems(source, account, all);
   const chosen = new Set(picked.map((item) => item.id).filter((id) => waiting.some((item) => item.id === id)));
   if (!chosen.size) return;
   const lines = () => waiting.filter((item) => chosen.has(item.id));
@@ -135,7 +136,6 @@ export function openTicketDialog(spend, list, picked) {
   const names = [...new Set([holder, ...account.people.map((person) => person.name), ...source.people.map((person) => person.name)]
     .map((name) => String(name || '').trim()).filter(Boolean))];
   let payer = holder || names.find((name) => sameName(name) === sameName(myName())) || names[0] || '';
-  const all = everything();
   const guess = () => estimateOf(lines());
 
   const dialog = makeDialog();
@@ -582,7 +582,7 @@ export function bindFlows(root) {
       const [spendId, listId, whoId] = pair(node.dataset.flowTicket);
       const spend = current(spendId);
       const list = current(listId);
-      const group = list && spend && ticketGroups(list, spend).find((one) => one.whoId === whoId);
+      const group = list && spend && ticketGroups(list, spend, everything()).find((one) => one.whoId === whoId);
       if (group) openTicketDialog(spend, list, group.items);
     });
   });

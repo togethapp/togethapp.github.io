@@ -114,7 +114,7 @@ await page.locator('dialog[open] [data-relate-to]', { hasText: 'Raclette' }).cli
 await page.waitForSelector('dialog[open] [data-relate-kind]');
 const ways = (await page.locator('dialog[open] [data-relate-kind]').allTextContents()).map((s) => s.replace(/\s+/g, ' ').trim());
 check('puis comment, en phrases qui les nomment toutes les deux',
-  JSON.stringify(ways) === JSON.stringify(['« Courses » va avec « Raclette »', '« Courses » se fait avant « Raclette »', '« Courses » se fait après « Raclette »']),
+  JSON.stringify(ways) === JSON.stringify(['« Courses » va avec « Raclette »', '« Courses » attend « Raclette »']),
   ways.join(' | '));
 await page.click('dialog[open] [data-relate-back]');
 await page.waitForSelector('dialog[open] [data-relate-to]');
@@ -129,13 +129,13 @@ check('et, dans l’arbre, la liste porte ⏳', (await page.locator('#view .chai
 check('et que ce n’est pas encore fait, pour qui ne voit pas la couleur', /pas encore fait/.test(await text('#view .chain-map__links .pill--late')));
 await page.goto(`${B}#/poll/${raclette.id}`);
 await page.waitForSelector('#event-parts');
-check('l’événement voit ce qui vient après', /Courses.*Vient après/.test(await text('#view .chain-map__links')), await text('#view .chain-map'));
+check('l’événement voit ce qui l’attend', /Courses.*L’attend/.test(await text('#view .chain-map__links')), await text('#view .chain-map'));
 await more();
 check('un événement se lie aussi', (await page.locator('#view [data-relate-doc]').count()) === 1);
 await page.click('#view [data-relate-doc]');
 await page.waitForSelector('dialog[open] [data-unrelate]');
 check('le lien déjà fait se dit en phrase, depuis l’événement',
-  /« Raclette » se fait avant « Courses »/.test(await text('dialog[open] .relate-list')), await text('dialog[open] .relate-list'));
+  /« Courses » attend « Raclette »/.test(await text('dialog[open] .relate-list')), await text('dialog[open] .relate-list'));
 await page.click('dialog[open] [data-unrelate]');
 await page.waitForFunction(() => !document.querySelector('dialog[open] [data-unrelate]'));
 check('défait depuis l’autre côté, le lien part de la liste', (await stored('lists', courses.id)).links.length === 0);

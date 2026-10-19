@@ -154,21 +154,28 @@ export function spentItems(spend, list) {
   return new Set((spend.lines || []).filter((line) => line.from?.doc === list.id).flatMap(partsOf));
 }
 
-/** The lines of a list ticked and not yet written in that account. */
-export function unspentItems(list, spend) {
+/**
+ * The lines of a list ticked and not yet written in that account — nor in
+ * any other of `all`, when given: a purchase is paid once. Without that, two
+ * accounts of the same event would both keep offering the cheese, and
+ * whoever opened the second would write it again.
+ */
+export function unspentItems(list, spend, all = null) {
   const spent = spentItems(spend, list);
-  return list.items.filter((item) => item.done && !spent.has(item.id));
+  const elsewhere = all ? paidLines(list, all) : new Map();
+  return list.items.filter((item) => item.done && !spent.has(item.id) && !elsewhere.has(item.id));
 }
 
 /**
  * What waits to go into an account, by whoever the lines were given to: what
  * one person bought is one receipt, nine times out of ten — and what nobody
  * had taken, last. Each with whoever had them — `whoId` and `who`, their
- * name —, or '' for both.
+ * name —, or '' for both. Lines written in another account of `all` are not
+ * waiting any more (see unspentItems).
  */
-export function ticketGroups(list, spend) {
+export function ticketGroups(list, spend, all = null) {
   const byWho = new Map();
-  for (const item of unspentItems(list, spend)) {
+  for (const item of unspentItems(list, spend, all)) {
     const who = list.people.some((person) => person.id === item.who) ? item.who : '';
     byWho.set(who, [...(byWho.get(who) || []), item]);
   }
@@ -225,6 +232,24 @@ export function spendFromLines(spend, list, items, amount, { byName = null, text
 /** One line of a list as an expense: see spendFromLines(). */
 export function spendFromLine(spend, list, item, amount, byName = null) {
   return spendFromLines(spend, list, [item], amount, { byName });
+}
+
+/**
+ * What someone bought and nobody has written down yet: on each list whose
+ * lines go to an account, the lines given to them, ticked, and in no
+ * account. Each with the account they would go to first.
+ */
+export function purchasesToWrite(name, lists, all) {
+  const key = sameName(name);
+  if (!key) return [];
+  return lists.flatMap((list) => {
+    if (kindOf(list) !== 'list' || !isLive(list)) return [];
+    const mine = new Set(list.people.filter((person) => sameName(person.name) === key).map((person) => person.id));
+    if (!mine.size) return [];
+    const account = accountsFor(list, all)[0];
+    const items = account ? unspentItems(list, account, all).filter((item) => mine.has(item.who)) : [];
+    return items.length ? [{ list, account, items }] : [];
+  });
 }
 
 /** The lists whose ticked lines go to this account: the other way round from accountsFor(). */
