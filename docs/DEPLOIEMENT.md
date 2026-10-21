@@ -393,10 +393,11 @@ alter table public.marque_points_request enable row level security;
 create index if not exists marque_points_request_group
   on public.marque_points_request (group_id, state);
 
--- Les entrées ratées, par nom de groupe. C'est ici que se joue la solidité de
--- six chiffres : compter les essais sur une invitation ne protégerait de rien,
--- puisque qui devine tape des codes qui n'existent pas. Au-delà de vingt ratés
--- en dix minutes sur un même groupe, on n'ouvre plus du tout pendant un moment.
+-- Les entrées ratées, par nom de groupe : un vrai code donné avec un autre nom
+-- que celui de son groupe. Au-delà de vingt en dix minutes sur un même groupe,
+-- on n'y ouvre plus du tout pendant un moment. Un code qui n'existe pas ne se
+-- compte nulle part (voir marque_points_ask) : six chiffres ne font que
+-- frapper, et ce qui fait entrer, c'est votre acceptation.
 create table if not exists public.marque_points_join_miss (
   id bigserial primary key,
   name text not null,
@@ -434,9 +435,9 @@ create index if not exists marque_points_person_group on public.marque_points_pe
 alter table public.marque_points_group_key
   add column if not exists person_id text references public.marque_points_person(id) on delete set null;
 
--- Les tentatives ratées de retour vont dans le même seau que les codes inconnus
--- (marque_points_join_miss, nom vide) : un jeton de 128 bits ne se devine pas,
--- mais rien n'empêche d'essayer, et rien ne doit encourager à recommencer.
+-- Les tentatives ratées de retour ne se comptent pas, comme pour l'agenda : un
+-- jeton de 128 bits ne se devine pas, et un plafond commun à tout le monde
+-- laissait quiconque tapait de faux codes bloquer les liens de retour de tous.
 
 -- Chaque document partagé appartient au groupe qui l'a créé.
 alter table public.marque_points_games
@@ -998,7 +999,6 @@ set search_path = public
 as $$
 declare
   v_invite public.marque_points_invite;
-  v_group_name text;
   v_name text := left(lower(btrim(coalesce(p_name, ''))), 60);
   v_ticket text := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
   v_salt text := md5(gen_random_uuid()::text);
@@ -1023,12 +1023,19 @@ begin
      and i.expires_at > now()
      and i.uses > 0;
 
-  -- Un code qui n'existe pas se compte dans un seau commun : celui qui en tire
-  -- au hasard s'arrête au vingtième, et ceux qui ont un vrai code ne sont pas
-  -- gênés puisqu'ils ne passent jamais par ici. Un code qui existe mais dont le
-  -- nom de groupe est faux se compte sur ce groupe, qui existe vraiment.
-  v_bucket := case when v_invite.code is null then '' else
-    (select left(lower(btrim(g.name)), 60) from public.marque_points_group g where g.id = v_invite.group_id) end;
+  -- Un code qui n'existe pas ne se compte nulle part, et reçoit la même réponse
+  -- qu'un vrai code donné avec un faux nom. Les compter dans un seau commun
+  -- disait, le seau plein, quels codes existaient (« occupé » pour les faux,
+  -- autre chose pour les vrais), et laissait quiconque tapait des codes au
+  -- hasard bloquer les liens de retour de tout le monde.
+  if not found then
+    return jsonb_build_object('status', 'unknown');
+  end if;
+
+  -- Un vrai code dont le nom de groupe est faux se compte sur ce groupe, qui
+  -- existe vraiment.
+  select left(lower(btrim(g.name)), 60) into v_bucket
+    from public.marque_points_group g where g.id = v_invite.group_id;
 
   select count(*) into v_misses
     from public.marque_points_join_miss
@@ -1037,15 +1044,7 @@ begin
     return jsonb_build_object('status', 'busy');
   end if;
 
-  if v_invite.code is null then
-    insert into public.marque_points_join_miss (name) values ('');
-    return jsonb_build_object('status', 'unknown');
-  end if;
-
-  select left(lower(btrim(g.name)), 60) into v_group_name
-    from public.marque_points_group g where g.id = v_invite.group_id;
-
-  if v_group_name is distinct from v_name then
+  if v_bucket is distinct from v_name then
     -- Le nom ne va pas avec le code. Compté sur le groupe visé, et l'invitation
     -- n'en souffre pas : la fermer ici serait offrir à quiconque a lu le lien
     -- le moyen de la rendre inutilisable pour tous les autres.
@@ -1258,24 +1257,14 @@ declare
   v_person public.marque_points_person;
   v_key text := replace(gen_random_uuid()::text, '-', '');
   v_salt text := md5(gen_random_uuid()::text);
-  v_misses integer;
 begin
-  delete from public.marque_points_join_miss where at < now() - interval '1 hour';
-
-  select count(*) into v_misses
-    from public.marque_points_join_miss
-   where name = '' and at > now() - interval '10 minutes';
-  if v_misses >= 20 then
-    return jsonb_build_object('status', 'busy');
-  end if;
-
+  -- Pas de plafond d'essais : voir la table des personnes, plus haut.
   select p.* into v_person
     from public.marque_points_person p
    where p.token_hash is not null
      and p.token_hash = md5(coalesce(p_token, '') || p.token_salt);
 
   if not found then
-    insert into public.marque_points_join_miss (name) values ('');
     return jsonb_build_object('status', 'unknown');
   end if;
 
@@ -1319,6 +1308,30 @@ begin
   return jsonb_build_object('status', 'ok');
 end;
 $$;
+
+-- Une personne qui n'a plus aucun appareil dans le groupe n'a plus de lien de
+-- retour : coupée depuis l'app, d'ici à la main, ou mise dehors avec tout le
+-- monde par le bouton d'alarme, elle ne revient pas d'elle-même, sans que
+-- personne ne l'accepte.
+create or replace function public.marque_points_person_out()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if old.person_id is not null
+     and not exists (select 1 from public.marque_points_group_key k where k.person_id = old.person_id) then
+    update public.marque_points_person set token_hash = null, token_salt = null where id = old.person_id;
+  end if;
+  return old;
+end;
+$$;
+
+drop trigger if exists marque_points_person_out on public.marque_points_group_key;
+create trigger marque_points_person_out
+  after delete on public.marque_points_group_key
+  for each row execute function public.marque_points_person_out();
 
 -- Qui est dans le groupe : une ligne par appareil, pour la clé qui admet. La
 -- ligne de l'appareil qui demande est signalée, pour qu'il ne se coupe pas
@@ -2160,6 +2173,7 @@ revoke all on function public.marque_points_merge_votes(jsonb, jsonb) from publi
 revoke all on function public.marque_points_add_options(jsonb, jsonb, jsonb) from public, anon, authenticated;
 revoke all on function public.marque_points_new_group(text) from public, anon, authenticated;
 revoke all on function public.marque_points_new_group_key(text) from public, anon, authenticated;
+revoke all on function public.marque_points_person_out() from public, anon, authenticated;
 
 grant execute on function public.marque_points_invite(text, integer, integer) to anon, authenticated;
 grant execute on function public.marque_points_ask(text, text, text, text) to anon, authenticated;
@@ -2376,11 +2390,13 @@ acceptez.
 > elle ne fait entrer personne sans vous. Une demande de trop se refuse d'une
 > touche, et n'a rien vu entre-temps.
 
-> Le code ne fait que six chiffres, mais on ne les devine pas : au-delà de vingt
-> essais ratés en dix minutes sur un même groupe, la base n'ouvre plus du tout
-> pendant un moment — et une demande réussie efface l'ardoise. Au-delà de
-> cinquante demandes en attente, elle n'en prend plus : personne ne peut vous
-> noyer sous les lignes.
+> Le code ne fait que six chiffres, mais il ne suffit pas : il faut aussi le nom
+> du groupe, et même les deux ne font que frapper — la demande arrive chez vous,
+> et se refuse d'une touche. Un vrai code donné avec un autre nom compte comme un
+> essai raté : au-delà de vingt en dix minutes sur un même groupe, la base n'y
+> ouvre plus du tout pendant un moment — et une demande réussie efface
+> l'ardoise. Au-delà de cinquante demandes en attente, elle n'en prend plus :
+> personne ne peut vous noyer sous les lignes.
 
 Faites-le sur chaque appareil : le vôtre, celui des personnes du groupe, Safari
 et l'app de l'écran d'accueil (qui comptent pour deux — ce sont bien deux
@@ -2434,8 +2450,8 @@ update public.marque_points_group_key set admits = true where id = 'ID_DE_LA_LIG
 ```
 
 **Tout le monde dehors, et on repart** — le bouton d'alarme. Toutes les clés du
-groupe sont coupées et une seule est refaite, qui fait entrer ; ce qui est partagé
-reste :
+groupe sont coupées, liens de retour compris, et une seule est refaite, qui fait
+entrer ; ce qui est partagé reste :
 
 ```sql
 select public.marque_points_new_group_key('Mifa');
@@ -2490,10 +2506,12 @@ but ; une cellule vide ; une cellule vide encore (contribuer ne demande rien) ;
 > n'ouvre rien, et un jeton refusé jamais ; le jeton accepté devient la clé de son
 > appareil, sans que rien ait circulé en clair ; une clé ordinaire ne lit pas les
 > demandes et n'accepte personne ; couper une clé laisse les autres intactes, mais
-> la dernière clé qui fait entrer est protégée ; une invitation expirée ne frappe
-> plus ; vingt essais ratés ferment l'entrée du groupe pendant dix minutes sans
-> gêner le groupe d'à côté ; cinquante demandes en attente et la porte n'en prend
-> plus ; et le rôle public — celui de la clé publique qui est dans la page — ne
+> la dernière clé qui fait entrer est protégée ; couper le dernier appareil d'une
+> personne coupe son lien de retour ; une invitation expirée ne frappe plus ;
+> trente codes tirés au hasard ne disent pas lequel existe, et ne bloquent ni le
+> vrai code ni les liens de retour ; vingt essais ratés ferment l'entrée du groupe
+> pendant dix minutes sans gêner le groupe d'à côté ; cinquante demandes en
+> attente et la porte n'en prend plus ; et le rôle public — celui de la clé publique qui est dans la page — ne
 > peut ni créer de groupe, ni refaire la clé d'un groupe, ni tirer de code, ni
 > lire aucune table.
 
@@ -2653,9 +2671,9 @@ jamais des mises à jour :
 | --- | --- |
 | Une **nouvelle version** de l'app | personne |
 | Un **bloc SQL** relancé (étape 2 bis) | personne — il est fait pour se relancer |
-| `marque_points_new_group_key(...)` | **tout le monde** : c'est le bouton d'alarme, il coupe toutes les clés |
+| `marque_points_new_group_key(...)` | **tout le monde** : c'est le bouton d'alarme, il coupe toutes les clés, et les liens de retour |
 | Le bloc de **remise à zéro** (1 bis) | tout le monde, et ce qui était partagé disparaît de la base |
-| **Couper** un appareil (étape 4) | celui-là seulement |
+| **Couper** un appareil (étape 4) | celui-là seulement — et, si c'était le dernier de sa personne, son lien de retour ne sert plus |
 | Quelqu'un qui **efface les données du site** ou retire l'app de son écran d'accueil | celui-là seulement, et il perd ce qu'il n'avait jamais partagé |
 
 Un cas mérite d'être connu, parce qu'il ressemble à une panne : si le SQL change
@@ -2688,7 +2706,9 @@ bouton, et elle est de retour.
 groupe*, chaque appareil porte le prénom de sa personne, et la mention « a un lien
 de retour ». **Couper le lien** l'annule sans mettre ses appareils dehors —
 utile si elle vous dit l'avoir perdu de vue. Elle pourra s'en refaire un depuis un
-appareil encore entré ; sinon, une nouvelle invitation.
+appareil encore entré ; sinon, une nouvelle invitation. Et **couper son dernier
+appareil** coupe aussi son lien : une personne que vous mettez dehors ne revient
+pas d'elle-même.
 
 Trois choses à savoir, dites franchement :
 

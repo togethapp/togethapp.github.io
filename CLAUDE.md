@@ -119,6 +119,9 @@ guide en français.
 - Sans `viewport-fit=cover` dans la balise `viewport` (index.html), iOS ne
   remplit jamais `env(safe-area-inset-*)` : la barre du bas colle à la zone de
   la barre d'accueil au lieu de s'arrêter au-dessus (repéré sur iPhone 16 Pro Max).
+- Les pages portent une Content-Security-Policy écrite par `tools/bundle.js`
+  (scripts inline nommés par leur hash) : pas de `onclick="…"` ni de
+  `javascript:`, le navigateur les bloquerait sans bruit.
 - Un push arrivé juste après que la PR de la branche a été fusionnée ne rentre
   pas dans `main` (la PR est déjà fermée). Après un « c'est fusionné », vérifier
   `git log origin/main` avant de dire qu'un changement est en ligne.

@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
-import { bundle, edgeFunction } from '../tools/bundle.js';
+import { bundle, contentPolicy, edgeFunction } from '../tools/bundle.js';
 
 const root = resolve(import.meta.dirname, '..');
 const BUILDS = [
@@ -33,6 +33,28 @@ for (const [target, name] of BUILDS) {
     assert.match(output, /PRESETS/, 'the game presets are inlined');
   });
 }
+
+test('each page lets its own scripts run, and nothing slipped in', async () => {
+  // The policy names every inline script by its hash: one edited without
+  // building again would be blocked, and the page would lose it in silence.
+  const policyOf = (html) => /<meta http-equiv="Content-Security-Policy" content="([^"]*)" \/>/.exec(html)?.[1];
+  const served = await readFile(join(root, 'index.html'), 'utf8');
+  const single = await readFile(join(root, 'dist', 'marque-points.html'), 'utf8');
+  assert.equal(policyOf(served), contentPolicy(served), 'index.html carries the policy of its scripts — run `npm run bundle`');
+  assert.equal(policyOf(single), contentPolicy(single, { self: false }));
+  assert.match(policyOf(served), /script-src 'self' 'sha256-[^']+'; object-src 'none'; base-uri 'none'/);
+  assert.equal((policyOf(single).match(/'sha256-/g) || []).length, 2, 'the look set before the first paint, and the app');
+  for (const html of [served, single]) {
+    assert.ok(html.indexOf('Content-Security-Policy') < html.indexOf('<script'), 'the policy only covers what comes after it');
+  }
+
+  // An inline handler (onclick="…") is what the policy refuses to run: the app
+  // must not write one itself, or that button would do nothing.
+  for (const name of ['index.html', ...(await readdir(join(root, 'src'))).map((file) => `src/${file}`)]) {
+    const code = await readFile(join(root, name), 'utf8');
+    assert.equal(/<[a-zA-Z][^>]*\son[a-z]+\s*=/.test(code), false, `${name} writes an inline event handler`);
+  }
+});
 
 test('the page build is a whole document, the artifact build is a fragment', async () => {
   const page = await bundle('page');
