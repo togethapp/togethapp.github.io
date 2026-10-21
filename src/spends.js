@@ -55,6 +55,78 @@ export function spendCurrency(spend) {
 }
 
 /**
+ * The currencies an expense can be paid in — those of the places a holiday
+ * goes. Paid in another than the account's, it is written down converted, at
+ * a rate said the way banks and the ECB quote it (« 1 € = 0,86 £ »), and
+ * keeps what was paid beside it (`paidIn`). The account itself, its shares
+ * and who pays back whom stay in its own currency.
+ */
+export const PAID_IN = [
+  'EUR', 'CHF', 'GBP', 'USD', 'CAD', 'AUD', 'NZD', 'JPY', 'CNY', 'HKD', 'SGD', 'THB', 'VND', 'IDR', 'INR', 'KRW',
+  'SEK', 'NOK', 'DKK', 'ISK', 'PLN', 'CZK', 'HUF', 'RON', 'TRY', 'MAD', 'TND', 'EGP', 'ZAR', 'XOF', 'XPF', 'MXN',
+  'BRL', 'ILS', 'AED',
+];
+
+/**
+ * A rate as typed — « 0,86 », « 161 » —: how much of the other currency one
+ * unit of the account's buys. Six decimals at most; null when it is not one.
+ */
+export function readRate(raw) {
+  if (typeof raw === 'number') return Number.isFinite(raw) && raw > 0 && raw <= 1e6 ? Math.round(raw * 1e6) / 1e6 : null;
+  const clean = String(raw ?? '').replace(/\s/g, '').replace(',', '.');
+  if (!/^\d+(\.\d{1,6})?$/.test(clean)) return null;
+  return readRate(Number(clean));
+}
+
+/** An amount paid in another currency, in the account's: `rate` of it for one unit of the account's. */
+export function convertPaid(cents, rate) {
+  const value = Math.round(cents / rate);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+/** What an expense was paid in, when not in the account's currency — or null. */
+export function paidInOf(spend, line) {
+  const paid = line?.paidIn;
+  if (!paid || typeof paid !== 'object' || isRepayment(line)) return null;
+  if (!PAID_IN.includes(paid.currency) || paid.currency === spendCurrency(spend)) return null;
+  return Number.isInteger(paid.amount) && paid.amount > 0 && readRate(paid.rate) ? paid : null;
+}
+
+/**
+ * The rate last written for a currency: in this account first — the
+ * holiday's own —, then in the others kept in the same currency, the most
+ * recent first. Null when there is none: the form then asks for it.
+ */
+export function lastRate(spend, currency, others = []) {
+  const latest = (account) => account.lines
+    .map((line) => ({ line, paid: paidInOf(account, line) }))
+    .filter(({ paid }) => paid?.currency === currency)
+    .sort((a, b) => (b.line.updatedAt || 0) - (a.line.updatedAt || 0))[0]?.paid.rate ?? null;
+  const candidates = [spend, ...others
+    .filter((other) => other.id !== spend.id && spendCurrency(other) === spendCurrency(spend))
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))];
+  for (const account of candidates) {
+    const rate = latest(account);
+    if (rate) return rate;
+  }
+  return null;
+}
+
+/**
+ * An amount as typed, in `currency`: in the account's own, the line's amount
+ * as it is; in another, converted at `rate`, what was paid kept beside it.
+ * Null when it is not an amount, or the rate is missing.
+ */
+function paidFields(spend, amount, currency, rate) {
+  const cents = Number.isInteger(amount) ? amount : readAmount(amount);
+  if (!cents || cents < 0) return null;
+  if (!currency || currency === spendCurrency(spend)) return { amount: cents, paidIn: undefined };
+  const kept = PAID_IN.includes(currency) ? readRate(rate) : null;
+  const converted = kept ? convertPaid(cents, kept) : null;
+  return converted ? { amount: converted, paidIn: { currency, amount: cents, rate: kept } } : null;
+}
+
+/**
  * Lire un montant tel qu'il se tape : « 12,50 », « 12.5 », « 12 », « 3 € ».
  * Rend des centimes, ou null quand ce n'est pas un montant.
  */
@@ -253,11 +325,15 @@ function tidy(line) {
  * `parts` donne, pour cette dépense seulement, des parts autres que celles de
  * chacun (deux nuits pour l'une, cinq pour l'autre) ; `fixed`, un montant à
  * part pour certains (la pizza d'Alice), le reste se partageant entre les
- * autres.
+ * autres — en monnaie du compte.
+ *
+ * `currency` dit en quoi `amount` a été payé, quand ce n'est pas la monnaie
+ * du compte : il est alors converti au taux `rate` (« 1 € = 0,86 £ »).
  */
-export function addSpend(spend, { text = '', amount = 0, by = null, forWhom = [], day = null, parts = null, fixed = null } = {}) {
-  const cents = Number.isInteger(amount) ? amount : readAmount(amount);
-  if (!cents) return spend;
+export function addSpend(spend, { text = '', amount = 0, currency = null, rate = null, by = null, forWhom = [], day = null, parts = null, fixed = null } = {}) {
+  const paid = paidFields(spend, amount, currency, rate);
+  if (!paid) return spend;
+  const cents = paid.amount;
 
   const known = new Set(spend.people.map((person) => person.id));
   // Rangé dans l'ordre des personnes du compte : deux téléphones qui cochent
@@ -269,6 +345,7 @@ export function addSpend(spend, { text = '', amount = 0, by = null, forWhom = []
     id: uid('s'),
     text: String(text || '').trim(),
     amount: cents,
+    paidIn: paid.paidIn,
     by: known.has(by) ? by : null,
     forWhom: whom,
     ...shared,
@@ -315,13 +392,19 @@ function patchLine(spend, lineId, patch) {
  * Correct an expense. Its parts and amounts apart follow whoever it is for
  * now — someone no longer concerned keeps neither — and a correction that
  * would set apart more than was paid is not made: splitProblem() says why.
+ *
+ * A new `amount` is in `currency` at `rate`, as for addSpend(); without a
+ * currency it is in the account's, and what was paid elsewhere goes.
  */
-export function editSpend(spend, lineId, { text, amount, by, forWhom, day, parts, fixed } = {}) {
+export function editSpend(spend, lineId, { text, amount, currency, rate, by, forWhom, day, parts, fixed } = {}) {
   const line = spend.lines.find((entry) => entry.id === lineId);
   if (!line) return spend;
   const patch = {};
   if (text !== undefined) patch.text = String(text || '').trim();
-  if (amount !== undefined) {
+  if (amount !== undefined && !isRepayment(line)) {
+    const paid = paidFields(spend, amount, currency, rate);
+    if (paid) Object.assign(patch, paid);
+  } else if (amount !== undefined) {
     const cents = Number.isInteger(amount) ? amount : readAmount(amount);
     if (cents) patch.amount = cents;
   }

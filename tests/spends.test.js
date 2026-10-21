@@ -6,6 +6,7 @@ import {
   addSpendPerson, removeSpendPerson, canRemovePerson, split, balances, spendTotal, settle, mergeSpends, isValidSpend,
   addRepayment, isRepayment, splitBy, lineShares, readParts, weightOf, stepParts, setSpendWeight, splitProblem,
   payOf, setSpendPay, priceIn, withoutPrice, priceCurrency, addLatecomer, sharedWithEveryone,
+  readRate, convertPaid, paidInOf, lastRate, PAID_IN,
 } from '../src/spends.js';
 
 /** Un week-end à trois : Gui paie le gîte, Alice les courses. */
@@ -537,4 +538,80 @@ test('qui arrive en cours de route ne partage que ce qui vient, si on le dit', (
   const sans = addLatecomer(mixte, 'Zoé');
   assert.deepEqual(sans.lines.map((line) => line.forWhom), mixte.lines.map((line) => line.forWhom));
   assert.equal(sans.people.length, 3);
+});
+
+test('un taux se tape comme on le lit à la banque : 1 € = 0,86 £', () => {
+  assert.equal(readRate('0,86'), 0.86);
+  assert.equal(readRate(' 161 '), 161);
+  assert.equal(readRate('1.123456'), 1.123456);
+  assert.equal(readRate('1,1234567'), null, 'six décimales au plus');
+  assert.equal(readRate('0'), null);
+  assert.equal(readRate('-1'), null);
+  assert.equal(readRate('un'), null);
+  assert.equal(readRate(0.86), 0.86);
+  assert.equal(readRate(Number.NaN), null);
+  assert.equal(convertPaid(3000, 0.86), 3488, '30 £ à 0,86 font 34,88 €');
+  assert.equal(convertPaid(300000, 161), 1863, '3 000 ¥ à 161 font 18,63 €');
+  assert.equal(convertPaid(0, 0.86), null);
+  assert.ok(PAID_IN.includes('JPY') && PAID_IN.includes('EUR'));
+});
+
+test('une dépense payée dans une autre monnaie entre convertie, et garde ce qui a été payé', () => {
+  const spend = createSpend({ name: 'Londres', names: ['Gui', 'Alice'] });
+  const gui = idOf(spend, 'Gui');
+  const next = addSpend(spend, { text: 'Pub', amount: '30', currency: 'GBP', rate: '0,86', by: gui });
+  const [line] = next.lines;
+  assert.equal(line.amount, 3488);
+  assert.deepEqual(line.paidIn, { currency: 'GBP', amount: 3000, rate: 0.86 });
+  assert.deepEqual(paidInOf(next, line), line.paidIn);
+  assert.equal(spendTotal(next), 3488, 'le compte reste dans sa monnaie');
+  assert.deepEqual(balances(next).map((row) => row.balance), [1744, -1744]);
+
+  assert.equal(addSpend(spend, { amount: 3000, currency: 'GBP', by: gui }).lines.length, 0, 'sans taux, rien');
+  assert.equal(addSpend(spend, { amount: 3000, currency: 'XYZ', rate: 1, by: gui }).lines.length, 0, 'ni une monnaie inconnue');
+  const home = addSpend(spend, { amount: 1200, currency: 'EUR', rate: 2, by: gui }).lines[0];
+  assert.equal(home.amount, 1200, 'dans la monnaie du compte, aucun taux ne compte');
+  assert.equal('paidIn' in home, false);
+});
+
+test('une dépense se corrige d’une monnaie à l’autre', () => {
+  const spend = createSpend({ name: 'Londres', names: ['Gui', 'Alice'] });
+  const gui = idOf(spend, 'Gui');
+  const made = addSpend(spend, { text: 'Taxi', amount: 2000, by: gui });
+  const id = made.lines[0].id;
+  const abroad = editSpend(made, id, { amount: '25', currency: 'GBP', rate: 0.8 });
+  assert.equal(abroad.lines[0].amount, 3125);
+  assert.deepEqual(abroad.lines[0].paidIn, { currency: 'GBP', amount: 2500, rate: 0.8 });
+  const renamed = editSpend(abroad, id, { text: 'Taxi de nuit' });
+  assert.deepEqual(renamed.lines[0].paidIn, abroad.lines[0].paidIn, 'changer le nom ne touche pas à la monnaie');
+  const back = editSpend(renamed, id, { amount: 2800 });
+  assert.equal(back.lines[0].amount, 2800);
+  assert.equal('paidIn' in back.lines[0], false, 'un montant sans monnaie est dans celle du compte');
+});
+
+test('le dernier taux d’une monnaie revient : celui du compte d’abord, puis des autres', () => {
+  const london = createSpend({ name: 'Londres', names: ['Gui'] });
+  const gui = idOf(london, 'Gui');
+  let one = addSpend(london, { amount: 1000, currency: 'GBP', rate: 0.85, by: gui });
+  one = { ...one, lines: one.lines.map((line) => ({ ...line, updatedAt: 1 })) };
+  one = addSpend(one, { amount: 1000, currency: 'GBP', rate: 0.86, by: gui });
+  assert.equal(lastRate(one, 'GBP'), 0.86, 'le plus récent');
+  assert.equal(lastRate(one, 'USD'), null);
+  const other = createSpend({ name: 'Édimbourg', names: ['Gui'] });
+  assert.equal(lastRate(other, 'GBP', [one]), 0.86, 'un autre compte en euros le donne');
+  const swiss = createSpend({ name: 'Genève', names: ['Gui'], currency: 'CHF' });
+  assert.equal(lastRate(swiss, 'GBP', [one]), null, 'pas un compte dans une autre monnaie');
+  const odd = { ...one, lines: [{ ...one.lines[0], paidIn: { currency: 'GBP', amount: -3, rate: 0.9 } }] };
+  assert.equal(paidInOf(odd, odd.lines[0]), null, 'ce qui est mal formé ne se lit pas');
+});
+
+test('ce qui a été payé ailleurs voyage avec la ligne', () => {
+  const spend = createSpend({ name: 'Londres', names: ['Gui', 'Alice'] });
+  const gui = idOf(spend, 'Gui');
+  const here = addSpend(spend, { text: 'Pub', amount: 3000, currency: 'GBP', rate: 0.86, by: gui });
+  const there = editSpend(here, here.lines[0].id, { text: 'Pub du coin' });
+  const merged = mergeSpends(here, there);
+  assert.equal(merged.lines[0].text, 'Pub du coin');
+  assert.deepEqual(merged.lines[0].paidIn, { currency: 'GBP', amount: 3000, rate: 0.86 });
+  assert.ok(isValidSpend(merged));
 });
