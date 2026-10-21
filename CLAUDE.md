@@ -46,6 +46,8 @@ RPC `security definer` ; la table n'est jamais exposée.
   `sw.js`/`index.html`. Liste explicite `MODULES` : un nouveau module
   s'y ajoute, et dans `SHELL` de `sw.js`. Pas d'import renommé (`as`), pas deux
   noms identiques au niveau supérieur de deux modules (tout finit dans une portée).
+- Rappels de la veille : `.github/workflows/rappels.yml` (toutes les heures)
+  → `tools/rappels.js` → `notifier` → `marque_points_push_reminders`.
 - Le schéma SQL vit dans `docs/DEPLOIEMENT.md` : bloc ```sql n°1 = étape 2,
   n°2 = étape 2 bis. `supabase/mise-a-jour.sql` en est extrait par
   `tools/mise-a-jour.py` (y ajouter ce qui change) ; `tests/migration.test.js`

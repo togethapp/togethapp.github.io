@@ -1,0 +1,25 @@
+# Les rappels de la veille : une fois l'heure, demande à la fonction
+# « notifier » s'il y a un événement demain. C'est la base qui décide (entre
+# 18 h et 23 h à l'heure de chaque appareil) et qui ne l'envoie qu'une fois.
+# Sans base dans src/config.js, ou sans la fonction à jour, rien ne part et
+# la course le dit dans son journal, sans échouer.
+name: Rappels de la veille
+
+on:
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rappels:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tools/rappels.js

@@ -1906,11 +1906,17 @@ create table if not exists public.marque_points_push (
   auth text not null,
   lang text not null default 'fr',
   app text not null default '',
+  tz text not null default 'Europe/Paris',
   created_at timestamptz not null default now(),
   primary key (endpoint, key_id)
 );
 alter table public.marque_points_push enable row level security;
 create index if not exists marque_points_push_key on public.marque_points_push (key_id);
+-- Le fuseau de l'appareil, pour lui rappeler la veille à son heure. Les
+-- abonnements d'avant n'en disaient rien : l'heure de Paris, jusqu'à ce que
+-- l'appareil le redise en s'ouvrant.
+alter table public.marque_points_push
+  add column if not exists tz text not null default 'Europe/Paris';
 
 -- Ce qui a déjà été annoncé : une nouveauté ne sonne qu'une fois.
 create table if not exists public.marque_points_push_sent (
@@ -1930,13 +1936,18 @@ create table if not exists public.marque_points_push_vapid (
 );
 alter table public.marque_points_push_vapid enable row level security;
 
+-- La version sans fuseau, remplacée ci-dessous : deux fonctions du même nom,
+-- et la base ne saurait plus laquelle appeler.
+drop function if exists public.marque_points_push_subscribe(text, text, text, text, text, text);
+
 create or replace function public.marque_points_push_subscribe(
   p_key text,
   p_endpoint text,
   p_p256dh text,
   p_auth text,
   p_lang text default 'fr',
-  p_app text default ''
+  p_app text default '',
+  p_tz text default 'Europe/Paris'
 )
 returns jsonb
 language plpgsql
@@ -1966,14 +1977,19 @@ begin
      or coalesce(p_auth, '') !~ '^[A-Za-z0-9_-]{16,32}$' then
     raise exception 'abonnement invalide';
   end if;
-  insert into public.marque_points_push (endpoint, key_id, p256dh, auth, lang, app, created_at)
+  insert into public.marque_points_push (endpoint, key_id, p256dh, auth, lang, app, tz, created_at)
   values (p_endpoint, v_key.id, p_p256dh, p_auth,
           case when p_lang = 'en' then 'en' else 'fr' end,
           case when coalesce(p_app, '') ~ '^https?://\S+$' and length(p_app) <= 300 then p_app else '' end,
+          -- Un fuseau que la base connaît, et rien d'autre : elle en calcule
+          -- l'heure à chaque rappel, et un nom inconnu les arrêterait tous.
+          case when length(coalesce(p_tz, '')) <= 64
+                    and exists (select 1 from pg_timezone_names z where z.name = p_tz)
+               then p_tz else 'Europe/Paris' end,
           clock_timestamp())
   on conflict (endpoint, key_id) do update
      set p256dh = excluded.p256dh, auth = excluded.auth, lang = excluded.lang, app = excluded.app,
-         created_at = excluded.created_at;
+         tz = excluded.tz, created_at = excluded.created_at;
   delete from public.marque_points_push p
    where p.key_id = v_key.id
      and p.endpoint not in (select q.endpoint from public.marque_points_push q
@@ -2140,6 +2156,125 @@ begin
 end;
 $$;
 
+-- Pour la fonction seule, une fois l'heure : les rappels de la veille. Un
+-- événement qui commence demain, ou qui a demain des activités, se rappelle
+-- une fois dans chaque fuseau de ses appareils, entre 18 h et 23 h à leur
+-- heure ; avec, s'il commence, ce qui reste à faire dans sa chaîne : les
+-- lignes pas cochées, les sondages encore ouverts. Pas quand sa date a été
+-- annoncée il y a moins de douze heures : on vient de l'apprendre.
+create or replace function public.marque_points_push_reminders()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_out jsonb := '[]'::jsonb;
+  v_zone record;
+  v_event record;
+  v_day text;
+  v_starts boolean;
+  v_chain text[];
+  v_lines integer;
+  v_polls integer;
+  v_targets jsonb;
+begin
+  for v_zone in
+    select distinct k.group_id, p.tz
+      from public.marque_points_push p
+      join public.marque_points_group_key k on k.id = p.key_id
+  loop
+    continue when extract(hour from now() at time zone v_zone.tz) not between 18 and 22;
+    v_day := to_char((now() at time zone v_zone.tz)::date + 1, 'YYYY-MM-DD');
+    for v_event in
+      select d.id, d.data, grp.name as group_name, grp.accounts_required,
+             coalesce((
+               select jsonb_agg(jsonb_build_object('question', a.data->'question', 'title', a.data->'title',
+                                                   'at', a.data->'at')
+                                order by a.data->>'at' nulls first, a.id)
+                 from public.marque_points_games a
+                where a.group_id = d.group_id and a.listed and a.code_hash is null
+                  and a.data->>'kind' = 'poll' and a.data->>'date' = v_day
+                  and jsonb_typeof(a.data->'archivedAt') is distinct from 'number'
+                  and (case when a.data ? 'parent' then a.data->>'parent' else a.data->>'event' end) = d.id
+             ), '[]'::jsonb) as activities
+        from public.marque_points_games d
+        join public.marque_points_group grp on grp.id = d.group_id
+       where d.group_id = v_zone.group_id and d.listed and d.code_hash is null
+         and d.data->>'kind' = 'poll'
+         and coalesce(d.data->>'date', '') ~ '^\d{4}-\d{2}-\d{2}$'
+         and d.data->>'date' <= v_day
+         and coalesce(d.data->>'until', d.data->>'date') >= v_day
+         and jsonb_typeof(d.data->'archivedAt') is distinct from 'number'
+         -- Une activité se rappelle avec son événement, pas toute seule.
+         and not exists (
+           select 1 from public.marque_points_games up
+            where up.group_id = d.group_id and up.data->>'kind' = 'poll'
+              and up.id = (case when d.data ? 'parent' then d.data->>'parent' else d.data->>'event' end)
+              and (coalesce(up.data->>'date', '') <> '' or up.data->'fixed' = 'true'::jsonb))
+    loop
+      v_starts := v_event.data->>'date' = v_day;
+      continue when not v_starts and jsonb_array_length(v_event.activities) = 0;
+      continue when v_starts and exists (
+        select 1 from public.marque_points_push_sent s
+         where s.doc_id = v_event.id and s.event = 'date:' || v_day and s.sent_at > now() - interval '12 hours');
+      insert into public.marque_points_push_sent (doc_id, event)
+      values (v_event.id, 'eve:' || v_day || '@' || v_zone.tz)
+      on conflict do nothing;
+      continue when not found;
+
+      v_lines := 0;
+      v_polls := 0;
+      if v_starts then
+        with recursive chain(id) as (
+          select v_event.id
+          union
+          select g.id
+            from public.marque_points_games g
+            join chain c on c.id = (case when g.data ? 'parent' then g.data->>'parent' else g.data->>'event' end)
+           where g.group_id = v_zone.group_id and g.code_hash is null
+        )
+        select array_agg(id) into v_chain from chain;
+        select count(*) into v_lines
+          from public.marque_points_games g,
+               jsonb_array_elements(case when jsonb_typeof(g.data->'items') = 'array'
+                                         then g.data->'items' else '[]'::jsonb end) i
+         where g.id = any(v_chain) and g.listed and g.data->>'kind' = 'list'
+           and jsonb_typeof(g.data->'archivedAt') is distinct from 'number'
+           and g.data->'template' is distinct from 'true'::jsonb
+           and i.value->'done' is distinct from 'true'::jsonb;
+        select count(*) into v_polls
+          from public.marque_points_games g
+         where g.id = any(v_chain) and g.id <> v_event.id and g.listed and g.data->>'kind' = 'poll'
+           and jsonb_typeof(g.data->'archivedAt') is distinct from 'number'
+           and jsonb_typeof(g.data->'closedAt') is distinct from 'number'
+           and coalesce(g.data->>'date', '') = ''
+           and g.data->'fixed' is distinct from 'true'::jsonb;
+      end if;
+
+      select coalesce(jsonb_agg(jsonb_build_object('endpoint', t.endpoint, 'p256dh', t.p256dh, 'auth', t.auth,
+                                                   'lang', t.lang, 'app', t.app)), '[]'::jsonb)
+        into v_targets
+        from (select distinct on (p.endpoint) p.*
+                from public.marque_points_push p
+                join public.marque_points_group_key k on k.id = p.key_id
+               where k.group_id = v_zone.group_id and p.tz = v_zone.tz
+                 and (not v_event.accounts_required or k.user_id is not null)) t;
+
+      v_out := v_out || jsonb_build_array(jsonb_build_object(
+        'event', 'eve', 'id', v_event.id, 'group', v_event.group_name, 'day', v_day, 'starts', v_starts,
+        'doc', jsonb_build_object('kind', 'poll', 'question', v_event.data->'question',
+                                  'title', v_event.data->'title', 'date', v_event.data->'date',
+                                  'at', v_event.data->'at'),
+        'activities', v_event.activities,
+        'left', jsonb_build_object('lines', v_lines, 'polls', v_polls),
+        'targets', v_targets));
+    end loop;
+  end loop;
+  return v_out;
+end;
+$$;
+
 -- Pour la fonction seule : une adresse que le service d'envoi dit disparue.
 create or replace function public.marque_points_push_gone(p_endpoint text)
 returns void
@@ -2192,15 +2327,17 @@ grant execute on function public.marque_points_set_accounts(text, boolean) to an
 revoke all on function public.marque_points_account_cut_mark() from public, anon, authenticated;
 revoke all on function public.marque_points_announce(text) from public, anon, authenticated;
 revoke all on function public.marque_points_live() from public, anon, authenticated;
-grant execute on function public.marque_points_push_subscribe(text, text, text, text, text, text) to anon, authenticated;
+grant execute on function public.marque_points_push_subscribe(text, text, text, text, text, text, text) to anon, authenticated;
 grant execute on function public.marque_points_push_unsubscribe(text) to anon, authenticated;
 revoke all on function public.marque_points_push_vapid(text, jsonb) from public, anon, authenticated;
 revoke all on function public.marque_points_push_event(text, text) from public, anon, authenticated;
 revoke all on function public.marque_points_push_knock(text) from public, anon, authenticated;
+revoke all on function public.marque_points_push_reminders() from public, anon, authenticated;
 revoke all on function public.marque_points_push_gone(text) from public, anon, authenticated;
 grant execute on function public.marque_points_push_vapid(text, jsonb) to service_role;
 grant execute on function public.marque_points_push_event(text, text) to service_role;
 grant execute on function public.marque_points_push_knock(text) to service_role;
+grant execute on function public.marque_points_push_reminders() to service_role;
 grant execute on function public.marque_points_push_gone(text) to service_role;
 grant execute on function public.marque_points_account_delete() to authenticated;
 ```
@@ -3134,8 +3271,9 @@ privée), la même chose : vos groupes et vos sondages y apparaissent.
 
 Une fois posée, cette étape permet à chaque appareil d'**être prévenu** :
 un nouveau sondage, une liste, un compte ou un tableau d'idées dans ses
-groupes, une date retenue — et, pour qui fait entrer, quelqu'un qui frappe.
-Chacun l'active pour lui, dans **Réglages → Notifications**.
+groupes, une date retenue, **la veille d'un événement** — et, pour qui fait
+entrer, quelqu'un qui frappe. Chacun l'active pour lui, dans **Réglages →
+Notifications**.
 
 Elle est **facultative**. Sans elle, le bouton *Activer les notifications*
 répond « la fonction notifier n'est pas en place », et rien d'autre ne change.
@@ -3195,6 +3333,27 @@ colle.
 Ce qu'une notification contient (le nom du groupe, le titre du document, la
 date) est chiffré pour l'appareil qui la reçoit : le service d'envoi
 (Apple, Google, Microsoft, Mozilla) ne la lit pas.
+
+### 4. Le rappel de la veille : rien à faire
+
+La veille d'un événement, **entre 18 h et 23 h à l'heure de chaque
+appareil**, ceux du groupe reçoivent « Demain : Raclette à 20:00. Reste à
+faire : 2 lignes à cocher, 1 sondage ouvert. » — une fois. Pour un séjour
+déjà commencé, ce sont ses activités du lendemain (« Demain, pendant
+« Vacances » : Kayak à 10:00 »). Pas de rappel pour une date annoncée il y a
+moins de douze heures : on vient de l'apprendre.
+
+Quelqu'un doit demander, une fois l'heure, s'il y a un rappel à envoyer :
+c'est **GitHub**, qui le fait tout seul (onglet **Actions** du dépôt →
+**Rappels de la veille**). Chaque course dit dans son journal ce que la
+fonction a répondu (`"reminders":1,"sent":3`), ou ce qui manque : la fonction
+`notifier` à recoller (point 2), la mise à jour SQL à passer. Elle n'échoue
+jamais, pour ne pas vous envoyer un e-mail par heure. L'app, ouverte le soir,
+demande aussi : un rappel n'est envoyé qu'une fois, quel que soit qui demande.
+
+> **Si les rappels s'arrêtent** après deux mois sans aucun changement dans le
+> dépôt : GitHub met alors en pause les tâches à heure fixe. **Actions →
+> Rappels de la veille → Enable workflow** les relance.
 
 ## Étape 11 — Les changements en direct (rien à faire, en principe)
 

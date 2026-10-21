@@ -451,10 +451,17 @@ export function createRemote(config, fetchImpl = globalThis.fetch) {
     /* -------------------------------------------------- notifications --- */
 
     /** Keep this browser's subscription for a group, with that group's key. */
-    async pushSubscribe(key, { endpoint, p256dh, auth }, lang = 'fr', app = '') {
-      return call('marque_points_push_subscribe', {
-        p_key: key, p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_lang: lang, p_app: app,
-      });
+    async pushSubscribe(key, { endpoint, p256dh, auth }, lang = 'fr', app = '', tz = '') {
+      const body = { p_key: key, p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_lang: lang, p_app: app };
+      if (!tz) return call('marque_points_push_subscribe', body);
+      // The time zone the eve's reminder is told in. A database not yet
+      // updated has never heard of it: subscribed all the same, without.
+      try {
+        return await call('marque_points_push_subscribe', { ...body, p_tz: tz });
+      } catch (error) {
+        if (!unknownParameter(error)) throw error;
+        return call('marque_points_push_subscribe', body);
+      }
     },
 
     /** Forget this browser's subscription, in every group. */
@@ -462,7 +469,7 @@ export function createRemote(config, fetchImpl = globalThis.fetch) {
       await call('marque_points_push_unsubscribe', { p_endpoint: endpoint });
     },
 
-    /** The notifier function: { action: 'key' | 'doc' | 'knock', … }. */
+    /** The notifier function: { action: 'key' | 'doc' | 'knock' | 'remind', … }. */
     async notifier(body) {
       return call('notifier', body, null, '/functions/v1/notifier');
     },

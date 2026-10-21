@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  activationProblem, keyBytes, mayBeNews, problemDetail, pushSupport, rememberTold, subscriptionFields, toldKey,
+  activationProblem, keyBytes, mayAskReminders, mayBeNews, problemDetail, pushSupport, rememberTold, subscriptionFields,
+  toldKey,
 } from '../src/notify.js';
 
 test('what this browser can do with notifications', () => {
@@ -33,6 +34,16 @@ test('a document is told once for its arrival, and again for each day it settles
 test('what was told is kept newest last, within a limit', () => {
   assert.deepEqual(rememberTold(['a', 'b'], 'a'), ['b', 'a']);
   assert.deepEqual(rememberTold(['a', 'b', 'c'], 'd', 3), ['b', 'c', 'd']);
+});
+
+test('of an evening, a device asks for the eve’s reminders, once an hour at most', () => {
+  const at = (hour, minute = 0) => new Date(2026, 9, 21, hour, minute);
+  assert.equal(mayAskReminders(0, at(18)), true);
+  assert.equal(mayAskReminders(0, at(22, 59)), true);
+  assert.equal(mayAskReminders(0, at(17, 59)), false, 'not before six');
+  assert.equal(mayAskReminders(0, at(23)), false, 'nor at night');
+  assert.equal(mayAskReminders(at(19).getTime(), at(19, 30)), false, 'asked half an hour ago');
+  assert.equal(mayAskReminders(at(19).getTime(), at(20, 1)), true);
 });
 
 test('a subscription’s fields, or nothing', () => {

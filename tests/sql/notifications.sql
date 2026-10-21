@@ -163,7 +163,7 @@ $$;
 -- 15. la clé publique de la page ne lit rien de tout ça
 do $$
 begin
-  if has_function_privilege('anon', 'public.marque_points_push_subscribe(text, text, text, text, text, text)', 'execute')
+  if has_function_privilege('anon', 'public.marque_points_push_subscribe(text, text, text, text, text, text, text)', 'execute')
      and not has_function_privilege('anon', 'public.marque_points_push_vapid(text, jsonb)', 'execute')
      and not has_function_privilege('anon', 'public.marque_points_push_event(text, text)', 'execute')
      and not has_function_privilege('anon', 'public.marque_points_push_knock(text)', 'execute')

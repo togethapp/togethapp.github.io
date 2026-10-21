@@ -15,6 +15,9 @@
  * POST { action: 'key' }                  the public key browsers subscribe with
  * POST { action: 'doc', key, id }         a document was written in a group
  * POST { action: 'knock', ticket }        someone knocked at a group
+ * POST { action: 'remind' }               the eve of tomorrow's events, asked
+ *                                         every hour (tools/rappels.js); the
+ *                                         database says what is due, once
  */
 
 import { eventName } from '../../../src/ics.js';
@@ -35,11 +38,15 @@ const WORDS = {
     poll: 'Nouveau sondage', event: 'Nouvel événement', list: 'Nouvelle liste', spend: 'Nouveau compte',
     board: 'Nouveau tableau d’idées', date: 'Date retenue', knock: '{who} demande à entrer.',
     someone: 'Quelqu’un', at: 'à', locale: 'fr-FR',
+    tomorrow: 'Demain', during: 'Demain, pendant « {name} »', programme: 'Au programme', left: 'Reste à faire',
+    lines: ['{count} ligne à cocher', '{count} lignes à cocher'], polls: ['{count} sondage ouvert', '{count} sondages ouverts'],
   },
   en: {
     poll: 'New poll', event: 'New event', list: 'New list', spend: 'New shared expenses',
     board: 'New board of ideas', date: 'Date set', knock: '{who} is asking to join.',
     someone: 'Someone', at: 'at', locale: 'en-GB',
+    tomorrow: 'Tomorrow', during: 'Tomorrow, during « {name} »', programme: 'On the programme', left: 'Still to do',
+    lines: ['{count} line to tick', '{count} lines to tick'], polls: ['{count} open poll', '{count} open polls'],
   },
 };
 
@@ -59,11 +66,47 @@ function appUrl(app, hash) {
   return /^https?:\/\//.test(String(app || '')) ? `${app}${hash}` : hash;
 }
 
+/** « 3 lignes à cocher », or nothing when there are none. */
+function counted(forms, count) {
+  const number = Number(count) || 0;
+  return number > 0 ? forms[number === 1 ? 0 : 1].replace('{count}', String(number)) : '';
+}
+
+/**
+ * The eve of an event: « Demain : Raclette à 20:00. Reste à faire : 2 lignes
+ * à cocher, 1 sondage ouvert. » — or, for a stay already begun, tomorrow's
+ * activities in it.
+ */
+function reminderBody(news, words, lang) {
+  const colon = lang === 'en' ? ': ' : ' : ';
+  const timed = (name, at) => (/^\d{2}:\d{2}$/.test(String(at || '')) ? `${name} ${words.at} ${at}` : name);
+  const doc = news.doc || {};
+  const name = eventName(doc).trim();
+  const programme = (Array.isArray(news.activities) ? news.activities : [])
+    .map((one) => timed(eventName(one).trim(), one?.at))
+    .filter(Boolean)
+    .join(', ');
+  const said = news.starts
+    ? [`${words.tomorrow}${colon}${timed(name, doc.at)}.`, programme ? `${words.programme}${colon}${programme}.` : '']
+    : [`${words.during.replace('{name}', name)}${colon}${programme}.`];
+  const left = [counted(words.lines, news.left?.lines), counted(words.polls, news.left?.polls)].filter(Boolean).join(', ');
+  if (left) said.push(`${words.left}${colon}${left}.`);
+  return said.filter(Boolean).join(' ');
+}
+
 /** What one person reads, in their language, for what the database answered. */
 export function messageFor(news, target) {
   const lang = target?.lang === 'en' ? 'en' : 'fr';
   const words = WORDS[lang];
   const title = String(news.group || 'Together');
+  if (news.event === 'eve') {
+    return {
+      title,
+      body: reminderBody(news, words, lang),
+      url: appUrl(target?.app, `#/poll/${news.id}`),
+      tag: `eve-${news.id}-${news.day}`,
+    };
+  }
   if (news.event === 'knock') {
     return {
       title,
@@ -148,8 +191,29 @@ export async function handle(request, { base, serviceKey, fetchImpl = fetch }) {
     return json({ status: 'error', message: 'JSON expected' }, 400);
   }
 
+  /** Send each piece of news to its targets; a gone subscription is forgotten. */
+  const deliver = async (all) => {
+    const sends = all.flatMap((news) => (Array.isArray(news?.targets) ? news.targets : [])
+      .filter((target) => isPushService(target?.endpoint))
+      .map((target) => ({ news, target })));
+    if (!sends.length) return 0;
+    const keys = await vapid();
+    let sent = 0;
+    await Promise.all(sends.map(async ({ news, target }) => {
+      const result = await sendPush(target, messageFor(news, target), keys, subjectFor(target), fetchImpl);
+      if (result.ok) sent += 1;
+      if (result.gone) await rpc('marque_points_push_gone', { p_endpoint: target.endpoint }).catch(() => null);
+    }));
+    return sent;
+  };
+
   try {
     if (asked?.action === 'key') return json({ status: 'ok', key: (await vapid()).publicKey });
+    if (asked?.action === 'remind') {
+      const due = await rpc('marque_points_push_reminders', {});
+      const reminders = Array.isArray(due) ? due : [];
+      return json({ status: 'ok', reminders: reminders.length, sent: await deliver(reminders) });
+    }
 
     let news = null;
     if (asked?.action === 'doc' && typeof asked.key === 'string' && typeof asked.id === 'string') {
@@ -160,17 +224,7 @@ export async function handle(request, { base, serviceKey, fetchImpl = fetch }) {
       return json({ status: 'error', message: 'unknown action' }, 400);
     }
     if (news?.status !== 'ok') return json({ status: news?.status || 'unknown', sent: 0 });
-
-    const targets = (Array.isArray(news.targets) ? news.targets : []).filter((target) => isPushService(target?.endpoint));
-    if (!targets.length) return json({ status: 'ok', sent: 0 });
-    const keys = await vapid();
-    let sent = 0;
-    await Promise.all(targets.map(async (target) => {
-      const result = await sendPush(target, messageFor(news, target), keys, subjectFor(target), fetchImpl);
-      if (result.ok) sent += 1;
-      if (result.gone) await rpc('marque_points_push_gone', { p_endpoint: target.endpoint }).catch(() => null);
-    }));
-    return json({ status: 'ok', sent });
+    return json({ status: 'ok', sent: await deliver([news]) });
   } catch {
     return json({ status: 'error', message: 'database unreachable' }, 502);
   }

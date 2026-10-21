@@ -15,7 +15,7 @@ const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromi
 const errors = [];
 
 async function device(label, prefs, { where = `${APP}#/settings`, allow = true } = {}) {
-  const context = await browser.newContext({ viewport: { width: 400, height: 950 }, locale: 'fr-FR' });
+  const context = await browser.newContext({ viewport: { width: 400, height: 950 }, locale: 'fr-FR', timezoneId: 'Asia/Tokyo' });
   if (allow) await context.grantPermissions(['notifications'], { origin: 'http://localhost:8099' });
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(`${label}: ${e.message}`));
@@ -62,7 +62,7 @@ await gui.evaluate(() => navigator.serviceWorker.ready);
 await gui.reload();
 await gui.waitForSelector('#notify');
 check('les Réglages ont une section Notifications, qui dit ce qui est annoncé',
-  /Notifications[\s\S]*nouveau sondage[\s\S]*date retenue[\s\S]*frappe/.test(await gui.locator('#notify').textContent()));
+  /Notifications[\s\S]*nouveau sondage[\s\S]*date retenue[\s\S]*la veille[\s\S]*frappe/.test(await gui.locator('#notify').textContent()));
 await gui.click('#notify-on');
 await gui.waitForFunction(() => /Activées sur cet appareil/.test(document.querySelector('#notify')?.textContent || ''), null, { timeout: 15000 });
 check('un toucher, et c’est activé', true);
@@ -74,6 +74,8 @@ check('et confié à la base pour Mifa, avec l’adresse de l’app',
     && state.subscriptions[0].endpoint === 'https://fcm.googleapis.com/fcm/send/gui' && state.subscriptions[0].app === APP
     && state.subscriptions[0].lang === 'fr',
   JSON.stringify(state.subscriptions));
+check('avec son fuseau, pour que le rappel de la veille sonne à son heure',
+  state.subscriptions[0]?.tz === 'Asia/Tokyo', JSON.stringify(state.subscriptions));
 
 /* --- 2. Ce que Gui écrit prévient la fonction, une fois par nouveauté ---- */
 

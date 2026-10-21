@@ -38,6 +38,17 @@ export function rememberTold(told, key, limit = 400) {
   return [...told.filter((one) => one !== key), key].slice(-limit);
 }
 
+/**
+ * Whether this device, opened of an evening, asks for the eve's reminders —
+ * once an hour at most. They are asked every hour anyway, from GitHub
+ * (tools/rappels.js); this is for the hours that run is late or paused. The
+ * database sends each reminder once, whoever asks.
+ */
+export function mayAskReminders(lastAsked, now = new Date()) {
+  const hour = now.getHours();
+  return hour >= 18 && hour <= 22 && !(Number(lastAsked) > now.getTime() - 3600000);
+}
+
 /** The fields the database keeps of a subscription, from its JSON form. */
 export function subscriptionFields(json) {
   const endpoint = typeof json?.endpoint === 'string' ? json.endpoint : '';

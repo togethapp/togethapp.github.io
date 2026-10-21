@@ -35,6 +35,8 @@ def channel_column():
     m = re.search(r"(alter table public\.marque_points_group\n  add column if not exists channel[^;]*;\n)", bis); assert m; return m.group(1)
 def live_triggers():
     m = re.search(r"(drop trigger if exists marque_points_live on public\.marque_points_games;\n.*?for each row execute function public\.marque_points_live\(\);\n\ndrop trigger if exists marque_points_live on public\.marque_points_request;\n.*?for each row execute function public\.marque_points_live\(\);\n)", bis, flags=re.S); assert m; return m.group(1)
+def push_tz_column():
+    m = re.search(r"(alter table public\.marque_points_push\n  add column if not exists tz[^;]*;\n)", bis); assert m; return m.group(1)
 def alter(column):
     m = re.search(r"(alter table public\.marque_points_games\n  add column if not exists " + column + r"[^;]*;\n)", bis); assert m, column; return m.group(1)
 out = "\n".join([
@@ -76,6 +78,9 @@ out = "\n".join([
 --  11. les notifications : un appareil qui les active est prévenu d'un
 --      nouveau document dans ses groupes, d'une date retenue, et — s'il fait
 --      entrer — de quelqu'un qui frappe (avec la fonction « notifier »).
+--  12. le rappel de la veille : la veille d'un événement, entre 18 h et 23 h
+--      à l'heure de chaque appareil, ce qui a lieu demain et ce qui reste à
+--      faire (avec la fonction « notifier », appelée une fois l'heure).
 --
 -- Généré depuis docs/DEPLOIEMENT.md, étape 2 bis ; un test vérifie que les
 -- deux disent la même chose. Modifiez le guide, pas ce fichier seul.
@@ -123,19 +128,22 @@ function('marque_points_live'),
 live_triggers(),
 "-- 11. Les notifications.\n" + table('marque_points_push') + "create index if not exists marque_points_push_key on public.marque_points_push (key_id);\n\n"
 + table('marque_points_push_sent') + "\n" + table('marque_points_push_vapid'),
+"-- 12. Le fuseau de chaque appareil, pour le rappel de la veille ; et l'abonnement\n-- qui le dit, à la place de celui d'avant, sans fuseau.\n" + push_tz_column()
++ "drop function if exists public.marque_points_push_subscribe(text, text, text, text, text, text);\n",
 function('marque_points_push_subscribe'),
 function('marque_points_push_unsubscribe'),
 function('marque_points_push_vapid'),
 function('marque_points_push_event'),
 function('marque_points_push_knock'),
+function('marque_points_push_reminders'),
 function('marque_points_push_gone'),
 "-- Pour les comptes connectés seulement, pas pour la clé publique de la page.\n" + "\n".join(
     [revoke(n) for n in ['marque_points_account_link', 'marque_points_account_owner_put', 'marque_points_account_restore', 'marque_points_account_leave', 'marque_points_account_delete']]
     + [grant(n) for n in ['marque_points_account_link', 'marque_points_account_owner_put', 'marque_points_account_restore', 'marque_points_account_leave', 'marque_points_account_delete']]
     + [revoke('marque_points_account_cut_mark'), revoke('marque_points_announce'), revoke('marque_points_live')]
     + [grant(n) for n in ['marque_points_push_subscribe', 'marque_points_push_unsubscribe', 'marque_points_open_set']]
-    + [revoke(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_gone']]
-    + [grant(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_gone']]
+    + [revoke(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_reminders', 'marque_points_push_gone']]
+    + [grant(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_reminders', 'marque_points_push_gone']]
     + [grant(n) for n in ['marque_points_group_of', 'marque_points_group_keys', 'marque_points_set_accounts']]) + "\n",
 ])
 (root / 'supabase/mise-a-jour.sql').write_text(out)
