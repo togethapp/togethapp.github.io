@@ -1560,6 +1560,11 @@ button.tile:hover { background: var(--accent-soft); border-color: color-mix(in s
 .move__actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5em, 1fr)); gap: 8px; }
 .move .move__pay-edit { justify-content: flex-start; padding: 0; min-height: 32px; }
 .entry__what { min-width: 0; overflow-wrap: anywhere; }
+
+/* A search's finds: the title, then the parts that hold the words, marked. */
+.search-hit__part { display: block; margin-top: 2px; color: var(--muted); font-size: 0.85rem; }
+.search-hit mark { border-radius: 4px; padding: 0 1px; background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+#search-words { margin-bottom: 4px; }
 .entry__detail { display: block; }
 .entry__value { flex: none; color: var(--muted); font-size: 0.85rem; }
 .entry__value--good { color: var(--good); font-weight: 600; }

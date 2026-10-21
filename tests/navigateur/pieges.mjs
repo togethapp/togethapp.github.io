@@ -50,6 +50,8 @@ const routesOf = (docs) => [
   `#/list/${docs.list.id}`, `#/poll/${docs.poll.id}`, `#/poll/${docs.poll.id}/solo`, `#/poll/${docs.event.id}`,
   `#/spend/${docs.spend.id}`, `#/game/${docs.game.id}`, `#/idea/${docs.board.id}`, '#/group/grp_famille',
   `#/person/${encodeURIComponent(TAG)}`, `#/person/${encodeURIComponent(ATTR)}`, '#/stats',
+  // La recherche marque les mots trouvés : au milieu d'une balise, d'un attribut.
+  `#/search/${encodeURIComponent('img src')}`, `#/search/${encodeURIComponent('" autofocus')}`, `#/search/${encodeURIComponent('script')}`,
   // Les liens qui remplissent un formulaire (« Remplir avec Claude ») : du texte venu d'ailleurs.
   `#/lists/new?titre=${enc(TAG)}&lignes=${enc(`${TAG}\n${ATTR}\n${END}`)}&personnes=${enc(ATTR)}`,
   `#/polls/new?question=${enc(TAG)}&choix=${enc(`${TAG}\n${END}`)}&personnes=${enc(TAG)}`,

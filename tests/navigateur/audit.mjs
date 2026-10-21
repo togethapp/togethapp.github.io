@@ -76,6 +76,7 @@ const routesOf = (docs) => [
   `#/list/${docs.list.id}`, `#/poll/${docs.poll.id}`, `#/poll/${docs.event.id}`, `#/spend/${docs.spend.id}`,
   `#/game/${docs.game.id}`, `#/idea/${docs.board.id}`, '#/group/grp_famille', '#/person/Alice', '#/stats', '#/confidentialite',
   '#/lists/new', '#/polls/new', '#/agenda/new', '#/spends/new', '#/new', '#/ideas/new',
+  '#/search', '#/search/la',
 ];
 
 // Every key of the translations: one showing as such is a text never written.
@@ -286,7 +287,7 @@ if (page.errors.length) note('erreur JavaScript (fenêtres)', page.errors.join('
 for (const [from, target] of [
   ['#/lists', `#/list/${local.list.id}`], ['#/polls', `#/poll/${local.poll.id}`], ['#/spends', `#/spend/${local.spend.id}`],
   ['#/games', `#/game/${local.game.id}`], ['#/ideas', `#/idea/${local.board.id}`], ['#/agenda', `#/poll/${local.event.id}`],
-  [`#/list/${local.list.id}`, '#/person/Alice'],
+  [`#/list/${local.list.id}`, '#/person/Alice'], ['#/search/pain', `#/list/${local.list.id}`],
 ]) {
   await reset();
   await go(page, from);
