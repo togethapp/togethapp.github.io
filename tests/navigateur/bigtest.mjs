@@ -103,7 +103,9 @@ if (await page.locator('#share-make').count()) await page.click('#share-make');
 await page.waitForSelector('#export-dialog[open]');
 const link = await page.inputValue('#export-text');
 check('un QR est affiché', (await page.locator('#export-qr svg').count()) === 1);
-await page.addScriptTag({ content: jsqr });
+// Run from here, not as a <script> added to the page: the page's own policy
+// refuses any inline script it does not name, which is the point of it.
+await page.evaluate(jsqr);
 const decoded = await page.evaluate(async () => {
   const svg = document.querySelector('#export-qr svg').outerHTML;
   const img = new Image();
