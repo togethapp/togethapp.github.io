@@ -6,7 +6,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="ed873c70" />
+    <meta name="app-build" content="9a85ea2d" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -1591,6 +1591,50 @@ button.tile:hover { background: var(--accent-soft); border-color: color-mix(in s
 .move__actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5em, 1fr)); gap: 8px; }
 .move .move__pay-edit { justify-content: flex-start; padding: 0; min-height: 32px; }
 .entry__what { min-width: 0; overflow-wrap: anywhere; }
+
+/* Reactions and words, under what they are about: small, quiet, a tap away. */
+.talk { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.talk__chip,
+.talk__open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 30px;
+  min-width: 40px;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.talk__open { color: var(--muted); }
+.talk__chip--mine { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+.talk__said { display: grid; gap: 2px; margin-top: 6px; font-size: 0.88rem; color: var(--muted); }
+.talk__said p { margin: 0; overflow-wrap: anywhere; }
+.talk__said strong { color: var(--text); }
+.swipe__body > .talk { padding: 6px 2px 2px; }
+.talk-lines { display: grid; gap: 10px; }
+.talk-line { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
+.talk-line:first-child { padding-top: 0; border-top: 0; }
+.talk-line__what { font-weight: 600; overflow-wrap: anywhere; }
+.talk-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.talk-pick__one {
+  min-width: 48px;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+.talk-pick__one--on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 12px var(--glow); }
+.talk-words { display: grid; gap: 6px; max-height: 40vh; overflow-y: auto; }
+.talk-word { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin: 0; overflow-wrap: anywhere; }
+.dialog--talk textarea { width: 100%; }
 
 /* A search's finds: the title, then the parts that hold the words, marked. */
 .search-hit__part { display: block; margin-top: 2px; color: var(--muted); font-size: 0.85rem; }
@@ -3759,6 +3803,19 @@ const STRINGS = {
     'account.deleteFailed': 'Le compte n’a pas pu être supprimé : la base n’a pas répondu. Réessayez une fois connecté.',
     'account.deleted': 'Compte supprimé. Votre adresse n’est plus gardée nulle part.',
     'account.deletedPartly': 'Compte supprimé, mais votre adresse est restée chez Supabase : demandez à l’organisateur de l’app de l’effacer (Authentication → Users).',
+    'talk.open': 'Réagir, ou laisser un mot',
+    'talk.openWords': '{count} {count|mot|mots} — réagir, ou en laisser un',
+    'talk.chip': '{emoji} : {names}',
+    'talk.title': 'Réactions',
+    'talk.pick': 'Réagir',
+    'talk.none': 'Pas encore de mot.',
+    'talk.wordsLabel': 'Un mot',
+    'talk.placeholder': 'J’apporte le dessert…',
+    'talk.send': 'Envoyer',
+    'talk.drop': 'Retirer ces mots',
+    'talk.whoTitle': 'Votre prénom ?',
+    'talk.whoHint': 'Il accompagne vos réactions et vos mots. Il se change dans les Réglages.',
+    'talk.choices': 'Ce qu’on en dit',
     'search.open': 'Rechercher',
     'search.title': 'Rechercher',
     'search.field': 'Les mots à chercher',
@@ -5023,6 +5080,19 @@ const STRINGS = {
     'account.deleteFailed': 'The account could not be deleted: the database did not answer. Try again once online.',
     'account.deleted': 'Account deleted. Your address is no longer kept anywhere.',
     'account.deletedPartly': 'Account deleted, but your address stayed with Supabase: ask whoever runs the app to erase it (Authentication → Users).',
+    'talk.open': 'React, or leave a word',
+    'talk.openWords': '{count} {count|word|words} — react, or leave one',
+    'talk.chip': '{emoji}: {names}',
+    'talk.title': 'Reactions',
+    'talk.pick': 'React',
+    'talk.none': 'No words yet.',
+    'talk.wordsLabel': 'A word',
+    'talk.placeholder': 'I’ll bring dessert…',
+    'talk.send': 'Send',
+    'talk.drop': 'Take these words back',
+    'talk.whoTitle': 'Your first name?',
+    'talk.whoHint': 'It goes with your reactions and your words. Change it in Settings.',
+    'talk.choices': 'What people say',
     'search.open': 'Search',
     'search.title': 'Search',
     'search.field': 'The words to look for',
@@ -7505,6 +7575,138 @@ function withoutMe(names, me) {
   return kept;
 }
 
+  // ---- src/reacts.js ---------------------------------------------------
+/**
+ * Reactions and a few words: 👍 or « J'apporte le fromage » on an idea, a
+ * poll's choice, an event or one of its activities. Kept in the document
+ * itself, beside what they are about, in two sets of cells merged one by one
+ * — the latest of each kept, as votes are: two people reacting at once both
+ * stay, and taking a reaction back, or one's words, is a cell too.
+ *
+ *   reacts:   { '<target>|<who>': { e: '👍' or '', n: 'Alice', at } }
+ *   comments: { '<id>': { on: '<target>', n: 'Alice', t: 'Les mots' or '', made, at } }
+ *
+ * The target is what is reacted to: an idea's card, a poll's choice — or ''
+ * for the document itself, an event or an activity. Who reacts is a first
+ * name, as everywhere else: a name is not an account.
+ */
+
+
+
+
+/** What one may react with: one each per thing, tapped again to take it back. */
+const REACTIONS = ['👍', '❤️', '😂', '😮', '🎉'];
+
+/** A few words, not a letter. */
+const WORDS_MOST = 280;
+
+const cellsIn = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
+const stampOf = (cell) => (typeof cell?.at === 'number' ? cell.at : 0);
+
+/** Two copies' cells, each the latest of the two — the second copy's on a tie, as the database does. */
+function mergeCells(first, second) {
+  const out = { ...cellsIn(first) };
+  for (const [key, cell] of Object.entries(cellsIn(second))) {
+    const held = out[key];
+    if (!held || stampOf(cell) >= stampOf(held)) out[key] = cell;
+  }
+  return out;
+}
+
+/** Whether two sets of cells are the same, cell for cell. */
+function sameCells(a, b) {
+  const one = cellsIn(a);
+  const two = cellsIn(b);
+  const keys = Object.keys(one);
+  return keys.length === Object.keys(two).length && keys.every((key) => one[key] === two[key]);
+}
+
+/** A document's cells after a merge, with nothing said when there is nothing. */
+function mergedTalk(older, newer) {
+  const reacts = mergeCells(older?.reacts, newer?.reacts);
+  const comments = mergeCells(older?.comments, newer?.comments);
+  return {
+    ...(Object.keys(reacts).length ? { reacts } : {}),
+    ...(Object.keys(comments).length ? { comments } : {}),
+  };
+}
+
+/** Whether a merge learnt nothing about the reactions and words of `newer`. */
+function sameTalk(newer, merged) {
+  return sameCells(newer?.reacts, merged.reacts) && sameCells(newer?.comments, merged.comments);
+}
+
+/**
+ * React to a target as `name`. The same reaction again takes it back;
+ * another one replaces it.
+ */
+function react(document_, target, name, emoji) {
+  const who = sameName(name);
+  if (!who || !REACTIONS.includes(emoji)) return document_;
+  const key = `${target}|${who}`;
+  const held = cellsIn(document_.reacts)[key];
+  const cell = { e: held?.e === emoji ? '' : emoji, n: String(name).trim(), at: later(stampOf(held)) };
+  return touch(document_, { reacts: { ...cellsIn(document_.reacts), [key]: cell } });
+}
+
+/**
+ * The reactions to a target, in the palette's order: each with who reacted
+ * so, and whether `name` is among them.
+ */
+function reactionsTo(document_, target, name = '') {
+  const me = sameName(name);
+  const found = new Map();
+  for (const [key, cell] of Object.entries(cellsIn(document_.reacts))) {
+    const cut = key.indexOf('|');
+    if (cut < 0 || key.slice(0, cut) !== target || !REACTIONS.includes(cell?.e)) continue;
+    const who = key.slice(cut + 1);
+    const row = found.get(cell.e) || { emoji: cell.e, names: [], mine: false };
+    row.names.push(typeof cell.n === 'string' && cell.n.trim() ? cell.n.trim() : who);
+    if (who === me) row.mine = true;
+    found.set(cell.e, row);
+  }
+  return REACTIONS.filter((emoji) => found.has(emoji)).map((emoji) => found.get(emoji));
+}
+
+/** The reaction `name` gave a target, or ''. */
+function myReaction(document_, target, name) {
+  const cell = cellsIn(document_.reacts)[`${target}|${sameName(name)}`];
+  return REACTIONS.includes(cell?.e) ? cell.e : '';
+}
+
+/** Leave a few words on a target, as `name`. Without words, or without a name, nothing. */
+function addWords(document_, target, name, text) {
+  const words = String(text || '').trim().slice(0, WORDS_MOST);
+  const who = String(name || '').trim();
+  if (!words || !who) return document_;
+  const held = cellsIn(document_.comments);
+  // After every word already there, even within the same millisecond.
+  const now = later(Math.max(0, ...Object.values(held).map((cell) => (typeof cell?.made === 'number' ? cell.made : 0))));
+  return touch(document_, { comments: { ...held, [uid('m')]: { on: target, n: who, t: words, made: now, at: now } } });
+}
+
+/** Take words back: the cell stays, emptied, so that the other copies learn it too. */
+function removeWords(document_, id) {
+  const held = cellsIn(document_.comments)[id];
+  if (!held || typeof held.t !== 'string' || !held.t) return document_;
+  return touch(document_, { comments: { ...cellsIn(document_.comments), [id]: { ...held, t: '', at: later(stampOf(held)) } } });
+}
+
+/** The words left on a target, the oldest first: { id, name, text, at, mine }. */
+function wordsOn(document_, target, name = '') {
+  const me = sameName(name);
+  return Object.entries(cellsIn(document_.comments))
+    .filter(([, cell]) => cell?.on === target && typeof cell.t === 'string' && cell.t.trim())
+    .map(([id, cell]) => ({
+      id,
+      name: typeof cell.n === 'string' ? cell.n : '',
+      text: cell.t.trim(),
+      at: typeof cell.made === 'number' ? cell.made : stampOf(cell),
+      mine: Boolean(me) && sameName(cell.n) === me,
+    }))
+    .sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1));
+}
+
   // ---- src/lists.js ----------------------------------------------------
 /**
  * Lists: a title, the people it concerns, and lines to hand out.
@@ -7801,6 +8003,7 @@ function isValidList(value) {
  * Like games and lists: pure, merged cell by cell, and it travels as one
  * document through the same database.
  */
+
 
 
 
@@ -8275,7 +8478,9 @@ function mergePolls(a, b) {
     Object.keys(votes).length === Object.keys(newer.votes).length &&
     Object.entries(votes).every(([key, vote]) => newer.votes[key] === vote);
   const sameRemoved = Object.keys(removed).length === Object.keys(newer.removed || {}).length;
-  if (sameOptions && sameVotes && sameRemoved && people === newer.people) return newer;
+  // Reactions and words, cell by cell like the answers (reacts.js).
+  const talk = mergedTalk(older, newer);
+  if (sameOptions && sameVotes && sameRemoved && people === newer.people && sameTalk(newer, talk)) return newer;
 
   return {
     ...newer,
@@ -8285,6 +8490,7 @@ function mergePolls(a, b) {
     removed,
     options,
     votes,
+    ...talk,
     updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0),
   };
 }
@@ -9164,6 +9370,7 @@ function isValidSpend(value) {
 
 
 
+
 /** The frame every sketch is drawn in, whatever the screen. */
 const SKETCH_WIDTH = 1000;
 const SKETCH_HEIGHT = 750;
@@ -9460,12 +9667,13 @@ function mergeBoards(a, b) {
   }
   const cards = [...byId.values()].sort((x, y) => (x.createdAt || 0) - (y.createdAt || 0) || (x.id < y.id ? -1 : 1));
 
-  const merged = { ...newer, removed, cards, updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0) };
+  const merged = { ...newer, removed, cards, ...mergedTalk(older, newer), updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0) };
   // Nothing new on either side: hand back the very same object, which is how
   // the page knows there is nothing to redraw.
   const sameAs = (board) =>
     JSON.stringify(board.cards) === JSON.stringify(merged.cards) &&
     Object.keys(board.removed || {}).length === Object.keys(removed).length &&
+    sameTalk(board, merged) &&
     (board.updatedAt || 0) === merged.updatedAt;
   if (sameAs(newer)) return newer;
   return merged;
@@ -13616,6 +13824,7 @@ function bindSwipes(kind, onDelete) {
 
 
 
+
 /* ------------------------------------------------------------------ polls --- */
 
 /**
@@ -13901,6 +14110,8 @@ function pollView(poll, { solo = false } = {}) {
       </div>
     </div>
 
+    ${isEventDoc(poll) ? talkHtml(poll, '', { title: pollTitle(poll), said: true }) : ''}
+
     ${guest ? '' : eventLinkHtml(poll)}
 
     ${solo ? '' : activityHeadHtml(poll)}
@@ -14000,6 +14211,8 @@ function pollView(poll, { solo = false } = {}) {
         : `<p class="muted small">${escapeHtml(poll.people.length ? t('polls.addChoices') : t('polls.addPeople'))}</p>`
     }
 
+    ${isEventDoc(poll) ? '' : choicesTalkHtml(poll)}
+
     ${
       // A guest adds choices too — another evening, another place — as long
       // as there is still something to choose: not once the day is set.
@@ -14037,6 +14250,22 @@ function pollView(poll, { solo = false } = {}) {
           ${escapeHtml(poll.archivedAt ? t('archive.back') : t('archive.put'))}
         </button>
         <button type="button" class="button button--small button--ghost" id="poll-delete">${escapeHtml(t('action.delete'))}</button>`)}`;
+}
+
+/** What is said of each choice: its reactions and its words, a row each. */
+function choicesTalkHtml(poll) {
+  if (!poll.options.length) return '';
+  return `
+    <section class="section" aria-labelledby="talk-choices">
+      <div class="section__head"><h2 id="talk-choices">${escapeHtml(t('talk.choices'))}</h2></div>
+      <div class="talk-lines">
+        ${poll.options.map((option) => `
+          <div class="talk-line">
+            <span class="talk-line__what">${escapeHtml(choiceLabel(option))}</span>
+            ${talkHtml(poll, option.id, { title: choiceLabel(option) })}
+          </div>`).join('')}
+      </div>
+    </section>`;
 }
 
 /**
@@ -14826,6 +15055,7 @@ function askWhoFirst() {
 }
 
 function bindPoll(poll) {
+  bindTalk(view);
   view.querySelectorAll('[data-vote]').forEach((button) => {
     button.addEventListener('click', () => {
       const [personId, optionId] = button.dataset.vote.split('|');
@@ -17832,6 +18062,7 @@ function openSpendPeopleDialog(spend) {
 
 
 
+
 function boardTitle(board) {
   return board.name || t('ideas.untitled');
 }
@@ -18000,7 +18231,9 @@ function boardView(board) {
 
     ${
       cards.length
-        ? `<div class="idea-grid">${cards.map((card) => swipeHtml(card.id, ideaCardHtml(card), { kind: 'card' })).join('')}</div>
+        ? `<div class="idea-grid">${cards.map((card) => swipeHtml(card.id, `${ideaCardHtml(card)}${talkHtml(board, card.id, {
+            title: card.text || t('ideas.sketchTitle'),
+          })}`, { kind: 'card' })).join('')}</div>
            <p class="muted small idea-hint">${escapeHtml(t('ideas.swipeHint'))}</p>`
         : `<p class="muted small">${escapeHtml(t('ideas.empty'))}</p>`
     }
@@ -18018,6 +18251,7 @@ function boardView(board) {
 
 function bindBoard(board) {
   bindData();
+  bindTalk(view);
 
   bindSwipes('card', (cardId) => {
     const current = getBoard(board.id);
@@ -27089,6 +27323,177 @@ function bindSearch(words) {
       setGroupFilter('');
       render();
     }
+  });
+}
+
+  // ---- src/view-reacts.js ----------------------------------------------
+/**
+ * Reactions and a few words, on screen: under what they are about, a row of
+ * what was reacted — « 👍 2 », a tap adds one's own or takes it back — and a
+ * button that opens all of it: the five reactions, who gave which, the words
+ * left, and a field for some more. The same row under an idea, a poll's
+ * choice, an event and an activity; the logic is reacts.js.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+
+
+/** The words shown under an event's row: the last few, the rest a tap away. */
+const WORDS_SHOWN = 2;
+
+/**
+ * The row under a thing: its reactions, and the way to react or say a word.
+ * `title` names the thing in the window; `said` shows the last words under
+ * the row (an event's page), where the rest only count them.
+ */
+function talkHtml(document_, target, { title = '', said = false } = {}) {
+  const me = myName();
+  const rows = reactionsTo(document_, target, me);
+  const words = wordsOn(document_, target, me);
+  const chips = rows.map((row) => `
+    <button type="button" class="talk__chip ${row.mine ? 'talk__chip--mine' : ''}" data-talk-react="${escapeHtml(row.emoji)}"
+            aria-pressed="${row.mine ? 'true' : 'false'}" title="${escapeHtml(row.names.join(', '))}"
+            aria-label="${escapeHtml(t('talk.chip', { emoji: row.emoji, names: row.names.join(', ') }))}">
+      <span aria-hidden="true">${escapeHtml(row.emoji)} ${row.names.length}</span>
+    </button>`).join('');
+  const open = words.length
+    ? `💬 ${words.length}`
+    : `<span aria-hidden="true">☺+</span>`;
+  return `
+    <div class="talk" data-talk="${escapeHtml(target)}" data-talk-doc="${escapeHtml(document_.id)}" data-talk-title="${escapeHtml(title)}">
+      ${chips}
+      <button type="button" class="talk__open" data-talk-open
+              aria-label="${escapeHtml(words.length ? t('talk.openWords', { count: words.length }) : t('talk.open'))}">${open}</button>
+    </div>
+    ${said && words.length ? `
+      <div class="talk__said">
+        ${words.slice(-WORDS_SHOWN).map((one) => `<p><strong>${escapeHtml(one.name)}</strong> ${escapeHtml(one.text)}</p>`).join('')}
+      </div>` : ''}`;
+}
+
+/** The document a row is about, as it is now. */
+function talkDocument(id) {
+  return everything().find((one) => one.id === id) || null;
+}
+
+/** Keep a document a reaction or a word changed, where its kind is kept. */
+function keepTalk(next) {
+  if (next.kind === 'board') replaceBoard(next);
+  else if (next.kind === 'poll') replacePoll(next);
+}
+
+/** Who reacts on this device: its first name — asked once, if it has none yet. */
+async function talkName() {
+  const held = myName();
+  if (held) return held;
+  const name = await askForText({
+    title: t('talk.whoTitle'),
+    hint: t('talk.whoHint'),
+    confirmLabel: t('action.save'),
+  });
+  return name && name.trim() ? setMyName(name) : '';
+}
+
+/** React with `emoji` — or take it back — as this device's first name. */
+async function reactTo(id, target, emoji) {
+  const name = await talkName();
+  const current = talkDocument(id);
+  if (!name || !current) return;
+  keepTalk(react(current, target, name, emoji));
+}
+
+/** The window: react, see who did, read the words, and add some. */
+function openTalk(id, target, title) {
+  const dialog = makeDialog('dialog dialog--talk');
+  const fill = () => {
+    const current = talkDocument(id);
+    if (!current) {
+      dialog.close();
+      return;
+    }
+    const me = myName();
+    const mine = myReaction(current, target, me);
+    const rows = reactionsTo(current, target, me);
+    const words = wordsOn(current, target, me);
+    const typed = dialog.querySelector('[data-talk-text]')?.value || '';
+    dialog.innerHTML = `
+      <form method="dialog" class="stack">
+        <h2>${escapeHtml(title || t('talk.title'))}</h2>
+        <div class="talk-pick" role="group" aria-label="${escapeHtml(t('talk.pick'))}">
+          ${REACTIONS.map((emoji) => `
+            <button type="button" class="talk-pick__one ${emoji === mine ? 'talk-pick__one--on' : ''}" data-talk-pick="${escapeHtml(emoji)}"
+                    aria-pressed="${emoji === mine ? 'true' : 'false'}">${escapeHtml(emoji)}</button>`).join('')}
+        </div>
+        ${rows.length ? `<p class="muted small">${rows.map((row) => `${escapeHtml(row.emoji)} ${escapeHtml(row.names.join(', '))}`).join(' · ')}</p>` : ''}
+        <div class="talk-words">
+          ${words.length
+            ? words.map((one) => `
+                <p class="talk-word">
+                  <span><strong>${escapeHtml(one.name)}</strong> ${escapeHtml(one.text)}</span>
+                  ${one.mine ? `<button type="button" class="button button--small button--ghost" data-talk-drop="${escapeHtml(one.id)}"
+                                        aria-label="${escapeHtml(t('talk.drop'))}">✕</button>` : ''}
+                </p>`).join('')
+            : `<p class="muted small">${escapeHtml(t('talk.none'))}</p>`}
+        </div>
+        <label>
+          ${escapeHtml(t('talk.wordsLabel'))}
+          <textarea data-talk-text rows="2" maxlength="${WORDS_MOST}" placeholder="${escapeHtml(t('talk.placeholder'))}"></textarea>
+        </label>
+        <div class="row">
+          <button type="button" class="button button--primary" data-talk-send>${escapeHtml(t('talk.send'))}</button>
+          <button type="button" class="button" data-talk-close>${escapeHtml(t('action.close'))}</button>
+        </div>
+      </form>`;
+    const field = dialog.querySelector('[data-talk-text]');
+    field.value = typed;
+
+    dialog.querySelectorAll('[data-talk-pick]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        await reactTo(id, target, button.dataset.talkPick);
+        fill();
+      });
+    });
+    dialog.querySelectorAll('[data-talk-drop]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const now = talkDocument(id);
+        if (now) keepTalk(removeWords(now, button.dataset.talkDrop));
+        fill();
+      });
+    });
+    dialog.querySelector('[data-talk-send]').addEventListener('click', async () => {
+      const text = field.value.trim();
+      if (!text) {
+        field.focus();
+        return;
+      }
+      const name = await talkName();
+      const now = talkDocument(id);
+      if (!name || !now) return;
+      keepTalk(addWords(now, target, name, text));
+      field.value = '';
+      fill();
+    });
+    dialog.querySelector('[data-talk-close]').addEventListener('click', () => dialog.close());
+  };
+  fill();
+  dialog.showModal();
+}
+
+/** Make the rows of a page work. */
+function bindTalk(root) {
+  root.querySelectorAll('[data-talk]').forEach((row) => {
+    const id = row.dataset.talkDoc;
+    const target = row.dataset.talk;
+    row.querySelectorAll('[data-talk-react]').forEach((chip) => {
+      chip.addEventListener('click', () => reactTo(id, target, chip.dataset.talkReact));
+    });
+    row.querySelector('[data-talk-open]')?.addEventListener('click', () => openTalk(id, target, row.dataset.talkTitle));
   });
 }
 

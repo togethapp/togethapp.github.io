@@ -16,6 +16,7 @@
 
 import { uid } from './model.js';
 import { later, touch, prune } from './stamp.js';
+import { mergedTalk, sameTalk } from './reacts.js';
 
 /** The frame every sketch is drawn in, whatever the screen. */
 export const SKETCH_WIDTH = 1000;
@@ -313,12 +314,13 @@ export function mergeBoards(a, b) {
   }
   const cards = [...byId.values()].sort((x, y) => (x.createdAt || 0) - (y.createdAt || 0) || (x.id < y.id ? -1 : 1));
 
-  const merged = { ...newer, removed, cards, updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0) };
+  const merged = { ...newer, removed, cards, ...mergedTalk(older, newer), updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0) };
   // Nothing new on either side: hand back the very same object, which is how
   // the page knows there is nothing to redraw.
   const sameAs = (board) =>
     JSON.stringify(board.cards) === JSON.stringify(merged.cards) &&
     Object.keys(board.removed || {}).length === Object.keys(removed).length &&
+    sameTalk(board, merged) &&
     (board.updatedAt || 0) === merged.updatedAt;
   if (sameAs(newer)) return newer;
   return merged;

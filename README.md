@@ -626,6 +626,30 @@ de décider : des **notes** et des **croquis**, chacun sur sa carte.
 - Partagé comme le reste, archivé, copié vers un autre groupe. Pas encore de
   schémas (boîtes et flèches) ni de photos.
 
+## Ce que ça fait — les réactions et les mots
+
+Sous une idée, sous chaque choix d'un sondage (« Ce qu'on en dit ») et sur la
+page d'un événement ou d'une activité, une petite rangée : 👍 ❤️ 😂 😮 🎉, et
+quelques mots.
+
+- **Une réaction par personne et par chose** : toucher « 👍 2 » ajoute la
+  sienne, la toucher encore la reprend, en choisir une autre la remplace. Le
+  nom de qui a réagi s'affiche en la survolant, et dans la fenêtre.
+- **« ☺+ »** (ou « 💬 2 » quand des mots ont été laissés) ouvre la fenêtre :
+  les cinq réactions, qui a donné laquelle, les mots, et une case pour en
+  laisser (280 signes). Ses propres mots se retirent d'une croix.
+- Sur la page d'un événement, les deux derniers mots se lisent sous la rangée
+  (« Alice J'apporte le fromage »).
+- Qui réagit, c'est le prénom de l'appareil (Réglages), demandé une fois s'il
+  n'y en a pas : comme pour les sondages, un prénom n'est pas un compte.
+- **Rangés dans le document**, à côté de ce dont ils parlent (`reacts`,
+  `comments`), et **fondus case par case** comme les votes : deux personnes
+  qui réagissent en même temps restent toutes les deux, et une réaction
+  reprise ou des mots retirés sont une case comme une autre. Pour un
+  sondage, la base les fond aussi, pour chacun — même sur un sondage clos
+  ou un événement, que seul son organisateur règle par ailleurs. Logique pure
+  dans `src/reacts.js`, écran dans `src/view-reacts.js`.
+
 ## Remplir avec Claude
 
 *Réglages → Remplir avec Claude* copie un texte à coller dans une conversation

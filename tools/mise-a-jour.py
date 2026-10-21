@@ -81,6 +81,9 @@ out = "\n".join([
 --  12. le rappel de la veille : la veille d'un événement, entre 18 h et 23 h
 --      à l'heure de chaque appareil, ce qui a lieu demain et ce qui reste à
 --      faire (avec la fonction « notifier », appelée une fois l'heure).
+--  13. les réactions et les mots : sur un sondage, un événement ou une
+--      activité, ceux de chacun se fondent, comme les votes — et restent
+--      permis sur ce qui est clos.
 --
 -- Généré depuis docs/DEPLOIEMENT.md, étape 2 bis ; un test vérifie que les
 -- deux disent la même chose. Modifiez le guide, pas ce fichier seul.

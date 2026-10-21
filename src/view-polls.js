@@ -46,6 +46,7 @@ import {
 } from './dashboard.js';
 import { saveGames, saveLists, savePolls, saveSpends, saveBoards, savePrefs } from './storage.js';
 import { pollLink, wasDeleted } from './remote.js';
+import { bindTalk, talkHtml } from './view-reacts.js';
 import { swipeable } from './swipe.js';
 import { t, getLanguage } from './i18n.js';
 
@@ -334,6 +335,8 @@ export function pollView(poll, { solo = false } = {}) {
       </div>
     </div>
 
+    ${isEventDoc(poll) ? talkHtml(poll, '', { title: pollTitle(poll), said: true }) : ''}
+
     ${guest ? '' : eventLinkHtml(poll)}
 
     ${solo ? '' : activityHeadHtml(poll)}
@@ -433,6 +436,8 @@ export function pollView(poll, { solo = false } = {}) {
         : `<p class="muted small">${escapeHtml(poll.people.length ? t('polls.addChoices') : t('polls.addPeople'))}</p>`
     }
 
+    ${isEventDoc(poll) ? '' : choicesTalkHtml(poll)}
+
     ${
       // A guest adds choices too — another evening, another place — as long
       // as there is still something to choose: not once the day is set.
@@ -470,6 +475,22 @@ export function pollView(poll, { solo = false } = {}) {
           ${escapeHtml(poll.archivedAt ? t('archive.back') : t('archive.put'))}
         </button>
         <button type="button" class="button button--small button--ghost" id="poll-delete">${escapeHtml(t('action.delete'))}</button>`)}`;
+}
+
+/** What is said of each choice: its reactions and its words, a row each. */
+function choicesTalkHtml(poll) {
+  if (!poll.options.length) return '';
+  return `
+    <section class="section" aria-labelledby="talk-choices">
+      <div class="section__head"><h2 id="talk-choices">${escapeHtml(t('talk.choices'))}</h2></div>
+      <div class="talk-lines">
+        ${poll.options.map((option) => `
+          <div class="talk-line">
+            <span class="talk-line__what">${escapeHtml(choiceLabel(option))}</span>
+            ${talkHtml(poll, option.id, { title: choiceLabel(option) })}
+          </div>`).join('')}
+      </div>
+    </section>`;
 }
 
 /**
@@ -1259,6 +1280,7 @@ function askWhoFirst() {
 }
 
 export function bindPoll(poll) {
+  bindTalk(view);
   view.querySelectorAll('[data-vote]').forEach((button) => {
     button.addEventListener('click', () => {
       const [personId, optionId] = button.dataset.vote.split('|');
