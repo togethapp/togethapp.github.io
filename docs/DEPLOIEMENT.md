@@ -574,6 +574,8 @@ drop function if exists public.marque_points_delete(text, text);
 -- réponse la plus récente l'emporte, et une case décochée est une réponse
 -- datée comme une autre. C'est la règle de l'app ; la base la suit, pour
 -- qu'une copie en retard ne puisse plus effacer les votes arrivés entre-temps.
+-- Les réactions et les mots d'un sondage se fondent de même. Ce qui n'est pas
+-- un ensemble de cases ne compte pour rien, et une heure illisible pour zéro.
 create or replace function public.marque_points_merge_votes(p_stored jsonb, p_incoming jsonb)
 returns jsonb
 language sql
@@ -584,14 +586,16 @@ as $$
            case
              when cells.incoming is null then cells.stored
              when cells.stored is null then cells.incoming
-             when coalesce((cells.incoming->>'at')::numeric, 0) >= coalesce((cells.stored->>'at')::numeric, 0)
+             when (case when jsonb_typeof(cells.incoming->'at') = 'number' then (cells.incoming->>'at')::numeric else 0 end)
+                  >= (case when jsonb_typeof(cells.stored->'at') = 'number' then (cells.stored->>'at')::numeric else 0 end)
                then cells.incoming
              else cells.stored
            end), '{}'::jsonb)
     from (
       select coalesce(s.key, i.key) as key, s.value as stored, i.value as incoming
-        from jsonb_each(coalesce(p_stored, '{}'::jsonb)) s
-        full join jsonb_each(coalesce(p_incoming, '{}'::jsonb)) i on s.key = i.key
+        from jsonb_each(case when jsonb_typeof(p_stored) = 'object' then p_stored else '{}'::jsonb end) s
+        full join jsonb_each(case when jsonb_typeof(p_incoming) = 'object' then p_incoming else '{}'::jsonb end) i
+          on s.key = i.key
     ) cells;
 $$;
 
@@ -691,6 +695,8 @@ begin
       -- la copie qui arrive ne l'ait supprimé.
       p_data := p_data || jsonb_build_object(
         'votes', public.marque_points_merge_votes(v_stored->'votes', p_data->'votes'),
+        'reacts', public.marque_points_merge_votes(v_stored->'reacts', p_data->'reacts'),
+        'comments', public.marque_points_merge_votes(v_stored->'comments', p_data->'comments'),
         'options', public.marque_points_add_options(p_data->'options', v_stored->'options',
                      coalesce(v_stored->'removed', '{}'::jsonb) || coalesce(p_data->'removed', '{}'::jsonb)),
         'people', case
@@ -712,11 +718,28 @@ begin
   -- …et sinon, seulement en votant. Tout le reste est repris tel qu'il était :
   -- la date, la clôture, la question. Les personnes et les choix ne peuvent
   -- que s'ajouter — ceux qui y sont gardent leur nom, et personne n'en retire.
+  -- Les réactions et les mots, eux, se fondent toujours, clos ou pas.
   if v_stored->>'kind' is distinct from 'poll' then
     return; -- un organisateur ne se pose que sur un sondage ; rien d'autre à céder
   end if;
   if coalesce(v_stored->>'closedAt', '') <> '' then
-    return; -- clos : les votes sont arrêtés, pour l'app comme pour la base
+    -- Clos : les votes sont arrêtés, pour l'app comme pour la base ; on réagit
+    -- encore à un événement, et on y laisse un mot.
+    v_next := v_stored || jsonb_build_object(
+      'reacts', public.marque_points_merge_votes(v_stored->'reacts', p_data->'reacts'),
+      'comments', public.marque_points_merge_votes(v_stored->'comments', p_data->'comments'),
+      'updatedAt', greatest(coalesce((v_stored->>'updatedAt')::numeric, 0),
+                            coalesce((p_data->>'updatedAt')::numeric, 0)));
+    if v_next = v_stored then
+      return;
+    end if;
+    if pg_column_size(v_next) > 200000 then
+      raise exception 'donnee trop volumineuse';
+    end if;
+    update public.marque_points_games
+       set data = v_next, updated_at = now()
+     where id = p_id and code_hash is null;
+    return;
   end if;
 
   -- Un choix qu'il a lui-même ajouté, il peut le retirer : il en montre le
@@ -735,6 +758,8 @@ begin
                 'votes', (select coalesce(jsonb_object_agg(c.key, c.value), '{}'::jsonb)
                             from jsonb_each(public.marque_points_merge_votes(v_stored->'votes', p_data->'votes')) c
                            where not v_drop ? split_part(c.key, '|', 2)),
+                'reacts', public.marque_points_merge_votes(v_stored->'reacts', p_data->'reacts'),
+                'comments', public.marque_points_merge_votes(v_stored->'comments', p_data->'comments'),
                 'removed', (case when jsonb_typeof(v_stored->'removed') = 'object'
                                  then v_stored->'removed' else '{}'::jsonb end) || v_drop,
                 'people', coalesce(v_stored->'people', '[]'::jsonb) || coalesce((

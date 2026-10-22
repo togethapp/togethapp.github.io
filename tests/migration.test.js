@@ -62,7 +62,10 @@ test('the update brings what the app now relies on', async () => {
 
   // A poll is merged cell by cell, on both paths: a late copy must not erase
   // the votes that arrived in between — and the merge is not a door of its own.
-  assert.equal((inUpdate.get('marque_points_put').match(/marque_points_merge_votes\(/g) || []).length, 2);
+  assert.equal((inUpdate.get('marque_points_put').match(/marque_points_merge_votes\(v_stored->'votes'/g) || []).length, 2);
+  // Reactions and words too, on every path — closed polls (events) included.
+  assert.equal((inUpdate.get('marque_points_put').match(/marque_points_merge_votes\(v_stored->'reacts', p_data->'reacts'\)/g) || []).length, 3);
+  assert.equal((inUpdate.get('marque_points_put').match(/marque_points_merge_votes\(v_stored->'comments', p_data->'comments'\)/g) || []).length, 3);
   assert.match(update, /revoke all on function public\.marque_points_merge_votes\(jsonb, jsonb\) from public, anon, authenticated;/);
 
   // What is deleted stays deleted: the delete leaves a trace, and a write

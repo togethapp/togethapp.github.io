@@ -40,7 +40,7 @@ RPC `security definer` ; la table n'est jamais exposée.
   parties, groupes, recherche), qui rappellent
   `app.js` depuis leurs fonctions seulement ; `src/i18n.js` : tous les textes
   (FR et EN, ajouter les deux ; pluriel : `{count|ligne|lignes}`) ; `src/remote.js` : appels à la base ; `polls.js`,
-  `lists.js`, `spends.js`, `ideas.js`, `search.js`, `model.js` (parties) : la logique pure, testée.
+  `lists.js`, `spends.js`, `ideas.js`, `search.js`, `reacts.js`, `model.js` (parties) : la logique pure, testée.
 - `tools/bundle.js` construit `dist/*.html` et les deux fonctions
   (`supabase/functions/agenda/index.ts`, `…/notifier/index.ts`), et tamponne
   `sw.js`/`index.html`. Liste explicite `MODULES` : un nouveau module

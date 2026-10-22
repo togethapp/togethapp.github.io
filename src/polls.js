@@ -14,6 +14,7 @@
 import { uid } from './model.js';
 import { later, touch, prune } from './stamp.js';
 import { addPerson, renamePerson, removePerson } from './people.js';
+import { mergedTalk, sameTalk } from './reacts.js';
 
 export const VALUES = ['yes', 'maybe', 'no'];
 
@@ -485,7 +486,9 @@ export function mergePolls(a, b) {
     Object.keys(votes).length === Object.keys(newer.votes).length &&
     Object.entries(votes).every(([key, vote]) => newer.votes[key] === vote);
   const sameRemoved = Object.keys(removed).length === Object.keys(newer.removed || {}).length;
-  if (sameOptions && sameVotes && sameRemoved && people === newer.people) return newer;
+  // Reactions and words, cell by cell like the answers (reacts.js).
+  const talk = mergedTalk(older, newer);
+  if (sameOptions && sameVotes && sameRemoved && people === newer.people && sameTalk(newer, talk)) return newer;
 
   return {
     ...newer,
@@ -495,6 +498,7 @@ export function mergePolls(a, b) {
     removed,
     options,
     votes,
+    ...talk,
     updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0),
   };
 }

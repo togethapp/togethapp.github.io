@@ -42,6 +42,14 @@ function documents(where) {
   let board = { ...createBoard({ name: TAG }), ...where };
   const made = addCard(board, 'note');
   board = editCardText(made.board, made.cardId, `${TAG} ${END}`);
+  // Des réactions et des mots aux noms piégés : sous l'idée, un choix, l'événement.
+  const talk = (target) => ({
+    reacts: { [`${target}|piege`]: { e: '👍', n: TAG, at: 1 }, [`${target}|autre`]: { e: '🎉', n: ATTR, at: 1 } },
+    comments: { [`m_${target || 'doc'}`]: { on: target, n: ATTR, t: `${TAG} ${END}`, made: 1, at: 1 } },
+  });
+  board = { ...board, ...talk(made.cardId) };
+  poll = { ...poll, ...talk(poll.options[0].id) };
+  Object.assign(event, talk(''));
   return { list, poll, event, spend, game, board };
 }
 

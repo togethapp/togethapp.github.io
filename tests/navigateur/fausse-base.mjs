@@ -277,6 +277,9 @@ const server = createServer(async (req, res) => {
         data = {
           ...data,
           votes: mergeVotes(held.data.votes, data.votes),
+          // Les réactions et les mots, comme les votes.
+          reacts: mergeVotes(held.data.reacts, data.reacts),
+          comments: mergeVotes(held.data.comments, data.comments),
           options: addOptions(data.options, held.data.options, { ...held.data.removed, ...data.removed }),
           people: (data.peopleAt || 0) >= (held.data.peopleAt || 0) ? (data.people || []) : (held.data.people || []),
           peopleAt: Math.max(held.data.peopleAt || 0, data.peopleAt || 0),
@@ -288,7 +291,19 @@ const server = createServer(async (req, res) => {
     }
     // Quelqu'un d'autre que l'organisateur : ses votes, et les personnes et les choix qu'il ajoute.
     if (held.data?.kind !== 'poll') return send(204);
-    if (held.data.closedAt) return send(204); // clos : plus de votes
+    if (held.data.closedAt) {
+      // Clos : plus de votes ; les réactions et les mots, toujours.
+      rows.set(at.p_id, {
+        ...held,
+        data: {
+          ...held.data,
+          reacts: mergeVotes(held.data.reacts, at.p_data?.reacts),
+          comments: mergeVotes(held.data.comments, at.p_data?.comments),
+          updatedAt: Math.max(held.data.updatedAt || 0, at.p_data?.updatedAt || 0),
+        },
+      });
+      return send(204);
+    }
     const known = new Set((held.data.people || []).map((person) => person.id));
     // Ses propres choix, qu'il retire en en montrant le secret.
     const unlock = at.p_data?.unlock || {};
@@ -306,6 +321,8 @@ const server = createServer(async (req, res) => {
       data: {
         ...held.data,
         votes,
+        reacts: mergeVotes(held.data.reacts, at.p_data?.reacts),
+        comments: mergeVotes(held.data.comments, at.p_data?.comments),
         removed,
         people: [...(held.data.people || []), ...(at.p_data?.people || []).filter((person) => !known.has(person.id))],
         options: addOptions((held.data.options || []).filter((option) => !drop[option.id]), at.p_data?.options, removed),

@@ -1561,6 +1561,50 @@ button.tile:hover { background: var(--accent-soft); border-color: color-mix(in s
 .move .move__pay-edit { justify-content: flex-start; padding: 0; min-height: 32px; }
 .entry__what { min-width: 0; overflow-wrap: anywhere; }
 
+/* Reactions and words, under what they are about: small, quiet, a tap away. */
+.talk { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.talk__chip,
+.talk__open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 30px;
+  min-width: 40px;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.talk__open { color: var(--muted); }
+.talk__chip--mine { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+.talk__said { display: grid; gap: 2px; margin-top: 6px; font-size: 0.88rem; color: var(--muted); }
+.talk__said p { margin: 0; overflow-wrap: anywhere; }
+.talk__said strong { color: var(--text); }
+.swipe__body > .talk { padding: 6px 2px 2px; }
+.talk-lines { display: grid; gap: 10px; }
+.talk-line { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
+.talk-line:first-child { padding-top: 0; border-top: 0; }
+.talk-line__what { font-weight: 600; overflow-wrap: anywhere; }
+.talk-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.talk-pick__one {
+  min-width: 48px;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+.talk-pick__one--on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 12px var(--glow); }
+.talk-words { display: grid; gap: 6px; max-height: 40vh; overflow-y: auto; }
+.talk-word { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin: 0; overflow-wrap: anywhere; }
+.dialog--talk textarea { width: 100%; }
+
 /* A search's finds: the title, then the parts that hold the words, marked. */
 .search-hit__part { display: block; margin-top: 2px; color: var(--muted); font-size: 0.85rem; }
 .search-hit mark { border-radius: 4px; padding: 0 1px; background: var(--accent-soft); color: var(--accent); font-weight: 650; }

@@ -31,6 +31,7 @@ import { isLive } from './dashboard.js';
 import { uid } from './model.js';
 import { saveBoards, savePrefs } from './storage.js';
 import { swipeHtml, swipeable, bindSwipes } from './swipe.js';
+import { bindTalk, talkHtml } from './view-reacts.js';
 import { t } from './i18n.js';
 
 export function boardTitle(board) {
@@ -201,7 +202,9 @@ export function boardView(board) {
 
     ${
       cards.length
-        ? `<div class="idea-grid">${cards.map((card) => swipeHtml(card.id, ideaCardHtml(card), { kind: 'card' })).join('')}</div>
+        ? `<div class="idea-grid">${cards.map((card) => swipeHtml(card.id, `${ideaCardHtml(card)}${talkHtml(board, card.id, {
+            title: card.text || t('ideas.sketchTitle'),
+          })}`, { kind: 'card' })).join('')}</div>
            <p class="muted small idea-hint">${escapeHtml(t('ideas.swipeHint'))}</p>`
         : `<p class="muted small">${escapeHtml(t('ideas.empty'))}</p>`
     }
@@ -219,6 +222,7 @@ export function boardView(board) {
 
 export function bindBoard(board) {
   bindData();
+  bindTalk(view);
 
   bindSwipes('card', (cardId) => {
     const current = getBoard(board.id);
