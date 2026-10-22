@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   activationProblem, keyBytes, mayAskReminders, mayBeNews, problemDetail, pushSupport, rememberTold, subscriptionFields,
-  toldKey,
+  toldKey, wordsKey,
 } from '../src/notify.js';
 
 test('what this browser can do with notifications', () => {
@@ -90,4 +90,14 @@ test('what was said, short enough to read out', () => {
   assert.equal(problemDetail({ status: 'account' }), 'account', 'an answer from the database');
   assert.equal(problemDetail(new Error('x'.repeat(500))).length, 160);
   assert.equal(problemDetail(null), '');
+});
+
+test('the words left on a poll or a board are told once, while they are recent', () => {
+  const now = Date.UTC(2026, 9, 22);
+  const said = (made) => ({ id: 'v_1', kind: 'poll', comments: { m_1: { on: '', n: 'Alice', t: 'Oui', made, at: made } } });
+  assert.equal(wordsKey(said(now - 1000), now), `v_1|words|${now - 1000}`);
+  assert.equal(wordsKey(said(now - 3 * 86400000), now), null, 'too old to be news');
+  assert.equal(wordsKey({ id: 'v_1', kind: 'poll' }, now), null);
+  assert.equal(wordsKey({ ...said(now), kind: 'list' }, now), null, 'lists have no words');
+  assert.equal(wordsKey({ ...said(now), comments: { m_1: { on: '', n: 'Alice', t: '', made: now, at: now } } }, now), null, 'taken back');
 });

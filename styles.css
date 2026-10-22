@@ -1586,6 +1586,8 @@ button.tile:hover { background: var(--accent-soft); border-color: color-mix(in s
 .talk__said p { margin: 0; overflow-wrap: anywhere; }
 .talk__said strong { color: var(--text); }
 .swipe__body > .talk { padding: 6px 2px 2px; }
+.talk-sum { letter-spacing: 0.02em; }
+.programme__item .talk-sum { flex: none; margin: 0; font-size: 0.8rem; }
 .talk-lines { display: grid; gap: 10px; }
 .talk-line { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
 .talk-line:first-child { padding-top: 0; border-top: 0; }

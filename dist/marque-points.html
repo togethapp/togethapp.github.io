@@ -6,11 +6,11 @@
     <!-- Only the app's own scripts run: its files, and the script below named
          by its hash. Written by tools/bundle.js; first, since it only covers
          what comes after it. -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-iGDY//2iF3J8/CFrFibErsIoSxMfyN8k26PCfGCR/y0='; object-src 'none'; base-uri 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-pY1mQdr2z/mSkYfq81FTsxGyM5sswMsbQMAWEz4eJMM='; object-src 'none'; base-uri 'none'" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="72f3d521" />
+    <meta name="app-build" content="2744b5e5" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -1621,6 +1621,8 @@ button.tile:hover { background: var(--accent-soft); border-color: color-mix(in s
 .talk__said p { margin: 0; overflow-wrap: anywhere; }
 .talk__said strong { color: var(--text); }
 .swipe__body > .talk { padding: 6px 2px 2px; }
+.talk-sum { letter-spacing: 0.02em; }
+.programme__item .talk-sum { flex: none; margin: 0; font-size: 0.8rem; }
 .talk-lines { display: grid; gap: 10px; }
 .talk-line { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
 .talk-line:first-child { padding-top: 0; border-top: 0; }
@@ -3820,6 +3822,7 @@ const STRINGS = {
     'talk.whoTitle': 'Votre prénom ?',
     'talk.whoHint': 'Il accompagne vos réactions et vos mots. Il se change dans les Réglages.',
     'talk.choices': 'Ce qu’on en dit',
+    'talk.sum': '{count} {count|réaction|réactions}, {words} {words|mot|mots}',
     'search.open': 'Rechercher',
     'search.title': 'Rechercher',
     'search.field': 'Les mots à chercher',
@@ -3862,7 +3865,7 @@ const STRINGS = {
     'account.tooMany': 'Trop de codes demandés d’un coup : réessayez dans quelques minutes.',
     'account.welcome': 'Connecté. Vos groupes et vos sondages sont gardés sur votre compte.',
     'notify.title': 'Notifications',
-    'notify.why': 'Être prévenu sur cet appareil : un nouveau sondage, une liste, un compte ou un tableau d’idées dans vos groupes, une date retenue, la veille d’un événement (vers 18 h, avec ce qui reste à faire) — et, si vous faites entrer, quelqu’un qui frappe.',
+    'notify.why': 'Être prévenu sur cet appareil : un nouveau sondage, une liste, un compte ou un tableau d’idées dans vos groupes, une date retenue, la veille d’un événement (vers 18 h, avec ce qui reste à faire), un mot laissé sur un sondage, un événement ou une idée — et, si vous faites entrer, quelqu’un qui frappe.',
     'notify.on': 'Activées sur cet appareil.',
     'notify.enable': 'Activer les notifications',
     'notify.disable': 'Désactiver',
@@ -5099,6 +5102,7 @@ const STRINGS = {
     'talk.whoTitle': 'Your first name?',
     'talk.whoHint': 'It goes with your reactions and your words. Change it in Settings.',
     'talk.choices': 'What people say',
+    'talk.sum': '{count} {count|reaction|reactions}, {words} {words|word|words}',
     'search.open': 'Search',
     'search.title': 'Search',
     'search.field': 'The words to look for',
@@ -5141,7 +5145,7 @@ const STRINGS = {
     'account.tooMany': 'Too many codes asked for at once: try again in a few minutes.',
     'account.welcome': 'Signed in. Your groups and polls are kept on your account.',
     'notify.title': 'Notifications',
-    'notify.why': 'Be told on this device: a new poll, list, account or board of ideas in your groups, a date set, the eve of an event (around 6 pm, with what is still to do) — and, if you let people in, someone knocking.',
+    'notify.why': 'Be told on this device: a new poll, list, account or board of ideas in your groups, a date set, the eve of an event (around 6 pm, with what is still to do), words left on a poll, an event or an idea — and, if you let people in, someone knocking.',
     'notify.on': 'On for this device.',
     'notify.enable': 'Turn on notifications',
     'notify.disable': 'Turn off',
@@ -7713,6 +7717,31 @@ function wordsOn(document_, target, name = '') {
       mine: Boolean(me) && sameName(cell.n) === me,
     }))
     .sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1));
+}
+
+/**
+ * What is said of a whole document, for its card: each reaction with how many
+ * gave it, the most given first, and how many words were left — on any of
+ * its things, the document itself included.
+ */
+function talkTotals(document_) {
+  const counts = new Map();
+  for (const cell of Object.values(cellsIn(document_?.reacts))) {
+    if (REACTIONS.includes(cell?.e)) counts.set(cell.e, (counts.get(cell.e) || 0) + 1);
+  }
+  const reactions = REACTIONS.filter((emoji) => counts.has(emoji))
+    .map((emoji) => ({ emoji, count: counts.get(emoji) }))
+    .sort((a, b) => b.count - a.count);
+  const words = Object.values(cellsIn(document_?.comments))
+    .filter((cell) => typeof cell?.t === 'string' && cell.t.trim()).length;
+  return { reactions, words };
+}
+
+/** When the newest words of a document were left, or 0: what is told to the notifier once. */
+function latestWords(document_) {
+  return Object.values(cellsIn(document_?.comments))
+    .filter((cell) => typeof cell?.t === 'string' && cell.t.trim() && typeof cell.made === 'number')
+    .reduce((latest, cell) => Math.max(latest, cell.made), 0);
 }
 
   // ---- src/lists.js ----------------------------------------------------
@@ -13588,6 +13617,7 @@ function createLive({
  * them, what to tell the notifier, and what to remember having told it.
  */
 
+
 /** The kinds of document whose arrival in a group is worth a notification. */
 const NEWS_KINDS = new Set(['poll', 'list', 'spend', 'board']);
 
@@ -13616,6 +13646,17 @@ function mayBeNews(document_) {
  */
 function toldKey(document_) {
   return `${document_.id}|${document_.kind === 'poll' && document_.date ? document_.date : ''}`;
+}
+
+/**
+ * What has been told about the words left on a document: its newest words,
+ * or null when there are none from the last two days — the database tells
+ * each once anyway, this only spares asking it at every tick of a list.
+ */
+function wordsKey(document_, now = Date.now()) {
+  if (!['poll', 'board'].includes(document_?.kind)) return null;
+  const latest = latestWords(document_);
+  return latest > now - 2 * 86400000 ? `${document_.id}|words|${latest}` : null;
 }
 
 /** Remember a key told, the newest last, the oldest forgotten past `limit`. */
@@ -13902,6 +13943,7 @@ function pollCardHtml(poll) {
       <span class="game-card__meta">
         ${escapeHtml(cardWhenText(poll))}
       </span>
+      ${talkSumHtml(poll)}
       ${eventTagHtml(poll)}
     </button>`;
 }
@@ -16625,6 +16667,7 @@ function adoptList(stored) {
 
 
 
+
 /* --------------------------------------------------------------- dépenses --- */
 
 function spendTitle(spend) {
@@ -16783,6 +16826,7 @@ function eventCardHtml(poll) {
       ${peopleHtml(poll.people.map((person) => person.name))}
       ${parts.length ? `<span class="game-card__meta">${escapeHtml(parts.join(' · '))}</span>` : ''}
       ${programme.length ? `<span class="game-card__meta">${escapeHtml(t('activity.onProgramme', { items: programme.join(' · ') }))}</span>` : ''}
+      ${talkSumHtml(poll)}
     </button>`;
 }
 
@@ -18090,6 +18134,7 @@ function boardCardHtml(board) {
         <span class="pill">${escapeHtml(t('ideas.cards', { count: board.cards.length }))}</span>
       </span>
       <span class="game-card__meta">${escapeHtml(formatDate(board.updatedAt))}${holds ? ` — ${escapeHtml(holds)}` : ''}</span>
+      ${talkSumHtml(board)}
       ${eventTagHtml(board)}
     </button>`;
 }
@@ -22213,6 +22258,7 @@ function bindData() {
 
 
 
+
 /**
  * A poll under an event settled on a day: the activity it makes, kept as an
  * element of its own, and the poll, closed. False when it makes none, for
@@ -22507,6 +22553,7 @@ function programmeHtml(event, { guest = false } = {}) {
                   <span class="programme__when">${escapeHtml(activityWhen(one))}</span>
                   <span class="programme__what">${escapeHtml(documentTitle(one))}</span>
                   ${outsideEvent(one, event) ? `<span class="pill pill--late">${escapeHtml(t('activity.outsideShort'))}</span>` : ''}
+                  ${talkSumHtml(one)}
                 </button>
               </li>`).join('')}</ul>`
           : votes.length ? '' : `<p class="muted small">${escapeHtml(t('activity.none'))}</p>`
@@ -27194,10 +27241,17 @@ function told() {
  */
 async function tell(document_, key) {
   if (!state.remote || !key || !mayBeNews(document_)) return;
-  const said = toldKey(document_);
+  await tellOnce(toldKey(document_), { action: 'doc', key, id: document_.id });
+  // And the words left on it: the group hears them (reacts.js).
+  const words = wordsKey(document_);
+  if (words) await tellOnce(words, { action: 'words', key, id: document_.id });
+}
+
+/** Ask the notifier, unless this very thing was asked already. */
+async function tellOnce(said, body) {
   if (told().includes(said)) return;
   try {
-    await state.remote.notifier({ action: 'doc', key, id: document_.id });
+    await state.remote.notifier(body);
   } catch (error) {
     // No network: asked again at the next write. Anything else — no notifier
     // in this database — is not worth asking again for the same thing.
@@ -27388,6 +27442,18 @@ function talkHtml(document_, target, { title = '', said = false } = {}) {
       <div class="talk__said">
         ${words.slice(-WORDS_SHOWN).map((one) => `<p><strong>${escapeHtml(one.name)}</strong> ${escapeHtml(one.text)}</p>`).join('')}
       </div>` : ''}`;
+}
+
+/**
+ * On a card, what is said of the whole document: « 🎉 3 · 👍 1 · 💬 2 », or
+ * nothing at all when nobody said anything.
+ */
+function talkSumHtml(document_) {
+  const { reactions, words } = talkTotals(document_);
+  if (!reactions.length && !words) return '';
+  const said = [...reactions.map((one) => `${one.emoji} ${one.count}`), ...(words ? [`💬 ${words}`] : [])].join(' · ');
+  const count = reactions.reduce((sum, one) => sum + one.count, 0);
+  return `<span class="game-card__meta talk-sum" aria-label="${escapeHtml(t('talk.sum', { count, words }))}">${escapeHtml(said)}</span>`;
 }
 
 /** The document a row is about, as it is now. */

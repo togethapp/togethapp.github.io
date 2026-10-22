@@ -73,3 +73,40 @@ begin
   else raise notice 'ÉCHEC 5 : %', v_doc; end if;
 end;
 $$;
+
+-- 6. Les mots préviennent le groupe : une fois chacun, pas l'appareil qui écrit.
+do $$
+declare
+  v_gui text; v_alice text; v_code text; v_out jsonb;
+  v_p256 text := 'BA3xkPq8MXN8qJ3wk_0BrivFfuUnIdGzFWzitn3FfhXJyS5nAgjhs3xLrV-TvwrlAz6OYo_vwuqCGf6w7SIYtlw';
+  v_auth text := 'IxNSocK0BfpuTPJ-9QH84w';
+  v_now bigint := (extract(epoch from now()) * 1000)::bigint;
+begin
+  select cle into v_gui from public.marque_points_new_group('Cousins');
+  v_code := public.marque_points_invite(v_gui, 60, 1)->>'code';
+  v_alice := public.marque_points_ask('Cousins', v_code, 'Alice', 'téléphone')->>'ticket';
+  perform public.marque_points_answer(v_gui, (public.marque_points_requests(v_gui))->0->>'id', true);
+  perform public.marque_points_push_subscribe(v_gui, 'https://fcm.googleapis.com/fcm/send/mots-gui-0123456789', v_p256, v_auth, 'fr', '');
+  perform public.marque_points_push_subscribe(v_alice, 'https://fcm.googleapis.com/fcm/send/mots-alice-0123456789', v_p256, v_auth, 'fr', '');
+  perform public.marque_points_put('b_cadeau_mots', jsonb_build_object(
+    'kind','board','id','b_cadeau_mots','name','Cadeau','createdAt',v_now,'updatedAt',v_now,'cards','[]'::jsonb,
+    'comments', jsonb_build_object(
+      'm_vieux', jsonb_build_object('on','c1','n','Bob','t','Il y a longtemps','made', v_now - 5 * 86400000::bigint,'at',1),
+      'm_vide', jsonb_build_object('on','c1','n','Bob','t','','made', v_now,'at',2),
+      'm_neuf', jsonb_build_object('on','c1','n','Alice','t','Un livre ?','made', v_now,'at',3))), v_alice);
+  v_out := public.marque_points_push_words(v_alice, 'b_cadeau_mots');
+  if v_out->>'status' = 'ok' and v_out->>'event' = 'words' and jsonb_array_length(v_out->'words') = 1
+     and v_out->'words'->0->>'t' = 'Un livre ?' and v_out->'doc'->>'name' = 'Cadeau'
+     and jsonb_array_length(v_out->'targets') = 1 and v_out->'targets'->0->>'endpoint' like '%mots-gui%' then
+    raise notice 'OK 6 : un mot récent prévient le groupe, pas qui l''a écrit';
+  else raise notice 'ÉCHEC 6 : %', v_out; end if;
+  if (public.marque_points_push_words(v_gui, 'b_cadeau_mots'))->>'status' = 'quiet' then
+    raise notice 'OK 7 : un mot ne sonne qu''une fois';
+  else raise notice 'ÉCHEC 7'; end if;
+  if (public.marque_points_push_words('pas-une-cle', 'b_cadeau_mots'))->>'status' = 'unknown'
+     and not has_function_privilege('anon', 'public.marque_points_push_words(text, text)', 'execute')
+     and has_function_privilege('service_role', 'public.marque_points_push_words(text, text)', 'execute') then
+    raise notice 'OK 8 : sans clé, rien ; et seule la fonction le demande';
+  else raise notice 'ÉCHEC 8'; end if;
+end;
+$$;

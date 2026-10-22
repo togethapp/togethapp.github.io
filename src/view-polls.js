@@ -46,7 +46,7 @@ import {
 } from './dashboard.js';
 import { saveGames, saveLists, savePolls, saveSpends, saveBoards, savePrefs } from './storage.js';
 import { pollLink, wasDeleted } from './remote.js';
-import { bindTalk, talkHtml } from './view-reacts.js';
+import { bindTalk, talkHtml, talkSumHtml } from './view-reacts.js';
 import { swipeable } from './swipe.js';
 import { t, getLanguage } from './i18n.js';
 
@@ -119,6 +119,7 @@ export function pollCardHtml(poll) {
       <span class="game-card__meta">
         ${escapeHtml(cardWhenText(poll))}
       </span>
+      ${talkSumHtml(poll)}
       ${eventTagHtml(poll)}
     </button>`;
 }

@@ -31,7 +31,7 @@ import { isLive } from './dashboard.js';
 import { uid } from './model.js';
 import { saveBoards, savePrefs } from './storage.js';
 import { swipeHtml, swipeable, bindSwipes } from './swipe.js';
-import { bindTalk, talkHtml } from './view-reacts.js';
+import { bindTalk, talkHtml, talkSumHtml } from './view-reacts.js';
 import { t } from './i18n.js';
 
 export function boardTitle(board) {
@@ -53,6 +53,7 @@ export function boardCardHtml(board) {
         <span class="pill">${escapeHtml(t('ideas.cards', { count: board.cards.length }))}</span>
       </span>
       <span class="game-card__meta">${escapeHtml(formatDate(board.updatedAt))}${holds ? ` — ${escapeHtml(holds)}` : ''}</span>
+      ${talkSumHtml(board)}
       ${eventTagHtml(board)}
     </button>`;
 }

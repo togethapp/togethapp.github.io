@@ -129,3 +129,28 @@ export function wordsOn(document_, target, name = '') {
     }))
     .sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1));
 }
+
+/**
+ * What is said of a whole document, for its card: each reaction with how many
+ * gave it, the most given first, and how many words were left — on any of
+ * its things, the document itself included.
+ */
+export function talkTotals(document_) {
+  const counts = new Map();
+  for (const cell of Object.values(cellsIn(document_?.reacts))) {
+    if (REACTIONS.includes(cell?.e)) counts.set(cell.e, (counts.get(cell.e) || 0) + 1);
+  }
+  const reactions = REACTIONS.filter((emoji) => counts.has(emoji))
+    .map((emoji) => ({ emoji, count: counts.get(emoji) }))
+    .sort((a, b) => b.count - a.count);
+  const words = Object.values(cellsIn(document_?.comments))
+    .filter((cell) => typeof cell?.t === 'string' && cell.t.trim()).length;
+  return { reactions, words };
+}
+
+/** When the newest words of a document were left, or 0: what is told to the notifier once. */
+export function latestWords(document_) {
+  return Object.values(cellsIn(document_?.comments))
+    .filter((cell) => typeof cell?.t === 'string' && cell.t.trim() && typeof cell.made === 'number')
+    .reduce((latest, cell) => Math.max(latest, cell.made), 0);
+}

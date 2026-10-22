@@ -136,6 +136,19 @@ await bob.waitForTimeout(1500);
 check('des mots retirés s’en vont partout', !(await bob.locator('.talk__said').count())
   && /🎉 1/.test(await text(bob.locator('.talk[data-talk=""]'))), await text(bob.locator('.talk[data-talk=""]')));
 
+/* ---- 3 bis. ce qui se dit se voit sur les cartes, et prévient le groupe ---- */
+
+const notified = (await (await fetch(`${BASE}/__notifier`)).json()).calls;
+check('un mot laissé prévient le groupe (la fonction est appelée)',
+  notified.some((call) => call.action === 'words' && call.id === board.id && call.key === MIFA.key)
+  && notified.some((call) => call.action === 'words' && call.id === event.id), JSON.stringify(notified.filter((c) => c.action === 'words')));
+await open(bob, '#/ideas', '.game-card');
+const boardCard = await text(bob.locator('.game-card', { hasText: 'Cadeau de Léa' }));
+check('la carte du tableau dit 👍 2 et 💬 1', /👍 2/.test(boardCard) && /💬 1/.test(boardCard), boardCard);
+await open(bob, '#/agenda', '.game-card');
+const eventCard = await text(bob.locator('.game-card', { hasText: 'Raclette' }).first());
+check('la carte de l’événement dit 🎉 1', /🎉 1/.test(eventCard), eventCard);
+
 /* ---- 4. sans prénom, il est demandé une fois ----------------------------- */
 
 const zoe = await device('Zoé', { groups: [MIFA] });
