@@ -792,7 +792,8 @@ quelqu'un qui frappe. Toucher la notification ouvre la bonne page.
   la base, si elle répond, qui départage d'avec l'absence de réseau ; base sans
   ses tables (502) ; service d'envoi du navigateur qui refuse (pour Brave, le
   réglage à ouvrir) ; compte exigé ; aucun groupe qui ait gardé l'abonnement.
-- Mise en place : docs/DEPLOIEMENT.md, étape 10. Tests : `notify`, `webpush`,
+- Mise en place : docs/DEPLOIEMENT.md, étape 10. Les mises à jour de la base et des fonctions
+  se font ensuite toutes seules, à chaque fusion (étape 12). Tests : `notify`, `webpush`,
   `notifier`, `rappels`, contrôles SQL `notifications` et `rappels`, suite
   `notifications`.
 

@@ -11,14 +11,16 @@ base).
 - Il fusionne lui-même les PR, vite. **Ouvrir une PR après chaque push.** Si la
   PR de la branche a déjà été fusionnée, repartir de `origin/main` (même nom de
   branche) et ouvrir une nouvelle PR.
-- **Le SQL à passer dans Supabase se donne dans la conversation, en un seul
-  bloc** ```sql prêt à copier, obtenu par `python3 tools/mise-a-jour.py
-  --coller` (sans commentaires). Avec : « SQL Editor → New query → coller → Run
-  → attendu : Success. No rows returned ». Pas d'encadré dans l'app pour ça : il
-  a été essayé et retiré.
-- Si une fonction change (`supabase/functions/agenda/index.ts` ou
-  `…/notifier/index.ts`), le dire : elle se recolle dans Supabase → Edge
-  Functions (JWT désactivé).
+- **La base se met à jour toute seule** à chaque fusion qui touche
+  `supabase/` : `.github/workflows/supabase.yml` passe
+  `supabase/mise-a-jour.sql` et redéploie `agenda` et `notifier` (secret
+  `SUPABASE_ACCESS_TOKEN`, guide étape 12). Après une fusion, vérifier que la
+  course « Mettre à jour Supabase » est verte. Copier-coller sur iPhone :
+  fastidieux, ne plus le demander. Seulement si le secret manque ou que la
+  course échoue : le SQL de `python3 tools/mise-a-jour.py --coller` (« SQL
+  Editor → New query → coller → Run → Success. No rows returned ») et la
+  fonction à recoller dans Edge Functions (JWT désactivé). Pas d'encadré dans
+  l'app pour ça : il a été essayé et retiré.
 - Sobriété : sessions courtes, une par chantier ; ne pas relire en entier
   `src/app.js` ni les `src/view-*.js` (≈ 1 000 à 3 000 lignes chacun) —
   chercher avec grep et lire des extraits.

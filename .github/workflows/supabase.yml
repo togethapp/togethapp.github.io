@@ -1,0 +1,53 @@
+# Met la base Supabase à jour toute seule : à chaque fusion sur main qui touche
+# supabase/, passe supabase/mise-a-jour.sql (sans danger à repasser), puis
+# redéploie les fonctions « agenda » et « notifier », JWT désactivé. Plus rien
+# à coller dans Supabase.
+#
+# Il faut une fois pour toutes le secret SUPABASE_ACCESS_TOKEN (guide, étape
+# 12). Sans lui, la course le dit dans son journal et s'arrête, verte, sans
+# rien toucher. Seulement sur main, jamais sur une PR : le secret n'y sert pas.
+name: Mettre à jour Supabase
+
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase
+  cancel-in-progress: false
+
+jobs:
+  supabase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Le SQL
+        id: sql
+        run: node tools/supabase.js
+
+      - uses: supabase/setup-cli@v1
+        if: steps.sql.outputs.ready == 'yes'
+        with:
+          version: latest
+
+      - name: Les fonctions agenda et notifier
+        if: steps.sql.outputs.ready == 'yes'
+        run: |
+          # Le CLI veut un dossier supabase/ initialisé : le minimum, le temps de la course.
+          [ -f supabase/config.toml ] || printf 'project_id = "together"\n' > supabase/config.toml
+          for name in agenda notifier; do
+            supabase functions deploy "$name" --project-ref "${{ steps.sql.outputs.ref }}" --no-verify-jwt
+          done

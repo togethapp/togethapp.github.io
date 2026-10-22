@@ -3493,6 +3493,38 @@ Realtime est actif par défaut. Si un jour **Realtime → Settings** propose
 canaux publics restent permis. S'ils ne le sont pas, rien ne casse : l'app
 revient d'elle-même à sa relève de quelques secondes.
 
+## Étape 12 — Les mises à jour toutes seules (recommandé)
+
+Sans cette étape, chaque changement de la base demande de coller la mise à
+jour SQL (étape 2 bis) et parfois de recoller une fonction (étapes 8 et 10) :
+fastidieux sur un téléphone. Avec elle, **GitHub le fait à chaque fusion** :
+la tâche *Mettre à jour Supabase* (`.github/workflows/supabase.yml`) passe
+`supabase/mise-a-jour.sql`, puis redéploie `agenda` et `notifier`, la
+vérification du JWT désactivée.
+
+Une seule fois, donner à GitHub une clé Supabase :
+
+1. **Supabase** → https://supabase.com/dashboard/account/tokens →
+   **Generate new token** → nom : `GitHub` → expiration : la plus longue (ou
+   *Never*) → **Generate token** → **copier** la clé (elle commence par
+   `sbp_` et ne s'affiche qu'une fois).
+2. **GitHub** → https://github.com/togethapp/togethapp.github.io/settings/secrets/actions/new
+   → *Name* : `SUPABASE_ACCESS_TOKEN` → *Secret* : coller la clé →
+   **Add secret**.
+3. **Essayer** : GitHub → onglet **Actions** → **Mettre à jour Supabase** →
+   **Run workflow** → **Run workflow**. Au bout d'une minute ou deux, la
+   course est verte, et l'étape *Le SQL* dit « Mise à jour passée ».
+
+Ensuite, rien à faire : chaque fusion qui touche `supabase/` met la base et
+les fonctions à jour. Une course rouge dit pourquoi dans son journal (la base
+a refusé le SQL, ou la clé a expiré : en refaire une, et remplacer le secret).
+
+> **Ce que la clé permet.** C'est une clé de votre compte Supabase : elle
+> donne la main sur vos projets. Elle est gardée chiffrée par GitHub, n'est
+> lisible par personne (pas même vous), et ne sert qu'aux courses sur `main`.
+> Tout de même : ne donnez l'accès en écriture au dépôt qu'à des personnes de
+> confiance, et supprimez la clé dans Supabase (même page) si vous arrêtez.
+
 ## Ce que ce montage implique
 
 - **Rien ne part tout seul.** Une partie reste sur l'appareil qui l'a créée
