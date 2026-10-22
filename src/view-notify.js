@@ -13,13 +13,15 @@
 import { escapeHtml, flash, render, state, view } from './app.js';
 import { getLanguage, t } from './i18n.js';
 import {
-  activationProblem, keyBytes, mayBeNews, problemDetail, pushSupport, rememberTold, subscriptionFields, toldKey,
+  activationProblem, keyBytes, mayAskReminders, mayBeNews, problemDetail, pushSupport, rememberTold, subscriptionFields,
+  toldKey,
 } from './notify.js';
 import { savePrefs } from './storage.js';
 import { groups, onHomeScreen } from './view-groups.js';
 import { phoneToInstall } from './view-install.js';
 
 const TOLD = 'marque-points:told:v1';
+const REMINDED = 'marque-points:reminded:v1';
 
 /** What this browser can do with notifications. */
 function support() {
@@ -41,6 +43,15 @@ function isOn() {
 /** The app's own address, for a notification to open. */
 function appAddress() {
   return `${location.origin}${location.pathname}`;
+}
+
+/** This device's time zone — « Europe/Paris » —, for the eve's reminder to come at its evening. */
+function timeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    return '';
+  }
 }
 
 /** The service worker, within a few seconds, or null. */
@@ -80,7 +91,7 @@ async function register(subscription) {
   if (!fields) stopAt('subscribe', new Error('no keys in the subscription'));
   const said = [];
   for (const group of groups()) {
-    said.push(await state.remote.pushSubscribe(group.key, fields, getLanguage(), appAddress()).catch((error) => error));
+    said.push(await state.remote.pushSubscribe(group.key, fields, getLanguage(), appAddress(), timeZone()).catch((error) => error));
   }
   return said;
 }
@@ -226,6 +237,24 @@ export async function syncPush() {
   } catch {
     // Tried again at the next opening.
   }
+  askReminders();
+}
+
+/** Of an evening, ask for the eve's reminders, in case the hourly run is late. */
+function askReminders() {
+  let last = 0;
+  try {
+    last = Number(localStorage.getItem(REMINDED)) || 0;
+  } catch {
+    // No storage: asked at each opening, which the database answers once.
+  }
+  if (!mayAskReminders(last)) return;
+  try {
+    localStorage.setItem(REMINDED, String(Date.now()));
+  } catch {
+    // Same as above.
+  }
+  state.remote.notifier({ action: 'remind' }).catch(() => null);
 }
 
 /* --------------------------------------------------------------- telling --- */

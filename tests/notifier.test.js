@@ -60,6 +60,55 @@ test('messages say what is new, where, and open the right page', () => {
   assert.equal(knock.url, 'https://x.github.io/Code/#/groups');
 });
 
+test('the eve of an event says what is tomorrow, and what is still to do', () => {
+  const target = { lang: 'fr', app: 'https://x.github.io/Code/' };
+  const raclette = messageFor({
+    event: 'eve', id: 'v_1', group: 'Mifa', day: '2026-10-17', starts: true,
+    doc: { kind: 'poll', title: 'Raclette', date: '2026-10-17', at: '20:00' },
+    activities: [], left: { lines: 2, polls: 1 },
+  }, target);
+  assert.deepEqual(raclette, {
+    title: 'Mifa',
+    body: 'Demain : Raclette à 20:00. Reste à faire : 2 lignes à cocher, 1 sondage ouvert.',
+    url: 'https://x.github.io/Code/#/poll/v_1',
+    tag: 'eve-v_1-2026-10-17',
+  });
+  const nothingLeft = messageFor({
+    event: 'eve', id: 'v_2', group: 'Mifa', day: '2026-10-17', starts: true,
+    doc: { kind: 'poll', question: 'Quel soir pour la raclette ?' },
+    activities: [{ title: 'Apéro', at: '19:00' }], left: { lines: 0, polls: 0 },
+  }, { lang: 'en', app: '' });
+  assert.equal(nothingLeft.body, 'Tomorrow: Raclette. On the programme: Apéro at 19:00.');
+  const stay = messageFor({
+    event: 'eve', id: 'v_3', group: 'Mifa', day: '2026-10-17', starts: false,
+    doc: { kind: 'poll', title: 'Vacances', date: '2026-10-15' },
+    activities: [{ question: 'Resto' }, { title: 'Kayak', at: '10:00' }], left: { lines: 0, polls: 0 },
+  }, target);
+  assert.equal(stay.body, 'Demain, pendant « Vacances » : Resto, Kayak à 10:00.');
+  assert.equal(messageFor({ event: 'eve', id: 'v_4', group: 'Mifa', starts: true, doc: { title: 'Ciné' }, left: { lines: 1 } }, target).body,
+    'Demain : Ciné. Reste à faire : 1 ligne à cocher.');
+});
+
+test('reminders are asked of the database, and each goes to its own targets', async () => {
+  const alice = await subscription('https://fcm.googleapis.com/fcm/send/alice');
+  const bob = await subscription('https://web.push.apple.com/bob', 'en');
+  const { calls, fetchImpl } = world({
+    marque_points_push_reminders: [
+      { event: 'eve', id: 'v_1', group: 'Mifa', day: '2026-10-17', starts: true, doc: { title: 'Raclette' }, targets: [alice] },
+      { event: 'eve', id: 'v_2', group: 'Voisins', day: '2026-10-17', starts: true, doc: { title: 'Fête' }, targets: [alice, bob] },
+    ],
+  });
+  const answer = await (await handle(post({ action: 'remind' }), { ...ENV, fetchImpl })).json();
+  assert.deepEqual(answer, { status: 'ok', reminders: 2, sent: 3 });
+  assert.deepEqual(calls.find((call) => call.url.endsWith('/marque_points_push_reminders')).body, {});
+  assert.equal(calls.filter((call) => !call.url.includes('/rpc/')).length, 3);
+
+  const quiet = world({ marque_points_push_reminders: [] });
+  assert.deepEqual(await (await handle(post({ action: 'remind' }), { ...ENV, fetchImpl: quiet.fetchImpl })).json(),
+    { status: 'ok', reminders: 0, sent: 0 });
+  assert.equal(quiet.calls.some((call) => call.url.endsWith('/marque_points_push_vapid')), false, 'nothing to send, no key to read');
+});
+
 test('the first call makes the key pair, later ones keep it', async () => {
   const { fetchImpl, vapid } = world({});
   const first = await (await handle(post({ action: 'key' }), { ...ENV, fetchImpl })).json();

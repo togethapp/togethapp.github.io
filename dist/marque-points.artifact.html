@@ -3672,7 +3672,7 @@ const STRINGS = {
     'account.tooMany': 'Trop de codes demandés d’un coup : réessayez dans quelques minutes.',
     'account.welcome': 'Connecté. Vos groupes et vos sondages sont gardés sur votre compte.',
     'notify.title': 'Notifications',
-    'notify.why': 'Être prévenu sur cet appareil : un nouveau sondage, une liste, un compte ou un tableau d’idées dans vos groupes, une date retenue — et, si vous faites entrer, quelqu’un qui frappe.',
+    'notify.why': 'Être prévenu sur cet appareil : un nouveau sondage, une liste, un compte ou un tableau d’idées dans vos groupes, une date retenue, la veille d’un événement (vers 18 h, avec ce qui reste à faire) — et, si vous faites entrer, quelqu’un qui frappe.',
     'notify.on': 'Activées sur cet appareil.',
     'notify.enable': 'Activer les notifications',
     'notify.disable': 'Désactiver',
@@ -4924,7 +4924,7 @@ const STRINGS = {
     'account.tooMany': 'Too many codes asked for at once: try again in a few minutes.',
     'account.welcome': 'Signed in. Your groups and polls are kept on your account.',
     'notify.title': 'Notifications',
-    'notify.why': 'Be told on this device: a new poll, list, account or board of ideas in your groups, a date set — and, if you let people in, someone knocking.',
+    'notify.why': 'Be told on this device: a new poll, list, account or board of ideas in your groups, a date set, the eve of an event (around 6 pm, with what is still to do) — and, if you let people in, someone knocking.',
     'notify.on': 'On for this device.',
     'notify.enable': 'Turn on notifications',
     'notify.disable': 'Turn off',
@@ -12189,10 +12189,17 @@ function createRemote(config, fetchImpl = globalThis.fetch) {
     /* -------------------------------------------------- notifications --- */
 
     /** Keep this browser's subscription for a group, with that group's key. */
-    async pushSubscribe(key, { endpoint, p256dh, auth }, lang = 'fr', app = '') {
-      return call('marque_points_push_subscribe', {
-        p_key: key, p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_lang: lang, p_app: app,
-      });
+    async pushSubscribe(key, { endpoint, p256dh, auth }, lang = 'fr', app = '', tz = '') {
+      const body = { p_key: key, p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_lang: lang, p_app: app };
+      if (!tz) return call('marque_points_push_subscribe', body);
+      // The time zone the eve's reminder is told in. A database not yet
+      // updated has never heard of it: subscribed all the same, without.
+      try {
+        return await call('marque_points_push_subscribe', { ...body, p_tz: tz });
+      } catch (error) {
+        if (!unknownParameter(error)) throw error;
+        return call('marque_points_push_subscribe', body);
+      }
     },
 
     /** Forget this browser's subscription, in every group. */
@@ -12200,7 +12207,7 @@ function createRemote(config, fetchImpl = globalThis.fetch) {
       await call('marque_points_push_unsubscribe', { p_endpoint: endpoint });
     },
 
-    /** The notifier function: { action: 'key' | 'doc' | 'knock', … }. */
+    /** The notifier function: { action: 'key' | 'doc' | 'knock' | 'remind', … }. */
     async notifier(body) {
       return call('notifier', body, null, '/functions/v1/notifier');
     },
@@ -13072,6 +13079,17 @@ function toldKey(document_) {
 /** Remember a key told, the newest last, the oldest forgotten past `limit`. */
 function rememberTold(told, key, limit = 400) {
   return [...told.filter((one) => one !== key), key].slice(-limit);
+}
+
+/**
+ * Whether this device, opened of an evening, asks for the eve's reminders —
+ * once an hour at most. They are asked every hour anyway, from GitHub
+ * (tools/rappels.js); this is for the hours that run is late or paused. The
+ * database sends each reminder once, whoever asks.
+ */
+function mayAskReminders(lastAsked, now = new Date()) {
+  const hour = now.getHours();
+  return hour >= 18 && hour <= 22 && !(Number(lastAsked) > now.getTime() - 3600000);
 }
 
 /** The fields the database keeps of a subscription, from its JSON form. */
@@ -26231,6 +26249,7 @@ function statsView() {
 
 
 const TOLD = 'marque-points:told:v1';
+const REMINDED = 'marque-points:reminded:v1';
 
 /** What this browser can do with notifications. */
 function support() {
@@ -26252,6 +26271,15 @@ function isOn() {
 /** The app's own address, for a notification to open. */
 function appAddress() {
   return `${location.origin}${location.pathname}`;
+}
+
+/** This device's time zone — « Europe/Paris » —, for the eve's reminder to come at its evening. */
+function timeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    return '';
+  }
 }
 
 /** The service worker, within a few seconds, or null. */
@@ -26291,7 +26319,7 @@ async function register(subscription) {
   if (!fields) stopAt('subscribe', new Error('no keys in the subscription'));
   const said = [];
   for (const group of groups()) {
-    said.push(await state.remote.pushSubscribe(group.key, fields, getLanguage(), appAddress()).catch((error) => error));
+    said.push(await state.remote.pushSubscribe(group.key, fields, getLanguage(), appAddress(), timeZone()).catch((error) => error));
   }
   return said;
 }
@@ -26437,6 +26465,24 @@ async function syncPush() {
   } catch {
     // Tried again at the next opening.
   }
+  askReminders();
+}
+
+/** Of an evening, ask for the eve's reminders, in case the hourly run is late. */
+function askReminders() {
+  let last = 0;
+  try {
+    last = Number(localStorage.getItem(REMINDED)) || 0;
+  } catch {
+    // No storage: asked at each opening, which the database answers once.
+  }
+  if (!mayAskReminders(last)) return;
+  try {
+    localStorage.setItem(REMINDED, String(Date.now()));
+  } catch {
+    // Same as above.
+  }
+  state.remote.notifier({ action: 'remind' }).catch(() => null);
 }
 
 /* --------------------------------------------------------------- telling --- */

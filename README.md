@@ -705,8 +705,8 @@ l'ancienne le faisait), les secrets d'organisateur, le prénom.
 
 **Réglages → Notifications → Activer les notifications** : cet appareil est
 prévenu d'un nouveau sondage, d'une liste, d'un compte ou d'un tableau d'idées
-dans ses groupes, d'une date retenue, et — s'il fait entrer — de quelqu'un qui
-frappe. Toucher la notification ouvre la bonne page.
+dans ses groupes, d'une date retenue, de ce qui a lieu le lendemain, et — s'il
+fait entrer — de quelqu'un qui frappe. Toucher la notification ouvre la bonne page.
 
 - Sur iPhone, seule l'app posée sur l'écran d'accueil les reçoit (iOS 16.4+) :
   la section le dit dans Safari. Le fichier unique (`dist/`) n'a pas de service
@@ -717,6 +717,14 @@ frappe. Toucher la notification ouvre la bonne page.
   Apple, Microsoft) sont acceptées, cinq au plus par clé — la base et la
   fonction refusent toute autre adresse. Dans un groupe qui exige un compte,
   un appareil sans compte n'est pas prévenu.
+- **La veille d'un événement**, entre 18 h et 23 h à l'heure de l'appareil :
+  « Demain : Raclette à 20:00. Reste à faire : 2 lignes à cocher, 1 sondage
+  ouvert. » (les lignes et les sondages de sa chaîne) ; pour un séjour déjà
+  commencé, ses activités du lendemain. Une fois par événement et par fuseau,
+  pas pour une date annoncée il y a moins de douze heures. L'appareil donne
+  son fuseau en s'abonnant ; une tâche GitHub (`.github/workflows/rappels.yml`,
+  `tools/rappels.js`) demande une fois l'heure à `notifier` ce qui est dû
+  (`marque_points_push_reminders`), et l'app ouverte le soir aussi, au cas où.
 - Chaque écriture faite avec une clé de groupe, et chaque frappe, préviennent
   la fonction **`notifier`** (`supabase/functions/notifier/`, construite en un
   fichier par `npm run bundle`), une fois par document et par date
@@ -737,7 +745,8 @@ frappe. Toucher la notification ouvre la bonne page.
   ses tables (502) ; service d'envoi du navigateur qui refuse (pour Brave, le
   réglage à ouvrir) ; compte exigé ; aucun groupe qui ait gardé l'abonnement.
 - Mise en place : docs/DEPLOIEMENT.md, étape 10. Tests : `notify`, `webpush`,
-  `notifier`, contrôle SQL `notifications`, suite `notifications`.
+  `notifier`, `rappels`, contrôles SQL `notifications` et `rappels`, suite
+  `notifications`.
 
 ## Supprimer d'un glissement
 

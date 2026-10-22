@@ -74,7 +74,7 @@ const OWNED = new Map(); // `${compte}|${doc}` → secret d'organisateur
 const CUT = new Map(); // `${compte}|${groupe}` → quand une clé du compte y a été coupée
 const REQUIRED = new Set(); // groupes qui exigent un compte
 const REVOKED = new Set(); // comptes déconnectés partout : leur jeton de renouvellement ne sert plus
-const PUSH = []; // marque_points_push : { endpoint, group, lang, app }
+const PUSH = []; // marque_points_push : { endpoint, group, lang, app, tz }
 const NOTIFIED = []; // ce que la fonction « notifier » a reçu
 // Une clé publique VAPID quelconque, de la bonne forme (un point P-256 brut).
 const VAPID_PUBLIC = 'BA3xkPq8MXN8qJ3wk_0BrivFfuUnIdGzFWzitn3FfhXJyS5nAgjhs3xLrV-TvwrlAz6OYo_vwuqCGf6w7SIYtlw';
@@ -343,7 +343,7 @@ const server = createServer(async (req, res) => {
       .test(String(at.p_endpoint ?? ''))) return raise('abonnement invalide');
     const kept = PUSH.filter((one) => !(one.endpoint === at.p_endpoint && one.group === group.id));
     PUSH.length = 0;
-    PUSH.push(...kept, { endpoint: at.p_endpoint, group: group.id, lang: at.p_lang, app: at.p_app });
+    PUSH.push(...kept, { endpoint: at.p_endpoint, group: group.id, lang: at.p_lang, app: at.p_app, tz: at.p_tz ?? 'Europe/Paris' });
     return send(200, { status: 'ok' });
   }
   if (fn === 'marque_points_push_unsubscribe') {
