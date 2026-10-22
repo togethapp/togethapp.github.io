@@ -76,6 +76,39 @@ async function buildStamp(root) {
   return hash.digest('hex').slice(0, 8);
 }
 
+/**
+ * What the page lets run: its own files and the inline scripts it carries,
+ * named by their hash — so markup slipped in through some text (a name, a
+ * title) would not run even if it ever got past escapeHtml. A meta tag, since
+ * GitHub Pages sets no headers; it only covers what comes after it, so it sits
+ * first in <head>. Written by the build, never by hand: an inline script
+ * edited without building again would otherwise be blocked.
+ */
+const POLICY_IN_PAGE = /^([ \t]*)<meta http-equiv="Content-Security-Policy" content="[^"]*" \/>$/m;
+const INLINE_SCRIPT = /<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g;
+
+export function contentPolicy(html, { self = true } = {}) {
+  const hashes = [...html.matchAll(INLINE_SCRIPT)].map(
+    ([, code]) => `'sha256-${createHash('sha256').update(code).digest('base64')}'`,
+  );
+  return [`script-src ${[...(self ? ["'self'"] : []), ...hashes].join(' ')}`, "object-src 'none'", "base-uri 'none'"].join('; ');
+}
+
+function withPolicy(html, options) {
+  if (!POLICY_IN_PAGE.test(html)) {
+    throw new Error('Cannot bundle: index.html has no Content-Security-Policy meta tag to write.');
+  }
+  return html.replace(POLICY_IN_PAGE, (_, indent) =>
+    `${indent}<meta http-equiv="Content-Security-Policy" content="${contentPolicy(html, options)}" />`);
+}
+
+/** The served page's policy, written before the stamp is computed over the page. */
+async function stampPolicy(root) {
+  const page = await readFile(join(root, 'index.html'), 'utf8');
+  const stamped = withPolicy(page);
+  if (stamped !== page) await writeFile(join(root, 'index.html'), stamped);
+}
+
 /** Write the stamp into sw.js and the page, and say whether anything moved. */
 async function stampFiles(root, stamp) {
   let moved = false;
@@ -287,6 +320,7 @@ export async function bundle(target = 'page') {
   await checkOfflineShell(root);
   // Stamped before anything is read, so the page carries the stamp of what it
   // was built from.
+  await stampPolicy(root);
   await stampFiles(root, await buildStamp(root));
   const [html, css, script] = await Promise.all([
     readFile(join(root, 'index.html'), 'utf8'),
@@ -323,6 +357,9 @@ export async function bundle(target = 'page') {
   let output = substitute(strip(html), styleLink, (_, indent) =>
     `${indent}<style>\n${css.trimEnd()}\n${indent}</style>`, 'stylesheet link');
   output = substitute(output, scriptTag, (_, indent) => run('', indent), 'module script tag');
+  // One file, with nothing of its own to load: its two inline scripts, and no
+  // other script from anywhere, even beside it.
+  output = withPolicy(output, { self: false });
   return substitute(output, '<head>', `<head>\n    ${GENERATED}`, 'head tag');
 }
 
