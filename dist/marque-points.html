@@ -6,11 +6,11 @@
     <!-- Only the app's own scripts run: its files, and the script below named
          by its hash. Written by tools/bundle.js; first, since it only covers
          what comes after it. -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-h35t5ZGxuR5Y3e89C/z1nVn7O0m1tBzB56b+Gurt+Ts='; object-src 'none'; base-uri 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-IeJarNi3rVQQTtm0buhhMBUExWVKny+ZzIw+8razMqM='; object-src 'none'; base-uri 'none'" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="b582f66a" />
+    <meta name="app-build" content="916a131b" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -1595,6 +1595,11 @@ button.tile:hover { background: var(--accent-soft); border-color: color-mix(in s
 .move__actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5em, 1fr)); gap: 8px; }
 .move .move__pay-edit { justify-content: flex-start; padding: 0; min-height: 32px; }
 .entry__what { min-width: 0; overflow-wrap: anywhere; }
+
+/* A search's finds: the title, then the parts that hold the words, marked. */
+.search-hit__part { display: block; margin-top: 2px; color: var(--muted); font-size: 0.85rem; }
+.search-hit mark { border-radius: 4px; padding: 0 1px; background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+#search-words { margin-bottom: 4px; }
 .entry__detail { display: block; }
 .entry__value { flex: none; color: var(--muted); font-size: 0.85rem; }
 .entry__value--good { color: var(--good); font-weight: 600; }
@@ -3342,6 +3347,9 @@ body.holo-open { overflow: hidden; }
         <button type="button" class="icon-button" id="sync" data-i18n-title="sync.title" hidden>
           <svg class="icon-button__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg>
         </button>
+        <button type="button" class="icon-button" id="search-open" data-i18n-title="search.open">
+          <svg class="icon-button__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg>
+        </button>
         <button type="button" class="icon-button" id="theme-toggle" data-i18n-title="theme.toggle">
           <svg class="icon-button__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" class="icon-button__fill"/></svg>
         </button>
@@ -3755,6 +3763,15 @@ const STRINGS = {
     'account.deleteFailed': 'Le compte n’a pas pu être supprimé : la base n’a pas répondu. Réessayez une fois connecté.',
     'account.deleted': 'Compte supprimé. Votre adresse n’est plus gardée nulle part.',
     'account.deletedPartly': 'Compte supprimé, mais votre adresse est restée chez Supabase : demandez à l’organisateur de l’app de l’effacer (Authentication → Users).',
+    'search.open': 'Rechercher',
+    'search.title': 'Rechercher',
+    'search.field': 'Les mots à chercher',
+    'search.placeholder': 'Un mot : fromage, train, gîte…',
+    'search.hint': 'Les titres, les lignes des listes, les choix des sondages, les notes des idées et les dépenses : tout ce que cet appareil garde, sans compter les accents ni les majuscules.',
+    'search.none': 'Rien ne contient « {words} ».',
+    'search.count': '{count} {count|élément trouvé|éléments trouvés}',
+    'search.more': 'et {count} {count|autre|autres}',
+    'search.hidden': '{count} de plus dans les autres groupes.',
     'privacy.title': 'Confidentialité',
     'privacy.intro': 'Together est une petite app, sans publicité, pour organiser des choses entre proches. Voici ce qu’elle garde, où, et comment le faire effacer.',
     'privacy.deviceTitle': 'Sur votre appareil',
@@ -5012,6 +5029,15 @@ const STRINGS = {
     'account.deleteFailed': 'The account could not be deleted: the database did not answer. Try again once online.',
     'account.deleted': 'Account deleted. Your address is no longer kept anywhere.',
     'account.deletedPartly': 'Account deleted, but your address stayed with Supabase: ask whoever runs the app to erase it (Authentication → Users).',
+    'search.open': 'Search',
+    'search.title': 'Search',
+    'search.field': 'The words to look for',
+    'search.placeholder': 'A word: cheese, train, cottage…',
+    'search.hint': 'Titles, list lines, poll choices, notes of ideas and expenses: everything this device holds, whatever the accents or capitals.',
+    'search.none': 'Nothing holds “{words}”.',
+    'search.count': '{count} {count|thing found|things found}',
+    'search.more': 'and {count} more',
+    'search.hidden': '{count} more in the other groups.',
     'privacy.title': 'Privacy',
     'privacy.intro': 'Together is a small app, with no ads, for organising things between people who know each other. Here is what it keeps, where, and how to have it erased.',
     'privacy.deviceTitle': 'On your device',
@@ -10184,6 +10210,105 @@ function stepOf(document_, all, seen = new Set()) {
   if (!before.length) return 0;
   const path = new Set([...seen, document_.id]);
   return 1 + Math.max(...before.map((one) => stepOf(one.document, all, path)));
+}
+
+  // ---- src/search.js ---------------------------------------------------
+/**
+ * Search: words found in everything this device holds — titles, list lines,
+ * choices, notes and captions, expenses — without minding accents or
+ * capitals: « creme » finds « Crème brûlée ». Every word must be somewhere in
+ * a document for it to be found; the parts that hold one are shown, the words
+ * marked where they are written.
+ *
+ * Pure: the screen is view-search.js.
+ */
+
+
+/** Words beyond these are not looked for: a query is a few words, not a text. */
+const MOST_WORDS = 8;
+
+/** A part's text, folded letter by letter, each letter knowing where it was written. */
+function foldMapped(text) {
+  const source = String(text || '');
+  let folded = '';
+  const starts = [];
+  const ends = [];
+  for (let index = 0; index < source.length;) {
+    const char = String.fromCodePoint(source.codePointAt(index));
+    const plain = char.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+    for (let unit = 0; unit < plain.length; unit += 1) {
+      starts.push(index);
+      ends.push(index + char.length);
+    }
+    folded += plain;
+    index += char.length;
+  }
+  return { folded, starts, ends };
+}
+
+/** The words of a query, folded: « Crème  brûlée » → ['creme', 'brulee']. */
+function searchWords(query) {
+  return [...new Set(foldMapped(query).folded.split(/\s+/).filter(Boolean))].slice(0, MOST_WORDS);
+}
+
+/** Where the words are in a text, as written: [start, end) pairs, in order, never overlapping. */
+function foundAt(text, words) {
+  const { folded, starts, ends } = foldMapped(text);
+  const ranges = [];
+  for (const word of words) {
+    for (let at = folded.indexOf(word); at !== -1; at = folded.indexOf(word, at + 1)) {
+      ranges.push([starts[at], ends[at + word.length - 1]]);
+    }
+  }
+  ranges.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const merged = [];
+  for (const range of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && range[0] <= last[1]) last[1] = Math.max(last[1], range[1]);
+    else merged.push([...range]);
+  }
+  return merged;
+}
+
+/** What can be found in a document besides its title: its lines, choices, notes, expenses. */
+function searchableParts(document_) {
+  const texts = (things, field = 'text') => (Array.isArray(things) ? things : []).map((one) => one?.[field]);
+  switch (kindOf(document_)) {
+    case 'list': return texts(document_.items);
+    case 'poll': return [document_.title && document_.question !== document_.title ? document_.question : '', ...texts(document_.options)];
+    case 'board': return texts(document_.cards);
+    case 'spend': return texts((document_.lines || []).filter((line) => !line.repay));
+    default: return [];
+  }
+}
+
+/**
+ * The documents the words are found in, the best first: those whose title
+ * holds every word, then those holding the most parts that match, then the
+ * most recently changed. Each comes with its title and the parts where a word
+ * is, marked: { document, title, marks, parts: [{ text, marks }], more }.
+ * `titleOf` names a document as the screens do.
+ */
+function searchDocuments(all, query, { titleOf = (one) => one?.name || '', parts = 3 } = {}) {
+  const words = searchWords(query);
+  if (!words.length) return [];
+  const found = [];
+  for (const document_ of all) {
+    const title = String(titleOf(document_) || '');
+    const texts = searchableParts(document_).map((text) => String(text || '').trim()).filter(Boolean);
+    const whole = foldMapped([title, ...texts].join('\n')).folded;
+    if (!words.every((word) => whole.includes(word))) continue;
+    const hits = texts.map((text) => ({ text, marks: foundAt(text, words) })).filter((hit) => hit.marks.length);
+    const titleMarks = foundAt(title, words);
+    const titleHolds = words.every((word) => foldMapped(title).folded.includes(word));
+    found.push({
+      document: document_, title, marks: titleMarks, parts: hits.slice(0, parts), more: Math.max(0, hits.length - parts),
+      rank: [titleHolds ? 1 : 0, hits.length, document_.updatedAt || 0],
+    });
+  }
+  return found
+    .sort((a, b) => b.rank[0] - a.rank[0] || b.rank[1] - a.rank[1] || b.rank[2] - a.rank[2])
+    .map(({ rank, ...hit }) => hit);
 }
 
   // ---- src/holo.js -----------------------------------------------------
@@ -26857,8 +26982,132 @@ function tellKnock(ticket) {
   state.remote.notifier({ action: 'knock', ticket }).catch(() => null);
 }
 
+  // ---- src/view-search.js ----------------------------------------------
+/**
+ * The search page (#/search/<words>): a field, and what holds the words, kind
+ * by kind — in the group the pastilles choose, as on the other tabs. Typing
+ * redraws the results alone, so the field keeps its focus; the words go into
+ * the address, so coming back from a result finds them again.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+/** The kinds, in the order their sections come: events first, as on the Home page. */
+const SEARCH_KINDS = ['event', 'list', 'poll', 'spend', 'board', 'game'];
+
+/** The address of a search for these words. */
+function searchHash(words) {
+  const clean = String(words || '').trim();
+  return clean ? `#/search/${encodeURIComponent(clean)}` : '#/search';
+}
+
+/** A text with the words found in it marked, everything escaped. */
+function markedHtml(text, marks) {
+  let html = '';
+  let at = 0;
+  for (const [start, end] of marks) {
+    html += `${escapeHtml(text.slice(at, start))}<mark>${escapeHtml(text.slice(start, end))}</mark>`;
+    at = end;
+  }
+  return html + escapeHtml(text.slice(at));
+}
+
+/** One document found: its title, its group, and the parts that hold the words. */
+function foundHtml(hit) {
+  const group = groups().find((one) => one.id === hit.document.groupId);
+  return `
+    <button type="button" class="entry search-hit" data-search-goto="${escapeHtml(documentHref(hit.document))}">
+      <span class="entry__what">
+        <strong>${markedHtml(hit.title, hit.marks)}</strong>
+        ${group ? `<span class="muted small"> · ${escapeHtml(group.name)}</span>` : ''}
+        ${hit.parts.map((part) => `<span class="search-hit__part">${markedHtml(part.text, part.marks)}</span>`).join('')}
+        ${hit.more ? `<span class="muted small search-hit__part">${escapeHtml(t('search.more', { count: hit.more }))}</span>` : ''}
+      </span>
+    </button>`;
+}
+
+/** What the words find, in the chosen group, kind by kind. */
+function resultsHtml(words) {
+  if (!String(words || '').trim()) return `<p class="muted small">${escapeHtml(t('search.hint'))}</p>`;
+  const everywhere = searchDocuments(everything(), words, { titleOf: documentTitle });
+  const found = shownDocs(everywhere.map((hit) => hit.document));
+  const shown = everywhere.filter((hit) => found.includes(hit.document));
+  // What the chosen group keeps out of sight, and the way to look everywhere.
+  const hidden = everywhere.length > shown.length
+    ? `<p class="muted small">
+         ${escapeHtml(t('search.hidden', { count: everywhere.length - shown.length }))}
+         <button type="button" class="button button--small button--ghost" data-search-everywhere>${escapeHtml(t('filter.all'))}</button>
+       </p>`
+    : '';
+  if (!shown.length) {
+    return `<p class="muted">${escapeHtml(t('search.none', { words: String(words).trim() }))}</p>${hidden}`;
+  }
+  const kindOfHit = (hit) => (isEventDoc(hit.document) ? 'event' : kindOf(hit.document));
+  const sections = SEARCH_KINDS.map((kind) => {
+    const hits = shown.filter((hit) => kindOfHit(hit) === kind);
+    if (!hits.length) return '';
+    return `
+      <section class="section card">
+        <div class="section__head"><h2>${escapeHtml(t(`chain.kind.${kind}`))} · ${hits.length}</h2></div>
+        <div class="entries">${hits.map(foundHtml).join('')}</div>
+      </section>`;
+  });
+  return `<p class="muted small">${escapeHtml(t('search.count', { count: shown.length }))}</p>${sections.join('')}${hidden}`;
+}
+
+function searchView(words) {
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
+      <h1>${escapeHtml(t('search.title'))}</h1>
+    </div>
+    <input type="search" id="search-words" class="field-pill" value="${escapeHtml(words)}" autocomplete="off"
+           enterkeyhint="search" placeholder="${escapeHtml(t('search.placeholder'))}"
+           aria-label="${escapeHtml(t('search.field'))}" />
+    ${groupChipsHtml()}
+    <div id="search-results" aria-live="polite">${resultsHtml(words)}</div>`;
+}
+
+function bindSearch(words) {
+  const field = document.getElementById('search-words');
+  const results = document.getElementById('search-results');
+  if (!field || !results) return;
+  // Opened with words, the caret goes after them; opened empty, ready to type.
+  field.focus();
+  field.setSelectionRange(field.value.length, field.value.length);
+  let shown = words;
+  field.addEventListener('input', () => {
+    if (field.value === shown) return;
+    shown = field.value;
+    rewriteHere(searchHash(shown));
+    results.innerHTML = resultsHtml(shown);
+  });
+  field.addEventListener('keydown', (event) => {
+    // The phone's « Search » key: the results are already there; the keyboard goes.
+    if (event.key === 'Enter') field.blur();
+  });
+  results.addEventListener('click', (event) => {
+    const hit = event.target.closest('[data-search-goto]');
+    if (hit) {
+      navigate(hit.dataset.searchGoto);
+      return;
+    }
+    if (event.target.closest('[data-search-everywhere]')) {
+      setGroupFilter('');
+      render();
+    }
+  });
+}
+
   // ---- src/app.js ------------------------------------------------------
 /** UI layer: hash router, views, event wiring. */
+
 
 
 
@@ -27236,6 +27485,8 @@ function routeOf(address) {
   if (name === 'groups') return { name: 'groups' };
   if (name === 'settings' || name === 'reglages') return { name: 'settings' };
   if (name === 'privacy' || name === 'confidentialite') return { name: 'privacy' };
+  // What the words find, the words in the address: #/search/<words>.
+  if (name === 'search' || name === 'recherche') return { name: 'search', words: param ? decodeSegment(param) : '' };
   if (name === 'new') return { name: 'new' };
   if (name === 'stats') return { name: 'stats' };
   if (name === 'game' && param) return { name: 'game', id: param };
@@ -27297,6 +27548,16 @@ function groupSegment(hash) {
 function navigate(hash) {
   if (location.hash === hash) render();
   else location.hash = hash;
+}
+
+/**
+ * Change the address of the screen on show without going anywhere — the
+ * words being searched for —, so that coming back to it finds them.
+ */
+function rewriteHere(hash) {
+  const before = hereHash();
+  history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
+  state.trail = state.trail.map((one) => (one === before ? hash : one));
 }
 
 /** The address of the screen on show, spelled one way. */
@@ -27690,6 +27951,7 @@ function bindChrome() {
   document.getElementById('create')?.addEventListener('click', openCreateMenu);
   // Night or light, from any page; the settings say the same, so on that page
   // they are drawn again to show it. See view-look.js for the rest.
+  document.getElementById('search-open')?.addEventListener('click', () => navigate('#/search'));
   document.getElementById('theme-toggle').addEventListener('click', () => {
     state.prefs = { ...state.prefs, theme: lookIsDark() ? 'light' : 'dark' };
     savePrefs(state.prefs);
@@ -27777,6 +28039,8 @@ function setSolo(on) {
   // keyboard and of a screen reader alike, whatever the styles do.
   const tabs = document.getElementById('tabs');
   if (tabs) tabs.hidden = on;
+  const search = document.getElementById('search-open');
+  if (search) search.hidden = on;
   const brand = document.querySelector('.app-bar__brand');
   if (!brand) return;
   if (on) {
@@ -28063,6 +28327,10 @@ function render() {
     stopWatching();
     view.innerHTML = spendsView();
     bindDocSwipes();
+  } else if (current.name === 'search') {
+    stopWatching();
+    view.innerHTML = searchView(current.words);
+    bindSearch(current.words);
   } else if (current.name === 'privacy') {
     stopWatching();
     view.innerHTML = privacyView();

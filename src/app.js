@@ -52,6 +52,7 @@ import { bindNotify, syncPush, tell, tellKnock } from './view-notify.js';
 import { bindOverview, groupsView, groupView, openCreateMenu, overviewView, settingsView } from './view-home.js';
 import { backView, bindBack, bindJoin, joinView, showsGate, watchGate, watchPending } from './view-join.js';
 import { personView, renameEverywhere, statsView } from './view-people.js';
+import { bindSearch, searchView } from './view-search.js';
 import { moveInto, takeMove } from './move.js';
 
 export const view = document.getElementById('view');
@@ -396,6 +397,8 @@ function routeOf(address) {
   if (name === 'groups') return { name: 'groups' };
   if (name === 'settings' || name === 'reglages') return { name: 'settings' };
   if (name === 'privacy' || name === 'confidentialite') return { name: 'privacy' };
+  // What the words find, the words in the address: #/search/<words>.
+  if (name === 'search' || name === 'recherche') return { name: 'search', words: param ? decodeSegment(param) : '' };
   if (name === 'new') return { name: 'new' };
   if (name === 'stats') return { name: 'stats' };
   if (name === 'game' && param) return { name: 'game', id: param };
@@ -457,6 +460,16 @@ function groupSegment(hash) {
 export function navigate(hash) {
   if (location.hash === hash) render();
   else location.hash = hash;
+}
+
+/**
+ * Change the address of the screen on show without going anywhere — the
+ * words being searched for —, so that coming back to it finds them.
+ */
+export function rewriteHere(hash) {
+  const before = hereHash();
+  history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
+  state.trail = state.trail.map((one) => (one === before ? hash : one));
 }
 
 /** The address of the screen on show, spelled one way. */
@@ -850,6 +863,7 @@ function bindChrome() {
   document.getElementById('create')?.addEventListener('click', openCreateMenu);
   // Night or light, from any page; the settings say the same, so on that page
   // they are drawn again to show it. See view-look.js for the rest.
+  document.getElementById('search-open')?.addEventListener('click', () => navigate('#/search'));
   document.getElementById('theme-toggle').addEventListener('click', () => {
     state.prefs = { ...state.prefs, theme: lookIsDark() ? 'light' : 'dark' };
     savePrefs(state.prefs);
@@ -937,6 +951,8 @@ function setSolo(on) {
   // keyboard and of a screen reader alike, whatever the styles do.
   const tabs = document.getElementById('tabs');
   if (tabs) tabs.hidden = on;
+  const search = document.getElementById('search-open');
+  if (search) search.hidden = on;
   const brand = document.querySelector('.app-bar__brand');
   if (!brand) return;
   if (on) {
@@ -1223,6 +1239,10 @@ export function render() {
     stopWatching();
     view.innerHTML = spendsView();
     bindDocSwipes();
+  } else if (current.name === 'search') {
+    stopWatching();
+    view.innerHTML = searchView(current.words);
+    bindSearch(current.words);
   } else if (current.name === 'privacy') {
     stopWatching();
     view.innerHTML = privacyView();

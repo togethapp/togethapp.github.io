@@ -510,6 +510,14 @@ Avec plusieurs groupes, l'app ne mélange plus tout.
   la suivante — regarder un groupe, c'est regarder ses listes *et* ses sondages
   *et* ses parties. Avec un seul groupe, il n'y a rien à choisir : pas de
   pastilles.
+- **La loupe**, en haut de l'écran, cherche des mots dans tout ce que
+  l'appareil garde (`#/search/<mots>`) : les titres, les lignes des listes,
+  les choix des sondages, les notes des idées, les dépenses — sans compter
+  les accents ni les majuscules (« creme » trouve « Crème brûlée »). Tous les
+  mots doivent y être ; les résultats viennent rangés par sorte, les mots
+  marqués là où ils sont écrits, et suivent la frappe. Les pastilles de
+  groupe s'y appliquent comme ailleurs (« 2 de plus dans les autres
+  groupes »), et « Retour » depuis un résultat retrouve les mots.
 - **La page d'une personne** (`#/person/<nom>`) résume ce qui l'attend : ses
   lignes à faire, ses votes donnés ou manquants, ses dernières parties avec son
   rang. Les prénoms y sont rapprochés sans accent ni majuscule, comme dans les
@@ -967,6 +975,7 @@ src/helpers.js    arithmétique du compteur de cartes
 src/tarot.js      calcul d'une donne de Tarot, contrat par contrat
 src/stats.js      statistiques par joueur, jeu par jeu
 src/dashboard.js  ce que tient un groupe, et le dossier d'une personne
+src/search.js     la recherche : des mots trouvés sans accents ni majuscules
 src/spends.js     les comptes de dépenses : parts, soldes, remboursements
 src/swipe.js      glisser vers la gauche pour supprimer, partout pareil
 src/ideas.js      les tableaux d'idées : notes, croquis en traits, fusion
@@ -990,7 +999,7 @@ src/i18n.js       traductions fr / en
 src/app.js        routeur, rendu, relèves, et les aides communes aux écrans
 src/view-*.js     un écran chacun : accueil et réglages (home), entrée dans un
                   groupe (join), personnes (people), sondages, listes, comptes,
-                  idées, parties, groupes
+                  idées, parties, groupes, recherche (search)
 src/live.js       les changements entendus aussitôt (Supabase Realtime)
 src/notify.js     notifications : ce qui se décide sans navigateur
 supabase/functions/notifier/  la fonction qui envoie les notifications
