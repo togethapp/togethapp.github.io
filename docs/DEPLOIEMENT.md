@@ -2313,6 +2313,83 @@ begin
 end;
 $$;
 
+-- Pour la fonction seule : les mots laissés sur un sondage, un événement ou un
+-- tableau d'idées, à dire au groupe. Ceux des deux derniers jours, chacun une
+-- fois ; jamais à l'appareil qui les a écrits, ni, dans un groupe qui exige un
+-- compte, à un appareil sans compte.
+create or replace function public.marque_points_push_words(p_key text, p_id text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_key public.marque_points_group_key;
+  v_group public.marque_points_group;
+  v_doc public.marque_points_games;
+  v_cell record;
+  v_new jsonb := '[]'::jsonb;
+begin
+  select k.* into v_key
+    from public.marque_points_group_key k
+   where k.key_hash = md5(coalesce(p_key, '') || k.key_salt)
+   limit 1;
+  if not found then
+    return jsonb_build_object('status', 'unknown');
+  end if;
+  select g.* into v_group from public.marque_points_group g where g.id = v_key.group_id;
+  if v_group.accounts_required and v_key.user_id is null then
+    return jsonb_build_object('status', 'unknown');
+  end if;
+  select d.* into v_doc
+    from public.marque_points_games d
+   where d.id = p_id and d.group_id = v_key.group_id and d.listed and d.code_hash is null;
+  if not found then
+    return jsonb_build_object('status', 'unknown');
+  end if;
+  if coalesce(v_doc.data->>'kind', '') not in ('poll', 'board')
+     or jsonb_typeof(v_doc.data->'comments') is distinct from 'object' then
+    return jsonb_build_object('status', 'quiet');
+  end if;
+
+  for v_cell in
+    select c.key, c.value
+      from jsonb_each(v_doc.data->'comments') c
+     where jsonb_typeof(c.value->'t') = 'string' and btrim(c.value->>'t') <> ''
+       and jsonb_typeof(c.value->'made') = 'number'
+       and (c.value->>'made')::numeric > extract(epoch from now()) * 1000 - 2 * 86400000
+     order by (c.value->>'made')::numeric
+  loop
+    insert into public.marque_points_push_sent (doc_id, event) values (p_id, 'words:' || left(v_cell.key, 100))
+    on conflict do nothing;
+    if found then
+      v_new := v_new || jsonb_build_array(jsonb_build_object(
+        'n', left(coalesce(v_cell.value->>'n', ''), 40), 't', left(v_cell.value->>'t', 140)));
+    end if;
+  end loop;
+  if jsonb_array_length(v_new) = 0 then
+    return jsonb_build_object('status', 'quiet');
+  end if;
+
+  return jsonb_build_object(
+    'status', 'ok', 'event', 'words', 'id', p_id, 'group', v_group.name,
+    'doc', jsonb_build_object(
+      'kind', v_doc.data->>'kind', 'question', v_doc.data->'question', 'title', v_doc.data->'title',
+      'name', v_doc.data->'name', 'fixed', v_doc.data->'fixed', 'date', v_doc.data->'date'),
+    'words', v_new,
+    'targets', coalesce((
+      select jsonb_agg(jsonb_build_object('endpoint', t.endpoint, 'p256dh', t.p256dh, 'auth', t.auth,
+                                          'lang', t.lang, 'app', t.app))
+        from (select distinct on (p.endpoint) p.*
+                from public.marque_points_push p
+                join public.marque_points_group_key k on k.id = p.key_id
+               where k.group_id = v_group.id
+                 and (not v_group.accounts_required or k.user_id is not null)
+                 and p.endpoint not in (select mine.endpoint from public.marque_points_push mine
+                                         where mine.key_id = v_key.id)) t), '[]'::jsonb));
+end;
+$$;
+
 -- Pour la fonction seule : une adresse que le service d'envoi dit disparue.
 create or replace function public.marque_points_push_gone(p_endpoint text)
 returns void
@@ -2372,11 +2449,13 @@ revoke all on function public.marque_points_push_vapid(text, jsonb) from public,
 revoke all on function public.marque_points_push_event(text, text) from public, anon, authenticated;
 revoke all on function public.marque_points_push_knock(text) from public, anon, authenticated;
 revoke all on function public.marque_points_push_reminders() from public, anon, authenticated;
+revoke all on function public.marque_points_push_words(text, text) from public, anon, authenticated;
 revoke all on function public.marque_points_push_gone(text) from public, anon, authenticated;
 grant execute on function public.marque_points_push_vapid(text, jsonb) to service_role;
 grant execute on function public.marque_points_push_event(text, text) to service_role;
 grant execute on function public.marque_points_push_knock(text) to service_role;
 grant execute on function public.marque_points_push_reminders() to service_role;
+grant execute on function public.marque_points_push_words(text, text) to service_role;
 grant execute on function public.marque_points_push_gone(text) to service_role;
 grant execute on function public.marque_points_account_delete() to authenticated;
 ```
@@ -3316,8 +3395,9 @@ privée), la même chose : vos groupes et vos sondages y apparaissent.
 
 Une fois posée, cette étape permet à chaque appareil d'**être prévenu** :
 un nouveau sondage, une liste, un compte ou un tableau d'idées dans ses
-groupes, une date retenue, **la veille d'un événement** — et, pour qui fait
-entrer, quelqu'un qui frappe. Chacun l'active pour lui, dans **Réglages →
+groupes, une date retenue, **la veille d'un événement**, **un mot laissé** sur
+un sondage, un événement ou une idée — et, pour qui fait entrer, quelqu'un qui
+frappe. Chacun l'active pour lui, dans **Réglages →
 Notifications**.
 
 Elle est **facultative**. Sans elle, le bouton *Activer les notifications*

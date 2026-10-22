@@ -3,6 +3,8 @@
  * them, what to tell the notifier, and what to remember having told it.
  */
 
+import { latestWords } from './reacts.js';
+
 /** The kinds of document whose arrival in a group is worth a notification. */
 const NEWS_KINDS = new Set(['poll', 'list', 'spend', 'board']);
 
@@ -31,6 +33,17 @@ export function mayBeNews(document_) {
  */
 export function toldKey(document_) {
   return `${document_.id}|${document_.kind === 'poll' && document_.date ? document_.date : ''}`;
+}
+
+/**
+ * What has been told about the words left on a document: its newest words,
+ * or null when there are none from the last two days — the database tells
+ * each once anyway, this only spares asking it at every tick of a list.
+ */
+export function wordsKey(document_, now = Date.now()) {
+  if (!['poll', 'board'].includes(document_?.kind)) return null;
+  const latest = latestWords(document_);
+  return latest > now - 2 * 86400000 ? `${document_.id}|words|${latest}` : null;
 }
 
 /** Remember a key told, the newest last, the oldest forgotten past `limit`. */

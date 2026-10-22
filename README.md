@@ -641,6 +641,12 @@ quelques mots.
   laisser (280 signes). Ses propres mots se retirent d'une croix.
 - Sur la page d'un événement, les deux derniers mots se lisent sous la rangée
   (« Alice J'apporte le fromage »).
+- **Sans ouvrir** : les cartes (Accueil, Agenda, onglets) et le programme d'un
+  événement disent ce qui s'est dit — « 🎉 3 · 👍 1 · 💬 2 ».
+- **Un mot prévient le groupe** (notifications activées) : « Alice sur
+  « Raclette » : J'apporte le fromage », une fois par mot, jamais à
+  l'appareil qui l'a écrit (`marque_points_push_words`). Une simple réaction
+  ne prévient personne.
 - Qui réagit, c'est le prénom de l'appareil (Réglages), demandé une fois s'il
   n'y en a pas : comme pour les sondages, un prénom n'est pas un compte.
 - **Rangés dans le document**, à côté de ce dont ils parlent (`reacts`,
@@ -746,8 +752,9 @@ l'ancienne le faisait), les secrets d'organisateur, le prénom.
 
 **Réglages → Notifications → Activer les notifications** : cet appareil est
 prévenu d'un nouveau sondage, d'une liste, d'un compte ou d'un tableau d'idées
-dans ses groupes, d'une date retenue, de ce qui a lieu le lendemain, et — s'il
-fait entrer — de quelqu'un qui frappe. Toucher la notification ouvre la bonne page.
+dans ses groupes, d'une date retenue, de ce qui a lieu le lendemain, d'un mot
+laissé sur un sondage, un événement ou une idée, et — s'il fait entrer — de
+quelqu'un qui frappe. Toucher la notification ouvre la bonne page.
 
 - Sur iPhone, seule l'app posée sur l'écran d'accueil les reçoit (iOS 16.4+) :
   la section le dit dans Safari. Le fichier unique (`dist/`) n'a pas de service

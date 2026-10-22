@@ -14,7 +14,7 @@ import { escapeHtml, flash, render, state, view } from './app.js';
 import { getLanguage, t } from './i18n.js';
 import {
   activationProblem, keyBytes, mayAskReminders, mayBeNews, problemDetail, pushSupport, rememberTold, subscriptionFields,
-  toldKey,
+  toldKey, wordsKey,
 } from './notify.js';
 import { savePrefs } from './storage.js';
 import { groups, onHomeScreen } from './view-groups.js';
@@ -275,10 +275,17 @@ function told() {
  */
 export async function tell(document_, key) {
   if (!state.remote || !key || !mayBeNews(document_)) return;
-  const said = toldKey(document_);
+  await tellOnce(toldKey(document_), { action: 'doc', key, id: document_.id });
+  // And the words left on it: the group hears them (reacts.js).
+  const words = wordsKey(document_);
+  if (words) await tellOnce(words, { action: 'words', key, id: document_.id });
+}
+
+/** Ask the notifier, unless this very thing was asked already. */
+async function tellOnce(said, body) {
   if (told().includes(said)) return;
   try {
-    await state.remote.notifier({ action: 'doc', key, id: document_.id });
+    await state.remote.notifier(body);
   } catch (error) {
     // No network: asked again at the next write. Anything else — no notifier
     // in this database — is not worth asking again for the same thing.

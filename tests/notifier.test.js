@@ -109,6 +109,30 @@ test('reminders are asked of the database, and each goes to its own targets', as
   assert.equal(quiet.calls.some((call) => call.url.endsWith('/marque_points_push_vapid')), false, 'nothing to send, no key to read');
 });
 
+test('words left say who, where and what', async () => {
+  const target = { lang: 'fr', app: 'https://x.github.io/Code/' };
+  const one = messageFor({
+    event: 'words', id: 'v_1', group: 'Mifa', doc: { kind: 'poll', fixed: true, title: 'Raclette', date: '2026-10-30' },
+    words: [{ n: 'Alice', t: 'J’apporte le fromage' }],
+  }, target);
+  assert.deepEqual(one, { title: 'Mifa', body: 'Alice sur « Raclette » : J’apporte le fromage', url: 'https://x.github.io/Code/#/poll/v_1', tag: 'words-v_1' });
+  const many = messageFor({
+    event: 'words', id: 'b_1', group: 'Mifa', doc: { kind: 'board', name: 'Cadeau' },
+    words: [{ n: 'Alice', t: 'Un livre ?' }, { n: 'Bob', t: 'Ou un jeu' }, { n: 'Alice', t: 'Les deux' }],
+  }, { lang: 'en', app: '' });
+  assert.equal(many.body, '3 words on « Cadeau »: Alice, Bob');
+  assert.equal(many.url, '#/idea/b_1');
+  assert.equal(messageFor({ event: 'words', id: 'v_2', group: 'Mifa', doc: { kind: 'poll', question: 'Quel soir ?' }, words: [{ t: 'Samedi' }] }, target).body,
+    'Quelqu’un sur « Quel soir ? » : Samedi');
+
+  const alice = await subscription('https://fcm.googleapis.com/fcm/send/alice');
+  const { calls, fetchImpl } = world({
+    marque_points_push_words: { status: 'ok', event: 'words', id: 'b_1', group: 'Mifa', doc: { kind: 'board', name: 'Cadeau' }, words: [{ n: 'Bob', t: 'Un jeu' }], targets: [alice] },
+  });
+  assert.deepEqual(await (await handle(post({ action: 'words', key: 'cle', id: 'b_1' }), { ...ENV, fetchImpl })).json(), { status: 'ok', sent: 1 });
+  assert.deepEqual(calls.find((call) => call.url.endsWith('/marque_points_push_words')).body, { p_key: 'cle', p_id: 'b_1' });
+});
+
 test('the first call makes the key pair, later ones keep it', async () => {
   const { fetchImpl, vapid } = world({});
   const first = await (await handle(post({ action: 'key' }), { ...ENV, fetchImpl })).json();

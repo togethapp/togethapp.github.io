@@ -41,6 +41,7 @@ import { isLive, dayNow, eventParts } from './dashboard.js';
 import { saveSpends } from './storage.js';
 import { swipeHtml, swipeable, bindSwipes } from './swipe.js';
 import { t, getLanguage } from './i18n.js';
+import { talkSumHtml } from './view-reacts.js';
 
 /* --------------------------------------------------------------- dépenses --- */
 
@@ -200,6 +201,7 @@ export function eventCardHtml(poll) {
       ${peopleHtml(poll.people.map((person) => person.name))}
       ${parts.length ? `<span class="game-card__meta">${escapeHtml(parts.join(' · '))}</span>` : ''}
       ${programme.length ? `<span class="game-card__meta">${escapeHtml(t('activity.onProgramme', { items: programme.join(' · ') }))}</span>` : ''}
+      ${talkSumHtml(poll)}
     </button>`;
 }
 

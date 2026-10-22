@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  REACTIONS, addWords, mergeCells, myReaction, react, reactionsTo, removeWords, wordsOn, WORDS_MOST,
+  REACTIONS, addWords, mergeCells, myReaction, react, reactionsTo, removeWords, wordsOn, WORDS_MOST, talkTotals, latestWords,
 } from '../src/reacts.js';
 import { createBoard, addCard, mergeBoards } from '../src/ideas.js';
 import { createPoll, addOptions, createEvent, mergePolls } from '../src/polls.js';
@@ -80,4 +80,21 @@ test('a reaction is not lost under a newer copy of the poll that has not heard o
   assert.equal(merged.question, 'Quel soir, finalement ?');
   assert.deepEqual(reactionsTo(merged, friday.id).map((row) => row.names), [['Alice']]);
   assert.equal(mergePolls(reacted, reacted), reacted);
+});
+
+test('a card sums up what is said: reactions the most given first, and the words', () => {
+  let poll = addOptions(createPoll({ question: 'Quel soir ?' }), 'Vendredi\nSamedi');
+  assert.deepEqual(talkTotals(poll), { reactions: [], words: 0 });
+  assert.equal(latestWords(poll), 0);
+  poll = react(poll, poll.options[0].id, 'Alice', '👍');
+  poll = react(poll, poll.options[1].id, 'Alice', '🎉');
+  poll = react(poll, poll.options[1].id, 'Bob', '🎉');
+  poll = react(poll, '', 'Gui', '🎉');
+  poll = react(react(poll, '', 'Zoé', '😂'), '', 'Zoé', '😂');
+  poll = addWords(poll, '', 'Bob', 'Samedi !');
+  const said = addWords(poll, poll.options[0].id, 'Gui', 'Ou vendredi');
+  assert.deepEqual(talkTotals(said), { reactions: [{ emoji: '🎉', count: 3 }, { emoji: '👍', count: 1 }], words: 2 });
+  const latest = latestWords(said);
+  assert.ok(latest > latestWords(poll));
+  assert.equal(talkTotals(removeWords(said, wordsOn(said, '')[0].id)).words, 1);
 });

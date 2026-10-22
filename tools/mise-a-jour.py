@@ -87,7 +87,9 @@ out = "\n".join([
 --      faire (avec la fonction « notifier », appelée une fois l'heure) ;
 --  14. les réactions et les mots : sur un sondage, un événement ou une
 --      activité, ceux de chacun se fondent, comme les votes — et restent
---      permis sur ce qui est clos.
+--      permis sur ce qui est clos ;
+--  15. un mot laissé sur un sondage, un événement ou une idée prévient le
+--      groupe (avec la fonction « notifier »).
 --
 -- Généré depuis docs/DEPLOIEMENT.md, étape 2 bis ; un test vérifie que les
 -- deux disent la même chose. Modifiez le guide, pas ce fichier seul.
@@ -143,14 +145,15 @@ function('marque_points_push_vapid'),
 function('marque_points_push_event'),
 function('marque_points_push_knock'),
 function('marque_points_push_reminders'),
+function('marque_points_push_words'),
 function('marque_points_push_gone'),
 "-- Pour les comptes connectés seulement, pas pour la clé publique de la page.\n" + "\n".join(
     [revoke(n) for n in ['marque_points_account_link', 'marque_points_account_owner_put', 'marque_points_account_restore', 'marque_points_account_leave', 'marque_points_account_delete']]
     + [grant(n) for n in ['marque_points_account_link', 'marque_points_account_owner_put', 'marque_points_account_restore', 'marque_points_account_leave', 'marque_points_account_delete']]
     + [revoke('marque_points_account_cut_mark'), revoke('marque_points_announce'), revoke('marque_points_live')]
     + [grant(n) for n in ['marque_points_push_subscribe', 'marque_points_push_unsubscribe', 'marque_points_open_set']]
-    + [revoke(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_reminders', 'marque_points_push_gone']]
-    + [grant(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_reminders', 'marque_points_push_gone']]
+    + [revoke(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_reminders', 'marque_points_push_words', 'marque_points_push_gone']]
+    + [grant(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_reminders', 'marque_points_push_words', 'marque_points_push_gone']]
     + [grant(n) for n in ['marque_points_group_of', 'marque_points_group_keys', 'marque_points_set_accounts']]) + "\n",
 "-- 12. Une personne sans plus aucun appareil perd son lien de retour ; les codes\n-- inconnus ne se comptent plus, et les retours n'ont plus de plafond.\n" + function('marque_points_person_out'),
 trigger('marque_points_person_out'),

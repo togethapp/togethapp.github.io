@@ -10,7 +10,9 @@
 
 import { askForText, escapeHtml, everything } from './app.js';
 import { t } from './i18n.js';
-import { REACTIONS, WORDS_MOST, addWords, myReaction, react, reactionsTo, removeWords, wordsOn } from './reacts.js';
+import {
+  REACTIONS, WORDS_MOST, addWords, myReaction, react, reactionsTo, removeWords, talkTotals, wordsOn,
+} from './reacts.js';
 import { makeDialog } from './view-games.js';
 import { myName, setMyName } from './view-groups.js';
 import { replaceBoard } from './view-ideas.js';
@@ -47,6 +49,18 @@ export function talkHtml(document_, target, { title = '', said = false } = {}) {
       <div class="talk__said">
         ${words.slice(-WORDS_SHOWN).map((one) => `<p><strong>${escapeHtml(one.name)}</strong> ${escapeHtml(one.text)}</p>`).join('')}
       </div>` : ''}`;
+}
+
+/**
+ * On a card, what is said of the whole document: « 🎉 3 · 👍 1 · 💬 2 », or
+ * nothing at all when nobody said anything.
+ */
+export function talkSumHtml(document_) {
+  const { reactions, words } = talkTotals(document_);
+  if (!reactions.length && !words) return '';
+  const said = [...reactions.map((one) => `${one.emoji} ${one.count}`), ...(words ? [`💬 ${words}`] : [])].join(' · ');
+  const count = reactions.reduce((sum, one) => sum + one.count, 0);
+  return `<span class="game-card__meta talk-sum" aria-label="${escapeHtml(t('talk.sum', { count, words }))}">${escapeHtml(said)}</span>`;
 }
 
 /** The document a row is about, as it is now. */

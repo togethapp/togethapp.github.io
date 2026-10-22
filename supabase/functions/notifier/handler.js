@@ -15,6 +15,8 @@
  * POST { action: 'key' }                  the public key browsers subscribe with
  * POST { action: 'doc', key, id }         a document was written in a group
  * POST { action: 'knock', ticket }        someone knocked at a group
+ * POST { action: 'words', key, id }       words were left on a poll, an event
+ *                                         or a board: the group hears them
  * POST { action: 'remind' }               the eve of tomorrow's events, asked
  *                                         every hour (tools/rappels.js); the
  *                                         database says what is due, once
@@ -40,6 +42,7 @@ const WORDS = {
     someone: 'Quelqu’un', at: 'à', locale: 'fr-FR',
     tomorrow: 'Demain', during: 'Demain, pendant « {name} »', programme: 'Au programme', left: 'Reste à faire',
     lines: ['{count} ligne à cocher', '{count} lignes à cocher'], polls: ['{count} sondage ouvert', '{count} sondages ouverts'],
+    wordOn: '{who} sur « {name} »', wordsOn: '{count} mots sur « {name} »',
   },
   en: {
     poll: 'New poll', event: 'New event', list: 'New list', spend: 'New shared expenses',
@@ -47,6 +50,7 @@ const WORDS = {
     someone: 'Someone', at: 'at', locale: 'en-GB',
     tomorrow: 'Tomorrow', during: 'Tomorrow, during « {name} »', programme: 'On the programme', left: 'Still to do',
     lines: ['{count} line to tick', '{count} lines to tick'], polls: ['{count} open poll', '{count} open polls'],
+    wordOn: '{who} on « {name} »', wordsOn: '{count} words on « {name} »',
   },
 };
 
@@ -94,6 +98,25 @@ function reminderBody(news, words, lang) {
   return said.filter(Boolean).join(' ');
 }
 
+/**
+ * Words left on a document: « Alice sur « Raclette » : J'apporte le
+ * fromage » — or, several at once, how many and from whom.
+ */
+function wordsBody(news, words, lang) {
+  const doc = news.doc || {};
+  const name = (doc.kind === 'poll'
+    ? (doc.fixed === true || doc.date ? eventName(doc) : String(doc.question || ''))
+    : String(doc.name || '')).trim();
+  const said = (Array.isArray(news.words) ? news.words : []).filter((one) => String(one?.t || '').trim());
+  const colon = lang === 'en' ? ': ' : ' : ';
+  const who = (one) => String(one?.n || '').trim() || words.someone;
+  if (said.length === 1) {
+    return `${words.wordOn.replace('{who}', who(said[0])).replace('{name}', name)}${colon}${String(said[0].t).trim()}`;
+  }
+  const names = [...new Set(said.map(who))].join(', ');
+  return `${words.wordsOn.replace('{count}', String(said.length)).replace('{name}', name)}${colon}${names}`;
+}
+
 /** What one person reads, in their language, for what the database answered. */
 export function messageFor(news, target) {
   const lang = target?.lang === 'en' ? 'en' : 'fr';
@@ -105,6 +128,14 @@ export function messageFor(news, target) {
       body: reminderBody(news, words, lang),
       url: appUrl(target?.app, `#/poll/${news.id}`),
       tag: `eve-${news.id}-${news.day}`,
+    };
+  }
+  if (news.event === 'words') {
+    return {
+      title,
+      body: wordsBody(news, words, lang),
+      url: appUrl(target?.app, `#/${PAGES[news.doc?.kind] || 'poll'}/${news.id}`),
+      tag: `words-${news.id}`,
     };
   }
   if (news.event === 'knock') {
@@ -218,6 +249,8 @@ export async function handle(request, { base, serviceKey, fetchImpl = fetch }) {
     let news = null;
     if (asked?.action === 'doc' && typeof asked.key === 'string' && typeof asked.id === 'string') {
       news = await rpc('marque_points_push_event', { p_key: asked.key, p_id: asked.id });
+    } else if (asked?.action === 'words' && typeof asked.key === 'string' && typeof asked.id === 'string') {
+      news = await rpc('marque_points_push_words', { p_key: asked.key, p_id: asked.id });
     } else if (asked?.action === 'knock' && typeof asked.ticket === 'string') {
       news = await rpc('marque_points_push_knock', { p_ticket: asked.ticket });
     } else {

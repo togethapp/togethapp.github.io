@@ -32,6 +32,7 @@ import {
   topEventOf,
 } from './dashboard.js';
 import { getLanguage } from './i18n.js';
+import { talkSumHtml } from './view-reacts.js';
 import {
   related, ideasFor, addIdea, pollFromIdeas, winnersOf, winnerOffers, addWinner, accountsFor,
   unblockedNow, missingGoers, addGoers, activityFor, ideaActivities, choiceActivities, whenPoll, activityFromChoice,
@@ -333,6 +334,7 @@ export function programmeHtml(event, { guest = false } = {}) {
                   <span class="programme__when">${escapeHtml(activityWhen(one))}</span>
                   <span class="programme__what">${escapeHtml(documentTitle(one))}</span>
                   ${outsideEvent(one, event) ? `<span class="pill pill--late">${escapeHtml(t('activity.outsideShort'))}</span>` : ''}
+                  ${talkSumHtml(one)}
                 </button>
               </li>`).join('')}</ul>`
           : votes.length ? '' : `<p class="muted small">${escapeHtml(t('activity.none'))}</p>`
