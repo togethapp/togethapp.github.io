@@ -6,11 +6,11 @@
     <!-- Only the app's own scripts run: its files, and the script below named
          by its hash. Written by tools/bundle.js; first, since it only covers
          what comes after it. -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-7Lk9EkBjFg4D+G/iwPWuz1TSFA28OJuLfqCycpR7xc0='; object-src 'none'; base-uri 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-h35t5ZGxuR5Y3e89C/z1nVn7O0m1tBzB56b+Gurt+Ts='; object-src 'none'; base-uri 'none'" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="a19c94a3" />
+    <meta name="app-build" content="b582f66a" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -2110,6 +2110,64 @@ select.field-pill {
 
 .field-pill__suffix { color: var(--muted); font-weight: 600; }
 
+/* What an expense was paid in: the currency's sign, with the list laid over
+   it — the list names each currency in full, the field shows only its sign. */
+.currency-pick {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  margin-left: auto;
+  border-radius: 8px;
+}
+.currency-pick select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
+.currency-pick__caret { font-size: 0.7em; }
+.currency-pick:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* The same field in a dialog, drawn like the dialog's other fields. */
+.amount-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--field);
+}
+.amount-field input {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+.amount-field input:focus { box-shadow: none; outline: none; }
+.amount-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring), 0 0 18px var(--glow); }
+
+.amount-block { display: grid; gap: 8px; }
+.rate-row { display: grid; gap: 4px; }
+.rate-row__rate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.rate-row__rate input { width: 7.5em; flex: none; }
+
 .field-pill--submit { border-radius: 999px; }
 
 .field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
@@ -3849,6 +3907,11 @@ const STRINGS = {
     'spends.allSettled': 'Tout est réglé',
     'spends.allSettledHint': 'Personne ne doit rien à personne.',
     'spends.notAnAmount': 'Ce n’est pas un montant. Par exemple : 12,50',
+    'spends.paidInLabel': 'Monnaie de la dépense',
+    'spends.rateLabel': 'Taux de change',
+    'spends.converted': 'Soit {amount} dans le compte.',
+    'spends.notARate': 'Écrivez le taux : ce que vaut 1 {sign} dans cette monnaie (celui de la banque, ou du jour).',
+    'spends.paidIn': 'payé {amount} ({rate})',
     'spends.paidBy': 'payé par {name}',
     'spends.paidByNobody': 'payé par personne',
     'spends.forWhom': 'pour {names}',
@@ -5101,6 +5164,11 @@ const STRINGS = {
     'spends.allSettled': 'All settled',
     'spends.allSettledHint': 'Nobody owes anybody anything.',
     'spends.notAnAmount': 'That is not an amount. For example: 12.50',
+    'spends.paidInLabel': 'Currency paid in',
+    'spends.rateLabel': 'Exchange rate',
+    'spends.converted': 'That is {amount} in the account.',
+    'spends.notARate': 'Write the rate: what 1 {sign} is worth in that currency (your bank’s, or today’s).',
+    'spends.paidIn': 'paid {amount} ({rate})',
     'spends.paidBy': 'paid by {name}',
     'spends.paidByNobody': 'paid by nobody',
     'spends.forWhom': 'for {names}',
@@ -8390,6 +8458,78 @@ function spendCurrency(spend) {
 }
 
 /**
+ * The currencies an expense can be paid in — those of the places a holiday
+ * goes. Paid in another than the account's, it is written down converted, at
+ * a rate said the way banks and the ECB quote it (« 1 € = 0,86 £ »), and
+ * keeps what was paid beside it (`paidIn`). The account itself, its shares
+ * and who pays back whom stay in its own currency.
+ */
+const PAID_IN = [
+  'EUR', 'CHF', 'GBP', 'USD', 'CAD', 'AUD', 'NZD', 'JPY', 'CNY', 'HKD', 'SGD', 'THB', 'VND', 'IDR', 'INR', 'KRW',
+  'SEK', 'NOK', 'DKK', 'ISK', 'PLN', 'CZK', 'HUF', 'RON', 'TRY', 'MAD', 'TND', 'EGP', 'ZAR', 'XOF', 'XPF', 'MXN',
+  'BRL', 'ILS', 'AED',
+];
+
+/**
+ * A rate as typed — « 0,86 », « 161 » —: how much of the other currency one
+ * unit of the account's buys. Six decimals at most; null when it is not one.
+ */
+function readRate(raw) {
+  if (typeof raw === 'number') return Number.isFinite(raw) && raw > 0 && raw <= 1e6 ? Math.round(raw * 1e6) / 1e6 : null;
+  const clean = String(raw ?? '').replace(/\s/g, '').replace(',', '.');
+  if (!/^\d+(\.\d{1,6})?$/.test(clean)) return null;
+  return readRate(Number(clean));
+}
+
+/** An amount paid in another currency, in the account's: `rate` of it for one unit of the account's. */
+function convertPaid(cents, rate) {
+  const value = Math.round(cents / rate);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+/** What an expense was paid in, when not in the account's currency — or null. */
+function paidInOf(spend, line) {
+  const paid = line?.paidIn;
+  if (!paid || typeof paid !== 'object' || isRepayment(line)) return null;
+  if (!PAID_IN.includes(paid.currency) || paid.currency === spendCurrency(spend)) return null;
+  return Number.isInteger(paid.amount) && paid.amount > 0 && readRate(paid.rate) ? paid : null;
+}
+
+/**
+ * The rate last written for a currency: in this account first — the
+ * holiday's own —, then in the others kept in the same currency, the most
+ * recent first. Null when there is none: the form then asks for it.
+ */
+function lastRate(spend, currency, others = []) {
+  const latest = (account) => account.lines
+    .map((line) => ({ line, paid: paidInOf(account, line) }))
+    .filter(({ paid }) => paid?.currency === currency)
+    .sort((a, b) => (b.line.updatedAt || 0) - (a.line.updatedAt || 0))[0]?.paid.rate ?? null;
+  const candidates = [spend, ...others
+    .filter((other) => other.id !== spend.id && spendCurrency(other) === spendCurrency(spend))
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))];
+  for (const account of candidates) {
+    const rate = latest(account);
+    if (rate) return rate;
+  }
+  return null;
+}
+
+/**
+ * An amount as typed, in `currency`: in the account's own, the line's amount
+ * as it is; in another, converted at `rate`, what was paid kept beside it.
+ * Null when it is not an amount, or the rate is missing.
+ */
+function paidFields(spend, amount, currency, rate) {
+  const cents = Number.isInteger(amount) ? amount : readAmount(amount);
+  if (!cents || cents < 0) return null;
+  if (!currency || currency === spendCurrency(spend)) return { amount: cents, paidIn: undefined };
+  const kept = PAID_IN.includes(currency) ? readRate(rate) : null;
+  const converted = kept ? convertPaid(cents, kept) : null;
+  return converted ? { amount: converted, paidIn: { currency, amount: cents, rate: kept } } : null;
+}
+
+/**
  * Lire un montant tel qu'il se tape : « 12,50 », « 12.5 », « 12 », « 3 € ».
  * Rend des centimes, ou null quand ce n'est pas un montant.
  */
@@ -8588,11 +8728,15 @@ function tidy(line) {
  * `parts` donne, pour cette dépense seulement, des parts autres que celles de
  * chacun (deux nuits pour l'une, cinq pour l'autre) ; `fixed`, un montant à
  * part pour certains (la pizza d'Alice), le reste se partageant entre les
- * autres.
+ * autres — en monnaie du compte.
+ *
+ * `currency` dit en quoi `amount` a été payé, quand ce n'est pas la monnaie
+ * du compte : il est alors converti au taux `rate` (« 1 € = 0,86 £ »).
  */
-function addSpend(spend, { text = '', amount = 0, by = null, forWhom = [], day = null, parts = null, fixed = null } = {}) {
-  const cents = Number.isInteger(amount) ? amount : readAmount(amount);
-  if (!cents) return spend;
+function addSpend(spend, { text = '', amount = 0, currency = null, rate = null, by = null, forWhom = [], day = null, parts = null, fixed = null } = {}) {
+  const paid = paidFields(spend, amount, currency, rate);
+  if (!paid) return spend;
+  const cents = paid.amount;
 
   const known = new Set(spend.people.map((person) => person.id));
   // Rangé dans l'ordre des personnes du compte : deux téléphones qui cochent
@@ -8604,6 +8748,7 @@ function addSpend(spend, { text = '', amount = 0, by = null, forWhom = [], day =
     id: uid('s'),
     text: String(text || '').trim(),
     amount: cents,
+    paidIn: paid.paidIn,
     by: known.has(by) ? by : null,
     forWhom: whom,
     ...shared,
@@ -8650,13 +8795,19 @@ function patchLine(spend, lineId, patch) {
  * Correct an expense. Its parts and amounts apart follow whoever it is for
  * now — someone no longer concerned keeps neither — and a correction that
  * would set apart more than was paid is not made: splitProblem() says why.
+ *
+ * A new `amount` is in `currency` at `rate`, as for addSpend(); without a
+ * currency it is in the account's, and what was paid elsewhere goes.
  */
-function editSpend(spend, lineId, { text, amount, by, forWhom, day, parts, fixed } = {}) {
+function editSpend(spend, lineId, { text, amount, currency, rate, by, forWhom, day, parts, fixed } = {}) {
   const line = spend.lines.find((entry) => entry.id === lineId);
   if (!line) return spend;
   const patch = {};
   if (text !== undefined) patch.text = String(text || '').trim();
-  if (amount !== undefined) {
+  if (amount !== undefined && !isRepayment(line)) {
+    const paid = paidFields(spend, amount, currency, rate);
+    if (paid) Object.assign(patch, paid);
+  } else if (amount !== undefined) {
     const cents = Number.isInteger(amount) ? amount : readAmount(amount);
     if (cents) patch.amount = cents;
   }
@@ -16546,6 +16697,127 @@ function typedAmount(cents) {
   return getLanguage() === 'fr' ? text.replace('.', ',') : text;
 }
 
+/** A rate as it is typed back into a field: « 0,86 ». */
+function typedRate(rate) {
+  const text = String(readRate(rate) ?? '');
+  return getLanguage() === 'fr' ? text.replace('.', ',') : text;
+}
+
+/** « 1 € = 0,86 £ »: how a rate reads, the way a bank quotes it. */
+function rateText(spend, currency, rate) {
+  return `1 ${currencySymbol(spendCurrency(spend))} = ${typedRate(rate)} ${currencySymbol(currency)}`;
+}
+
+/** The currencies an expense may be paid in: the account's, those it has already met, then the rest. */
+function paidInChoices(spend) {
+  const met = spend.lines.map((line) => paidInOf(spend, line)?.currency).filter(Boolean);
+  return [...new Set([spendCurrency(spend), ...met, ...PAID_IN])];
+}
+
+/**
+ * How much an expense was, and in what: the account's currency unless
+ * another is picked — then the rate (« 1 € = 0,86 £ »), the last one written
+ * for that currency to begin with, and what it comes to in the account. Held
+ * by the markup, like the split editor: nothing has to redraw it.
+ */
+function amountFieldHtml(spend, { id, cents = null, paid = null, pill = false }) {
+  const own = spendCurrency(spend);
+  const currency = paid?.currency || own;
+  const typed = paid ? paid.amount : cents;
+  return `
+    <div class="amount-block" data-amount-field>
+      <label>
+        ${escapeHtml(t('spends.amount'))}
+        <span class="${pill ? 'field-pill field-pill--amount' : 'amount-field'}">
+          <input type="text" id="${id}" data-amount-input inputmode="decimal" placeholder="0,00" autocomplete="off"
+                 value="${typed ? escapeHtml(typedAmount(typed)) : ''}" />
+          <span class="field-pill__suffix currency-pick">
+            <span data-currency-sign>${escapeHtml(currencySymbol(currency))}</span><span class="currency-pick__caret" aria-hidden="true">▾</span>
+            <select data-currency aria-label="${escapeHtml(t('spends.paidInLabel'))}">
+              ${paidInChoices(spend).map((code) => `<option value="${code}" ${code === currency ? 'selected' : ''}>${escapeHtml(currencyName(code))}</option>`).join('')}
+            </select>
+          </span>
+        </span>
+      </label>
+      <div class="rate-row" data-rate-row ${currency === own ? 'hidden' : ''}>
+        <label class="rate-row__rate">
+          <span data-rate-from>1 ${escapeHtml(currencySymbol(own))} =</span>
+          <input type="text" data-rate inputmode="decimal" autocomplete="off" ${pill ? 'class="field-pill"' : ''}
+                 value="${paid ? escapeHtml(typedRate(paid.rate)) : ''}" aria-label="${escapeHtml(t('spends.rateLabel'))}" />
+          <span data-rate-sign>${escapeHtml(currencySymbol(currency))}</span>
+        </label>
+        <span class="muted small" data-converted aria-live="polite"></span>
+      </div>
+    </div>`;
+}
+
+/**
+ * Make an amount field work. `read()` answers what was typed — `cents`, in
+ * the account's currency or null; `amount`, `currency` and `rate`, as
+ * addSpend() takes them; `error`, 'amount' or 'rate' — and `problem()` says
+ * what is missing where it is, without redrawing what was typed. `changed`
+ * is told of every change: the split editor's shares follow.
+ */
+function bindAmountField(root, spend, changed = () => {}) {
+  const box = root.querySelector('[data-amount-field]');
+  const own = spendCurrency(spend);
+  const input = box.querySelector('[data-amount-input]');
+  const pick = box.querySelector('[data-currency]');
+  const rate = box.querySelector('[data-rate]');
+  const note = box.querySelector('[data-converted]');
+
+  const read = () => {
+    const currency = pick.value || own;
+    const typed = readAmount(input.value);
+    if (currency === own) return { cents: typed, amount: typed, currency, rate: null, error: typed ? null : 'amount' };
+    const kept = readRate(rate.value);
+    return {
+      cents: typed && kept ? convertPaid(typed, kept) : null,
+      amount: typed, currency, rate: kept,
+      error: !typed ? 'amount' : kept ? null : 'rate',
+    };
+  };
+
+  const refresh = () => {
+    const now = read();
+    box.querySelector('[data-currency-sign]').textContent = currencySymbol(now.currency);
+    box.querySelector('[data-rate-sign]').textContent = currencySymbol(now.currency);
+    box.querySelector('[data-rate-row]').hidden = now.currency === own;
+    note.classList.remove('late');
+    note.textContent = now.cents && now.currency !== own ? t('spends.converted', { amount: money(now.cents, spend) }) : '';
+  };
+
+  pick.addEventListener('change', () => {
+    if (pick.value !== own && !readRate(rate.value)) {
+      const known = lastRate(spend, pick.value, state.spends);
+      rate.value = known ? typedRate(known) : '';
+    }
+    refresh();
+    changed();
+    if (pick.value !== own && !rate.value) rate.focus();
+  });
+  for (const field of [input, rate]) {
+    field.addEventListener('input', () => {
+      refresh();
+      changed();
+    });
+  }
+  refresh();
+
+  const problem = () => {
+    const now = read();
+    if (now.error === 'rate') {
+      note.textContent = t('spends.notARate', { sign: currencySymbol(own) });
+      note.classList.add('late');
+      rate.focus();
+    } else {
+      input.focus();
+    }
+    return now.error === 'rate' ? t('spends.notARate', { sign: currencySymbol(own) }) : t('spends.notAnAmount');
+  };
+  return { read, problem };
+}
+
 /** « ½ », « 2 », « 1½ »: a number of parts as one reads it. */
 function partsShown(value) {
   const whole = Math.floor(value);
@@ -16731,6 +17003,7 @@ function spendLineHtml(spend, line) {
   const forWhom = line.forWhom.length
     ? spend.people.filter((person) => line.forWhom.includes(person.id)).map((person) => person.name).join(', ')
     : t('spends.everyone');
+  const paid = paidInOf(spend, line);
   return swipeHtml(line.id, `
       <button type="button" class="line__text" data-spend-line="${escapeHtml(line.id)}">
         <span>${escapeHtml(line.text || t('spends.untitledLine'))}</span>
@@ -16738,7 +17011,9 @@ function spendLineHtml(spend, line) {
           ${escapeHtml(who ? t('spends.paidBy', { name: who }) : t('spends.paidByNobody'))}
           · ${escapeHtml(t('spends.forWhom', { names: forWhom }))}${
             line.parts || line.fixed ? ` · ${escapeHtml(t('spends.splitOwn'))}` : ''
-          }${line.day ? ` · ${escapeHtml(formatDay(line.day))}` : ''}
+          }${paid ? ` · ${escapeHtml(t('spends.paidIn', {
+            amount: showAmount(paid.amount, getLanguage(), paid.currency), rate: rateText(spend, paid.currency, paid.rate),
+          }))}` : ''}${line.day ? ` · ${escapeHtml(formatDay(line.day))}` : ''}
         </span>
       </button>
       <span class="line__amount">${escapeHtml(money(line.amount, spend))}</span>`,
@@ -16790,13 +17065,7 @@ function spendView(spend) {
                       placeholder="${escapeHtml(t('spends.textPlaceholder'))}" autocomplete="off" />
              </label>
 
-             <label>
-               ${escapeHtml(t('spends.amount'))}
-               <span class="field-pill field-pill--amount">
-                 <input type="text" id="spend-amount" inputmode="decimal" placeholder="0,00" />
-                 <span class="field-pill__suffix">${escapeHtml(currencySymbol(spendCurrency(spend)))}</span>
-               </span>
-             </label>
+             ${amountFieldHtml(spend, { id: 'spend-amount', pill: true })}
 
              <div class="field-row">
                <label>
@@ -17048,15 +17317,20 @@ function bindSpend(spend) {
   });
 
   const addForm = view.querySelector('#add-spend');
-  const amountField = view.querySelector('#spend-amount');
-  const split = addForm ? bindSplitEditor(addForm, spend, () => readAmount(amountField.value)) : null;
-  amountField?.addEventListener('input', () => split.refresh());
+  let split = null;
+  const amountField = addForm ? bindAmountField(addForm, spend, () => split?.refresh()) : null;
+  split = addForm ? bindSplitEditor(addForm, spend, () => amountField.read().cents) : null;
 
   addForm?.addEventListener('submit', (event) => {
     event.preventDefault();
     const text = view.querySelector('#spend-text');
-    const cents = readAmount(amountField.value);
-    if (!cents) {
+    const paid = amountField.read();
+    if (paid.error === 'rate') {
+      // Said under the rate, without redrawing what has been typed.
+      amountField.problem();
+      return;
+    }
+    if (paid.error) {
       flash(t('spends.notAnAmount'), 'error');
       render();
       return;
@@ -17072,7 +17346,9 @@ function bindSpend(spend) {
     state.spendFormOpen = null;
     replaceSpend(addSpend(spend, {
       text: text.value,
-      amount: cents,
+      amount: paid.amount,
+      currency: paid.currency,
+      rate: paid.rate,
       by: view.querySelector('#spend-by').value,
       forWhom: shared.forWhom,
       parts: shared.parts,
@@ -17180,10 +17456,7 @@ function openSpendLineDialog(spend, lineId) {
         ${escapeHtml(t('spends.what'))}
         <input type="text" id="line-what" value="${escapeHtml(line.text)}" />
       </label>
-      <label>
-        ${escapeHtml(t('spends.amount'))}
-        <input type="text" id="line-amount" inputmode="decimal" value="${escapeHtml(typedAmount(line.amount))}" />
-      </label>
+      ${amountFieldHtml(spend, { id: 'line-amount', cents: line.amount, paid: paidInOf(spend, line) })}
       <label>
         ${escapeHtml(t('spends.by'))}
         <select id="line-by">
@@ -17213,9 +17486,9 @@ function openSpendLineDialog(spend, lineId) {
       </div>
     </form>`;
 
-  const amountField = dialog.querySelector('#line-amount');
-  const split = bindSplitEditor(dialog, spend, () => readAmount(amountField.value));
-  amountField.addEventListener('input', () => split.refresh());
+  let split = null;
+  const amountField = bindAmountField(dialog, spend, () => split?.refresh());
+  split = bindSplitEditor(dialog, spend, () => amountField.read().cents);
   const problem = (text) => {
     const error = dialog.querySelector('#line-error');
     error.textContent = text;
@@ -17223,10 +17496,9 @@ function openSpendLineDialog(spend, lineId) {
   };
 
   dialog.querySelector('#line-save').addEventListener('click', () => {
-    const cents = readAmount(amountField.value);
-    if (!cents) {
-      problem(t('spends.notAnAmount'));
-      amountField.focus();
+    const paid = amountField.read();
+    if (paid.error) {
+      problem(amountField.problem());
       return;
     }
     const shared = split.read();
@@ -17237,7 +17509,9 @@ function openSpendLineDialog(spend, lineId) {
     dialog.close();
     replaceSpend(editSpend(getSpend(spend.id) || spend, lineId, {
       text: dialog.querySelector('#line-what').value,
-      amount: cents,
+      amount: paid.amount,
+      currency: paid.currency,
+      rate: paid.rate,
       by: dialog.querySelector('#line-by').value,
       forWhom: shared.forWhom,
       parts: shared.parts,

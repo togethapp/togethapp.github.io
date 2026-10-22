@@ -2075,6 +2075,64 @@ select.field-pill {
 
 .field-pill__suffix { color: var(--muted); font-weight: 600; }
 
+/* What an expense was paid in: the currency's sign, with the list laid over
+   it — the list names each currency in full, the field shows only its sign. */
+.currency-pick {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  margin-left: auto;
+  border-radius: 8px;
+}
+.currency-pick select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
+.currency-pick__caret { font-size: 0.7em; }
+.currency-pick:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* The same field in a dialog, drawn like the dialog's other fields. */
+.amount-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--field);
+}
+.amount-field input {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+.amount-field input:focus { box-shadow: none; outline: none; }
+.amount-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring), 0 0 18px var(--glow); }
+
+.amount-block { display: grid; gap: 8px; }
+.rate-row { display: grid; gap: 4px; }
+.rate-row__rate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.rate-row__rate input { width: 7.5em; flex: none; }
+
 .field-pill--submit { border-radius: 999px; }
 
 .field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }

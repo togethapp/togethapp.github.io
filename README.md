@@ -571,6 +571,15 @@ Chaque ligne dit ce qui a été payé, combien, par qui, et pour qui.
   Il apparaît dans les dépenses, en gris, remet les soldes d'aplomb, et ne
   compte ni dans le total du compte ni dans ce que chacun a avancé. Touché
   dans la liste, il se corrige ou se retire.
+- **Payé dans une autre monnaie** — des livres à Londres, des francs à
+  Genève —, une dépense se tape telle quelle : le signe au bout de *Combien ?*
+  ouvre la liste des monnaies, puis on écrit le taux comme la banque le donne
+  (« 1 € = 0,86 £ »). Elle entre convertie (« Soit 34,88 € dans le compte »),
+  et garde ce qui a été payé (« payé 30,00 £GB (1 € = 0,86 £GB) »). Le
+  dernier taux d'une monnaie revient pour la dépense suivante, de ce compte
+  ou d'un autre. Le compte, les parts et qui rembourse qui restent dans sa
+  monnaie à lui ; les montants à part aussi. Aucun taux n'est pris en ligne :
+  rien ne part ailleurs que dans la base.
 - **L'argent est compté en centimes, en entiers.** Dix euros entre trois font
   3,34 / 3,33 / 3,33, et le centime qui reste va toujours au même — sans quoi
   deux téléphones finiraient par ne pas être d'accord.

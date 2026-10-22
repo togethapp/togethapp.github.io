@@ -31,7 +31,8 @@ import {
   createSpend, readAmount, showAmount, spendCurrency, CURRENCIES, addSpend, editSpend, removeSpend,
   archiveSpend, addSpendPerson, renameSpendPerson, removeSpendPerson, canRemovePerson, balances,
   spendTotal, settle, addRepayment, isRepayment, readParts, weightOf, stepParts, splitProblem, lineShares,
-  setSpendWeight, setSpendPay, payOf, sharedWithEveryone, addLatecomer,
+  setSpendWeight, setSpendPay, payOf, sharedWithEveryone, addLatecomer, PAID_IN, readRate, convertPaid, paidInOf,
+  lastRate,
 } from './spends.js';
 import { forWhomGroups, listsFeeding } from './flows.js';
 import { ticketOffersHtml } from './view-flows.js';
@@ -468,6 +469,127 @@ export function typedAmount(cents) {
   return getLanguage() === 'fr' ? text.replace('.', ',') : text;
 }
 
+/** A rate as it is typed back into a field: « 0,86 ». */
+function typedRate(rate) {
+  const text = String(readRate(rate) ?? '');
+  return getLanguage() === 'fr' ? text.replace('.', ',') : text;
+}
+
+/** « 1 € = 0,86 £ »: how a rate reads, the way a bank quotes it. */
+function rateText(spend, currency, rate) {
+  return `1 ${currencySymbol(spendCurrency(spend))} = ${typedRate(rate)} ${currencySymbol(currency)}`;
+}
+
+/** The currencies an expense may be paid in: the account's, those it has already met, then the rest. */
+function paidInChoices(spend) {
+  const met = spend.lines.map((line) => paidInOf(spend, line)?.currency).filter(Boolean);
+  return [...new Set([spendCurrency(spend), ...met, ...PAID_IN])];
+}
+
+/**
+ * How much an expense was, and in what: the account's currency unless
+ * another is picked — then the rate (« 1 € = 0,86 £ »), the last one written
+ * for that currency to begin with, and what it comes to in the account. Held
+ * by the markup, like the split editor: nothing has to redraw it.
+ */
+function amountFieldHtml(spend, { id, cents = null, paid = null, pill = false }) {
+  const own = spendCurrency(spend);
+  const currency = paid?.currency || own;
+  const typed = paid ? paid.amount : cents;
+  return `
+    <div class="amount-block" data-amount-field>
+      <label>
+        ${escapeHtml(t('spends.amount'))}
+        <span class="${pill ? 'field-pill field-pill--amount' : 'amount-field'}">
+          <input type="text" id="${id}" data-amount-input inputmode="decimal" placeholder="0,00" autocomplete="off"
+                 value="${typed ? escapeHtml(typedAmount(typed)) : ''}" />
+          <span class="field-pill__suffix currency-pick">
+            <span data-currency-sign>${escapeHtml(currencySymbol(currency))}</span><span class="currency-pick__caret" aria-hidden="true">▾</span>
+            <select data-currency aria-label="${escapeHtml(t('spends.paidInLabel'))}">
+              ${paidInChoices(spend).map((code) => `<option value="${code}" ${code === currency ? 'selected' : ''}>${escapeHtml(currencyName(code))}</option>`).join('')}
+            </select>
+          </span>
+        </span>
+      </label>
+      <div class="rate-row" data-rate-row ${currency === own ? 'hidden' : ''}>
+        <label class="rate-row__rate">
+          <span data-rate-from>1 ${escapeHtml(currencySymbol(own))} =</span>
+          <input type="text" data-rate inputmode="decimal" autocomplete="off" ${pill ? 'class="field-pill"' : ''}
+                 value="${paid ? escapeHtml(typedRate(paid.rate)) : ''}" aria-label="${escapeHtml(t('spends.rateLabel'))}" />
+          <span data-rate-sign>${escapeHtml(currencySymbol(currency))}</span>
+        </label>
+        <span class="muted small" data-converted aria-live="polite"></span>
+      </div>
+    </div>`;
+}
+
+/**
+ * Make an amount field work. `read()` answers what was typed — `cents`, in
+ * the account's currency or null; `amount`, `currency` and `rate`, as
+ * addSpend() takes them; `error`, 'amount' or 'rate' — and `problem()` says
+ * what is missing where it is, without redrawing what was typed. `changed`
+ * is told of every change: the split editor's shares follow.
+ */
+function bindAmountField(root, spend, changed = () => {}) {
+  const box = root.querySelector('[data-amount-field]');
+  const own = spendCurrency(spend);
+  const input = box.querySelector('[data-amount-input]');
+  const pick = box.querySelector('[data-currency]');
+  const rate = box.querySelector('[data-rate]');
+  const note = box.querySelector('[data-converted]');
+
+  const read = () => {
+    const currency = pick.value || own;
+    const typed = readAmount(input.value);
+    if (currency === own) return { cents: typed, amount: typed, currency, rate: null, error: typed ? null : 'amount' };
+    const kept = readRate(rate.value);
+    return {
+      cents: typed && kept ? convertPaid(typed, kept) : null,
+      amount: typed, currency, rate: kept,
+      error: !typed ? 'amount' : kept ? null : 'rate',
+    };
+  };
+
+  const refresh = () => {
+    const now = read();
+    box.querySelector('[data-currency-sign]').textContent = currencySymbol(now.currency);
+    box.querySelector('[data-rate-sign]').textContent = currencySymbol(now.currency);
+    box.querySelector('[data-rate-row]').hidden = now.currency === own;
+    note.classList.remove('late');
+    note.textContent = now.cents && now.currency !== own ? t('spends.converted', { amount: money(now.cents, spend) }) : '';
+  };
+
+  pick.addEventListener('change', () => {
+    if (pick.value !== own && !readRate(rate.value)) {
+      const known = lastRate(spend, pick.value, state.spends);
+      rate.value = known ? typedRate(known) : '';
+    }
+    refresh();
+    changed();
+    if (pick.value !== own && !rate.value) rate.focus();
+  });
+  for (const field of [input, rate]) {
+    field.addEventListener('input', () => {
+      refresh();
+      changed();
+    });
+  }
+  refresh();
+
+  const problem = () => {
+    const now = read();
+    if (now.error === 'rate') {
+      note.textContent = t('spends.notARate', { sign: currencySymbol(own) });
+      note.classList.add('late');
+      rate.focus();
+    } else {
+      input.focus();
+    }
+    return now.error === 'rate' ? t('spends.notARate', { sign: currencySymbol(own) }) : t('spends.notAnAmount');
+  };
+  return { read, problem };
+}
+
 /** « ½ », « 2 », « 1½ »: a number of parts as one reads it. */
 function partsShown(value) {
   const whole = Math.floor(value);
@@ -653,6 +775,7 @@ function spendLineHtml(spend, line) {
   const forWhom = line.forWhom.length
     ? spend.people.filter((person) => line.forWhom.includes(person.id)).map((person) => person.name).join(', ')
     : t('spends.everyone');
+  const paid = paidInOf(spend, line);
   return swipeHtml(line.id, `
       <button type="button" class="line__text" data-spend-line="${escapeHtml(line.id)}">
         <span>${escapeHtml(line.text || t('spends.untitledLine'))}</span>
@@ -660,7 +783,9 @@ function spendLineHtml(spend, line) {
           ${escapeHtml(who ? t('spends.paidBy', { name: who }) : t('spends.paidByNobody'))}
           · ${escapeHtml(t('spends.forWhom', { names: forWhom }))}${
             line.parts || line.fixed ? ` · ${escapeHtml(t('spends.splitOwn'))}` : ''
-          }${line.day ? ` · ${escapeHtml(formatDay(line.day))}` : ''}
+          }${paid ? ` · ${escapeHtml(t('spends.paidIn', {
+            amount: showAmount(paid.amount, getLanguage(), paid.currency), rate: rateText(spend, paid.currency, paid.rate),
+          }))}` : ''}${line.day ? ` · ${escapeHtml(formatDay(line.day))}` : ''}
         </span>
       </button>
       <span class="line__amount">${escapeHtml(money(line.amount, spend))}</span>`,
@@ -712,13 +837,7 @@ export function spendView(spend) {
                       placeholder="${escapeHtml(t('spends.textPlaceholder'))}" autocomplete="off" />
              </label>
 
-             <label>
-               ${escapeHtml(t('spends.amount'))}
-               <span class="field-pill field-pill--amount">
-                 <input type="text" id="spend-amount" inputmode="decimal" placeholder="0,00" />
-                 <span class="field-pill__suffix">${escapeHtml(currencySymbol(spendCurrency(spend)))}</span>
-               </span>
-             </label>
+             ${amountFieldHtml(spend, { id: 'spend-amount', pill: true })}
 
              <div class="field-row">
                <label>
@@ -970,15 +1089,20 @@ export function bindSpend(spend) {
   });
 
   const addForm = view.querySelector('#add-spend');
-  const amountField = view.querySelector('#spend-amount');
-  const split = addForm ? bindSplitEditor(addForm, spend, () => readAmount(amountField.value)) : null;
-  amountField?.addEventListener('input', () => split.refresh());
+  let split = null;
+  const amountField = addForm ? bindAmountField(addForm, spend, () => split?.refresh()) : null;
+  split = addForm ? bindSplitEditor(addForm, spend, () => amountField.read().cents) : null;
 
   addForm?.addEventListener('submit', (event) => {
     event.preventDefault();
     const text = view.querySelector('#spend-text');
-    const cents = readAmount(amountField.value);
-    if (!cents) {
+    const paid = amountField.read();
+    if (paid.error === 'rate') {
+      // Said under the rate, without redrawing what has been typed.
+      amountField.problem();
+      return;
+    }
+    if (paid.error) {
       flash(t('spends.notAnAmount'), 'error');
       render();
       return;
@@ -994,7 +1118,9 @@ export function bindSpend(spend) {
     state.spendFormOpen = null;
     replaceSpend(addSpend(spend, {
       text: text.value,
-      amount: cents,
+      amount: paid.amount,
+      currency: paid.currency,
+      rate: paid.rate,
       by: view.querySelector('#spend-by').value,
       forWhom: shared.forWhom,
       parts: shared.parts,
@@ -1102,10 +1228,7 @@ function openSpendLineDialog(spend, lineId) {
         ${escapeHtml(t('spends.what'))}
         <input type="text" id="line-what" value="${escapeHtml(line.text)}" />
       </label>
-      <label>
-        ${escapeHtml(t('spends.amount'))}
-        <input type="text" id="line-amount" inputmode="decimal" value="${escapeHtml(typedAmount(line.amount))}" />
-      </label>
+      ${amountFieldHtml(spend, { id: 'line-amount', cents: line.amount, paid: paidInOf(spend, line) })}
       <label>
         ${escapeHtml(t('spends.by'))}
         <select id="line-by">
@@ -1135,9 +1258,9 @@ function openSpendLineDialog(spend, lineId) {
       </div>
     </form>`;
 
-  const amountField = dialog.querySelector('#line-amount');
-  const split = bindSplitEditor(dialog, spend, () => readAmount(amountField.value));
-  amountField.addEventListener('input', () => split.refresh());
+  let split = null;
+  const amountField = bindAmountField(dialog, spend, () => split?.refresh());
+  split = bindSplitEditor(dialog, spend, () => amountField.read().cents);
   const problem = (text) => {
     const error = dialog.querySelector('#line-error');
     error.textContent = text;
@@ -1145,10 +1268,9 @@ function openSpendLineDialog(spend, lineId) {
   };
 
   dialog.querySelector('#line-save').addEventListener('click', () => {
-    const cents = readAmount(amountField.value);
-    if (!cents) {
-      problem(t('spends.notAnAmount'));
-      amountField.focus();
+    const paid = amountField.read();
+    if (paid.error) {
+      problem(amountField.problem());
       return;
     }
     const shared = split.read();
@@ -1159,7 +1281,9 @@ function openSpendLineDialog(spend, lineId) {
     dialog.close();
     replaceSpend(editSpend(getSpend(spend.id) || spend, lineId, {
       text: dialog.querySelector('#line-what').value,
-      amount: cents,
+      amount: paid.amount,
+      currency: paid.currency,
+      rate: paid.rate,
       by: dialog.querySelector('#line-by').value,
       forWhom: shared.forWhom,
       parts: shared.parts,
