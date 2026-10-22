@@ -3505,9 +3505,14 @@ vérification du JWT désactivée.
 Une seule fois, donner à GitHub une clé Supabase :
 
 1. **Supabase** → https://supabase.com/dashboard/account/tokens →
-   **Generate new token** → nom : `GitHub` → expiration : la plus longue (ou
-   *Never*) → **Generate token** → **copier** la clé (elle commence par
-   `sbp_` et ne s'affiche qu'une fois).
+   **Generate new token** → nom : `GitHub`. Limitez-la au strict
+   nécessaire : **le seul projet de l'app** (celui de `src/config.js`), et
+   deux droits en lecture-écriture, **Database** (pour le SQL) et **Edge
+   Functions** (pour déployer les fonctions) — rien d'autre. Expiration : la
+   plus longue proposée (un an), et notez la date. → **Generate token** →
+   **copier** la clé (elle commence par `sbp_` et ne s'affiche qu'une fois).
+   Si la course dit plus tard qu'un droit manque, refaites une clé avec ce
+   droit en plus : on ne modifie pas une clé déjà faite.
 2. **GitHub** → https://github.com/togethapp/togethapp.github.io/settings/secrets/actions/new
    → *Name* : `SUPABASE_ACCESS_TOKEN` → *Secret* : coller la clé →
    **Add secret**.
@@ -3519,8 +3524,9 @@ Ensuite, rien à faire : chaque fusion qui touche `supabase/` met la base et
 les fonctions à jour. Une course rouge dit pourquoi dans son journal (la base
 a refusé le SQL, ou la clé a expiré : en refaire une, et remplacer le secret).
 
-> **Ce que la clé permet.** C'est une clé de votre compte Supabase : elle
-> donne la main sur vos projets. Elle est gardée chiffrée par GitHub, n'est
+> **Ce que la clé permet.** Limitée comme ci-dessus, elle ne touche qu'à la
+> base et aux fonctions de ce projet ; une clé « classique », sans limite,
+> donnerait la main sur tout votre compte. Elle est gardée chiffrée par GitHub, n'est
 > lisible par personne (pas même vous), et ne sert qu'aux courses sur `main`.
 > Tout de même : ne donnez l'accès en écriture au dépôt qu'à des personnes de
 > confiance, et supprimez la clé dans Supabase (même page) si vous arrêtez.
