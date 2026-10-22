@@ -151,6 +151,8 @@ check('l’appareil qui regarde ne se propose pas de se couper lui-même',
 gui.once('dialog', () => {});
 await gui.locator('.details .knock', { hasText: 'Alice' }).locator('[data-cut]').click();
 await gui.waitForSelector('dialog[open] .button--danger, dialog[open] #confirm-yes, dialog[open] button', { timeout: 5000 });
+check('sans lien de retour, la question n’en parle pas',
+  !/lien de retour/.test(await gui.locator('dialog[open]').textContent()));
 const confirm = gui.locator('dialog[open] button', { hasText: 'Couper' });
 await confirm.first().click();
 await gui.waitForSelector('.banner', { timeout: 15000 });
@@ -255,6 +257,38 @@ await gui.waitForFunction(
   null, { timeout: 15000 },
 );
 check('et le lui retirer', true, await gui.locator('.banner').textContent());
+
+/* --- couper le dernier appareil d'une personne coupe aussi son lien ------- */
+
+await claire.reload();
+await claire.waitForSelector('[data-my-link]', { timeout: 15000 });
+await claire.click('[data-my-link]');
+await claire.locator('dialog[open] button', { hasText: 'Mon lien de retour' }).first().click();
+await claire.waitForSelector('#export-dialog[open]', { timeout: 15000 });
+const backLink = (await claire.inputValue('#export-text')).match(/#\/back\/\S+/)?.[0] || '';
+await claire.click('#export-close');
+check('Claire se fait un lien de retour', Boolean(backLink), backLink);
+
+await gui.reload();
+await gui.waitForSelector('[data-catch-up]', { timeout: 15000 });
+await gui.click('.group .details summary');
+await gui.waitForTimeout(1000);
+await gui.locator('.details .knock', { hasText: 'Claire' }).locator('[data-cut]').click();
+await gui.waitForSelector('dialog[open] button', { timeout: 5000 });
+const cutQuestion = await gui.locator('dialog[open]').textContent();
+check('couper son dernier appareil dit que son lien de retour part aussi',
+  /dernier de cette personne/.test(cutQuestion) && /lien de retour est coupé aussi/.test(cutQuestion), cutQuestion.trim().slice(0, 90));
+await gui.locator('dialog[open] button', { hasText: 'Couper' }).first().click();
+await gui.waitForFunction(() => /dehors/.test(document.querySelector('.banner')?.textContent || ''), null, { timeout: 15000 });
+
+const later = await device('Claire, plus tard', { hash: backLink });
+await later.waitForSelector('#back-go', { timeout: 15000 });
+await later.click('#back-go');
+await later.waitForFunction(() => /ne sert plus/.test(document.querySelector('#back-state')?.textContent || ''), null, { timeout: 15000 })
+  .catch(() => {});
+check('et ce lien ne la fait plus revenir seule',
+  /ne sert plus/.test(await later.locator('#back-state').textContent()),
+  await later.locator('#back-state').textContent());
 
 const bad = results.filter((r) => !r.ok);
 console.log(results.length, 'vérifications |', results.length - bad.length, 'ok |', bad.length, 'échecs');

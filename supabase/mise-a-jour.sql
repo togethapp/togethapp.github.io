@@ -36,7 +36,11 @@
 --  11. les notifications : un appareil qui les active est prévenu d'un
 --      nouveau document dans ses groupes, d'une date retenue, et — s'il fait
 --      entrer — de quelqu'un qui frappe (avec la fonction « notifier »).
---  12. le rappel de la veille : la veille d'un événement, entre 18 h et 23 h
+--  12. couper le dernier appareil d'une personne — ou tout le groupe, avec le
+--      bouton d'alarme — coupe aussi son lien de retour ; et taper des codes
+--      au hasard ne bloque plus les liens de retour de tout le monde, ni ne
+--      dit quels codes existent ;
+--  13. le rappel de la veille : la veille d'un événement, entre 18 h et 23 h
 --      à l'heure de chaque appareil, ce qui a lieu demain et ce qui reste à
 --      faire (avec la fonction « notifier », appelée une fois l'heure).
 --
@@ -907,7 +911,7 @@ create table if not exists public.marque_points_push_vapid (
 );
 alter table public.marque_points_push_vapid enable row level security;
 
--- 12. Le fuseau de chaque appareil, pour le rappel de la veille ; et l'abonnement
+-- 13. Le fuseau de chaque appareil, pour le rappel de la veille ; et l'abonnement
 -- qui le dit, à la place de celui d'avant, sans fuseau.
 alter table public.marque_points_push
   add column if not exists tz text not null default 'Europe/Paris';
@@ -1272,3 +1276,153 @@ grant execute on function public.marque_points_push_gone(text) to service_role;
 grant execute on function public.marque_points_group_of(text) to anon, authenticated;
 grant execute on function public.marque_points_group_keys(text) to anon, authenticated;
 grant execute on function public.marque_points_set_accounts(text, boolean) to anon, authenticated;
+
+-- 12. Une personne sans plus aucun appareil perd son lien de retour ; les codes
+-- inconnus ne se comptent plus, et les retours n'ont plus de plafond.
+create or replace function public.marque_points_person_out()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if old.person_id is not null
+     and not exists (select 1 from public.marque_points_group_key k where k.person_id = old.person_id) then
+    update public.marque_points_person set token_hash = null, token_salt = null where id = old.person_id;
+  end if;
+  return old;
+end;
+$$;
+
+drop trigger if exists marque_points_person_out on public.marque_points_group_key;
+create trigger marque_points_person_out
+  after delete on public.marque_points_group_key
+  for each row execute function public.marque_points_person_out();
+
+create or replace function public.marque_points_ask(
+  p_name text,
+  p_code text,
+  p_who text default '',
+  p_label text default ''
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_invite public.marque_points_invite;
+  v_name text := left(lower(btrim(coalesce(p_name, ''))), 60);
+  v_ticket text := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
+  v_salt text := md5(gen_random_uuid()::text);
+  v_bucket text;
+  v_misses integer;
+  v_waiting integer;
+begin
+  delete from public.marque_points_join_miss where at < now() - interval '1 hour';
+  -- Une demande sans réponse finit par s'effacer, et une réponse finit par être
+  -- lue : sans ce ménage la liste des demandes deviendrait un dépotoir.
+  delete from public.marque_points_request
+   where (state = 'waiting' and created_at < now() - interval '7 days')
+      or (state <> 'waiting' and answered_at < now() - interval '1 day');
+
+  -- Le code d'abord, le nom ensuite. Chercher par les deux à la fois amenait à
+  -- compter les essais ratés sous le nom *fourni* : il suffisait d'en inventer
+  -- un différent à chaque fois pour n'être jamais compté, et de faire fermer
+  -- l'invitation de tout le monde au bout de dix essais.
+  select i.* into v_invite
+    from public.marque_points_invite i
+   where i.code = coalesce(p_code, '')
+     and i.expires_at > now()
+     and i.uses > 0;
+
+  -- Un code qui n'existe pas ne se compte nulle part, et reçoit la même réponse
+  -- qu'un vrai code donné avec un faux nom. Les compter dans un seau commun
+  -- disait, le seau plein, quels codes existaient (« occupé » pour les faux,
+  -- autre chose pour les vrais), et laissait quiconque tapait des codes au
+  -- hasard bloquer les liens de retour de tout le monde.
+  if not found then
+    return jsonb_build_object('status', 'unknown');
+  end if;
+
+  -- Un vrai code dont le nom de groupe est faux se compte sur ce groupe, qui
+  -- existe vraiment.
+  select left(lower(btrim(g.name)), 60) into v_bucket
+    from public.marque_points_group g where g.id = v_invite.group_id;
+
+  select count(*) into v_misses
+    from public.marque_points_join_miss
+   where name = v_bucket and at > now() - interval '10 minutes';
+  if v_misses >= 20 then
+    return jsonb_build_object('status', 'busy');
+  end if;
+
+  if v_bucket is distinct from v_name then
+    -- Le nom ne va pas avec le code. Compté sur le groupe visé, et l'invitation
+    -- n'en souffre pas : la fermer ici serait offrir à quiconque a lu le lien
+    -- le moyen de la rendre inutilisable pour tous les autres.
+    insert into public.marque_points_join_miss (name) values (v_bucket);
+    return jsonb_build_object('status', 'unknown');
+  end if;
+
+  -- Personne ne doit pouvoir vous noyer sous les demandes.
+  select count(*) into v_waiting
+    from public.marque_points_request
+   where group_id = v_invite.group_id and state = 'waiting';
+  if v_waiting >= 50 then
+    return jsonb_build_object('status', 'busy');
+  end if;
+
+  insert into public.marque_points_request (id, group_id, name, label, ticket_hash, ticket_salt)
+  values (replace(gen_random_uuid()::text, '-', ''), v_invite.group_id,
+          left(coalesce(btrim(p_who), ''), 24), left(coalesce(btrim(p_label), ''), 80),
+          md5(v_ticket || v_salt), v_salt);
+
+  update public.marque_points_invite set uses = uses - 1 where code = v_invite.code;
+  delete from public.marque_points_invite where uses <= 0;
+  delete from public.marque_points_join_miss where name = v_bucket;
+
+  return jsonb_build_object(
+    'status', 'waiting',
+    'ticket', v_ticket,
+    'id', v_invite.group_id,
+    'name', (select name from public.marque_points_group where id = v_invite.group_id)
+  );
+end;
+$$;
+
+create or replace function public.marque_points_return(p_token text, p_label text default '')
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_person public.marque_points_person;
+  v_key text := replace(gen_random_uuid()::text, '-', '');
+  v_salt text := md5(gen_random_uuid()::text);
+begin
+  -- Pas de plafond d'essais : voir la table des personnes, plus haut.
+  select p.* into v_person
+    from public.marque_points_person p
+   where p.token_hash is not null
+     and p.token_hash = md5(coalesce(p_token, '') || p.token_salt);
+
+  if not found then
+    return jsonb_build_object('status', 'unknown');
+  end if;
+
+  insert into public.marque_points_group_key (id, group_id, label, key_hash, key_salt, admits, person_id)
+  values (replace(gen_random_uuid()::text, '-', ''), v_person.group_id,
+          left(btrim(coalesce(v_person.name, '') || ' · ' || coalesce(btrim(p_label), '')), 80),
+          md5(v_key || v_salt), v_salt, false, v_person.id);
+
+  return jsonb_build_object('status', 'ok', 'key', v_key, 'who', v_person.name,
+    'id', v_person.group_id,
+    'name', (select name from public.marque_points_group where id = v_person.group_id));
+end;
+$$;
+
+revoke all on function public.marque_points_person_out() from public, anon, authenticated;
+grant execute on function public.marque_points_ask(text, text, text, text) to anon, authenticated;
+grant execute on function public.marque_points_return(text, text) to anon, authenticated;
