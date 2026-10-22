@@ -242,6 +242,9 @@ function devicesHtml(group) {
   // How many devices have an account: what tells whether everyone has moved
   // over, before requiring one.
   const withAccount = rows.filter((row) => row.account).length;
+  // Cutting a person's last device cuts their return link too (the database
+  // does it), so the question asked first has to say so.
+  const lastWithLink = (row) => row.link && row.person && rows.filter((other) => other.person === row.person).length === 1;
   const accounts = `
     <div class="card stack stack--tight accounts-switch">
       <p class="small">${escapeHtml(t('gate.accountsCount', { count: withAccount, total: rows.length }))}</p>
@@ -288,7 +291,8 @@ function devicesHtml(group) {
               row.mine
                 ? ''
                 : `<button type="button" class="button button--small button--ghost"
-                           data-cut="${escapeHtml(group.id)}" data-key="${escapeHtml(row.id)}">
+                           data-cut="${escapeHtml(group.id)}" data-key="${escapeHtml(row.id)}"
+                           ${lastWithLink(row) ? 'data-with-link' : ''}>
                      ${escapeHtml(t('gate.cut'))}
                    </button>`
             }
@@ -1338,7 +1342,8 @@ export function bindOverview() {
     button.addEventListener('click', async () => {
       const group = groups().find((item) => item.id === button.dataset.cut);
       if (!group) return;
-      if (!(await ask(t('gate.confirmCut'), { confirmLabel: t('gate.cut'), danger: true }))) return;
+      const question = 'withLink' in button.dataset ? 'gate.confirmCutWithLink' : 'gate.confirmCut';
+      if (!(await ask(t(question), { confirmLabel: t('gate.cut'), danger: true }))) return;
       let status = 'unknown';
       try {
         status = await state.remote.cutKey(group.key, button.dataset.key);

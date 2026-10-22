@@ -78,7 +78,11 @@ out = "\n".join([
 --  11. les notifications : un appareil qui les active est prévenu d'un
 --      nouveau document dans ses groupes, d'une date retenue, et — s'il fait
 --      entrer — de quelqu'un qui frappe (avec la fonction « notifier »).
---  12. le rappel de la veille : la veille d'un événement, entre 18 h et 23 h
+--  12. couper le dernier appareil d'une personne — ou tout le groupe, avec le
+--      bouton d'alarme — coupe aussi son lien de retour ; et taper des codes
+--      au hasard ne bloque plus les liens de retour de tout le monde, ni ne
+--      dit quels codes existent ;
+--  13. le rappel de la veille : la veille d'un événement, entre 18 h et 23 h
 --      à l'heure de chaque appareil, ce qui a lieu demain et ce qui reste à
 --      faire (avec la fonction « notifier », appelée une fois l'heure).
 --
@@ -128,7 +132,7 @@ function('marque_points_live'),
 live_triggers(),
 "-- 11. Les notifications.\n" + table('marque_points_push') + "create index if not exists marque_points_push_key on public.marque_points_push (key_id);\n\n"
 + table('marque_points_push_sent') + "\n" + table('marque_points_push_vapid'),
-"-- 12. Le fuseau de chaque appareil, pour le rappel de la veille ; et l'abonnement\n-- qui le dit, à la place de celui d'avant, sans fuseau.\n" + push_tz_column()
+"-- 13. Le fuseau de chaque appareil, pour le rappel de la veille ; et l'abonnement\n-- qui le dit, à la place de celui d'avant, sans fuseau.\n" + push_tz_column()
 + "drop function if exists public.marque_points_push_subscribe(text, text, text, text, text, text);\n",
 function('marque_points_push_subscribe'),
 function('marque_points_push_unsubscribe'),
@@ -145,6 +149,11 @@ function('marque_points_push_gone'),
     + [revoke(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_reminders', 'marque_points_push_gone']]
     + [grant(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_reminders', 'marque_points_push_gone']]
     + [grant(n) for n in ['marque_points_group_of', 'marque_points_group_keys', 'marque_points_set_accounts']]) + "\n",
+"-- 12. Une personne sans plus aucun appareil perd son lien de retour ; les codes\n-- inconnus ne se comptent plus, et les retours n'ont plus de plafond.\n" + function('marque_points_person_out'),
+trigger('marque_points_person_out'),
+function('marque_points_ask'),
+function('marque_points_return'),
+"\n".join([revoke('marque_points_person_out')] + [grant(n) for n in ['marque_points_ask', 'marque_points_return']]) + "\n",
 ])
 (root / 'supabase/mise-a-jour.sql').write_text(out)
 import sys
