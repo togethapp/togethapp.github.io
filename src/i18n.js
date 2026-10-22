@@ -908,6 +908,8 @@ export const STRINGS = {
     'gate.cut': 'Couper',
     'gate.confirmCut':
       'Couper cet appareil ? Il ne verra plus rien de nouveau et ne pourra plus rien partager ici. Ce qu’il a déjà récupéré reste chez lui.',
+    'gate.confirmCutWithLink':
+      'Couper cet appareil ? C’est le dernier de cette personne : son lien de retour est coupé aussi, et elle ne reviendra qu’en étant acceptée de nouveau. Ce que l’appareil a déjà récupéré reste chez lui.',
     'gate.cutDone': 'Cet appareil est dehors.',
     'gate.cutLast':
       'C’est la dernière clé qui fait entrer : la couper laisserait le groupe sans personne pour accepter qui que ce soit.',
@@ -2177,6 +2179,8 @@ export const STRINGS = {
     'gate.cut': 'Cut off',
     'gate.confirmCut':
       'Cut this device off? It will see nothing new and share nothing here. What it already has stays with it.',
+    'gate.confirmCutWithLink':
+      'Cut this device off? It is this person’s last one: their return link is cut too, and they will only come back by being let in again. What the device already has stays with it.',
     'gate.cutDone': 'That device is out.',
     'gate.cutLast':
       'This is the last key that lets people in: cutting it would leave the group with nobody to accept anyone.',

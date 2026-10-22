@@ -83,6 +83,18 @@ test('the update brings what the app now relies on', async () => {
 
   // A closed poll takes no more votes, from a copy that missed the closing.
   assert.match(inUpdate.get('marque_points_put'), /closedAt/);
+
+  // Someone put out of the group — their last device cut, or everyone at once
+  // by the alarm — does not come back by their return link. The rule sits on
+  // the table, so a key deleted by hand obeys it too; it is no door of its own.
+  assert.match(update, /create trigger marque_points_person_out\n\s+after delete on public\.marque_points_group_key/);
+  assert.match(inUpdate.get('marque_points_person_out'), /set token_hash = null, token_salt = null/);
+  assert.match(update, /revoke all on function public\.marque_points_person_out\(\) from public, anon, authenticated;/);
+
+  // Codes typed at random are counted nowhere: a shared count told, once full,
+  // which codes existed, and let anyone silence everyone's return links.
+  assert.doesNotMatch(inUpdate.get('marque_points_ask'), /values \(''\)/);
+  assert.doesNotMatch(inUpdate.get('marque_points_return'), /join_miss/);
 });
 
 test('the update erases no data', async () => {

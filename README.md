@@ -69,14 +69,15 @@ web, aucune dépendance, aucun build.
   la même chose dans Safari, et réinstaller l'app. Ce lien **naît sur son
   appareil** — celui qui fait entrer ne le voit jamais et ne peut donc pas se faire
   passer pour elle — et se **coupe** depuis *Qui est dans le groupe* sans mettre
-  ses appareils dehors.
+  ses appareils dehors ; couper son dernier appareil le coupe aussi.
 - **La porte reste entre vos mains.** Seule la clé affichée à la création du
   groupe accepte les demandes ; celles distribuées ensuite voient et partagent,
   mais n'ouvrent à personne. *Qui est dans le groupe* liste les appareils, un par
   ligne, et **Couper** met l'un d'eux dehors sans toucher aux autres — la
   dernière clé qui fait entrer étant protégée, un groupe ne peut pas se retrouver
-  sans portier. Vingt essais ratés ferment l'entrée dix minutes ; cinquante
-  demandes en attente et la porte n'en prend plus.
+  sans portier. Vingt essais ratés (un vrai code, un autre nom de groupe)
+  ferment l'entrée dix minutes ; cinquante demandes en attente et la porte n'en
+  prend plus.
 - **Elle se met à jour toute seule, et le dit.** L'app demande à chaque retour au
   premier plan s'il existe une version plus récente et se recharge une fois quand
   c'est le cas ; chaque fichier est revalidé plutôt que pris dans le cache du

@@ -387,11 +387,14 @@ const server = createServer(async (req, res) => {
     return send(200, { code, name: group.name, minutes: at.p_minutes ?? 30, uses });
   }
   if (fn === 'marque_points_ask') {
-    const name = String(at.p_name ?? '').trim().toLowerCase();
+    // Comme la base : un code inconnu ne se compte nulle part ; un vrai code
+    // donné avec un autre nom se compte sur son groupe.
+    const invite = INVITES.get(String(at.p_code ?? ''));
+    if (!invite) return send(200, { status: 'unknown' });
+    const name = invite.group.name.toLowerCase();
     const misses = MISSES.get(name) ?? 0;
     if (misses >= 20) return send(200, { status: 'busy' });
-    const invite = INVITES.get(String(at.p_code ?? ''));
-    if (!invite || invite.group.name.toLowerCase() !== name) {
+    if (String(at.p_name ?? '').trim().toLowerCase() !== name) {
       MISSES.set(name, misses + 1);
       return send(200, { status: 'unknown' });
     }
@@ -490,13 +493,8 @@ const server = createServer(async (req, res) => {
     return send(200, { status: 'ok', token: person.token, name: person.name });
   }
   if (fn === 'marque_points_return') {
-    const misses = MISSES.get('') ?? 0;
-    if (misses >= 20) return send(200, { status: 'busy' });
     const person = PERSONS.find((p) => p.token && p.token === at.p_token);
-    if (!person) {
-      MISSES.set('', misses + 1);
-      return send(200, { status: 'unknown' });
-    }
+    if (!person) return send(200, { status: 'unknown' });
     const group = [...GROUPS.values()].find((g) => g.id === person.group);
     const key = `cle-retour-${Math.random().toString(36).slice(2, 10)}`;
     GROUPS.set(key, group);
@@ -560,6 +558,9 @@ const server = createServer(async (req, res) => {
     }
     const [cut] = KEYS.splice(index, 1);
     if (cut.user) CUT.set(`${cut.user}|${cut.group}`, Date.now());
+    // Le dernier appareil d'une personne coupé, son lien de retour l'est aussi.
+    const person = cut.person && !KEYS.some((row) => row.person === cut.person) && PERSONS.find((p) => p.id === cut.person);
+    if (person) person.token = null;
     GROUPS.delete(cut.key);
     ADMITS.delete(cut.key);
     return send(200, { status: 'ok' });

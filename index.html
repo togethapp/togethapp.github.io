@@ -2,10 +2,14 @@
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
+    <!-- Only the app's own scripts run: its files, and the script below named
+         by its hash. Written by tools/bundle.js; first, since it only covers
+         what comes after it. -->
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI='; object-src 'none'; base-uri 'none'" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="9a85ea2d" />
+    <meta name="app-build" content="72f3d521" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
