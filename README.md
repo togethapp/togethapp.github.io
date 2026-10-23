@@ -123,6 +123,14 @@ web, aucune dépendance, aucun build.
 - **Le Tarot se calcule tout seul** : preneur, contrat, bouts et points réalisés,
   et l'appli en tire le score de chacun — en montrant son calcul, pour qu'il soit
   vérifiable à la table.
+- **Jouer dans l'app** : en tête de l'onglet Jeux, « Jouer ici » ouvre des jeux
+  qui se jouent sur le téléphone même. Le **Glouton** est un labyrinthe à la
+  Pac-Man : manger toutes les pastilles, fuir les fantômes, les manger à leur
+  tour après une grosse pastille. Le **Snake** grandit à chaque pomme, sans
+  toucher les bords ni sa queue ; une étoile passe de temps en temps, qui
+  rapporte d'autant plus qu'on l'attrape vite. Doigt glissé, flèches à l'écran
+  ou clavier ; la barre d'onglets s'efface pendant la partie. Chaque jeu garde
+  sa partie, en pause quand on va ailleurs. Le record reste sur l'appareil.
 - **Compter les cartes au doigt** : pour les jeux dont le score est une pile de
   cartes, un compteur s'ouvre depuis la manche en cours. On touche les cartes
   ramassées, il fait la somme et reporte le score — plus d'addition de tête.
@@ -1004,6 +1012,8 @@ styles.css        thème clair/sombre, mise en page mobile d'abord
 src/games.js      définition des jeux (presets) et de leurs compteurs
 src/helpers.js    arithmétique du compteur de cartes
 src/tarot.js      calcul d'une donne de Tarot, contrat par contrat
+src/arcade.js     les jeux joués dans l'app (Glouton, Snake) : règles, mouvements, score
+src/view-arcade.js  leur écran : dessin sur canvas, doigt, flèches, clavier
 src/stats.js      statistiques par joueur, jeu par jeu
 src/dashboard.js  ce que tient un groupe, et le dossier d'une personne
 src/search.js     la recherche : des mots trouvés sans accents ni majuscules

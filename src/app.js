@@ -53,6 +53,7 @@ import { bindOverview, groupsView, groupView, openCreateMenu, overviewView, sett
 import { backView, bindBack, bindJoin, joinView, showsGate, watchGate, watchPending } from './view-join.js';
 import { personView, renameEverywhere, statsView } from './view-people.js';
 import { bindSearch, searchView } from './view-search.js';
+import { arcadeHtml, arcadeView, bindArcade } from './view-arcade.js';
 import { moveInto, takeMove } from './move.js';
 
 export const view = document.getElementById('view');
@@ -402,6 +403,8 @@ function routeOf(address) {
   if (name === 'new') return { name: 'new' };
   if (name === 'stats') return { name: 'stats' };
   if (name === 'game' && param) return { name: 'game', id: param };
+  // A game played in the app itself: #/arcade/<id>. See view-arcade.js.
+  if (name === 'arcade' && param) return { name: 'arcade', id: param };
   if (name === 'set' && param) return { name: 'set', id: param };
   if (name === 'lists' && param === 'new') return { name: 'new-list' };
   if (name === 'lists') return { name: 'lists' };
@@ -807,6 +810,7 @@ function homeView() {
     ${kindsHtml('games')}
     ${newButtonHtml('#/new', t('action.newGame'), mine.some(isLive))}
     ${groupChipsHtml()}
+    ${arcadeHtml()}
     ${
       mine.length
         ? `<div class="row">
@@ -945,6 +949,13 @@ function restoreScrolls(kept) {
  * database, which lists nothing of a group without its key. Someone who edits
  * the address by hand reaches the app — their own, empty one.
  */
+/** A game played here takes the whole screen: no tabs under the fingers. */
+function setPlaying(on) {
+  document.body.classList.toggle('playing', on);
+  const tabs = document.getElementById('tabs');
+  if (tabs && on) tabs.hidden = true;
+}
+
 function setSolo(on) {
   document.body.classList.toggle('solo', on);
   // Hidden outright, not only by the stylesheet: out of reach of a tap, of the
@@ -1020,6 +1031,7 @@ export function render() {
   takePrefill(current);
   markTab(current);
   setSolo(Boolean(current.solo));
+  setPlaying(current.name === 'arcade');
   listenLive(current);
   const kept = keptScrolls();
   // Nothing to fetch without a database, or before this device is in a group.
@@ -1206,6 +1218,15 @@ export function render() {
     }
     view.innerHTML = gameView(game);
     bindGame(game);
+  } else if (current.name === 'arcade') {
+    stopWatching();
+    const page = arcadeView(current.id);
+    if (!page) {
+      navigate('#/games');
+      return;
+    }
+    view.innerHTML = page;
+    bindArcade(current.id);
   } else if (current.name === 'person') {
     stopWatching();
     view.innerHTML = personView(current.who);
