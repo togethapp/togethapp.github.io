@@ -6,11 +6,11 @@
     <!-- Only the app's own scripts run: its files, and the script below named
          by its hash. Written by tools/bundle.js; first, since it only covers
          what comes after it. -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-pY1mQdr2z/mSkYfq81FTsxGyM5sswMsbQMAWEz4eJMM='; object-src 'none'; base-uri 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-OSmWE/lQ/gJUxW/Y34Le5C/Z7TwgFDfgJyC/EoeSZ6Y='; object-src 'none'; base-uri 'none'" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="2744b5e5" />
+    <meta name="app-build" content="d80eade6" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -3343,6 +3343,110 @@ body.holo-open { overflow: hidden; }
   .holo__pulse,
   .holo__card { animation: none; }
 }
+
+/* ---------------------------------------------------------------- arcade --- */
+
+/* The games played in the app itself, at the top of the Games tab. */
+.arcade-list { display: grid; gap: 10px; }
+.arcade-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: var(--radius);
+  background: linear-gradient(120deg, var(--accent-soft), var(--surface) 70%);
+  box-shadow: var(--shadow);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.arcade-card:active { transform: scale(0.99); }
+.arcade-card__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--holo-deep);
+  color: var(--accent-amber);
+  font-size: 1.6rem;
+  box-shadow: 0 0 14px var(--glow);
+}
+.arcade-card__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.arcade-card__play {
+  flex: none;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 650;
+  font-size: 0.85rem;
+}
+
+/* One game's page: the numbers, the maze, the arrows. */
+.arcade { display: grid; gap: 10px; justify-items: center; }
+.arcade__hud {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  width: 100%;
+  max-width: 480px;
+  font-family: var(--hud);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.arcade__hud strong { color: var(--text); }
+.arcade__lives { color: var(--accent-amber); letter-spacing: 0.2em; }
+.arcade__board {
+  display: block;
+  width: 100%;
+  max-width: min(480px, calc((100dvh - 320px) * 19 / 21));
+  min-width: 240px;
+  height: auto;
+  aspect-ratio: 19 / 21;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--holo-deep);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.arcade__status { min-height: 1.3em; margin: 0; font-weight: 650; text-align: center; }
+.arcade-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 50px);
+  grid-template-rows: repeat(3, 46px);
+  gap: 4px;
+  touch-action: manipulation;
+}
+.arcade-pad__key {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-alt);
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.arcade-pad__key:active { background: var(--accent-soft); border-color: var(--accent); }
+.arcade-pad__key svg { width: 22px; height: 22px; fill: currentColor; }
+.arcade-pad__key--up { grid-area: 1 / 2; }
+.arcade-pad__key--left { grid-area: 2 / 1; }
+.arcade-pad__key--down { grid-area: 3 / 2; }
+.arcade-pad__key--right { grid-area: 2 / 3; }
+.arcade-pad__key--pause { grid-area: 2 / 2; border-radius: 50%; color: var(--accent); }
+.arcade-pad__key--pause svg { width: 18px; height: 18px; }
+
+/* While playing, the tabs are gone and the page needs no room for them. */
+body.playing .tabs { display: none; }
+body.playing .view { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
     </style>
     <!-- Before the first paint: the style, colour, theme and background chosen
          in the settings, and the season of the day, so the page does not
@@ -3550,6 +3654,30 @@ const STRINGS = {
     'share.sending': 'Envoi…',
     'action.stats': 'Statistiques',
     'tab.games': 'Jeux',
+    'arcade.title': 'Jouer ici',
+    'arcade.play': 'Jouer',
+    'arcade.best': 'Record : {score}',
+    'arcade.score': 'Score',
+    'arcade.level': 'Niveau',
+    'arcade.record': 'Record',
+    'arcade.lives': '{count} {count|vie|vies}',
+    'arcade.pause': 'Pause',
+    'arcade.resume': 'Reprendre',
+    'arcade.again': 'Rejouer',
+    'arcade.ready': 'Prêt !',
+    'arcade.paused': 'Pause',
+    'arcade.caught': 'Attrapé !',
+    'arcade.cleared': 'Niveau {level} réussi !',
+    'arcade.over': 'Partie terminée : {score} points. Touchez le jeu pour rejouer.',
+    'arcade.overShort': 'Perdu !',
+    'arcade.how': 'Glissez le doigt sur le labyrinthe ou touchez les flèches (au clavier : flèches, Espace pour la pause).',
+    'arcade.dir.up': 'Haut',
+    'arcade.dir.left': 'Gauche',
+    'arcade.dir.down': 'Bas',
+    'arcade.dir.right': 'Droite',
+    'arcade.glouton.name': 'Glouton',
+    'arcade.glouton.short': 'Mangez tout, évitez les fantômes',
+    'arcade.glouton.rules': 'Mangez toutes les pastilles sans vous faire attraper. Une grosse pastille effraie les fantômes : mangez-les à leur tour.',
     'tab.home': 'Accueil',
     'tab.groups': 'Groupes',
     'tab.settings': 'Réglages',
@@ -4830,6 +4958,30 @@ const STRINGS = {
     'share.sending': 'Sending…',
     'action.stats': 'Statistics',
     'tab.games': 'Games',
+    'arcade.title': 'Play here',
+    'arcade.play': 'Play',
+    'arcade.best': 'Best: {score}',
+    'arcade.score': 'Score',
+    'arcade.level': 'Level',
+    'arcade.record': 'Best',
+    'arcade.lives': '{count} {count|life|lives}',
+    'arcade.pause': 'Pause',
+    'arcade.resume': 'Resume',
+    'arcade.again': 'Play again',
+    'arcade.ready': 'Ready!',
+    'arcade.paused': 'Paused',
+    'arcade.caught': 'Caught!',
+    'arcade.cleared': 'Level {level} cleared!',
+    'arcade.over': 'Game over: {score} points. Touch the game to play again.',
+    'arcade.overShort': 'Game over',
+    'arcade.how': 'Swipe on the maze or touch the arrows (keyboard: arrows, Space to pause).',
+    'arcade.dir.up': 'Up',
+    'arcade.dir.left': 'Left',
+    'arcade.dir.down': 'Down',
+    'arcade.dir.right': 'Right',
+    'arcade.glouton.name': 'Gobbler',
+    'arcade.glouton.short': 'Eat everything, dodge the ghosts',
+    'arcade.glouton.rules': 'Eat every pellet without getting caught. A big pellet frightens the ghosts: eat them in turn.',
     'tab.home': 'Home',
     'tab.groups': 'Groups',
     'tab.settings': 'Settings',
@@ -27576,8 +27728,798 @@ function bindTalk(root) {
   });
 }
 
+  // ---- src/arcade.js ---------------------------------------------------
+/**
+ * Games played in the app itself, not scored on paper: for now the Glouton, a
+ * maze where one eats every pellet while four ghosts give chase.
+ *
+ * Pure logic, tested: the maze, the moves, the ghosts' minds, the score. The
+ * screen (view-arcade.js) only draws what this says and passes the fingers on.
+ * Positions are in tiles, a whole number being the middle of one; time in
+ * seconds. Randomness is passed in, so a test replays the same game.
+ */
+
+/** The games of the arcade, in the order shown. */
+const ARCADE_GAMES = [{ id: 'glouton', icon: '●' }];
+
+/**
+ * The maze. `#` wall, `.` pellet, `o` big pellet, `-` the ghosts' door,
+ * `P` where one starts, `G` where the ghosts do (the first one outside). A row
+ * open at both ends is a tunnel.
+ */
+const GLOUTON_MAZE = [
+  '###################',
+  '#........#........#',
+  '#o##.###.#.###.##o#',
+  '#.................#',
+  '#.##.#.#####.#.##.#',
+  '#....#...#...#....#',
+  '####.### # ###.####',
+  '   #.#   G   #.#   ',
+  '####.# ##-## #.####',
+  '    .  #GGG#  .    ',
+  '####.# ##### #.####',
+  '   #.#       #.#   ',
+  '####.# ##### #.####',
+  '#........#........#',
+  '#.##.###.#.###.##.#',
+  '#o.#.....P.....#.o#',
+  '##.#.#.#####.#.#.##',
+  '#....#...#...#....#',
+  '#.######.#.######.#',
+  '#.................#',
+  '###################',
+];
+
+const ARCADE_DIRS = {
+  up: { x: 0, y: -1 },
+  left: { x: -1, y: 0 },
+  down: { x: 0, y: 1 },
+  right: { x: 1, y: 0 },
+};
+/** Ghosts weigh their options in this order when two are as good. */
+const DIR_ORDER = ['up', 'left', 'down', 'right'];
+const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
+
+const GHOST_NAMES = ['red', 'pink', 'cyan', 'orange'];
+/** When each ghost leaves the house, in seconds from the start of a life. */
+const RELEASE = [0, 1.5, 5, 9];
+/** Scatter, then chase, then scatter… — the last chase lasts for ever. */
+const PHASES = [7, 20, 7, 20, 5, 20, 5];
+const POINTS = { pellet: 10, power: 50 };
+const READY_TIME = 2;
+const DYING_TIME = 1.6;
+const CLEARED_TIME = 1.8;
+const EPSILON = 1e-6;
+
+/** The maze as a grid, with where everyone starts. */
+function parseMaze(rows = GLOUTON_MAZE) {
+  const height = rows.length;
+  const width = Math.max(...rows.map((row) => row.length));
+  const cells = [];
+  const ghosts = [];
+  let player = null;
+  let door = null;
+  for (let y = 0; y < height; y += 1) {
+    const line = [];
+    for (let x = 0; x < width; x += 1) {
+      const char = rows[y][x] || ' ';
+      if (char === 'P') player = { x, y };
+      if (char === 'G') ghosts.push({ x, y });
+      if (char === '-') door = { x, y };
+      line.push(char === 'P' || char === 'G' ? ' ' : char);
+    }
+    cells.push(line);
+  }
+  return { width, height, cells, player, ghosts, door };
+}
+
+/** What is at a tile; a tunnel wraps from one side to the other. */
+function cellAt(maze, x, y) {
+  if (y < 0 || y >= maze.height) return '#';
+  const column = ((x % maze.width) + maze.width) % maze.width;
+  return maze.cells[y][column];
+}
+
+/** Whether an actor may step on a tile: only a ghost going in or out uses the door. */
+function canEnter(maze, x, y, throughDoor = false) {
+  const cell = cellAt(maze, x, y);
+  if (cell === '#') return false;
+  if (cell === '-') return throughDoor;
+  return true;
+}
+
+function pelletsLeft(maze) {
+  let count = 0;
+  for (const line of maze.cells) for (const cell of line) if (cell === '.' || cell === 'o') count += 1;
+  return count;
+}
+
+/** A new game, at level one. */
+function newGlouton(rows = GLOUTON_MAZE) {
+  const maze = parseMaze(rows);
+  const game = { rows, maze, score: 0, lives: 3, level: 1, total: pelletsLeft(maze), eaten: 0 };
+  startLife(game);
+  return game;
+}
+
+/** Everyone back to their place, a short « Prêt ! » before it starts again. */
+function startLife(game) {
+  const { maze } = game;
+  game.player = { x: maze.player.x, y: maze.player.y, dir: 'left', want: 'left', moving: true };
+  game.ghosts = maze.ghosts.map((at, index) => ({
+    name: GHOST_NAMES[index % GHOST_NAMES.length],
+    x: at.x,
+    y: at.y,
+    dir: index === 0 ? 'left' : null,
+    mode: index === 0 ? 'out' : 'house',
+    release: RELEASE[index] ?? RELEASE.at(-1) + index,
+    home: { x: at.x, y: at.y },
+  }));
+  game.phase = 0;
+  game.phaseTime = 0;
+  game.clock = 0;
+  game.fright = 0;
+  game.chain = 0;
+  game.state = 'ready';
+  game.timer = READY_TIME;
+}
+
+/** Turn: the player goes that way as soon as the maze allows it. */
+function steer(game, dir) {
+  if (!ARCADE_DIRS[dir]) return;
+  game.player.want = dir;
+  // Turning back needs no crossing: it happens at once.
+  if (dir === OPPOSITE[game.player.dir]) {
+    game.player.dir = dir;
+    game.player.moving = true;
+  }
+}
+
+/** Speeds, in tiles per second, a little faster at each level. */
+function speeds(level) {
+  const lift = Math.min(level - 1, 6) * 0.05;
+  return {
+    player: 6 * (1 + lift / 2),
+    ghost: 5.4 * (1 + lift),
+    scared: 3.4,
+    eaten: 12,
+    fright: Math.max(1.5, 6.5 - level),
+  };
+}
+
+/** Whether an actor stands right in the middle of a tile. */
+function centred(actor) {
+  return Math.abs(actor.x - Math.round(actor.x)) < EPSILON && Math.abs(actor.y - Math.round(actor.y)) < EPSILON;
+}
+
+/**
+ * Move an actor `distance` tiles along the maze. At each tile's middle,
+ * `choose` says where it goes next (null: it stops there).
+ */
+function advance(maze, actor, distance, choose) {
+  let left = distance;
+  for (let guard = 0; left > EPSILON && guard < 64; guard += 1) {
+    if (centred(actor)) {
+      actor.x = Math.round(actor.x);
+      actor.y = Math.round(actor.y);
+      // Out of one side of the tunnel, in at the other.
+      if (actor.x < 0) actor.x += maze.width;
+      if (actor.x >= maze.width) actor.x -= maze.width;
+      const dir = choose(actor);
+      if (!dir) return;
+      actor.dir = dir;
+    }
+    const step = ARCADE_DIRS[actor.dir];
+    const along = step.x ? actor.x : actor.y;
+    const sign = step.x || step.y;
+    const toNext = sign > 0 ? Math.floor(along + EPSILON) + 1 - along : along - (Math.ceil(along - EPSILON) - 1);
+    const move = Math.min(left, toNext);
+    actor.x += step.x * move;
+    actor.y += step.y * move;
+    left -= move;
+  }
+}
+
+/** The player's choice at a tile's middle: the wished way, else straight on, else stop. */
+function playerChoice(maze, player) {
+  for (const dir of [player.want, player.dir]) {
+    const step = ARCADE_DIRS[dir];
+    if (step && canEnter(maze, player.x + step.x, player.y + step.y)) {
+      player.moving = true;
+      return dir;
+    }
+  }
+  player.moving = false;
+  return null;
+}
+
+/** The tile right above the door: where a ghost leaving the house heads. */
+function exitTile(maze) {
+  return { x: maze.door.x, y: maze.door.y - 1 };
+}
+
+/** Where a ghost wants to go. Each has its own mind, as in the old arcades. */
+function ghostTarget(game, ghost) {
+  const { maze, player } = game;
+  if (ghost.mode === 'eaten') return { x: maze.door.x, y: maze.door.y + 1 };
+  if (ghost.mode === 'leaving') return exitTile(maze);
+  const corners = {
+    red: { x: maze.width - 2, y: -2 },
+    pink: { x: 1, y: -2 },
+    cyan: { x: maze.width - 1, y: maze.height },
+    orange: { x: 0, y: maze.height },
+  };
+  const scatter = PHASES.length > game.phase && game.phase % 2 === 0;
+  if (scatter) return corners[ghost.name];
+  const px = Math.round(player.x);
+  const py = Math.round(player.y);
+  const ahead = ARCADE_DIRS[player.dir] || { x: 0, y: 0 };
+  if (ghost.name === 'pink') return { x: px + 4 * ahead.x, y: py + 4 * ahead.y };
+  if (ghost.name === 'cyan') {
+    const red = game.ghosts.find((other) => other.name === 'red') || ghost;
+    const pivot = { x: px + 2 * ahead.x, y: py + 2 * ahead.y };
+    return { x: 2 * pivot.x - Math.round(red.x), y: 2 * pivot.y - Math.round(red.y) };
+  }
+  if (ghost.name === 'orange') {
+    const far = (px - ghost.x) ** 2 + (py - ghost.y) ** 2 > 64;
+    return far ? { x: px, y: py } : corners.orange;
+  }
+  return { x: px, y: py };
+}
+
+/**
+ * A ghost's choice at a tile's middle: never straight back unless walled in;
+ * the way closest to its target, or any way when it is scared.
+ */
+function ghostChoice(game, ghost, random) {
+  const { maze } = game;
+  const throughDoor = ghost.mode === 'eaten' || ghost.mode === 'leaving';
+  const open = DIR_ORDER.filter((dir) => {
+    const step = ARCADE_DIRS[dir];
+    return canEnter(maze, ghost.x + step.x, ghost.y + step.y, throughDoor);
+  });
+  if (!open.length) return null;
+  const forward = open.filter((dir) => dir !== OPPOSITE[ghost.dir]);
+  const options = forward.length ? forward : open;
+  if (ghost.scared && ghost.mode === 'out') return options[Math.floor(random() * options.length) % options.length];
+  const target = ghostTarget(game, ghost);
+  let best = options[0];
+  let bestDistance = Infinity;
+  for (const dir of options) {
+    const step = ARCADE_DIRS[dir];
+    const distance = (ghost.x + step.x - target.x) ** 2 + (ghost.y + step.y - target.y) ** 2;
+    if (distance < bestDistance) {
+      best = dir;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+/** Eat what is under the player's middle. */
+function eatAt(game) {
+  const { maze, player } = game;
+  if (!centred(player)) return;
+  const x = ((Math.round(player.x) % maze.width) + maze.width) % maze.width;
+  const y = Math.round(player.y);
+  const cell = maze.cells[y][x];
+  if (cell === '.') {
+    game.score += POINTS.pellet;
+    game.events.push('pellet');
+  } else if (cell === 'o') {
+    game.score += POINTS.power;
+    game.fright = speeds(game.level).fright;
+    game.chain = 0;
+    for (const ghost of game.ghosts) {
+      if (ghost.mode !== 'out') continue;
+      ghost.scared = true;
+      // Frightened, every ghost turns back at once.
+      if (ghost.dir) ghost.dir = OPPOSITE[ghost.dir];
+    }
+    game.events.push('power');
+  } else {
+    return;
+  }
+  maze.cells[y][x] = ' ';
+  game.eaten += 1;
+}
+
+/** Whether the player and a ghost touch. */
+function touching(a, b, width) {
+  let dx = Math.abs(a.x - b.x);
+  dx = Math.min(dx, width - dx);
+  return dx < 0.6 && Math.abs(a.y - b.y) < 0.6;
+}
+
+/**
+ * Let `dt` seconds go by. Returns what happened, for the screen to make
+ * something of it: 'pellet', 'power', 'ghost', 'caught', 'cleared', 'over'.
+ */
+function stepGlouton(game, dt, random = Math.random) {
+  game.events = [];
+  const time = Math.min(Math.max(dt, 0), 0.1);
+  if (game.state === 'over' || game.state === 'paused') return game.events;
+  if (game.state !== 'play') {
+    game.timer -= time;
+    if (game.timer > 0) return game.events;
+    if (game.state === 'dying') {
+      if (game.lives <= 0) {
+        game.state = 'over';
+        game.events.push('over');
+        return game.events;
+      }
+      startLife(game);
+    } else if (game.state === 'cleared') {
+      game.level += 1;
+      game.maze = parseMaze(game.rows);
+      game.eaten = 0;
+      startLife(game);
+    } else {
+      game.state = 'play';
+    }
+    return game.events;
+  }
+
+  const speed = speeds(game.level);
+  game.clock += time;
+  if (game.fright > 0) {
+    game.fright = Math.max(0, game.fright - time);
+    if (!game.fright) for (const ghost of game.ghosts) ghost.scared = false;
+  } else if (game.phase < PHASES.length) {
+    game.phaseTime += time;
+    if (game.phaseTime >= PHASES[game.phase]) {
+      game.phaseTime = 0;
+      game.phase += 1;
+      // A change of mind shows: they all turn back.
+      for (const ghost of game.ghosts) if (ghost.mode === 'out' && ghost.dir) ghost.dir = OPPOSITE[ghost.dir];
+    }
+  }
+
+  // The player moves in small steps, eating on the way.
+  const { maze, player } = game;
+  let left = speed.player * time;
+  while (left > EPSILON) {
+    const bit = Math.min(left, 0.5);
+    advance(maze, player, bit, (actor) => playerChoice(maze, actor));
+    eatAt(game);
+    left -= bit;
+  }
+
+  for (const ghost of game.ghosts) {
+    if (ghost.mode === 'house') {
+      if (game.clock >= ghost.release) ghost.mode = 'leaving';
+      else continue;
+    }
+    const pace = ghost.mode === 'eaten' ? speed.eaten : ghost.scared ? speed.scared : speed.ghost;
+    advance(maze, ghost, pace * time, (actor) => {
+      const exit = exitTile(maze);
+      if (actor.mode === 'leaving' && actor.x === exit.x && actor.y === exit.y) {
+        actor.mode = 'out';
+        actor.dir = 'left';
+      }
+      if (actor.mode === 'eaten' && actor.x === maze.door.x && actor.y === maze.door.y + 1) {
+        actor.mode = 'leaving';
+        actor.scared = false;
+        actor.dir = null;
+      }
+      return ghostChoice(game, actor, random);
+    });
+  }
+
+  for (const ghost of game.ghosts) {
+    if (ghost.mode !== 'out' || !touching(player, ghost, maze.width)) continue;
+    if (ghost.scared) {
+      game.chain += 1;
+      game.score += 100 * 2 ** game.chain;
+      ghost.mode = 'eaten';
+      ghost.scared = false;
+      game.events.push('ghost');
+    } else {
+      game.lives -= 1;
+      game.state = 'dying';
+      game.timer = DYING_TIME;
+      game.events.push('caught');
+      return game.events;
+    }
+  }
+
+  if (!pelletsLeft(maze)) {
+    game.state = 'cleared';
+    game.timer = CLEARED_TIME;
+    game.events.push('cleared');
+  }
+  return game.events;
+}
+
+/** Pause or carry on; nothing to do once it is over. */
+function togglePause(game) {
+  if (game.state === 'paused') game.state = game.pausedFrom || 'play';
+  else if (game.state !== 'over') {
+    game.pausedFrom = game.state;
+    game.state = 'paused';
+  }
+  return game.state;
+}
+
+  // ---- src/view-arcade.js ----------------------------------------------
+/**
+ * The arcade on screen: the games one plays in the app itself, listed on the
+ * Games tab, each on its own page (#/arcade/<id>).
+ *
+ * The logic is in arcade.js; this draws it on a canvas and passes on the
+ * fingers (a swipe on the maze, the arrows under it) and the keyboard. The
+ * game outlives a redraw of the page — the app redraws whenever the database
+ * says something — and pauses when the page is left or hidden.
+ */
+
+
+
+
+
+/** The game being played, kept across redraws. */
+let arcadeRun = null;
+
+const GHOST_COLOURS = { red: '#ff4b5c', pink: '#ff8fd8', cyan: '#5ff3ff', orange: '#ffad4d' };
+const ARROWS = [
+  ['up', 'M12 6 5 16h14z'],
+  ['left', 'M6 12l10-7v14z'],
+  ['down', 'M12 18 5 8h14z'],
+  ['right', 'M18 12 8 5v14z'],
+];
+const PAUSE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
+const PLAY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+const KEYS = {
+  ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+  z: 'up', w: 'up', s: 'down', q: 'left', a: 'left', d: 'right',
+};
+
+function bestOf(id) {
+  return Number(state.prefs?.arcade?.[id]) || 0;
+}
+
+function keepBest(id, score) {
+  if (score <= bestOf(id)) return;
+  state.prefs.arcade = { ...(state.prefs.arcade || {}), [id]: score };
+  savePrefs(state.prefs);
+}
+
+/** The arcade's cards, at the top of the Games tab. */
+function arcadeHtml() {
+  const card = (game) => {
+    const best = bestOf(game.id);
+    return `
+      <button type="button" class="arcade-card" data-goto="#/arcade/${escapeHtml(game.id)}">
+        <span class="arcade-card__icon" aria-hidden="true">${escapeHtml(game.icon)}</span>
+        <span class="arcade-card__text">
+          <strong>${escapeHtml(t(`arcade.${game.id}.name`))}</strong>
+          <span class="muted small">${escapeHtml(best ? t('arcade.best', { score: best }) : t(`arcade.${game.id}.short`))}</span>
+        </span>
+        <span class="arcade-card__play">${escapeHtml(t('arcade.play'))}</span>
+      </button>`;
+  };
+  return `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('arcade.title'))}</h2></div>
+      <div class="arcade-list">${ARCADE_GAMES.map(card).join('')}</div>
+    </section>`;
+}
+
+function arcadeView(id) {
+  const game = ARCADE_GAMES.find((known) => known.id === id);
+  if (!game) return '';
+  const arrow = ([dir, path]) => `
+    <button type="button" class="arcade-pad__key arcade-pad__key--${dir}" data-arcade-dir="${dir}"
+            aria-label="${escapeHtml(t(`arcade.dir.${dir}`))}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg>
+    </button>`;
+  return `
+    <div class="spread page-head">
+      ${backButtonHtml('#/games')}
+      <h1>${escapeHtml(t(`arcade.${id}.name`))}</h1>
+    </div>
+    <div class="arcade">
+      <div class="arcade__hud">
+        <span>${escapeHtml(t('arcade.score'))} <strong id="arcade-score">0</strong></span>
+        <span>${escapeHtml(t('arcade.level'))} <strong id="arcade-level">1</strong></span>
+        <span>${escapeHtml(t('arcade.record'))} <strong id="arcade-best">${bestOf(id)}</strong></span>
+        <span id="arcade-lives" class="arcade__lives"></span>
+      </div>
+      <canvas id="arcade-board" class="arcade__board" role="img" aria-label="${escapeHtml(t(`arcade.${id}.name`))}"></canvas>
+      <p id="arcade-status" class="arcade__status" aria-live="polite"></p>
+      <div class="arcade-pad">
+        ${ARROWS.map(arrow).join('')}
+        <button type="button" class="arcade-pad__key arcade-pad__key--pause" id="arcade-pause"
+                aria-label="${escapeHtml(t('arcade.pause'))}" title="${escapeHtml(t('arcade.pause'))}">${PAUSE_ICON}</button>
+      </div>
+      <p class="muted small">${escapeHtml(t(`arcade.${id}.rules`))} ${escapeHtml(t('arcade.how'))}</p>
+    </div>`;
+}
+
+function bindArcade(id) {
+  const canvas = document.getElementById('arcade-board');
+  if (!canvas) return;
+  if (!arcadeRun || arcadeRun.id !== id) arcadeRun = { id, game: newGlouton(), shown: null };
+  const run = arcadeRun;
+  run.shown = null;
+  const context = canvas.getContext('2d');
+
+  const restartOrResume = () => {
+    if (run.game.state === 'over') run.game = newGlouton();
+    else if (run.game.state === 'paused') togglePause(run.game);
+  };
+  const go = (dir) => {
+    restartOrResume();
+    steer(run.game, dir);
+  };
+
+  document.querySelectorAll('[data-arcade-dir]').forEach((button) => {
+    // At the touch, not at the click: a click waits for the finger to lift.
+    button.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      go(button.dataset.arcadeDir);
+    });
+    button.addEventListener('click', (event) => {
+      if (event.detail === 0) go(button.dataset.arcadeDir);
+    });
+  });
+  document.getElementById('arcade-pause').addEventListener('click', () => {
+    if (run.game.state === 'over') run.game = newGlouton();
+    else togglePause(run.game);
+  });
+
+  // A swipe on the maze steers; the finger may go on and turn again.
+  let origin = null;
+  canvas.addEventListener('pointerdown', (event) => {
+    origin = { x: event.clientX, y: event.clientY };
+    canvas.setPointerCapture?.(event.pointerId);
+  });
+  canvas.addEventListener('pointermove', (event) => {
+    if (!origin) return;
+    const dx = event.clientX - origin.x;
+    const dy = event.clientY - origin.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 18) return;
+    go(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+    origin = { x: event.clientX, y: event.clientY };
+  });
+  const lift = () => {
+    if (origin && ['over', 'paused'].includes(run.game.state)) restartOrResume();
+    origin = null;
+  };
+  canvas.addEventListener('pointerup', lift);
+  canvas.addEventListener('pointercancel', () => { origin = null; });
+
+  const onKey = (event) => {
+    const dir = KEYS[event.key] || KEYS[event.key?.toLowerCase?.()];
+    if (dir) {
+      event.preventDefault();
+      go(dir);
+    } else if (event.key === ' ' || event.key === 'p' || event.key === 'Escape') {
+      event.preventDefault();
+      if (run.game.state === 'over') run.game = newGlouton();
+      else togglePause(run.game);
+    }
+  };
+  const onHide = () => {
+    if (document.hidden && !['paused', 'over'].includes(run.game.state)) togglePause(run.game);
+  };
+  document.addEventListener('keydown', onKey);
+  document.addEventListener('visibilitychange', onHide);
+
+  let last = null;
+  const frame = (now) => {
+    if (!canvas.isConnected) {
+      // Left, or redrawn: the next page binds again if it is still this one.
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('visibilitychange', onHide);
+      if (!['paused', 'over'].includes(run.game.state)) togglePause(run.game);
+      return;
+    }
+    const dt = last === null ? 0 : (now - last) / 1000;
+    last = now;
+    const events = stepGlouton(run.game, dt);
+    if (events.includes('caught')) navigator.vibrate?.(200);
+    if (events.includes('over')) keepBest(id, run.game.score);
+    drawGlouton(canvas, context, run.game, now);
+    showHud(run, id);
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
+/** The numbers and the line under the maze, touched only when they change. */
+function showHud(run, id) {
+  const { game } = run;
+  const status = {
+    ready: t('arcade.ready'),
+    paused: t('arcade.paused'),
+    dying: t('arcade.caught'),
+    cleared: t('arcade.cleared', { level: game.level }),
+    over: t('arcade.over', { score: game.score }),
+    play: '',
+  }[game.state];
+  const shown = `${game.score}|${game.level}|${game.lives}|${status}`;
+  if (run.shown === shown) return;
+  run.shown = shown;
+  document.getElementById('arcade-score').textContent = game.score;
+  document.getElementById('arcade-level').textContent = game.level;
+  document.getElementById('arcade-best').textContent = Math.max(bestOf(id), game.score);
+  const lives = document.getElementById('arcade-lives');
+  lives.textContent = '●'.repeat(Math.max(0, game.lives));
+  lives.setAttribute('aria-label', t('arcade.lives', { count: Math.max(0, game.lives) }));
+  document.getElementById('arcade-status').textContent = status;
+  const pause = document.getElementById('arcade-pause');
+  const label = t(game.state === 'over' ? 'arcade.again' : game.state === 'paused' ? 'arcade.resume' : 'arcade.pause');
+  pause.setAttribute('aria-label', label);
+  pause.title = label;
+  pause.innerHTML = ['over', 'paused'].includes(game.state) ? PLAY_ICON : PAUSE_ICON;
+}
+
+/** The maze, the pellets, the ghosts and the glutton, in the style's light. */
+function drawGlouton(canvas, context, game, now) {
+  const { maze } = game;
+  const ratio = Math.min(2, window.devicePixelRatio || 1);
+  const width = canvas.clientWidth;
+  if (!width) return;
+  const size = width / maze.width;
+  const height = size * maze.height;
+  if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
+  }
+  const root = getComputedStyle(document.documentElement);
+  const token = (name, fallback) => {
+    const value = root.getPropertyValue(name).trim();
+    return /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+  };
+  const wall = token('--holo-hue', '#5ff3ff');
+  const deep = token('--holo-deep', '#03060d');
+
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.fillStyle = deep;
+  context.fillRect(0, 0, width, height);
+
+  // Walls: a glowing tube from each wall tile to the next.
+  const wallAt = (x, y) => x >= 0 && x < maze.width && y >= 0 && y < maze.height && maze.cells[y][x] === '#';
+  const centre = (value) => (value + 0.5) * size;
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+  context.beginPath();
+  for (let y = 0; y < maze.height; y += 1) {
+    for (let x = 0; x < maze.width; x += 1) {
+      if (!wallAt(x, y)) continue;
+      context.moveTo(centre(x), centre(y));
+      if (wallAt(x + 1, y)) context.lineTo(centre(x + 1), centre(y));
+      else context.lineTo(centre(x) + 0.01, centre(y));
+      if (wallAt(x, y + 1)) {
+        context.moveTo(centre(x), centre(y));
+        context.lineTo(centre(x), centre(y + 1));
+      }
+    }
+  }
+  context.strokeStyle = wall;
+  context.shadowColor = wall;
+  context.shadowBlur = size / 2;
+  context.globalAlpha = 0.35;
+  context.lineWidth = size * 0.55;
+  context.stroke();
+  context.globalAlpha = 1;
+  context.shadowBlur = size / 4;
+  context.lineWidth = Math.max(1.5, size * 0.14);
+  context.stroke();
+  context.shadowBlur = 0;
+
+  // The door.
+  context.strokeStyle = GHOST_COLOURS.pink;
+  context.lineWidth = Math.max(1.5, size * 0.14);
+  context.beginPath();
+  context.moveTo(maze.door.x * size, (maze.door.y + 0.5) * size);
+  context.lineTo((maze.door.x + 1) * size, (maze.door.y + 0.5) * size);
+  context.stroke();
+
+  // The pellets; the big ones blink.
+  const blink = Math.floor(now / 250) % 2 === 0 || game.state !== 'play';
+  context.fillStyle = '#ffe2c4';
+  for (let y = 0; y < maze.height; y += 1) {
+    for (let x = 0; x < maze.width; x += 1) {
+      const cell = maze.cells[y][x];
+      if (cell !== '.' && !(cell === 'o' && blink)) continue;
+      context.beginPath();
+      context.arc((x + 0.5) * size, (y + 0.5) * size, cell === 'o' ? size * 0.3 : size * 0.1, 0, Math.PI * 2);
+      context.fill();
+    }
+  }
+
+  // The glutton: a mouth that opens and closes as it goes.
+  const { player } = game;
+  const angle = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[player.dir] || 0;
+  let mouth = player.moving && game.state === 'play' ? 0.05 + 0.3 * Math.abs(Math.sin(now / 70)) : 0.2;
+  let radius = size * 0.45;
+  if (game.state === 'dying') {
+    const gone = 1 - Math.max(0, game.timer) / 1.6;
+    mouth = 0.2 + gone * 0.8;
+    radius *= 1 - gone * 0.3;
+  }
+  const at = (value) => (value + 0.5) * size;
+  context.fillStyle = '#ffd23f';
+  context.shadowColor = '#ffd23f';
+  context.shadowBlur = size / 2;
+  for (const offset of [0, -maze.width, maze.width]) {
+    context.beginPath();
+    context.moveTo(at(player.x + offset), at(player.y));
+    context.arc(at(player.x + offset), at(player.y), radius, angle + mouth * Math.PI, angle - mouth * Math.PI + Math.PI * 2);
+    context.closePath();
+    context.fill();
+  }
+  context.shadowBlur = 0;
+
+  // The ghosts: hidden while the glutton is caught, so that one sees it go.
+  if (game.state !== 'dying') {
+    for (const ghost of game.ghosts) drawGhost(context, ghost, game, size, now);
+  }
+
+  const banner = { ready: t('arcade.ready'), paused: t('arcade.paused'), over: t('arcade.overShort') }[game.state]
+    || (game.state === 'cleared' ? t('arcade.cleared', { level: game.level }) : '');
+  if (banner) {
+    context.font = `700 ${Math.round(size * 1.1)}px system-ui, sans-serif`;
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    const y = (maze.door.y + 3.5) * size;
+    context.fillStyle = deep;
+    const boxWidth = context.measureText(banner).width + size;
+    context.fillRect(width / 2 - boxWidth / 2, y - size * 0.8, boxWidth, size * 1.6);
+    context.fillStyle = '#ffd23f';
+    context.fillText(banner, width / 2, y);
+  }
+}
+
+function drawGhost(context, ghost, game, size, now) {
+  const x = (ghost.x + 0.5) * size;
+  const y = (ghost.y + 0.5) * size;
+  const r = size * 0.45;
+  if (ghost.mode !== 'eaten') {
+    const ending = ghost.scared && game.fright < 2 && Math.floor(now / 200) % 2 === 0;
+    context.fillStyle = ghost.scared ? (ending ? '#f2f2ff' : '#3a55ff') : GHOST_COLOURS[ghost.name];
+    context.beginPath();
+    context.arc(x, y - r * 0.15, r, Math.PI, 0);
+    const bottom = y + r * 0.85;
+    context.lineTo(x + r, bottom);
+    const waves = 3;
+    const wiggle = Math.floor(now / 150) % 2 ? 0 : r / waves;
+    for (let i = 0; i < waves * 2; i += 1) {
+      const px = x + r - ((i + 1) * r) / waves;
+      context.lineTo(px + (i % 2 ? 0 : wiggle * 0.3), bottom - (i % 2 ? 0 : r * 0.25));
+    }
+    context.closePath();
+    context.fill();
+    if (ghost.scared) {
+      context.fillStyle = ending ? '#ff4b5c' : '#ffe2c4';
+      for (const side of [-1, 1]) {
+        context.beginPath();
+        context.arc(x + side * r * 0.35, y - r * 0.25, r * 0.12, 0, Math.PI * 2);
+        context.fill();
+      }
+      return;
+    }
+  }
+  const look = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[ghost.dir] || [0, 0];
+  for (const side of [-1, 1]) {
+    const ex = x + side * r * 0.38;
+    const ey = y - r * 0.2;
+    context.fillStyle = '#ffffff';
+    context.beginPath();
+    context.arc(ex, ey, r * 0.28, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#1b2a8f';
+    context.beginPath();
+    context.arc(ex + look[0] * r * 0.12, ey + look[1] * r * 0.12, r * 0.14, 0, Math.PI * 2);
+    context.fill();
+  }
+}
+
   // ---- src/app.js ------------------------------------------------------
 /** UI layer: hash router, views, event wiring. */
+
 
 
 
@@ -27961,6 +28903,8 @@ function routeOf(address) {
   if (name === 'new') return { name: 'new' };
   if (name === 'stats') return { name: 'stats' };
   if (name === 'game' && param) return { name: 'game', id: param };
+  // A game played in the app itself: #/arcade/<id>. See view-arcade.js.
+  if (name === 'arcade' && param) return { name: 'arcade', id: param };
   if (name === 'set' && param) return { name: 'set', id: param };
   if (name === 'lists' && param === 'new') return { name: 'new-list' };
   if (name === 'lists') return { name: 'lists' };
@@ -28366,6 +29310,7 @@ function homeView() {
     ${kindsHtml('games')}
     ${newButtonHtml('#/new', t('action.newGame'), mine.some(isLive))}
     ${groupChipsHtml()}
+    ${arcadeHtml()}
     ${
       mine.length
         ? `<div class="row">
@@ -28504,6 +29449,13 @@ function restoreScrolls(kept) {
  * database, which lists nothing of a group without its key. Someone who edits
  * the address by hand reaches the app — their own, empty one.
  */
+/** A game played here takes the whole screen: no tabs under the fingers. */
+function setPlaying(on) {
+  document.body.classList.toggle('playing', on);
+  const tabs = document.getElementById('tabs');
+  if (tabs && on) tabs.hidden = true;
+}
+
 function setSolo(on) {
   document.body.classList.toggle('solo', on);
   // Hidden outright, not only by the stylesheet: out of reach of a tap, of the
@@ -28579,6 +29531,7 @@ function render() {
   takePrefill(current);
   markTab(current);
   setSolo(Boolean(current.solo));
+  setPlaying(current.name === 'arcade');
   listenLive(current);
   const kept = keptScrolls();
   // Nothing to fetch without a database, or before this device is in a group.
@@ -28765,6 +29718,15 @@ function render() {
     }
     view.innerHTML = gameView(game);
     bindGame(game);
+  } else if (current.name === 'arcade') {
+    stopWatching();
+    const page = arcadeView(current.id);
+    if (!page) {
+      navigate('#/games');
+      return;
+    }
+    view.innerHTML = page;
+    bindArcade(current.id);
   } else if (current.name === 'person') {
     stopWatching();
     view.innerHTML = personView(current.who);

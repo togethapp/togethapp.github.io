@@ -3308,3 +3308,107 @@ body.holo-open { overflow: hidden; }
   .holo__pulse,
   .holo__card { animation: none; }
 }
+
+/* ---------------------------------------------------------------- arcade --- */
+
+/* The games played in the app itself, at the top of the Games tab. */
+.arcade-list { display: grid; gap: 10px; }
+.arcade-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: var(--radius);
+  background: linear-gradient(120deg, var(--accent-soft), var(--surface) 70%);
+  box-shadow: var(--shadow);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.arcade-card:active { transform: scale(0.99); }
+.arcade-card__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--holo-deep);
+  color: var(--accent-amber);
+  font-size: 1.6rem;
+  box-shadow: 0 0 14px var(--glow);
+}
+.arcade-card__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.arcade-card__play {
+  flex: none;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 650;
+  font-size: 0.85rem;
+}
+
+/* One game's page: the numbers, the maze, the arrows. */
+.arcade { display: grid; gap: 10px; justify-items: center; }
+.arcade__hud {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  width: 100%;
+  max-width: 480px;
+  font-family: var(--hud);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.arcade__hud strong { color: var(--text); }
+.arcade__lives { color: var(--accent-amber); letter-spacing: 0.2em; }
+.arcade__board {
+  display: block;
+  width: 100%;
+  max-width: min(480px, calc((100dvh - 320px) * 19 / 21));
+  min-width: 240px;
+  height: auto;
+  aspect-ratio: 19 / 21;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--holo-deep);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.arcade__status { min-height: 1.3em; margin: 0; font-weight: 650; text-align: center; }
+.arcade-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 50px);
+  grid-template-rows: repeat(3, 46px);
+  gap: 4px;
+  touch-action: manipulation;
+}
+.arcade-pad__key {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-alt);
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.arcade-pad__key:active { background: var(--accent-soft); border-color: var(--accent); }
+.arcade-pad__key svg { width: 22px; height: 22px; fill: currentColor; }
+.arcade-pad__key--up { grid-area: 1 / 2; }
+.arcade-pad__key--left { grid-area: 2 / 1; }
+.arcade-pad__key--down { grid-area: 3 / 2; }
+.arcade-pad__key--right { grid-area: 2 / 3; }
+.arcade-pad__key--pause { grid-area: 2 / 2; border-radius: 50%; color: var(--accent); }
+.arcade-pad__key--pause svg { width: 18px; height: 18px; }
+
+/* While playing, the tabs are gone and the page needs no room for them. */
+body.playing .tabs { display: none; }
+body.playing .view { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
