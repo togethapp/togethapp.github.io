@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  ARCADE_DIRS, GLOUTON_MAZE, canEnter, cellAt, newGlouton, parseMaze, pelletsLeft, steer, stepGlouton, togglePause,
+  ARCADE_DIRS, ARCADE_GAMES, GLOUTON_MAZE, SNAKE_SIZE, canEnter, cellAt, newGlouton, newSnake, parseMaze, pelletsLeft,
+  snakeRate, starPoints, steerGlouton, steerSnake, stepGlouton, stepSnake, togglePause,
 } from '../src/arcade.js';
+import { t, setLanguage } from '../src/i18n.js';
 
 /** A random that always says the same, so a game replays the same way. */
 function seeded(seed = 1) {
@@ -107,11 +109,11 @@ test('turning back happens at once; a turn waits for an opening', () => {
   game.state = 'play';
   stepGlouton(game, 0.05);
   const x = game.player.x;
-  steer(game, 'right');
+  steerGlouton(game, 'right');
   assert.equal(game.player.dir, 'right');
   stepGlouton(game, 0.05);
   assert.ok(game.player.x > x);
-  steer(game, 'up');
+  steerGlouton(game, 'up');
   assert.equal(game.player.dir, 'right', 'no turning into a wall');
   assert.equal(game.player.want, 'up');
 });
@@ -218,7 +220,7 @@ test('a whole game played by a random hand ends, and nobody goes through walls',
   const game = newGlouton();
   const ways = Object.keys(ARCADE_DIRS);
   for (let frame = 0; frame < 60 * 600 && game.state !== 'over'; frame += 1) {
-    if (frame % 20 === 0) steer(game, ways[Math.floor(random() * 4)]);
+    if (frame % 20 === 0) steerGlouton(game, ways[Math.floor(random() * 4)]);
     stepGlouton(game, 1 / 60, random);
     for (const actor of [game.player, ...game.ghosts]) {
       const cell = cellAt(game.maze, Math.round(actor.x), Math.round(actor.y));
@@ -227,4 +229,206 @@ test('a whole game played by a random hand ends, and nobody goes through walls',
     }
   }
   assert.equal(game.state, 'over');
+});
+
+/* ------------------------------------------------------------------ snake --- */
+
+/** One step of the snake, exactly: the time it takes to move one tile, in two frames. */
+function slide(game, random = seeded()) {
+  const step = 1 / snakeRate(game.apples);
+  const events = stepSnake(game, step / 2, random);
+  return [...events, ...stepSnake(game, step / 2 + 1e-9, random)];
+}
+
+/** Put the apple somewhere out of the way, so that a test decides what is eaten. */
+function appleAside(game) {
+  game.apple = { x: 0, y: game.height - 1 };
+}
+
+test('every game of the arcade has a name, a line and its rules, in both languages', () => {
+  for (const language of ['fr', 'en']) {
+    setLanguage(language);
+    for (const { id } of ARCADE_GAMES) {
+      for (const key of ['name', 'short', 'rules']) {
+        const text = t(`arcade.${id}.${key}`);
+        assert.ok(text && text !== `arcade.${id}.${key}`, `${language}: arcade.${id}.${key}`);
+      }
+    }
+  }
+  setLanguage('fr');
+  assert.equal(t('arcade.over', { score: 0 }), 'Partie terminée : 0 point. Touchez le jeu pour rejouer.');
+  assert.match(t('arcade.over', { score: 120 }), /120 points/);
+});
+
+test('a new snake: three tiles in the middle, facing right, an apple beside it, waiting', () => {
+  const game = newSnake(seeded(2));
+  assert.equal(game.body.length, 3);
+  assert.deepEqual(game.body[0], { x: Math.floor(SNAKE_SIZE / 2) - 2, y: Math.floor(SNAKE_SIZE / 2) });
+  assert.equal(game.dir, 'right');
+  assert.equal(game.state, 'ready');
+  assert.ok(game.apple);
+  assert.equal(game.body.some((part) => part.x === game.apple.x && part.y === game.apple.y), false);
+  stepSnake(game, 1);
+  assert.deepEqual(game.body[0], { x: Math.floor(SNAKE_SIZE / 2) - 2, y: Math.floor(SNAKE_SIZE / 2) }, 'still until the first move');
+});
+
+test('the first move starts it; it goes one tile per step and never straight back', () => {
+  const game = newSnake(seeded());
+  appleAside(game);
+  steerSnake(game, 'up');
+  assert.equal(game.state, 'play');
+  const { x, y } = game.body[0];
+  slide(game);
+  assert.deepEqual(game.body[0], { x, y: y - 1 });
+  assert.deepEqual(game.trail, { x: x - 2, y }, 'the tail left its tile');
+  steerSnake(game, 'down');
+  slide(game);
+  assert.deepEqual(game.body[0], { x, y: y - 2 }, 'no turning back into itself');
+  assert.equal(game.body.length, 3);
+});
+
+test('two quick turns are both taken, one tile after the other', () => {
+  const game = newSnake(seeded());
+  appleAside(game);
+  steerSnake(game, 'right');
+  const { x, y } = game.body[0];
+  steerSnake(game, 'up');
+  steerSnake(game, 'left');
+  slide(game);
+  assert.deepEqual(game.body[0], { x, y: y - 1 });
+  slide(game);
+  assert.deepEqual(game.body[0], { x: x - 1, y: y - 1 });
+});
+
+test('an apple: one tile longer, ten points, a new apple elsewhere, a little faster', () => {
+  const game = newSnake(seeded());
+  steerSnake(game, 'right');
+  const head = game.body[0];
+  game.apple = { x: head.x + 1, y: head.y };
+  const events = slide(game);
+  assert.ok(events.includes('apple'));
+  assert.equal(game.body.length, 4);
+  assert.equal(game.score, 10);
+  assert.equal(game.trail, null, 'growing, the tail stays');
+  assert.deepEqual(game.swallowing, { x: head.x + 1, y: head.y });
+  assert.ok(game.apple);
+  assert.equal(game.body.some((part) => part.x === game.apple.x && part.y === game.apple.y), false);
+  assert.ok(snakeRate(1) > snakeRate(0));
+  assert.ok(snakeRate(1000) <= 14, 'not faster than a finger');
+});
+
+test('into the wall: a crash, then the game is over', () => {
+  const game = newSnake(seeded());
+  appleAside(game);
+  steerSnake(game, 'up');
+  const events = [];
+  for (let i = 0; i < 60 * 5 && game.state === 'play'; i += 1) events.push(...stepSnake(game, 1 / 60));
+  assert.ok(events.includes('crash'));
+  assert.equal(game.state, 'dying');
+  assert.equal(game.body[0].y, 0, 'stopped against the wall');
+  assert.equal(game.progress, 1);
+  const after = [];
+  for (let i = 0; i < 60 * 2; i += 1) after.push(...stepSnake(game, 1 / 60));
+  assert.ok(after.includes('over'));
+  assert.equal(game.state, 'over');
+});
+
+test('biting its tail is a crash; following its tail out of a tile is not', () => {
+  const game = newSnake(seeded());
+  appleAside(game);
+  // A square of four: the head goes where the tail is just leaving.
+  game.state = 'play';
+  game.body = [{ x: 6, y: 5 }, { x: 5, y: 5 }, { x: 5, y: 6 }, { x: 6, y: 6 }];
+  game.dir = 'right';
+  game.queue = ['down'];
+  let events = slide(game);
+  assert.equal(events.includes('crash'), false, 'the tail was leaving that tile');
+  assert.deepEqual(game.body[0], { x: 6, y: 6 });
+  // Longer, the same move bites.
+  const long = newSnake(seeded());
+  appleAside(long);
+  long.body = [{ x: 6, y: 5 }, { x: 5, y: 5 }, { x: 5, y: 6 }, { x: 6, y: 6 }, { x: 7, y: 6 }];
+  long.dir = 'right';
+  long.state = 'play';
+  long.queue = ['down'];
+  events = slide(long);
+  assert.ok(events.includes('crash'));
+});
+
+test('a star every five apples, worth more the sooner, gone after a while', () => {
+  const game = newSnake(seeded(5));
+  steerSnake(game, 'right');
+  game.apples = 4;
+  const head = game.body[0];
+  game.apple = { x: head.x + 1, y: head.y };
+  slide(game);
+  assert.ok(game.star, 'a star after the fifth apple');
+  assert.ok(starPoints(6) > starPoints(1));
+  assert.equal(starPoints(0.2), starPoints(1));
+  // Caught at once.
+  const before = game.score;
+  const left = game.star.left;
+  appleAside(game);
+  game.star = { x: game.body[0].x + 1, y: game.body[0].y, left };
+  const events = slide(game);
+  assert.ok(events.includes('star'));
+  assert.equal(game.score - before, starPoints(left - 1 / snakeRate(game.apples) - 1e-9));
+  assert.equal(game.star, null);
+  // Left alone, it goes out.
+  game.star = { x: 0, y: 0, left: 1 };
+  game.state = 'play';
+  game.body = [{ x: 8, y: 2 }, { x: 7, y: 2 }, { x: 6, y: 2 }];
+  game.dir = 'down';
+  game.queue = [];
+  for (let i = 0; i < 70; i += 1) stepSnake(game, 1 / 60);
+  assert.equal(game.star, null);
+});
+
+test('a snake that fills the whole field has won', () => {
+  const game = newSnake(seeded());
+  Object.assign(game, {
+    width: 3, height: 1, body: [{ x: 1, y: 0 }, { x: 0, y: 0 }], dir: 'right', queue: [], apple: { x: 2, y: 0 },
+    star: null, state: 'play',
+  });
+  const events = slide(game);
+  assert.ok(events.includes('over'));
+  assert.equal(game.won, true);
+  assert.equal(game.state, 'over');
+});
+
+test('a paused snake stands still, and goes on where it was', () => {
+  const game = newSnake(seeded());
+  appleAside(game);
+  steerSnake(game, 'right');
+  stepSnake(game, 0.05);
+  const progress = game.progress;
+  const head = { ...game.body[0] };
+  assert.equal(togglePause(game), 'paused');
+  stepSnake(game, 1);
+  assert.deepEqual(game.body[0], head);
+  assert.equal(game.progress, progress);
+  steerSnake(game, 'up');
+  assert.deepEqual(game.queue, [], 'no turn taken while paused');
+  assert.equal(togglePause(game), 'play');
+});
+
+test('played by a random hand, the snake stays on the field, in one piece, until it crashes', () => {
+  const random = seeded(11);
+  const ways = Object.keys(ARCADE_DIRS);
+  for (let round = 0; round < 20; round += 1) {
+    const game = newSnake(random);
+    steerSnake(game, 'up');
+    for (let frame = 0; frame < 60 * 120 && game.state === 'play'; frame += 1) {
+      if (frame % 9 === 0) steerSnake(game, ways[Math.floor(random() * 4)]);
+      stepSnake(game, 1 / 60, random);
+      const tiles = new Set(game.body.map((part) => `${part.x},${part.y}`));
+      assert.equal(tiles.size, game.body.length, 'never on itself');
+      for (const part of game.body) {
+        assert.ok(part.x >= 0 && part.y >= 0 && part.x < game.width && part.y < game.height, 'on the field');
+      }
+      assert.ok(game.progress >= 0 && game.progress <= 1);
+      if (game.apple) assert.equal(tiles.has(`${game.apple.x},${game.apple.y}`), false, 'no apple under the snake');
+    }
+    assert.notEqual(game.state, 'play', 'a random hand crashes sooner or later');
+  }
 });

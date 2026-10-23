@@ -1,6 +1,7 @@
 /**
- * Games played in the app itself, not scored on paper: for now the Glouton, a
- * maze where one eats every pellet while four ghosts give chase.
+ * Games played in the app itself, not scored on paper: the Glouton, a maze
+ * where one eats every pellet while four ghosts give chase, and the Snake,
+ * which grows with every apple until it bites its tail.
  *
  * Pure logic, tested: the maze, the moves, the ghosts' minds, the score. The
  * screen (view-arcade.js) only draws what this says and passes the fingers on.
@@ -9,7 +10,7 @@
  */
 
 /** The games of the arcade, in the order shown. */
-export const ARCADE_GAMES = [{ id: 'glouton', icon: '●' }];
+export const ARCADE_GAMES = [{ id: 'glouton' }, { id: 'snake' }];
 
 /**
  * The maze. `#` wall, `.` pellet, `o` big pellet, `-` the ghosts' door,
@@ -135,7 +136,7 @@ function startLife(game) {
 }
 
 /** Turn: the player goes that way as soon as the maze allows it. */
-export function steer(game, dir) {
+export function steerGlouton(game, dir) {
   if (!ARCADE_DIRS[dir]) return;
   game.player.want = dir;
   // Turning back needs no crossing: it happens at once.
@@ -400,6 +401,161 @@ export function stepGlouton(game, dt, random = Math.random) {
   }
   return game.events;
 }
+
+/* ------------------------------------------------------------------ snake --- */
+
+/** The Snake's field, in tiles: a square with a wall all round. */
+export const SNAKE_SIZE = 17;
+const SNAKE_LENGTH = 3;
+/** Turns asked for faster than the snake moves wait their turn, this many at most. */
+const SNAKE_QUEUE = 3;
+const SNAKE_DYING_TIME = 1.2;
+/** A star comes out every so many apples, and stays this many seconds. */
+const STAR_EVERY = 5;
+const STAR_TIME = 6;
+
+/** Tiles per second: a little faster with every apple. */
+export function snakeRate(apples) {
+  return Math.min(14, 6.5 + apples * 0.2);
+}
+
+/** What a star is worth with `left` seconds still to shine: the sooner, the more. */
+export function starPoints(left) {
+  return 20 + 10 * Math.ceil(Math.max(0, left));
+}
+
+/**
+ * A new game: a short snake left of the middle, facing right, still until
+ * the first move.
+ *
+ * `trail` is the tile the tail has just left, and `progress` how far the
+ * snake is on its way to the next tile (0 to 1): the screen draws it that
+ * far behind, so that it glides instead of jumping from tile to tile.
+ */
+export function newSnake(random = Math.random, size = SNAKE_SIZE) {
+  const middle = Math.floor(size / 2);
+  const body = [];
+  for (let i = 0; i < SNAKE_LENGTH; i += 1) body.push({ x: middle - 2 - i, y: middle });
+  const game = {
+    width: size,
+    height: size,
+    body,
+    dir: 'right',
+    queue: [],
+    trail: { x: middle - 2 - SNAKE_LENGTH, y: middle },
+    apple: null,
+    star: null,
+    swallowing: null,
+    apples: 0,
+    score: 0,
+    won: false,
+    state: 'ready',
+    acc: 0,
+    progress: 0,
+    timer: 0,
+  };
+  game.apple = freeTile(game, random);
+  return game;
+}
+
+/** A tile neither the snake nor anything in `avoid` is on, or null. */
+function freeTile(game, random, avoid = []) {
+  const taken = new Set([...game.body, ...avoid.filter(Boolean)].map((tile) => `${tile.x},${tile.y}`));
+  const free = [];
+  for (let y = 0; y < game.height; y += 1) {
+    for (let x = 0; x < game.width; x += 1) if (!taken.has(`${x},${y}`)) free.push({ x, y });
+  }
+  return free.length ? free[Math.floor(random() * free.length) % free.length] : null;
+}
+
+/** Turn at the next tile. The first move starts the game; going straight back is no move. */
+export function steerSnake(game, dir) {
+  if (!ARCADE_DIRS[dir]) return;
+  if (game.state === 'ready') game.state = 'play';
+  if (game.state !== 'play') return;
+  const last = game.queue.at(-1) || game.dir;
+  if (dir === last || dir === OPPOSITE[last]) return;
+  if (game.queue.length < SNAKE_QUEUE) game.queue.push(dir);
+}
+
+/** One tile forward: eat, grow, or crash. */
+function slither(game, random) {
+  if (game.queue.length) game.dir = game.queue.shift();
+  const step = ARCADE_DIRS[game.dir];
+  const next = { x: game.body[0].x + step.x, y: game.body[0].y + step.y };
+  const here = (tile) => Boolean(tile) && tile.x === next.x && tile.y === next.y;
+  const grows = here(game.apple);
+  // The tail moves out of the way, unless the snake grows.
+  const stays = grows ? game.body : game.body.slice(0, -1);
+  const outside = next.x < 0 || next.y < 0 || next.x >= game.width || next.y >= game.height;
+  if (outside || stays.some(here)) {
+    game.state = 'dying';
+    game.timer = SNAKE_DYING_TIME;
+    game.swallowing = null;
+    game.events.push('crash');
+    return;
+  }
+  game.trail = grows ? null : game.body.at(-1);
+  game.body = [next, ...stays];
+  game.swallowing = null;
+  if (here(game.star)) {
+    game.score += starPoints(game.star.left);
+    game.star = null;
+    game.events.push('star');
+  }
+  if (!grows) return;
+  game.apples += 1;
+  game.score += POINTS.pellet;
+  game.swallowing = next;
+  game.events.push('apple');
+  if (game.body.length >= game.width * game.height) {
+    game.apple = null;
+    game.won = true;
+    game.state = 'over';
+    game.events.push('over');
+    return;
+  }
+  const spot = freeTile(game, random, [game.star]);
+  if (spot) {
+    game.apple = spot;
+  } else {
+    // The one tile left is the star's: the apple takes it.
+    game.apple = { x: game.star.x, y: game.star.y };
+    game.star = null;
+  }
+  if (!game.star && game.apples % STAR_EVERY === 0) {
+    const place = freeTile(game, random, [game.apple]);
+    if (place) game.star = { ...place, left: STAR_TIME };
+  }
+}
+
+/** Let `dt` seconds go by. Returns what happened: 'apple', 'star', 'crash', 'over'. */
+export function stepSnake(game, dt, random = Math.random) {
+  game.events = [];
+  const time = Math.min(Math.max(dt, 0), 0.1);
+  if (game.state === 'dying') {
+    game.timer -= time;
+    if (game.timer <= 0) {
+      game.state = 'over';
+      game.events.push('over');
+    }
+    return game.events;
+  }
+  if (game.state !== 'play') return game.events;
+  if (game.star) {
+    game.star.left -= time;
+    if (game.star.left <= 0) game.star = null;
+  }
+  game.acc += time;
+  while (game.state === 'play' && game.acc >= 1 / snakeRate(game.apples)) {
+    game.acc -= 1 / snakeRate(game.apples);
+    slither(game, random);
+  }
+  game.progress = game.state === 'play' ? Math.min(1, game.acc * snakeRate(game.apples)) : 1;
+  return game.events;
+}
+
+/* ------------------------------------------------------------------- both --- */
 
 /** Pause or carry on; nothing to do once it is over. */
 export function togglePause(game) {

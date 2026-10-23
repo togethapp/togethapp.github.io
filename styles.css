@@ -3337,10 +3337,11 @@ body.holo-open { overflow: hidden; }
   height: 44px;
   border-radius: 50%;
   background: var(--holo-deep);
-  color: var(--accent-amber);
-  font-size: 1.6rem;
+  color: var(--night-amber);
   box-shadow: 0 0 14px var(--glow);
 }
+.arcade-card__icon svg { width: 26px; height: 26px; fill: currentColor; }
+.arcade-card__icon--snake { color: var(--night-green); }
 .arcade-card__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
 .arcade-card__play {
   flex: none;
@@ -3380,6 +3381,10 @@ body.holo-open { overflow: hidden; }
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+}
+.arcade__board--snake {
+  aspect-ratio: 1 / 1;
+  max-width: min(480px, calc(100dvh - 320px));
 }
 .arcade__status { min-height: 1.3em; margin: 0; font-weight: 650; text-align: center; }
 .arcade-pad {

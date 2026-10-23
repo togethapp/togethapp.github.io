@@ -76,7 +76,7 @@ const routesOf = (docs) => [
   `#/list/${docs.list.id}`, `#/poll/${docs.poll.id}`, `#/poll/${docs.event.id}`, `#/spend/${docs.spend.id}`,
   `#/game/${docs.game.id}`, `#/idea/${docs.board.id}`, '#/group/grp_famille', '#/person/Alice', '#/stats', '#/confidentialite',
   '#/lists/new', '#/polls/new', '#/agenda/new', '#/spends/new', '#/new', '#/ideas/new',
-  '#/search', '#/search/la', '#/arcade/glouton',
+  '#/search', '#/search/la', '#/arcade/glouton', '#/arcade/snake',
 ];
 
 // Every key of the translations: one showing as such is a text never written.

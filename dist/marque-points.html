@@ -6,11 +6,11 @@
     <!-- Only the app's own scripts run: its files, and the script below named
          by its hash. Written by tools/bundle.js; first, since it only covers
          what comes after it. -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-OSmWE/lQ/gJUxW/Y34Le5C/Z7TwgFDfgJyC/EoeSZ6Y='; object-src 'none'; base-uri 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-OMwk3hEBW5p4zbyAS+qZZM8VmrB49aJC6Bz/0vS0juI='; object-src 'none'; base-uri 'none'" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="d80eade6" />
+    <meta name="app-build" content="0b6855dd" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -3372,10 +3372,11 @@ body.holo-open { overflow: hidden; }
   height: 44px;
   border-radius: 50%;
   background: var(--holo-deep);
-  color: var(--accent-amber);
-  font-size: 1.6rem;
+  color: var(--night-amber);
   box-shadow: 0 0 14px var(--glow);
 }
+.arcade-card__icon svg { width: 26px; height: 26px; fill: currentColor; }
+.arcade-card__icon--snake { color: var(--night-green); }
 .arcade-card__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
 .arcade-card__play {
   flex: none;
@@ -3415,6 +3416,10 @@ body.holo-open { overflow: hidden; }
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+}
+.arcade__board--snake {
+  aspect-ratio: 1 / 1;
+  max-width: min(480px, calc(100dvh - 320px));
 }
 .arcade__status { min-height: 1.3em; margin: 0; font-weight: 650; text-align: center; }
 .arcade-pad {
@@ -3668,9 +3673,11 @@ const STRINGS = {
     'arcade.paused': 'Pause',
     'arcade.caught': 'Attrapé !',
     'arcade.cleared': 'Niveau {level} réussi !',
-    'arcade.over': 'Partie terminée : {score} points. Touchez le jeu pour rejouer.',
+    'arcade.over': 'Partie terminée : {score} {score|point|points}. Touchez le jeu pour rejouer.',
     'arcade.overShort': 'Perdu !',
-    'arcade.how': 'Glissez le doigt sur le labyrinthe ou touchez les flèches (au clavier : flèches, Espace pour la pause).',
+    'arcade.how': 'Glissez le doigt sur le jeu ou touchez les flèches (au clavier : flèches, Espace pour la pause).',
+    'arcade.won': 'Gagné : {score} {score|point|points}, bravo ! Touchez le jeu pour rejouer.',
+    'arcade.wonShort': 'Bravo !',
     'arcade.dir.up': 'Haut',
     'arcade.dir.left': 'Gauche',
     'arcade.dir.down': 'Bas',
@@ -3678,6 +3685,11 @@ const STRINGS = {
     'arcade.glouton.name': 'Glouton',
     'arcade.glouton.short': 'Mangez tout, évitez les fantômes',
     'arcade.glouton.rules': 'Mangez toutes les pastilles sans vous faire attraper. Une grosse pastille effraie les fantômes : mangez-les à leur tour.',
+    'arcade.snake.name': 'Snake',
+    'arcade.snake.short': 'Grandir sans se mordre la queue',
+    'arcade.snake.rules': 'Mangez les pommes pour grandir, sans toucher les bords ni votre queue. De temps en temps, une étoile : plus vite on l’attrape, plus elle rapporte.',
+    'arcade.snake.ready': 'Glissez ou touchez une flèche pour partir.',
+    'arcade.snake.crash': 'Aïe !',
     'tab.home': 'Accueil',
     'tab.groups': 'Groupes',
     'tab.settings': 'Réglages',
@@ -4972,9 +4984,11 @@ const STRINGS = {
     'arcade.paused': 'Paused',
     'arcade.caught': 'Caught!',
     'arcade.cleared': 'Level {level} cleared!',
-    'arcade.over': 'Game over: {score} points. Touch the game to play again.',
+    'arcade.over': 'Game over: {score} {score|point|points}. Touch the game to play again.',
     'arcade.overShort': 'Game over',
-    'arcade.how': 'Swipe on the maze or touch the arrows (keyboard: arrows, Space to pause).',
+    'arcade.how': 'Swipe on the game or touch the arrows (keyboard: arrows, Space to pause).',
+    'arcade.won': 'You win: {score} {score|point|points}, well done! Touch the game to play again.',
+    'arcade.wonShort': 'Well done!',
     'arcade.dir.up': 'Up',
     'arcade.dir.left': 'Left',
     'arcade.dir.down': 'Down',
@@ -4982,6 +4996,11 @@ const STRINGS = {
     'arcade.glouton.name': 'Gobbler',
     'arcade.glouton.short': 'Eat everything, dodge the ghosts',
     'arcade.glouton.rules': 'Eat every pellet without getting caught. A big pellet frightens the ghosts: eat them in turn.',
+    'arcade.snake.name': 'Snake',
+    'arcade.snake.short': 'Grow without biting your tail',
+    'arcade.snake.rules': 'Eat the apples to grow, without touching the edges or your tail. Now and then a star: the sooner you catch it, the more it is worth.',
+    'arcade.snake.ready': 'Swipe or touch an arrow to start.',
+    'arcade.snake.crash': 'Ouch!',
     'tab.home': 'Home',
     'tab.groups': 'Groups',
     'tab.settings': 'Settings',
@@ -27730,8 +27749,9 @@ function bindTalk(root) {
 
   // ---- src/arcade.js ---------------------------------------------------
 /**
- * Games played in the app itself, not scored on paper: for now the Glouton, a
- * maze where one eats every pellet while four ghosts give chase.
+ * Games played in the app itself, not scored on paper: the Glouton, a maze
+ * where one eats every pellet while four ghosts give chase, and the Snake,
+ * which grows with every apple until it bites its tail.
  *
  * Pure logic, tested: the maze, the moves, the ghosts' minds, the score. The
  * screen (view-arcade.js) only draws what this says and passes the fingers on.
@@ -27740,7 +27760,7 @@ function bindTalk(root) {
  */
 
 /** The games of the arcade, in the order shown. */
-const ARCADE_GAMES = [{ id: 'glouton', icon: '●' }];
+const ARCADE_GAMES = [{ id: 'glouton' }, { id: 'snake' }];
 
 /**
  * The maze. `#` wall, `.` pellet, `o` big pellet, `-` the ghosts' door,
@@ -27866,7 +27886,7 @@ function startLife(game) {
 }
 
 /** Turn: the player goes that way as soon as the maze allows it. */
-function steer(game, dir) {
+function steerGlouton(game, dir) {
   if (!ARCADE_DIRS[dir]) return;
   game.player.want = dir;
   // Turning back needs no crossing: it happens at once.
@@ -28132,6 +28152,161 @@ function stepGlouton(game, dt, random = Math.random) {
   return game.events;
 }
 
+/* ------------------------------------------------------------------ snake --- */
+
+/** The Snake's field, in tiles: a square with a wall all round. */
+const SNAKE_SIZE = 17;
+const SNAKE_LENGTH = 3;
+/** Turns asked for faster than the snake moves wait their turn, this many at most. */
+const SNAKE_QUEUE = 3;
+const SNAKE_DYING_TIME = 1.2;
+/** A star comes out every so many apples, and stays this many seconds. */
+const STAR_EVERY = 5;
+const STAR_TIME = 6;
+
+/** Tiles per second: a little faster with every apple. */
+function snakeRate(apples) {
+  return Math.min(14, 6.5 + apples * 0.2);
+}
+
+/** What a star is worth with `left` seconds still to shine: the sooner, the more. */
+function starPoints(left) {
+  return 20 + 10 * Math.ceil(Math.max(0, left));
+}
+
+/**
+ * A new game: a short snake left of the middle, facing right, still until
+ * the first move.
+ *
+ * `trail` is the tile the tail has just left, and `progress` how far the
+ * snake is on its way to the next tile (0 to 1): the screen draws it that
+ * far behind, so that it glides instead of jumping from tile to tile.
+ */
+function newSnake(random = Math.random, size = SNAKE_SIZE) {
+  const middle = Math.floor(size / 2);
+  const body = [];
+  for (let i = 0; i < SNAKE_LENGTH; i += 1) body.push({ x: middle - 2 - i, y: middle });
+  const game = {
+    width: size,
+    height: size,
+    body,
+    dir: 'right',
+    queue: [],
+    trail: { x: middle - 2 - SNAKE_LENGTH, y: middle },
+    apple: null,
+    star: null,
+    swallowing: null,
+    apples: 0,
+    score: 0,
+    won: false,
+    state: 'ready',
+    acc: 0,
+    progress: 0,
+    timer: 0,
+  };
+  game.apple = freeTile(game, random);
+  return game;
+}
+
+/** A tile neither the snake nor anything in `avoid` is on, or null. */
+function freeTile(game, random, avoid = []) {
+  const taken = new Set([...game.body, ...avoid.filter(Boolean)].map((tile) => `${tile.x},${tile.y}`));
+  const free = [];
+  for (let y = 0; y < game.height; y += 1) {
+    for (let x = 0; x < game.width; x += 1) if (!taken.has(`${x},${y}`)) free.push({ x, y });
+  }
+  return free.length ? free[Math.floor(random() * free.length) % free.length] : null;
+}
+
+/** Turn at the next tile. The first move starts the game; going straight back is no move. */
+function steerSnake(game, dir) {
+  if (!ARCADE_DIRS[dir]) return;
+  if (game.state === 'ready') game.state = 'play';
+  if (game.state !== 'play') return;
+  const last = game.queue.at(-1) || game.dir;
+  if (dir === last || dir === OPPOSITE[last]) return;
+  if (game.queue.length < SNAKE_QUEUE) game.queue.push(dir);
+}
+
+/** One tile forward: eat, grow, or crash. */
+function slither(game, random) {
+  if (game.queue.length) game.dir = game.queue.shift();
+  const step = ARCADE_DIRS[game.dir];
+  const next = { x: game.body[0].x + step.x, y: game.body[0].y + step.y };
+  const here = (tile) => Boolean(tile) && tile.x === next.x && tile.y === next.y;
+  const grows = here(game.apple);
+  // The tail moves out of the way, unless the snake grows.
+  const stays = grows ? game.body : game.body.slice(0, -1);
+  const outside = next.x < 0 || next.y < 0 || next.x >= game.width || next.y >= game.height;
+  if (outside || stays.some(here)) {
+    game.state = 'dying';
+    game.timer = SNAKE_DYING_TIME;
+    game.swallowing = null;
+    game.events.push('crash');
+    return;
+  }
+  game.trail = grows ? null : game.body.at(-1);
+  game.body = [next, ...stays];
+  game.swallowing = null;
+  if (here(game.star)) {
+    game.score += starPoints(game.star.left);
+    game.star = null;
+    game.events.push('star');
+  }
+  if (!grows) return;
+  game.apples += 1;
+  game.score += POINTS.pellet;
+  game.swallowing = next;
+  game.events.push('apple');
+  if (game.body.length >= game.width * game.height) {
+    game.apple = null;
+    game.won = true;
+    game.state = 'over';
+    game.events.push('over');
+    return;
+  }
+  const spot = freeTile(game, random, [game.star]);
+  if (spot) {
+    game.apple = spot;
+  } else {
+    // The one tile left is the star's: the apple takes it.
+    game.apple = { x: game.star.x, y: game.star.y };
+    game.star = null;
+  }
+  if (!game.star && game.apples % STAR_EVERY === 0) {
+    const place = freeTile(game, random, [game.apple]);
+    if (place) game.star = { ...place, left: STAR_TIME };
+  }
+}
+
+/** Let `dt` seconds go by. Returns what happened: 'apple', 'star', 'crash', 'over'. */
+function stepSnake(game, dt, random = Math.random) {
+  game.events = [];
+  const time = Math.min(Math.max(dt, 0), 0.1);
+  if (game.state === 'dying') {
+    game.timer -= time;
+    if (game.timer <= 0) {
+      game.state = 'over';
+      game.events.push('over');
+    }
+    return game.events;
+  }
+  if (game.state !== 'play') return game.events;
+  if (game.star) {
+    game.star.left -= time;
+    if (game.star.left <= 0) game.star = null;
+  }
+  game.acc += time;
+  while (game.state === 'play' && game.acc >= 1 / snakeRate(game.apples)) {
+    game.acc -= 1 / snakeRate(game.apples);
+    slither(game, random);
+  }
+  game.progress = game.state === 'play' ? Math.min(1, game.acc * snakeRate(game.apples)) : 1;
+  return game.events;
+}
+
+/* ------------------------------------------------------------------- both --- */
+
 /** Pause or carry on; nothing to do once it is over. */
 function togglePause(game) {
   if (game.state === 'paused') game.state = game.pausedFrom || 'play';
@@ -28148,19 +28323,52 @@ function togglePause(game) {
  * Games tab, each on its own page (#/arcade/<id>).
  *
  * The logic is in arcade.js; this draws it on a canvas and passes on the
- * fingers (a swipe on the maze, the arrows under it) and the keyboard. The
+ * fingers (a swipe on the game, the arrows under it) and the keyboard. Each
  * game outlives a redraw of the page — the app redraws whenever the database
- * says something — and pauses when the page is left or hidden.
+ * says something — and waits, paused, when its page is left or hidden.
  */
 
 
 
 
 
-/** The game being played, kept across redraws. */
-let arcadeRun = null;
+/** The games being played, by id: kept across redraws, and while one plays another. */
+const arcadeRuns = new Map();
 
+/**
+ * What differs from one game to the next: how it starts, moves, turns and is
+ * drawn, which numbers sit above it, what the line under it says, and what
+ * makes the phone shake.
+ */
+const ARCADE_ENGINES = {
+  glouton: {
+    create: () => newGlouton(),
+    step: stepGlouton,
+    steer: steerGlouton,
+    draw: drawGlouton,
+    hud: ['level', 'lives'],
+    texts: { ready: 'arcade.ready', dying: 'arcade.caught' },
+    shake: 'caught',
+  },
+  snake: {
+    create: () => newSnake(),
+    step: stepSnake,
+    steer: steerSnake,
+    draw: drawSnake,
+    hud: [],
+    texts: { ready: 'arcade.snake.ready', dying: 'arcade.snake.crash' },
+    shake: 'crash',
+  },
+};
+
+const ARCADE_ICONS = {
+  glouton: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12 20.2 7.3A9.5 9.5 0 1 0 20.2 16.7z"/></svg>',
+  snake: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 16.5c2.6 0 2.6-7 5.2-7s2.6 7 5.2 7 2.6-7 5.2-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="19.6" cy="9.5" r="2.6"/></svg>',
+};
 const GHOST_COLOURS = { red: '#ff4b5c', pink: '#ff8fd8', cyan: '#5ff3ff', orange: '#ffad4d' };
+const SNAKE_GREEN = '#46f0a0';
+const APPLE_RED = '#ff4b5c';
+const GOLD = '#ffd23f';
 const ARROWS = [
   ['up', 'M12 6 5 16h14z'],
   ['left', 'M6 12l10-7v14z'],
@@ -28173,6 +28381,10 @@ const KEYS = {
   ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
   z: 'up', w: 'up', s: 'down', q: 'left', a: 'left', d: 'right',
 };
+
+function engineOf(id) {
+  return Object.hasOwn(ARCADE_ENGINES, id) ? ARCADE_ENGINES[id] : null;
+}
 
 function bestOf(id) {
   return Number(state.prefs?.arcade?.[id]) || 0;
@@ -28190,7 +28402,7 @@ function arcadeHtml() {
     const best = bestOf(game.id);
     return `
       <button type="button" class="arcade-card" data-goto="#/arcade/${escapeHtml(game.id)}">
-        <span class="arcade-card__icon" aria-hidden="true">${escapeHtml(game.icon)}</span>
+        <span class="arcade-card__icon arcade-card__icon--${escapeHtml(game.id)}" aria-hidden="true">${ARCADE_ICONS[game.id] || ''}</span>
         <span class="arcade-card__text">
           <strong>${escapeHtml(t(`arcade.${game.id}.name`))}</strong>
           <span class="muted small">${escapeHtml(best ? t('arcade.best', { score: best }) : t(`arcade.${game.id}.short`))}</span>
@@ -28201,13 +28413,15 @@ function arcadeHtml() {
   return `
     <section class="section">
       <div class="section__head"><h2>${escapeHtml(t('arcade.title'))}</h2></div>
-      <div class="arcade-list">${ARCADE_GAMES.map(card).join('')}</div>
+      <div class="arcade-list">${ARCADE_GAMES.filter((game) => engineOf(game.id)).map(card).join('')}</div>
     </section>`;
 }
 
+/** One game's page; empty for a game that does not exist. */
 function arcadeView(id) {
-  const game = ARCADE_GAMES.find((known) => known.id === id);
-  if (!game) return '';
+  const engine = engineOf(id);
+  if (!engine) return '';
+  const name = escapeHtml(t(`arcade.${id}.name`));
   const arrow = ([dir, path]) => `
     <button type="button" class="arcade-pad__key arcade-pad__key--${dir}" data-arcade-dir="${dir}"
             aria-label="${escapeHtml(t(`arcade.dir.${dir}`))}">
@@ -28216,16 +28430,17 @@ function arcadeView(id) {
   return `
     <div class="spread page-head">
       ${backButtonHtml('#/games')}
-      <h1>${escapeHtml(t(`arcade.${id}.name`))}</h1>
+      <h1>${name}</h1>
     </div>
     <div class="arcade">
       <div class="arcade__hud">
         <span>${escapeHtml(t('arcade.score'))} <strong id="arcade-score">0</strong></span>
-        <span>${escapeHtml(t('arcade.level'))} <strong id="arcade-level">1</strong></span>
+        ${engine.hud.includes('level') ? `<span>${escapeHtml(t('arcade.level'))} <strong id="arcade-level">1</strong></span>` : ''}
         <span>${escapeHtml(t('arcade.record'))} <strong id="arcade-best">${bestOf(id)}</strong></span>
-        <span id="arcade-lives" class="arcade__lives"></span>
+        ${engine.hud.includes('lives') ? '<span id="arcade-lives" class="arcade__lives" role="img"></span>' : ''}
       </div>
-      <canvas id="arcade-board" class="arcade__board" role="img" aria-label="${escapeHtml(t(`arcade.${id}.name`))}"></canvas>
+      <canvas id="arcade-board" class="arcade__board arcade__board--${escapeHtml(id)}" data-arcade="${escapeHtml(id)}"
+              role="img" aria-label="${name}"></canvas>
       <p id="arcade-status" class="arcade__status" aria-live="polite"></p>
       <div class="arcade-pad">
         ${ARROWS.map(arrow).join('')}
@@ -28238,19 +28453,27 @@ function arcadeView(id) {
 
 function bindArcade(id) {
   const canvas = document.getElementById('arcade-board');
-  if (!canvas) return;
-  if (!arcadeRun || arcadeRun.id !== id) arcadeRun = { id, game: newGlouton(), shown: null };
-  const run = arcadeRun;
+  const engine = engineOf(id);
+  if (!canvas || !engine) return;
+  if (!arcadeRuns.has(id)) arcadeRuns.set(id, { game: engine.create(), shown: null });
+  const run = arcadeRuns.get(id);
   run.shown = null;
   const context = canvas.getContext('2d');
 
+  const afresh = () => {
+    run.game = engine.create();
+  };
   const restartOrResume = () => {
-    if (run.game.state === 'over') run.game = newGlouton();
+    if (run.game.state === 'over') afresh();
     else if (run.game.state === 'paused') togglePause(run.game);
+  };
+  const pauseOrRestart = () => {
+    if (run.game.state === 'over') afresh();
+    else togglePause(run.game);
   };
   const go = (dir) => {
     restartOrResume();
-    steer(run.game, dir);
+    engine.steer(run.game, dir);
   };
 
   document.querySelectorAll('[data-arcade-dir]').forEach((button) => {
@@ -28263,12 +28486,9 @@ function bindArcade(id) {
       if (event.detail === 0) go(button.dataset.arcadeDir);
     });
   });
-  document.getElementById('arcade-pause').addEventListener('click', () => {
-    if (run.game.state === 'over') run.game = newGlouton();
-    else togglePause(run.game);
-  });
+  document.getElementById('arcade-pause').addEventListener('click', pauseOrRestart);
 
-  // A swipe on the maze steers; the finger may go on and turn again.
+  // A swipe on the game steers; the finger may go on and turn again.
   let origin = null;
   canvas.addEventListener('pointerdown', (event) => {
     origin = { x: event.clientX, y: event.clientY };
@@ -28290,14 +28510,20 @@ function bindArcade(id) {
   canvas.addEventListener('pointercancel', () => { origin = null; });
 
   const onKey = (event) => {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('input, textarea, select, [contenteditable]')) return;
+    // A button with the focus answers Space and Enter itself.
+    if ((event.key === ' ' || event.key === 'Enter') && target?.closest('button')) return;
     const dir = KEYS[event.key] || KEYS[event.key?.toLowerCase?.()];
     if (dir) {
       event.preventDefault();
       go(dir);
-    } else if (event.key === ' ' || event.key === 'p' || event.key === 'Escape') {
+    } else if (event.key === ' ' || event.key === 'p') {
       event.preventDefault();
-      if (run.game.state === 'over') run.game = newGlouton();
-      else togglePause(run.game);
+      pauseOrRestart();
+    } else if (event.key === 'Escape' && !['paused', 'over'].includes(run.game.state)) {
+      togglePause(run.game);
     }
   };
   const onHide = () => {
@@ -28309,45 +28535,63 @@ function bindArcade(id) {
   let last = null;
   const frame = (now) => {
     if (!canvas.isConnected) {
-      // Left, or redrawn: the next page binds again if it is still this one.
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('visibilitychange', onHide);
-      if (!['paused', 'over'].includes(run.game.state)) togglePause(run.game);
+      // Redrawn, the game goes on in the new page; left, it waits there, paused.
+      const still = document.getElementById('arcade-board')?.dataset.arcade === id;
+      if (!still && !['paused', 'over'].includes(run.game.state)) togglePause(run.game);
       return;
     }
     const dt = last === null ? 0 : (now - last) / 1000;
     last = now;
-    const events = stepGlouton(run.game, dt);
-    if (events.includes('caught')) navigator.vibrate?.(200);
+    const events = engine.step(run.game, dt);
+    if (events.includes(engine.shake)) navigator.vibrate?.(200);
     if (events.includes('over')) keepBest(id, run.game.score);
-    drawGlouton(canvas, context, run.game, now);
-    showHud(run, id);
+    engine.draw(canvas, context, run.game, now);
+    showHud(run, id, engine);
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
 }
 
-/** The numbers and the line under the maze, touched only when they change. */
-function showHud(run, id) {
+/** The line under the game. */
+function statusOf(game, engine) {
+  if (game.state === 'over') return t(game.won ? 'arcade.won' : 'arcade.over', { score: game.score });
+  if (game.state === 'cleared') return t('arcade.cleared', { level: game.level });
+  if (game.state === 'paused') return t('arcade.paused');
+  return engine.texts[game.state] ? t(engine.texts[game.state]) : '';
+}
+
+/** The word across the game, when it is not running. */
+function bannerOf(game) {
+  if (game.state === 'over') return t(game.won ? 'arcade.wonShort' : 'arcade.overShort');
+  if (game.state === 'cleared') return t('arcade.cleared', { level: game.level });
+  if (game.state === 'paused') return t('arcade.paused');
+  if (game.state === 'ready') return t('arcade.ready');
+  return '';
+}
+
+/** The numbers and the line under the game, touched only when they change. */
+function showHud(run, id, engine) {
   const { game } = run;
-  const status = {
-    ready: t('arcade.ready'),
-    paused: t('arcade.paused'),
-    dying: t('arcade.caught'),
-    cleared: t('arcade.cleared', { level: game.level }),
-    over: t('arcade.over', { score: game.score }),
-    play: '',
-  }[game.state];
+  const status = statusOf(game, engine);
   const shown = `${game.score}|${game.level}|${game.lives}|${status}`;
   if (run.shown === shown) return;
   run.shown = shown;
-  document.getElementById('arcade-score').textContent = game.score;
-  document.getElementById('arcade-level').textContent = game.level;
-  document.getElementById('arcade-best').textContent = Math.max(bestOf(id), game.score);
+  const put = (where, value) => {
+    const element = document.getElementById(where);
+    if (element) element.textContent = value;
+  };
+  put('arcade-score', game.score);
+  put('arcade-level', game.level);
+  put('arcade-best', Math.max(bestOf(id), game.score));
+  put('arcade-status', status);
   const lives = document.getElementById('arcade-lives');
-  lives.textContent = '●'.repeat(Math.max(0, game.lives));
-  lives.setAttribute('aria-label', t('arcade.lives', { count: Math.max(0, game.lives) }));
-  document.getElementById('arcade-status').textContent = status;
+  if (lives) {
+    const count = Math.max(0, game.lives);
+    lives.textContent = '●'.repeat(count);
+    lives.setAttribute('aria-label', t('arcade.lives', { count }));
+  }
   const pause = document.getElementById('arcade-pause');
   const label = t(game.state === 'over' ? 'arcade.again' : game.state === 'paused' ? 'arcade.resume' : 'arcade.pause');
   pause.setAttribute('aria-label', label);
@@ -28355,14 +28599,16 @@ function showHud(run, id) {
   pause.innerHTML = ['over', 'paused'].includes(game.state) ? PLAY_ICON : PAUSE_ICON;
 }
 
-/** The maze, the pellets, the ghosts and the glutton, in the style's light. */
-function drawGlouton(canvas, context, game, now) {
-  const { maze } = game;
+/**
+ * Size the canvas to its place on the page, sharp on any screen, and clear it
+ * to the style's night. Returns the tile size and the style's colours.
+ */
+function fitBoard(canvas, context, columns, rows) {
   const ratio = Math.min(2, window.devicePixelRatio || 1);
   const width = canvas.clientWidth;
-  if (!width) return;
-  const size = width / maze.width;
-  const height = size * maze.height;
+  if (!width) return null;
+  const size = width / columns;
+  const height = size * rows;
   if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
     canvas.width = Math.round(width * ratio);
     canvas.height = Math.round(height * ratio);
@@ -28372,18 +28618,54 @@ function drawGlouton(canvas, context, game, now) {
     const value = root.getPropertyValue(name).trim();
     return /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
   };
-  const wall = token('--holo-hue', '#5ff3ff');
   const deep = token('--holo-deep', '#03060d');
-
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   context.fillStyle = deep;
   context.fillRect(0, 0, width, height);
+  return { width, height, size, deep, wall: token('--holo-hue', '#5ff3ff') };
+}
+
+/** Stroke the path as a neon tube: a wide soft glow, then a bright thin line. */
+function glowStroke(context, colour, wide, thin) {
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+  context.strokeStyle = colour;
+  context.shadowColor = colour;
+  context.shadowBlur = wide;
+  context.globalAlpha = 0.35;
+  context.lineWidth = wide;
+  context.stroke();
+  context.globalAlpha = 1;
+  context.shadowBlur = wide / 2;
+  context.lineWidth = thin;
+  context.stroke();
+  context.shadowBlur = 0;
+}
+
+function drawBanner(context, text, x, y, size, deep) {
+  if (!text) return;
+  context.font = `700 ${Math.round(size * 1.1)}px system-ui, sans-serif`;
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  const boxWidth = context.measureText(text).width + size;
+  context.fillStyle = deep;
+  context.fillRect(x - boxWidth / 2, y - size * 0.8, boxWidth, size * 1.6);
+  context.fillStyle = GOLD;
+  context.fillText(text, x, y);
+}
+
+/* ---------------------------------------------------------------- glouton --- */
+
+/** The maze, the pellets, the ghosts and the glutton, in the style's light. */
+function drawGlouton(canvas, context, game, now) {
+  const { maze } = game;
+  const board = fitBoard(canvas, context, maze.width, maze.height);
+  if (!board) return;
+  const { width, size, deep, wall } = board;
 
   // Walls: a glowing tube from each wall tile to the next.
   const wallAt = (x, y) => x >= 0 && x < maze.width && y >= 0 && y < maze.height && maze.cells[y][x] === '#';
   const centre = (value) => (value + 0.5) * size;
-  context.lineCap = 'round';
-  context.lineJoin = 'round';
   context.beginPath();
   for (let y = 0; y < maze.height; y += 1) {
     for (let x = 0; x < maze.width; x += 1) {
@@ -28397,17 +28679,7 @@ function drawGlouton(canvas, context, game, now) {
       }
     }
   }
-  context.strokeStyle = wall;
-  context.shadowColor = wall;
-  context.shadowBlur = size / 2;
-  context.globalAlpha = 0.35;
-  context.lineWidth = size * 0.55;
-  context.stroke();
-  context.globalAlpha = 1;
-  context.shadowBlur = size / 4;
-  context.lineWidth = Math.max(1.5, size * 0.14);
-  context.stroke();
-  context.shadowBlur = 0;
+  glowStroke(context, wall, size * 0.55, Math.max(1.5, size * 0.14));
 
   // The door.
   context.strokeStyle = GHOST_COLOURS.pink;
@@ -28441,8 +28713,8 @@ function drawGlouton(canvas, context, game, now) {
     radius *= 1 - gone * 0.3;
   }
   const at = (value) => (value + 0.5) * size;
-  context.fillStyle = '#ffd23f';
-  context.shadowColor = '#ffd23f';
+  context.fillStyle = GOLD;
+  context.shadowColor = GOLD;
   context.shadowBlur = size / 2;
   for (const offset of [0, -maze.width, maze.width]) {
     context.beginPath();
@@ -28458,19 +28730,7 @@ function drawGlouton(canvas, context, game, now) {
     for (const ghost of game.ghosts) drawGhost(context, ghost, game, size, now);
   }
 
-  const banner = { ready: t('arcade.ready'), paused: t('arcade.paused'), over: t('arcade.overShort') }[game.state]
-    || (game.state === 'cleared' ? t('arcade.cleared', { level: game.level }) : '');
-  if (banner) {
-    context.font = `700 ${Math.round(size * 1.1)}px system-ui, sans-serif`;
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    const y = (maze.door.y + 3.5) * size;
-    context.fillStyle = deep;
-    const boxWidth = context.measureText(banner).width + size;
-    context.fillRect(width / 2 - boxWidth / 2, y - size * 0.8, boxWidth, size * 1.6);
-    context.fillStyle = '#ffd23f';
-    context.fillText(banner, width / 2, y);
-  }
+  drawBanner(context, bannerOf(game), width / 2, (maze.door.y + 3.5) * size, size, deep);
 }
 
 function drawGhost(context, ghost, game, size, now) {
@@ -28515,6 +28775,139 @@ function drawGhost(context, ghost, game, size, now) {
     context.arc(ex + look[0] * r * 0.12, ey + look[1] * r * 0.12, r * 0.14, 0, Math.PI * 2);
     context.fill();
   }
+}
+
+/* ------------------------------------------------------------------ snake --- */
+
+/**
+ * The field, the apple, the star and the snake. The snake is drawn as far
+ * behind as it still has to go to the next tile (arcade.js, `progress`): it
+ * glides instead of jumping, and turns exactly where it is seen to turn.
+ */
+function drawSnake(canvas, context, game, now) {
+  // Half a tile of wall all round.
+  const board = fitBoard(canvas, context, game.width + 1, game.height + 1);
+  if (!board) return;
+  const { width, height, size, deep, wall } = board;
+  const at = (value) => (value + 1) * size;
+
+  // A faint chequer, to see the tiles go by.
+  context.fillStyle = wall;
+  context.globalAlpha = 0.06;
+  for (let y = 0; y < game.height; y += 1) {
+    for (let x = y % 2; x < game.width; x += 2) context.fillRect(at(x) - size / 2, at(y) - size / 2, size, size);
+  }
+  context.globalAlpha = 1;
+
+  context.beginPath();
+  context.rect(size / 4, size / 4, width - size / 2, height - size / 2);
+  glowStroke(context, wall, size * 0.4, Math.max(1.5, size * 0.12));
+
+  const pulse = 1 + 0.06 * Math.sin(now / 180);
+  if (game.apple) drawApple(context, at(game.apple.x), at(game.apple.y), size * 0.36 * pulse);
+  // The apple just eaten stays until the head is over it.
+  if (game.swallowing) drawApple(context, at(game.swallowing.x), at(game.swallowing.y), size * 0.36);
+  // The star blinks before it goes out.
+  if (game.star && (game.star.left > 1.5 || Math.floor(now / 150) % 2 === 0)) {
+    drawStar(context, at(game.star.x), at(game.star.y), size * 0.48, now / 900);
+  }
+
+  const { body } = game;
+  const mix = (from, to) => ({
+    x: from.x + (to.x - from.x) * game.progress,
+    y: from.y + (to.y - from.y) * game.progress,
+  });
+  const head = mix(body[1], body[0]);
+  const tail = game.trail ? mix(game.trail, body.at(-1)) : body.at(-1);
+  const points = [head, ...body.slice(1), tail];
+  const colour = game.state === 'dying' && Math.floor(now / 120) % 2 === 0 ? APPLE_RED : SNAKE_GREEN;
+  context.globalAlpha = game.state === 'over' ? 0.5 : 1;
+  context.beginPath();
+  context.moveTo(at(points[0].x), at(points[0].y));
+  for (const point of points.slice(1)) context.lineTo(at(point.x), at(point.y));
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+  context.strokeStyle = colour;
+  context.shadowColor = colour;
+  context.shadowBlur = size * 0.5;
+  context.lineWidth = size * 0.72;
+  context.stroke();
+  context.shadowBlur = 0;
+  context.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+  context.lineWidth = size * 0.2;
+  context.stroke();
+
+  // The head, looking the way it goes, its tongue out now and then.
+  const ahead = { x: body[0].x - body[1].x, y: body[0].y - body[1].y };
+  const side = { x: -ahead.y, y: ahead.x };
+  const hx = at(head.x);
+  const hy = at(head.y);
+  const r = size * 0.42;
+  if (game.state === 'play' && Math.floor(now / 700) % 3 === 0) {
+    const tip = { x: hx + ahead.x * r * 1.7, y: hy + ahead.y * r * 1.7 };
+    context.strokeStyle = APPLE_RED;
+    context.lineWidth = Math.max(1, size * 0.07);
+    context.beginPath();
+    context.moveTo(hx + ahead.x * r, hy + ahead.y * r);
+    context.lineTo(tip.x, tip.y);
+    for (const turn of [-1, 1]) {
+      context.moveTo(tip.x, tip.y);
+      context.lineTo(tip.x + (ahead.x + turn * side.x) * r * 0.25, tip.y + (ahead.y + turn * side.y) * r * 0.25);
+    }
+    context.stroke();
+  }
+  context.fillStyle = colour;
+  context.beginPath();
+  context.arc(hx, hy, r, 0, Math.PI * 2);
+  context.fill();
+  for (const turn of [-1, 1]) {
+    const ex = hx + ahead.x * r * 0.25 + turn * side.x * r * 0.45;
+    const ey = hy + ahead.y * r * 0.25 + turn * side.y * r * 0.45;
+    context.fillStyle = '#ffffff';
+    context.beginPath();
+    context.arc(ex, ey, r * 0.26, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#04101a';
+    context.beginPath();
+    context.arc(ex + ahead.x * r * 0.1, ey + ahead.y * r * 0.1, r * 0.13, 0, Math.PI * 2);
+    context.fill();
+  }
+  context.globalAlpha = 1;
+
+  drawBanner(context, bannerOf(game), width / 2, height * 0.27, size, deep);
+}
+
+function drawApple(context, x, y, r) {
+  context.fillStyle = APPLE_RED;
+  context.shadowColor = APPLE_RED;
+  context.shadowBlur = r;
+  context.beginPath();
+  context.arc(x, y + r * 0.08, r, 0, Math.PI * 2);
+  context.fill();
+  context.shadowBlur = 0;
+  context.fillStyle = SNAKE_GREEN;
+  context.beginPath();
+  context.ellipse(x + r * 0.32, y - r * 0.92, r * 0.36, r * 0.17, -0.6, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = 'rgba(255, 255, 255, 0.5)';
+  context.beginPath();
+  context.arc(x - r * 0.38, y - r * 0.2, r * 0.2, 0, Math.PI * 2);
+  context.fill();
+}
+
+function drawStar(context, x, y, r, turn) {
+  context.fillStyle = GOLD;
+  context.shadowColor = GOLD;
+  context.shadowBlur = r;
+  context.beginPath();
+  for (let i = 0; i < 10; i += 1) {
+    const angle = turn + (i * Math.PI) / 5 - Math.PI / 2;
+    const reach = i % 2 ? r * 0.45 : r;
+    context.lineTo(x + Math.cos(angle) * reach, y + Math.sin(angle) * reach);
+  }
+  context.closePath();
+  context.fill();
+  context.shadowBlur = 0;
 }
 
   // ---- src/app.js ------------------------------------------------------
