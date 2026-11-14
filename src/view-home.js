@@ -527,6 +527,30 @@ function groupBoardHtml(group) {
           counts.at ? ` · ${escapeHtml(formatDate(counts.at))}` : ''
         }${counts.late ? ` · <span class="late">${escapeHtml(t('lists.late', { count: counts.late }))}</span>` : ''}
       </p>
+      ${rosterLineHtml(group)}
+    </div>`;
+}
+
+/**
+ * The group's first names, said on its board in the groups tab — where one
+ * looks for anything about a group — with the way to them: fixed, the names;
+ * not fixed, the offer to whoever lets people in.
+ */
+function rosterLineHtml(group) {
+  const fixed = rosterOf(group.id);
+  if (!fixed.length && (group.admits === false || !state.remote)) return '';
+  const me = myNameIn(group.id);
+  const said = fixed.length ? t('roster.line', { names: fixed.join(' · ') }) : t('roster.lineOff');
+  const action = !fixed.length ? t('roster.fix') : !me ? t('roster.pickShort') : '';
+  return `
+    <div class="row row--tight">
+      <span class="muted small">${escapeHtml(said)}</span>
+      ${
+        action
+          ? `<button type="button" class="button button--small ${me || !fixed.length ? '' : 'button--primary'}"
+                     data-goto="#/group/${escapeHtml(encodeURIComponent(group.id))}">${escapeHtml(action)}</button>`
+          : ''
+      }
     </div>`;
 }
 
@@ -799,6 +823,14 @@ export function groupView(group) {
     section(t('tab.ideas'), boards, boardCardHtml, '#/ideas'),
   ].join('');
 
+  // The first names come first while there is something to do with them —
+  // fix them, say which one is mine, merge a name written otherwise — and
+  // go under what is going on once all is settled.
+  const roster = groupRosterHtml(group);
+  const fixed = rosterOf(group.id);
+  const rosterFirst = Boolean(roster) && (!fixed.length || !myNameIn(group.id)
+    || offRoster(group.id, namesWrittenIn(group)).length > 0);
+
   return `
     ${flashHtml()}
     <div class="spread page-head">
@@ -811,8 +843,9 @@ export function groupView(group) {
     <button type="button" class="button button--primary button--block" data-create-menu>
       + ${escapeHtml(t('create.title'))}
     </button>
+    ${rosterFirst ? roster : ''}
     ${sections || `<p class="muted small">${escapeHtml(t('group.nothing'))}</p>`}
-    ${groupRosterHtml(group)}
+    ${rosterFirst ? '' : roster}
     ${groupPeopleHtml(group)}`;
 }
 

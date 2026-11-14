@@ -39,8 +39,18 @@ const chips = async (locator) => (await locator.allTextContents()).map((s) => s.
 /* --- 1. qui fait entrer fixe la liste ------------------------------------- */
 
 const mine = await device('moi', { key: 'la-cle-famille', me: 'Guillaume', lists: [old] });
-await mine.goto(`${B}#/group/grp_famille`);
+await mine.waitForSelector('.group-link');
+check('l’onglet Groupes le propose déjà, sur le bloc du groupe',
+  /Prénoms libres/.test(await mine.locator('#view').textContent())
+  && (await mine.locator('.card button[data-goto="#/group/grp_famille"]', { hasText: 'Fixer les prénoms' }).count()) === 1);
+await mine.locator('.card button[data-goto="#/group/grp_famille"]', { hasText: 'Fixer les prénoms' }).click();
 await mine.waitForSelector('#group-roster');
+check('et la page du groupe le montre en tête, avant ce qui est en cours',
+  await mine.evaluate(() => {
+    const roster = document.querySelector('#group-roster');
+    const first = document.querySelector('#view .section:not(#group-roster)');
+    return !first || Boolean(roster.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }));
 check('sans liste, la page du groupe propose de fixer les prénoms',
   (await mine.locator('[data-roster-edit]').textContent()).trim() === 'Fixer les prénoms');
 await mine.click('[data-roster-edit]');
@@ -64,6 +74,12 @@ check('toucher son prénom le retient pour ce groupe',
   && (await mine.evaluate(() => JSON.parse(localStorage.getItem('marque-points:prefs:v1')).groups[0].me)) === 'Gui');
 check('le prénom de l’appareil, hors groupe, ne change pas',
   (await mine.evaluate(() => JSON.parse(localStorage.getItem('marque-points:prefs:v1')).me)) === 'Guillaume');
+
+await mine.goto(`${B}#/groups`);
+await mine.waitForSelector('.group-link');
+check('fixés, l’onglet Groupes les dit', /Prénoms : Gui · Alice · Léa/.test(await mine.locator('#view').textContent()));
+await mine.goto(`${B}#/group/grp_famille`);
+await mine.waitForSelector('#group-roster');
 
 /* --- 3. un prénom d'avant se fond dans la liste --------------------------- */
 
