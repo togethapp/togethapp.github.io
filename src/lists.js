@@ -55,14 +55,40 @@ export function createList({ name = '', names = [], shared = false, groupId = nu
  * Add a line. Several lines at once when a whole list is pasted in — which is
  * how a list arrives from a message more often than it is typed.
  */
-export function addItems(list, text) {
-  const now = Date.now();
-  const fresh = String(text || '')
+function linesOf(text) {
+  return String(text || '')
     .split('\n')
     // A bullet, or a number *used as* a bullet — "1." or "2)". A bare number
     // is a quantity, and "2 baguettes" must stay two baguettes.
     .map((line) => line.replace(/^\s*(?:[-*•–—]+|\d+\s*[.)])\s+/, '').trim())
-    .filter(Boolean)
+    .filter(Boolean);
+}
+
+const sameLine = (text) => String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+/**
+ * Split what was typed into the lines a list does not have yet and those it
+ * already has, still to do — « pain » when « Pain » is on it, unticked. Two
+ * people filling the same list for a picnic would otherwise both write the
+ * bread. A line already ticked can come back: it is wanted again.
+ */
+export function newLines(list, text) {
+  const open = new Set(list.items.filter((item) => !item.done).map((item) => sameLine(item.text)));
+  const typed = new Set();
+  const fresh = [];
+  const known = [];
+  for (const line of linesOf(text)) {
+    const key = sameLine(line);
+    if (open.has(key)) known.push(line);
+    else if (!typed.has(key)) fresh.push(line);
+    typed.add(key);
+  }
+  return { fresh: fresh.join('\n'), known };
+}
+
+export function addItems(list, text) {
+  const now = Date.now();
+  const fresh = linesOf(text)
     .map((line) => ({
       id: uid('i'),
       text: line,

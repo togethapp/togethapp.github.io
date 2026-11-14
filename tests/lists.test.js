@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   createList, addItems, renameItem, assignItem, toggleItem, removeItem, reuseList,
   addListPerson as addPerson, renameListPerson as renamePerson, removeListPerson as removePerson,
-  shareOut, progress, mergeLists, isValidList, setItemDue, archiveList, makeTemplate,
+  shareOut, progress, mergeLists, isValidList, setItemDue, archiveList, makeTemplate, newLines,
 } from '../src/lists.js';
 import { recentPeople } from '../src/people.js';
 
@@ -318,4 +318,14 @@ test('a day survives a merge, line by line, like everything else on a line', () 
   assert.equal(merged.items.find((item) => item.id === list.items[0].id).due, '2026-02-03',
     'the day set here is not lost to a tick made there');
   assert.equal(merged.items.find((item) => item.id === list.items[1].id).done, true);
+});
+
+test('newLines leaves out what the list already has, still to do', () => {
+  let list = addItems(createList({ name: 'Pique-nique' }), 'Pain\nFromage\nVin');
+  list = toggleItem(list, list.items[2].id);
+  const { fresh, known } = newLines(list, '- pain\nÉpices\n  FROMAGE \nvin\nÉpices');
+  assert.deepEqual(known, ['pain', 'FROMAGE']);
+  // A ticked line is wanted again; a line typed twice comes once.
+  assert.equal(fresh, 'Épices\nvin');
+  assert.deepEqual(newLines(list, ''), { fresh: '', known: [] });
 });

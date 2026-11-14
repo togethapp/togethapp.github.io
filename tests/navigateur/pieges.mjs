@@ -29,7 +29,7 @@ const inDays = (days) => {
 function documents(where) {
   const list = { ...addItems(createList({ name: TAG, names: [TAG, ATTR] }), `${TAG}\n${ATTR}\n${END}`), ...where };
   let poll = { ...addOptions(createPoll({ question: `${TAG} ?`, names: [TAG, ATTR] }), `${TAG}\n${ATTR}`), ...where };
-  poll = setVote(poll, poll.people[0].id, poll.options[0].id, true);
+  poll = setVote(poll, poll.people[0].id, poll.options[0].id, 'yes');
   const event = { ...createEvent({ name: TAG, names: [TAG, ATTR], date: inDays(4), at: '19:00' }), ...where };
   list.parent = event.id;
   // A line ticked, an account of the same event, a poll linked: the list

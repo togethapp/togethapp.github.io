@@ -127,13 +127,21 @@ function paidFields(spend, amount, currency, rate) {
 }
 
 /**
- * Lire un montant tel qu'il se tape : « 12,50 », « 12.5 », « 12 », « 3 € ».
+ * Lire un montant tel qu'il se tape : « 12,50 », « 12.5 », « 12 », « 3 € »,
+ * « 1 234,56 », « 1.234,56 », « 1'234.50 ».
  * Rend des centimes, ou null quand ce n'est pas un montant.
  */
 export function readAmount(raw) {
-  const clean = String(raw ?? '')
-    .replace(/[\s €$£]|chf/gi, '')
-    .replace(',', '.');
+  let clean = String(raw ?? '').replace(/[\s\u00a0\u202f€$£'’]|chf/gi, '');
+  // Both marks, « 1.234,56 » or « 1,234.56 »: the last one is the decimal
+  // point, the other only groups thousands.
+  if (clean.includes(',') && clean.includes('.')) {
+    const point = Math.max(clean.lastIndexOf(','), clean.lastIndexOf('.'));
+    const whole = clean.slice(0, point);
+    if (!/^\d{1,3}([.,]\d{3})*$/.test(whole)) return null;
+    clean = `${whole.replace(/[.,]/g, '')}.${clean.slice(point + 1)}`;
+  }
+  clean = clean.replace(',', '.');
   if (!/^\d+(\.\d{0,2})?$/.test(clean)) return null;
   const value = Math.round(Number(clean) * 100);
   return Number.isFinite(value) && value > 0 ? value : null;

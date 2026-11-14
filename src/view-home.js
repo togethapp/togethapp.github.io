@@ -28,7 +28,7 @@ import { purchasesToWrite } from './flows.js';
 import { ask, makeDialog, shareMessage, showCopyDialog } from './view-games.js';
 import {
   bindData, bindInAppWarning, catchUpWith, checkPending, chooseEvent, destinationForNew, deviceLabel, forgetGate,
-  forgetGroup, forgetPending, gate, groups, groupsByName, heldOrganiserSecrets, hiddenByGroupHtml, inAppWarningHtml,
+  forgetGroup, forgetPending, gate, groups, groupsByName, heldOrganiserSecrets, hiddenByGroupHtml, inAppWarningHtml, isOrganiser,
   joinGroup, LINK_ONLY, loadGate, lots, myName, NAME_KEPT, onHomeScreen, pendings, refreshGroup, rememberPending,
   remoteReason, resetGroupChoice, setMyName, shownDocs,
 } from './view-groups.js';
@@ -910,6 +910,14 @@ function forYouItems() {
   }, me);
   for (const row of file.votes.filter((one) => !one.closed && !one.answered)) {
     items.push({ goto: `#/poll/${row.poll.id}`, title: pollTitle(row.poll), meta: t('forYou.vote') + forEventText(row.poll) });
+  }
+  // Everyone has answered a poll this device organises, and it is still
+  // open: the next move is the organiser's, who may not look at it again.
+  for (const poll of shownDocs(state.polls)) {
+    if (poll.closedAt || poll.date || poll.archivedAt || isEvent(poll) || !isOrganiser(poll)) continue;
+    if (poll.people.length < 2 || !poll.options.length) continue;
+    if (tally(poll).answered < poll.people.length) continue;
+    items.push({ goto: `#/poll/${poll.id}`, title: pollTitle(poll), meta: t('forYou.decide') + forEventText(poll) });
   }
   for (const row of file.lines.filter((one) => one.left > 0).sort((a, b) => b.late - a.late)) {
     items.push({

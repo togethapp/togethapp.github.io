@@ -9,7 +9,7 @@ import {
   askForText, escapeHtml, flash, flashHtml, formatDate, formatDay, groupChipsHtml, kindsHtml, navigate, render,
   state, view,
   attachedHtml, chainButtonsHtml, adoptGame,
-  backButtonHtml, hintHtml, markTouched, newButtonHtml, peopleHtml, everything,
+  backButtonHtml, hintHtml, writtenNames, markTouched, newButtonHtml, peopleHtml, everything,
 } from './app.js';
 import {
   actionsHtml, eventLinkHtml, eventTagHtml, keptElsewhere, openSignatureDialog, pushFailed, pushMerged, shareBarHtml, signed,
@@ -28,7 +28,7 @@ import { accountsFor, estimateOf, paidLines } from './flows.js';
 import { showAmount, spendCurrency, priceCurrency } from './spends.js';
 import { recentNames, isValidGame } from './model.js';
 import {
-  createList, addItems, renameItem, assignItem, toggleItem, removeItem, reuseList, addListPerson,
+  createList, addItems, newLines, renameItem, assignItem, toggleItem, removeItem, reuseList, addListPerson,
   renameListPerson, removeListPerson, shareOut, progress, mergeLists, isValidList, setItemDue,
   archiveList, makeTemplate,
 } from './lists.js';
@@ -143,7 +143,7 @@ export function newListView() {
   const templates = state.lists.filter((list) => list.template && !list.archivedAt);
   const suggestions = [...new Set([
     myName(), ...recentPeople(state.lists), ...recentPeople(state.polls), ...recentNames(state.games),
-  ].filter(Boolean))].slice(0, 12);
+  ].filter(Boolean))].filter((name) => !writtenNames(state.newListPeople).has(name.toLowerCase())).slice(0, 12);
   return `
     ${flashHtml()}
     <div class="spread page-head">
@@ -539,8 +539,17 @@ export function bindList(list) {
   view.querySelector('#add-line')?.addEventListener('submit', (event) => {
     event.preventDefault();
     const field = view.querySelector('#new-line');
-    const next = addItems(list, field.value);
-    if (next === list) return;
+    const { fresh, known } = newLines(list, field.value);
+    // Already there, still to do: said rather than written twice.
+    if (known.length) flash(known.length > 1 ? t('lists.alreadyMany', { count: known.length }) : t('lists.already', { line: known[0] }));
+    const next = addItems(list, fresh);
+    if (next === list) {
+      if (!known.length) return;
+      field.value = '';
+      render();
+      view.querySelector('#new-line')?.focus();
+      return;
+    }
     replaceList(next);
     // Straight back to the field: a list is written in one go, not one
     // reopened dialog at a time.

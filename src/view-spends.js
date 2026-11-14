@@ -9,7 +9,7 @@ import {
   askForText, escapeHtml, flash, flashHtml, formatDate, formatDay, groupChipsHtml, kindsHtml,
   navigate, render, state, view, whenText,
   attachedHtml, chainButtonsHtml,
-  backButtonHtml, hintHtml, newButtonHtml, peopleHtml, everything, documentTitle,
+  backButtonHtml, hintHtml, keepUntilAfter, writtenNames, newButtonHtml, peopleHtml, everything, documentTitle,
 } from './app.js';
 import {
   actionsHtml, eventLinkHtml, eventTagHtml, getSpend, persistPoll, persistSpend, pollCardHtml, pollTitle,
@@ -209,7 +209,7 @@ export function eventCardHtml(poll) {
 export function newEventView() {
   const suggestions = [...new Set([
     myName(), ...recentPeople(state.polls), ...recentPeople(state.lists), ...recentPeople(state.spends), ...recentNames(state.games),
-  ].filter(Boolean))].slice(0, 12);
+  ].filter(Boolean))].filter((name) => !writtenNames(state.newEventPeople).has(name.toLowerCase())).slice(0, 12);
 
   return `
     ${flashHtml()}
@@ -276,6 +276,7 @@ export function newEventView() {
 export function bindNewEvent() {
   const form = view.querySelector('#new-event');
   if (!form) return;
+  keepUntilAfter(view.querySelector('#event-day'), view.querySelector('#event-until'));
 
   const snapshot = () => {
     state.newEventName = view.querySelector('#event-name').value;
@@ -345,7 +346,7 @@ export function bindNewEvent() {
 export function newSpendView() {
   const suggestions = [...new Set([
     myName(), ...recentPeople(state.spends), ...recentPeople(state.lists), ...recentNames(state.games),
-  ].filter(Boolean))].slice(0, 12);
+  ].filter(Boolean))].filter((name) => !writtenNames(state.newSpendPeople).has(name.toLowerCase())).slice(0, 12);
 
   return `
     ${flashHtml()}
@@ -522,6 +523,7 @@ function amountFieldHtml(spend, { id, cents = null, paid = null, pill = false })
         </label>
         <span class="muted small" data-converted aria-live="polite"></span>
       </div>
+      <p class="late small" data-amount-problem aria-live="polite" hidden></p>
     </div>`;
 }
 
@@ -539,6 +541,7 @@ function bindAmountField(root, spend, changed = () => {}) {
   const pick = box.querySelector('[data-currency]');
   const rate = box.querySelector('[data-rate]');
   const note = box.querySelector('[data-converted]');
+  const amountProblem = box.querySelector('[data-amount-problem]');
 
   const read = () => {
     const currency = pick.value || own;
@@ -558,6 +561,7 @@ function bindAmountField(root, spend, changed = () => {}) {
     box.querySelector('[data-rate-sign]').textContent = currencySymbol(now.currency);
     box.querySelector('[data-rate-row]').hidden = now.currency === own;
     note.classList.remove('late');
+    if (now.amount) amountProblem.hidden = true;
     note.textContent = now.cents && now.currency !== own ? t('spends.converted', { amount: money(now.cents, spend) }) : '';
   };
 
@@ -578,13 +582,19 @@ function bindAmountField(root, spend, changed = () => {}) {
   }
   refresh();
 
-  const problem = () => {
+  // `inField`: said under the field — a window that has its own place for
+  // mistakes only takes the words back.
+  const problem = (inField = true) => {
     const now = read();
     if (now.error === 'rate') {
       note.textContent = t('spends.notARate', { sign: currencySymbol(own) });
       note.classList.add('late');
       rate.focus();
     } else {
+      // Said under the field, where the eyes are: a message at the top of
+      // the page would be out of sight, and redrawing would wipe the rest.
+      amountProblem.textContent = t('spends.notAnAmount');
+      amountProblem.hidden = !inField;
       input.focus();
     }
     return now.error === 'rate' ? t('spends.notARate', { sign: currencySymbol(own) }) : t('spends.notAnAmount');
@@ -1099,14 +1109,9 @@ export function bindSpend(spend) {
     event.preventDefault();
     const text = view.querySelector('#spend-text');
     const paid = amountField.read();
-    if (paid.error === 'rate') {
-      // Said under the rate, without redrawing what has been typed.
-      amountField.problem();
-      return;
-    }
     if (paid.error) {
-      flash(t('spends.notAnAmount'), 'error');
-      render();
+      // Said under the field, without redrawing what has been typed.
+      amountField.problem();
       return;
     }
     // Tous cochés (ou une seule personne, sans case) : « tout le monde » au
@@ -1272,7 +1277,7 @@ function openSpendLineDialog(spend, lineId) {
   dialog.querySelector('#line-save').addEventListener('click', () => {
     const paid = amountField.read();
     if (paid.error) {
-      problem(amountField.problem());
+      problem(amountField.problem(false));
       return;
     }
     const shared = split.read();
@@ -1341,6 +1346,7 @@ function openRepayDialog(spend, { move = null, line = null }) {
         ${escapeHtml(t('spends.when'))}
         <input type="date" id="repay-day" value="${escapeHtml(line?.day || dayNow())}" />
       </label>
+      <p class="late small" id="repay-error" aria-live="polite" hidden></p>
       <div class="row">
         <button type="button" class="button button--primary" id="repay-save">
           ${escapeHtml(line ? t('action.save') : t('spends.markPaid'))}
@@ -1356,17 +1362,16 @@ function openRepayDialog(spend, { move = null, line = null }) {
     const day = dialog.querySelector('#repay-day').value || dayNow();
     const payer = dialog.querySelector('#repay-from')?.value || from;
     const payee = dialog.querySelector('#repay-to')?.value || to;
+    // A mistake is said in the window, which stays open with what was typed.
+    const wrong = !cents ? t('spends.notAnAmount') : payer === payee ? t('spends.repaySame') : '';
+    if (wrong) {
+      const error = dialog.querySelector('#repay-error');
+      error.textContent = wrong;
+      error.hidden = false;
+      dialog.querySelector(cents ? '#repay-to' : '#repay-amount')?.focus();
+      return;
+    }
     dialog.close();
-    if (!cents) {
-      flash(t('spends.notAnAmount'), 'error');
-      render();
-      return;
-    }
-    if (payer === payee) {
-      flash(t('spends.repaySame'), 'error');
-      render();
-      return;
-    }
     const current = getSpend(spend.id) || spend;
     replaceSpend(line
       ? editSpend(current, line.id, { amount: cents, by: payer, forWhom: [payee], day })

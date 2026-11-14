@@ -176,6 +176,9 @@ mélangés si besoin.
   que personne n'a pris.
 - **Coller une liste entière** d'un message : les puces et la numérotation sont
   nettoyées, les quantités gardées (« 2 baguettes » reste deux baguettes).
+- **Pas de doublon** : une ligne déjà sur la liste et pas encore cochée
+  (« pain » quand « Pain » y est) n'est pas écrite une deuxième fois, et l'app
+  le dit. Une ligne cochée peut revenir : on en reveut.
 - **Un prix dans une ligne** — « Fromage 25 € », « Vin (12,50€) » — se lit
   tout seul : la liste dit sous son titre ce qu'elle annonce (*Prévu ≈ 55,50 €*),
   et le ticket noté plus tard part de ce montant. Seul un nombre qui dit être
@@ -492,7 +495,8 @@ Avec plusieurs groupes, l'app ne mélange plus tout.
 - **Pour vous**, sous les événements, sur l'Accueil : les sondages où votre prénom n'a pas
   répondu, les lignes qui vous sont confiées (en retard d'abord), vos achats
   cochés que personne n'a encore notés dans un compte (« 2 achats à noter dans
-  « Compte du week-end » »), l'argent que vous devez, et les personnes qui
+  « Compte du week-end » »), l'argent que vous devez, les sondages que vous
+  organisez où tout le monde a répondu (« à vous de conclure »), et les personnes qui
   frappent à la porte d'un groupe que vous ouvrez. Sans prénom (Réglages), l'Accueil le dit. Pile au
   milieu, à cheval sur la barre, un **« + »** crée une liste, un sondage, un
   événement, une partie ou un compte, depuis n'importe quelle page ; il dit
@@ -548,7 +552,10 @@ Chaque ligne dit ce qui a été payé, combien, par qui, et pour qui.
 - **Le partage est égal** entre les personnes cochées, toutes par défaut :
   noter une baguette ne demande que deux champs, et une case à décocher fait
   qu'une ligne ne concerne que certains — le taxi de la gare. Ce que chacun
-  doit s'affiche à côté de son nom dès que le montant est tapé.
+  doit s'affiche à côté de son nom dès que le montant est tapé. Un montant se
+  tape comme on l'écrit — « 12,50 », « 1 234,56 », « 1.234,56 », « 1'234.50 » ;
+  ce qui n'en est pas un est dit sous le champ, sans rien effacer de ce qui est
+  écrit.
 - **« Tout le monde », c'est qui est dans le compte** : quelqu'un d'oublié au
   départ et ajouté ensuite partage aussi ce qui était pour tout le monde. Mais
   quand le compte a déjà de telles dépenses, l'ajouter demande s'il arrive en

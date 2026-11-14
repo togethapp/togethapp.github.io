@@ -11,7 +11,7 @@ import {
   attachedHtml, chainButtonsHtml, chainLabel, chainLabelShort, chainOf, documentHref, escapeHtml, everything, flash,
   flashHtml, formatDate, formatDay, formatDayLong, gameCardHtml, gameTitle, groupChipsHtml, isBusy, isHidden,
   kindsHtml, liveQuiet, navigate, pollHome, render, route, signature, state, stopWatching, view, whenText,
-  backButtonHtml, hintHtml, markTouched, newButtonHtml,
+  backButtonHtml, hintHtml, keepUntilAfter, writtenNames, markTouched, newButtonHtml,
 } from './app.js';
 import { docTopic } from './live.js';
 import { openEventMenu } from './view-home.js';
@@ -161,7 +161,7 @@ export function pollsView() {
 }
 
 export function newPollView() {
-  const suggestions = [...new Set([myName(), ...recentPeople(state.polls), ...recentPeople(state.lists), ...recentNames(state.games)].filter(Boolean))].slice(0, 12);
+  const suggestions = [...new Set([myName(), ...recentPeople(state.polls), ...recentPeople(state.lists), ...recentNames(state.games)].filter(Boolean))].filter((name) => !writtenNames(state.newPollPeople).has(name.toLowerCase())).slice(0, 12);
   return `
     ${flashHtml()}
     <div class="spread page-head">
@@ -1463,6 +1463,7 @@ export function bindPoll(poll) {
     });
   });
 
+  keepUntilAfter(view.querySelector('#poll-day'), view.querySelector('#poll-until'));
   view.querySelector('#poll-date-save')?.addEventListener('click', () => {
     const day = view.querySelector('#poll-day').value;
     const hour = view.querySelector('#poll-hour').value;

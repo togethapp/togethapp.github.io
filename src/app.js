@@ -519,6 +519,7 @@ export function flashHtml() {
   // say — is still read rather than silently dropped.
   if (!shownAt) {
     state.flash = { ...state.flash, shownAt: Date.now() };
+    state.flashFresh = kind === 'error';
   } else if (Date.now() - shownAt > FLASH_KEPT) {
     state.flash = null;
     return '';
@@ -1353,9 +1354,23 @@ export function render() {
   });
 
   restoreScrolls(kept);
+  showFreshError();
   fadeKinds();
   showTouched();
   arrive();
+}
+
+/**
+ * A mistake said at the head of a long form — two players with one name, a
+ * code refused — while the thumb is on the button at its foot: brought into
+ * sight, or the button seems to do nothing.
+ */
+function showFreshError() {
+  if (!state.flashFresh) return;
+  state.flashFresh = false;
+  const banner = view.querySelector('.banner--warn');
+  const bar = document.querySelector('.app-bar')?.getBoundingClientRect().bottom || 0;
+  if (banner && banner.getBoundingClientRect().top < bar) banner.scrollIntoView({ block: 'center' });
 }
 
 /**
@@ -1378,6 +1393,28 @@ function fadeKinds() {
     mark();
     row.addEventListener('scroll', mark, { passive: true });
   });
+}
+
+/**
+ * « Jusqu'au » cannot come before the day: the calendar starts at the day,
+ * and moving the day past it empties it — rather than an end kept silently
+ * nowhere (setPollDate() drops an end before the start).
+ */
+export function keepUntilAfter(dayField, untilField) {
+  if (!dayField || !untilField) return;
+  const follow = () => {
+    untilField.min = dayField.value || '';
+    if (dayField.value && untilField.value && untilField.value <= dayField.value) untilField.value = '';
+  };
+  follow();
+  dayField.addEventListener('input', follow);
+  dayField.addEventListener('change', follow);
+  untilField.addEventListener('change', follow);
+}
+
+/** The names already written in a form, to offer only the others. */
+export function writtenNames(names) {
+  return new Set((names || []).map((name) => String(name || '').trim().toLowerCase()).filter(Boolean));
 }
 
 /**
