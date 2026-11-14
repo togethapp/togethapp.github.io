@@ -16,11 +16,12 @@ import { t } from './i18n.js';
 import { renameListPerson } from './lists.js';
 import { renamePlayer } from './model.js';
 import { renamePollPerson } from './polls.js';
+import { renameSpendPerson } from './spends.js';
 import { presetsPlayed, sameName, statsFor } from './stats.js';
 import { groups, shownDocs } from './view-groups.js';
 import { waitingLine } from './view-home.js';
 import { listTitle, persist, persistList } from './view-lists.js';
-import { persistPoll, pollTitle } from './view-polls.js';
+import { persistPoll, persistSpend, pollTitle } from './view-polls.js';
 import { money, spendTitle } from './view-spends.js';
 
 /**
@@ -42,44 +43,7 @@ export async function renameEverywhere(before) {
   if (!clean || clean === before) return;
 
   const key = sameName(before);
-  let touched = 0;
-
-  // Games first, then lists and polls: the same person, written the same way,
-  // in every document that names them. A name matched forgivingly here, as
-  // everywhere else — otherwise the rename would miss exactly the spellings it
-  // exists to reconcile.
-  for (const game of state.games) {
-    const players = game.players.filter((player) => sameName(player.name) === key);
-    if (!players.length) continue;
-    let next = game;
-    for (const player of players) next = renamePlayer(next, player.id, clean);
-    if (next === game) continue;
-    state.games = state.games.map((held) => (held.id === next.id ? next : held));
-    persist(next);
-    touched += 1;
-  }
-
-  for (const list of state.lists) {
-    const people = list.people.filter((person) => sameName(person.name) === key);
-    if (!people.length) continue;
-    let next = list;
-    for (const person of people) next = renameListPerson(next, person.id, clean);
-    if (next === list) continue;
-    state.lists = state.lists.map((held) => (held.id === next.id ? next : held));
-    persistList(next);
-    touched += 1;
-  }
-
-  for (const poll of state.polls) {
-    const people = poll.people.filter((person) => sameName(person.name) === key);
-    if (!people.length) continue;
-    let next = poll;
-    for (const person of people) next = renamePollPerson(next, person.id, clean);
-    if (next === poll) continue;
-    state.polls = state.polls.map((held) => (held.id === next.id ? next : held));
-    persistPoll(next);
-    touched += 1;
-  }
+  const { touched } = renameAcross(before, clean);
 
   flash(touched ? t('stats.renamed', { name: clean, count: touched }) : t('stats.renamedNone'));
   // The page may be keyed on the old name: follow the person to their new one.
@@ -88,6 +52,58 @@ export async function renameEverywhere(before) {
     return;
   }
   render();
+}
+
+/**
+ * Write `before` as `after` in every document that names them — or only in
+ * those `only` keeps (a group's). Games first, then lists, polls and accounts:
+ * the same person, written the same way. A name matched forgivingly here, as
+ * everywhere else — otherwise the rename would miss exactly the spellings it
+ * exists to reconcile. A document where `after` is already someone else is
+ * left as it is (it would have them twice), and counted in `left`.
+ */
+export function renameAcross(before, after, only = () => true) {
+  const key = sameName(before);
+  let touched = 0;
+  let left = 0;
+
+  for (const game of state.games.filter(only)) {
+    const players = game.players.filter((player) => sameName(player.name) === key);
+    if (!players.length) continue;
+    if (game.players.some((player) => !players.includes(player) && sameName(player.name) === sameName(after))) {
+      left += 1;
+      continue;
+    }
+    let next = game;
+    for (const player of players) next = renamePlayer(next, player.id, after);
+    if (next === game) continue;
+    state.games = state.games.map((held) => (held.id === next.id ? next : held));
+    persist(next);
+    touched += 1;
+  }
+
+  const kinds = [
+    ['lists', renameListPerson, persistList],
+    ['polls', renamePollPerson, persistPoll],
+    ['spends', renameSpendPerson, persistSpend],
+  ];
+  for (const [kind, rename, keep] of kinds) {
+    for (const document_ of state[kind].filter(only)) {
+      const people = document_.people.filter((person) => sameName(person.name) === key);
+      if (!people.length) continue;
+      let next = document_;
+      for (const person of people) next = rename(next, person.id, after);
+      if (next === document_) {
+        // Written exactly so already, or `after` is someone else in there.
+        if (people.some((person) => person.name !== after)) left += 1;
+        continue;
+      }
+      state[kind] = state[kind].map((held) => (held.id === next.id ? next : held));
+      keep(next);
+      touched += 1;
+    }
+  }
+  return { touched, left };
 }
 
 /* ---------------------------------------------------------------- person --- */

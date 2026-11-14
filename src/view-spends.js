@@ -20,7 +20,7 @@ import { ask, makeDialog, showCopyDialog } from './view-games.js';
 import {
   askGroup, bindData, groups, hiddenByGroupHtml, inGroupHtml, keyFor, landing, myName, organise,
   organiserSecret, resetGroupChoice, shownDocs, willBeInHtml, isOrganiser,
-  removeEverywhere,
+  removeEverywhere, rosterPickHtml, bindRosterPick, peopleForNew, rosterFor, myNameFor,
 } from './view-groups.js';
 import { recentNames } from './model.js';
 import { sameName } from './stats.js';
@@ -51,7 +51,7 @@ export function spendTitle(spend) {
 
 /** Ce que ce compte dit de moi : ce qu'on me doit, ou ce que je dois. */
 export function myBalance(spend) {
-  const me = sameName(myName());
+  const me = sameName(myNameFor(spend));
   if (!me) return null;
   return balances(spend).find((row) => sameName(row.name) === me) || null;
 }
@@ -240,6 +240,7 @@ export function newEventView() {
         <input type="date" id="event-until" value="${escapeHtml(state.newEventUntil)}" />
       </label>
 
+      ${rosterPickHtml(state.newEventPeople, t('events.peopleHint')) || `
       <div class="stack stack--tight">
         <span class="muted small">${escapeHtml(t('events.peopleHint'))}</span>
         ${state.newEventPeople
@@ -265,7 +266,7 @@ export function newEventView() {
                 .join('')}</div>`
             : ''
         }
-      </div>
+      </div>`}
 
       ${willBeInHtml({ events: false })}
 
@@ -301,6 +302,15 @@ export function bindNewEvent() {
     render();
   });
 
+  // Where the group fixes its first names, the people are ticked, not typed.
+  bindRosterPick(view, () => state.newEventPeople, (names) => {
+    state.newEventPeople = names;
+  });
+  view.querySelector('form')?.addEventListener('rosterchange', () => {
+    snapshot();
+    render();
+  });
+
   view.querySelectorAll('[data-new-group]').forEach((chip) => {
     chip.addEventListener('click', () => {
       snapshot();
@@ -326,7 +336,7 @@ export function bindNewEvent() {
     snapshot();
     const poll = signed(organise(landing(createEvent({
       name: state.newEventName,
-      names: state.newEventPeople,
+      names: peopleForNew(state.newEventPeople),
       date: state.newEventDay,
       at: state.newEventHour,
       until: state.newEventUntil,
@@ -369,6 +379,7 @@ export function newSpendView() {
         </select>
       </label>
 
+      ${rosterPickHtml(state.newSpendPeople, t('spends.peopleHint')) || `
       <div class="stack stack--tight">
         <span class="muted small">${escapeHtml(t('spends.peopleHint'))}</span>
         ${state.newSpendPeople
@@ -394,7 +405,7 @@ export function newSpendView() {
                 .join('')}</div>`
             : ''
         }
-      </div>
+      </div>`}
 
       ${willBeInHtml()}
 
@@ -811,7 +822,7 @@ export function spendView(spend) {
   }
   const rows = balances(spend);
   const moves = settle(spend);
-  const me = sameName(myName());
+  const me = sameName(myNameFor(spend));
 
   const segmented = `
     <div class="segmented" role="tablist" aria-label="${escapeHtml(t('spends.sections'))}">
@@ -1038,6 +1049,15 @@ export function bindNewSpend() {
     render();
   });
 
+  // Where the group fixes its first names, the people are ticked, not typed.
+  bindRosterPick(view, () => state.newSpendPeople, (names) => {
+    state.newSpendPeople = names;
+  });
+  view.querySelector('form')?.addEventListener('rosterchange', () => {
+    snapshot();
+    render();
+  });
+
   view.querySelectorAll('[data-new-group]').forEach((chip) => {
     chip.addEventListener('click', () => {
       snapshot();
@@ -1063,7 +1083,7 @@ export function bindNewSpend() {
     snapshot();
     const spend = landing(createSpend({
       name: state.newSpendName,
-      names: state.newSpendPeople,
+      names: peopleForNew(state.newSpendPeople),
       currency: state.newSpendCurrency,
     }));
     state.spends = [...state.spends, spend];
@@ -1424,6 +1444,7 @@ function askLatecomer(name) {
 function openSpendPeopleDialog(spend) {
   const held = () => getSpend(spend.id) || spend;
   openPeopleEditor({
+    roster: rosterFor(held()),
     hint: t('spends.peoplePartsHint'),
     extra: {
       html: (person) => `

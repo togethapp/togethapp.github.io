@@ -537,8 +537,40 @@ Avec plusieurs groupes, l'app ne mélange plus tout.
   « Alexandre » restent deux. On y arrive depuis la page d'un groupe (« Voir
   qui doit quoi ») ou les statistiques (renommer).
 - **Renommer partout**, depuis sa page ou depuis les statistiques, suit la
-  personne dans les parties, les listes et les sondages à la fois : deux
-  orthographes redeviennent une seule personne partout d'un coup.
+  personne dans les parties, les listes, les sondages et les comptes à la
+  fois : deux orthographes redeviennent une seule personne partout d'un coup.
+- **Jamais deux fois la même personne** dans une liste, un sondage ou un
+  compte : « gui » ajouté quand « Gui » y est n'ajoute rien, et l'app le dit.
+
+### Les prénoms du groupe, décidés à l'avance
+
+« Gui » dans une liste, « Guillaume » dans un compte, « gui » dans un sondage :
+trois personnes pour l'app. Un groupe peut donc **fixer ses prénoms** : la
+personne qui fait entrer en écrit la liste sur la page du groupe (*Groupes →
+le groupe → Les prénoms du groupe → Fixer les prénoms*), un par ligne, y
+compris ceux qui n'ont pas l'app (les enfants, les grands-parents). Ensuite :
+
+- **Chacun dit lequel il est** : en frappant à la porte, un prénom qui n'est
+  pas dans la liste reçoit la liste, à toucher ; sur la page du groupe, « Je
+  suis : » le change. C'est un prénom **par groupe** — « Papa » en famille,
+  « Gui » avec les copains ; celui des Réglages reste celui de l'appareil hors
+  groupe. « Pour vous », « Je suis » d'un sondage, le payeur proposé et les
+  réactions suivent ce prénom-là dans les éléments du groupe.
+- **On coche, on n'écrit plus** : une liste, un sondage, un événement ou un
+  compte du groupe prend ses personnes parmi ces prénoms (avec « Tout le
+  monde ») ; « Les personnes » d'un élément ajoute en touchant un prénom ; une
+  partie n'accepte que ces prénoms pour ses joueurs (les équipes restent
+  libres). Hors groupe et en « Lien seulement », on écrit ce qu'on veut, comme
+  avant ; les visiteurs d'un lien aussi.
+- **L'existant se fond** : la page du groupe signale chaque prénom écrit
+  autrement avant (« Guillaume ») et propose « C'est… » → un prénom de la
+  liste, remplacé dans tout le groupe d'un geste ; ou, pour qui fait entrer,
+  « Ajouter à la liste ». Rien n'est changé sans ce geste.
+- **Ne plus fixer** (dans *Modifier*) rend les prénoms libres.
+- Dans la base : colonne `people` du groupe, `marque_points_set_people` (clé
+  qui fait entrer), `marque_points_group_of` qui rend la liste et le prénom de
+  la clé, `marque_points_ask` qui répond « who » avec la liste. Tests :
+  `people`, contrôle SQL `prenoms`, suite `prenoms`.
 
 ## Ce que ça fait — les comptes
 

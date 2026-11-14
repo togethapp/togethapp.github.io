@@ -19,7 +19,7 @@
 
 import { uid } from './model.js';
 import { later, touch, prune } from './stamp.js';
-import { addPerson, renamePerson, removePerson } from './people.js';
+import { addPerson, renamePerson, removePerson, distinctNames } from './people.js';
 
 /** Un compte neuf. `names` sont les personnes qu'il concerne. */
 export function createSpend({ name = '', names = [], shared = false, groupId = null, currency = 'EUR' } = {}) {
@@ -38,10 +38,7 @@ export function createSpend({ name = '', names = [], shared = false, groupId = n
     groupId: groupId || null,
     archivedAt: null,
     removed: {},
-    people: names
-      .map((raw) => String(raw || '').trim())
-      .filter(Boolean)
-      .map((personName) => ({ id: uid('w'), name: personName })),
+    people: distinctNames(names).map((personName) => ({ id: uid('w'), name: personName })),
     lines: [],
   };
 }

@@ -13,10 +13,34 @@
 
 import { uid } from './model.js';
 import { later, touch } from './stamp.js';
+import { sameName } from './stats.js';
+
+/**
+ * The names a new document starts with: trimmed, and each person once —
+ * « gui » written after « Gui » is the same person, not a second one.
+ */
+export function distinctNames(names) {
+  const seen = new Set();
+  return (names || [])
+    .map((raw) => String(raw || '').trim())
+    .filter((name) => {
+      const key = sameName(name) || name;
+      if (!name || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+/** Whether someone of that name is already among the document's people. */
+export function hasPerson(document_, name, exceptId = null) {
+  const key = sameName(name);
+  return Boolean(key) && document_.people.some((person) => person.id !== exceptId && sameName(person.name) === key);
+}
 
 export function addPerson(document_, name) {
   const clean = String(name || '').trim();
-  if (!clean) return document_;
+  // Already there, however it is written: one person, not two.
+  if (!clean || hasPerson(document_, clean)) return document_;
   return touch(document_, {
     people: [...document_.people, { id: uid('w'), name: clean }],
     peopleAt: later(document_.peopleAt),
@@ -25,7 +49,8 @@ export function addPerson(document_, name) {
 
 export function renamePerson(document_, personId, name) {
   const clean = String(name || '').trim();
-  if (!clean) return document_;
+  // Never onto someone else's name: the document would have that person twice.
+  if (!clean || hasPerson(document_, clean, personId)) return document_;
   return touch(document_, {
     people: document_.people.map((person) =>
       (person.id === personId ? { ...person, name: clean } : person)),

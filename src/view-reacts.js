@@ -14,7 +14,7 @@ import {
   REACTIONS, WORDS_MOST, addWords, myReaction, react, reactionsTo, removeWords, talkTotals, wordsOn,
 } from './reacts.js';
 import { makeDialog } from './view-games.js';
-import { myName, setMyName } from './view-groups.js';
+import { askWhoIn, myName, myNameFor, rosterFor, setMyName } from './view-groups.js';
 import { replaceBoard } from './view-ideas.js';
 import { replacePoll } from './view-polls.js';
 
@@ -27,7 +27,7 @@ const WORDS_SHOWN = 2;
  * the row (an event's page), where the rest only count them.
  */
 export function talkHtml(document_, target, { title = '', said = false } = {}) {
-  const me = myName();
+  const me = myNameFor(document_);
   const rows = reactionsTo(document_, target, me);
   const words = wordsOn(document_, target, me);
   const chips = rows.map((row) => `
@@ -74,8 +74,12 @@ function keepTalk(next) {
   else if (next.kind === 'poll') replacePoll(next);
 }
 
-/** Who reacts on this device: its first name — asked once, if it has none yet. */
-async function talkName() {
+/**
+ * Who reacts on this device: its first name — asked once, if it has none yet —
+ * or, in a group that fixes its names, the one it is there.
+ */
+async function talkName(document_) {
+  if (rosterFor(document_).length) return myNameFor(document_) || askWhoIn(document_.groupId);
   const held = myName();
   if (held) return held;
   const name = await askForText({
@@ -88,7 +92,7 @@ async function talkName() {
 
 /** React with `emoji` — or take it back — as this device's first name. */
 async function reactTo(id, target, emoji) {
-  const name = await talkName();
+  const name = await talkName(talkDocument(id));
   const current = talkDocument(id);
   if (!name || !current) return;
   keepTalk(react(current, target, name, emoji));
@@ -103,7 +107,7 @@ function openTalk(id, target, title) {
       dialog.close();
       return;
     }
-    const me = myName();
+    const me = myNameFor(current);
     const mine = myReaction(current, target, me);
     const rows = reactionsTo(current, target, me);
     const words = wordsOn(current, target, me);
@@ -158,7 +162,7 @@ function openTalk(id, target, title) {
         field.focus();
         return;
       }
-      const name = await talkName();
+      const name = await talkName(talkDocument(id));
       const now = talkDocument(id);
       if (!name || !now) return;
       keepTalk(addWords(now, target, name, text));

@@ -13,7 +13,7 @@
 
 import { uid } from './model.js';
 import { later, touch, prune } from './stamp.js';
-import { addPerson, renamePerson, removePerson } from './people.js';
+import { addPerson, renamePerson, removePerson, distinctNames } from './people.js';
 import { mergedTalk, sameTalk } from './reacts.js';
 
 export const VALUES = ['yes', 'maybe', 'no'];
@@ -43,10 +43,7 @@ export function createPoll({ question = '', names = [], shared = false, groupId 
     shared: Boolean(shared),
     groupId: groupId || null,
     removed: {},
-    people: names
-      .map((raw) => String(raw || '').trim())
-      .filter(Boolean)
-      .map((name) => ({ id: uid('w'), name })),
+    people: distinctNames(names).map((name) => ({ id: uid('w'), name })),
     options: [],
     // { "personId|optionId": { v: 'yes' | 'maybe' | 'no', at } }
     votes: {},

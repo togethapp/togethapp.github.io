@@ -16,7 +16,7 @@ import {
 import { persistPoll, replacePoll, signed, choiceLabel } from './view-polls.js';
 import { makeDialog } from './view-games.js';
 import {
-  deleteDocument, myName, openAttachDialog, openRelateDialog, organise, replaceAny, shownDocs, isOrganiser,
+  deleteDocument, myNameFor, openAttachDialog, openRelateDialog, organise, replaceAny, shownDocs, isOrganiser,
 } from './view-groups.js';
 import { t } from './i18n.js';
 import { readAmount, priceIn, withoutPrice } from './spends.js';
@@ -136,7 +136,7 @@ export function openTicketDialog(spend, list, picked) {
   const holder = holders.length === 1 ? source.people.find((person) => person.id === holders[0])?.name || '' : '';
   const names = [...new Set([holder, ...account.people.map((person) => person.name), ...source.people.map((person) => person.name)]
     .map((name) => String(name || '').trim()).filter(Boolean))];
-  let payer = holder || names.find((name) => sameName(name) === sameName(myName())) || names[0] || '';
+  let payer = holder || names.find((name) => sameName(name) === sameName(myNameFor(account))) || names[0] || '';
   const guess = () => estimateOf(lines());
 
   const dialog = makeDialog();
@@ -255,7 +255,7 @@ async function voteOnIdeas(board) {
     confirmLabel: t('flows.voteMake'),
   });
   if (question === null || question === undefined) return;
-  const poll = signed(organise(pollFromIdeas(board, { question, names: [myName()].filter(Boolean) })));
+  const poll = signed(organise(pollFromIdeas(board, { question, names: [myNameFor(board)].filter(Boolean) })));
   state.polls = [...state.polls, poll];
   persistPoll(poll);
   flash(t('flows.voteMade'));

@@ -22,7 +22,7 @@ import { ask, download, fileName, makeDialog, showCopyDialog } from './view-game
 import {
   NAME_KEPT, groups, hiddenByGroupHtml, inGroupHtml, isOrganiser, keyFor, landing, myName,
   organise, organiserSecret, claimChoices, ownsChoice, choiceUnlocks, resetGroupChoice, shownDocs, startSharing, willBeInHtml,
-  removeEverywhere, linkedEvent, chooseEvent,
+  removeEverywhere, rosterPickHtml, bindRosterPick, peopleForNew, rosterFor, myNameFor, linkedEvent, chooseEvent,
 } from './view-groups.js';
 import { markForActivity, activitiesOnClose } from './flows.js';
 import {
@@ -182,6 +182,7 @@ export function newPollView() {
       </label>
       ${newPollDaysHtml()}
 
+      ${rosterPickHtml(state.newPollPeople, t('polls.peopleHint')) || `
       <div class="stack stack--tight">
         <span class="muted small">${escapeHtml(t('polls.peopleHint'))}</span>
         ${state.newPollPeople
@@ -207,7 +208,7 @@ export function newPollView() {
                 .join('')}</div>`
             : ''
         }
-      </div>
+      </div>`}
 
       <label class="checkbox">
         <input type="checkbox" id="poll-for-activity" ${state.newPollForActivity ? 'checked' : ''} />
@@ -275,7 +276,7 @@ function gaugeHtml(poll) {
 function voterOf(poll) {
   const chosen = state.prefs.voter?.[poll.id];
   if (poll.people.some((person) => person.id === chosen)) return chosen;
-  const mine = sameName(myName());
+  const mine = sameName(myNameFor(poll));
   return (mine && poll.people.find((person) => sameName(person.name) === mine)?.id) || null;
 }
 
@@ -367,7 +368,7 @@ export function pollView(poll, { solo = false } = {}) {
         : ''
     }
 
-    ${guest && !closed ? soloJoinHtml() : ''}
+    ${guest && !closed ? soloJoinHtml(poll, solo) : ''}
 
     ${
       // An event: what is made for it first — it is what the page is for —
@@ -815,7 +816,19 @@ export function eventLinkHtml(document_) {
  * Whoever sends a link to a chat does not know every name in it; without
  * this, a guest could look but never tick.
  */
-function soloJoinHtml() {
+function soloJoinHtml(poll, solo) {
+  // A member of a group that fixes its names says which one they are, among
+  // those not asked yet; a visitor from a link writes theirs.
+  const roster = solo ? [] : rosterFor(poll);
+  if (roster.length) {
+    const free = roster.filter((name) => !poll.people.some((person) => sameName(person.name) === sameName(name)));
+    if (!free.length) return '';
+    return `
+      <div class="row row--chips" id="solo-me-listed">
+        <span class="muted small">${escapeHtml(t('roster.notAsked'))}</span>
+        ${free.map((name) => `<button type="button" class="chip" data-solo-as="${escapeHtml(name)}">+ ${escapeHtml(name)}</button>`).join('')}
+      </div>`;
+  }
   return `
     <form id="solo-me-form" class="row row--tight">
       <label class="visually-hidden" for="solo-me">${escapeHtml(t('polls.soloMe'))}</label>
@@ -1122,6 +1135,15 @@ export function bindNewPoll() {
     });
   };
 
+  // Where the group fixes its first names, the people are ticked, not typed.
+  bindRosterPick(view, () => state.newPollPeople, (names) => {
+    state.newPollPeople = names;
+  });
+  view.querySelector('form')?.addEventListener('rosterchange', () => {
+    snapshot();
+    render();
+  });
+
   view.querySelectorAll('[data-new-group]').forEach((chip) => {
     chip.addEventListener('click', () => {
       snapshot();
@@ -1208,7 +1230,7 @@ export function bindNewPoll() {
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     snapshot();
-    let poll = signed(organise(landing(createPoll({ question: state.newPollQuestion, names: state.newPollPeople }))));
+    let poll = signed(organise(landing(createPoll({ question: state.newPollQuestion, names: peopleForNew(state.newPollPeople) }))));
     poll = addOptions(poll, state.newPollChoices);
     // A day typed out already is not offered twice.
     const typed = new Set(poll.options.map((option) => choiceWhen(option)?.date).filter(Boolean));
@@ -1315,9 +1337,7 @@ export function bindPoll(poll) {
   });
 
   // A guest not on the list adds their own name, and is then who answers.
-  view.querySelector('#solo-me-form')?.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const name = view.querySelector('#solo-me').value.trim();
+  const joinAs = (name) => {
     if (!name) return;
     // Matched the way everywhere else matches names — case, accents and
     // blanks aside — so "chloe" does not add a second Chloé.
@@ -1333,6 +1353,13 @@ export function bindPoll(poll) {
     if (next === poll) render();
     else replacePoll(next);
     showMyColumn({ always: true });
+  };
+  view.querySelector('#solo-me-form')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    joinAs(view.querySelector('#solo-me').value.trim());
+  });
+  view.querySelectorAll('[data-solo-as]').forEach((chip) => {
+    chip.addEventListener('click', () => joinAs(chip.dataset.soloAs));
   });
 
   // Opening the poll: straight to one's own column, so answering takes no
@@ -1684,6 +1711,7 @@ function openChoiceDialog(poll, optionId) {
 function openPollPeopleDialog(poll) {
   const held = () => getPoll(poll.id) || poll;
   openPeopleEditor({
+    roster: rosterFor(held()),
     hint: t('polls.peopleHint'),
     confirmRemove: t('polls.confirmRemovePerson'),
     people: () => held().people,

@@ -29,6 +29,8 @@ def accounts_column():
     m = re.search(r"(alter table public\.marque_points_group_key\n  add column if not exists user_id uuid;\ncreate index if not exists marque_points_group_key_user[^;]*;\n)", bis); assert m; return m.group(1)
 def accounts_required_column():
     m = re.search(r"(alter table public\.marque_points_group\n  add column if not exists accounts_required[^;]*;\n)", bis); assert m; return m.group(1)
+def people_column():
+    m = re.search(r"(alter table public\.marque_points_group\n  add column if not exists people[^;]*;\n)", bis); assert m; return m.group(1)
 def trigger(name):
     m = re.search(r"(drop trigger if exists " + name + r" on [^;]*;\ncreate trigger " + name + r"\n[^;]*;\n)", bis); assert m, name; return m.group(1)
 def channel_column():
@@ -90,11 +92,15 @@ out = "\n".join([
 --      permis sur ce qui est clos ;
 --  15. un mot laissé sur un sondage, un événement ou une idée prévient le
 --      groupe (avec la fonction « notifier »).
+--  16. les prénoms d'un groupe : qui fait entrer en fixe la liste, chacun
+--      dit lequel il est en entrant, et les listes, sondages et comptes du
+--      groupe prennent leurs personnes dans cette liste.
 --
 -- Généré depuis docs/DEPLOIEMENT.md, étape 2 bis ; un test vérifie que les
 -- deux disent la même chose. Modifiez le guide, pas ce fichier seul.
 """,
-"-- 6 et 7. Les comptes, et les groupes qui en exigent un : les colonnes d'abord,\n-- que les fonctions ci-dessous lisent.\n" + accounts_column() + "\n" + accounts_required_column() + "\n-- 10. Le canal de chaque groupe, que la fonction suivante donne.\n" + channel_column(),
+"-- 6 et 7. Les comptes, et les groupes qui en exigent un : les colonnes d'abord,\n-- que les fonctions ci-dessous lisent.\n" + accounts_column() + "\n" + accounts_required_column() + "\n-- 10. Le canal de chaque groupe, que la fonction suivante donne.\n" + channel_column()
++ "\n-- 16. Les prénoms du groupe.\n" + people_column(),
 "-- 1. Deux jours pour une invitation.\n" + function('marque_points_invite'),
 "-- 2. « Lien seulement », et 3. l'organisateur.\n" + alter('listed') + "\n" + alter('owner_hash'),
 "-- 4. Les votes fondus case par case.\n" + function('marque_points_merge_votes'),
@@ -132,6 +138,7 @@ function('marque_points_account_delete'),
 "-- 7. Exiger un compte dans un groupe.\n" + function('marque_points_group_of'),
 function('marque_points_group_keys'),
 function('marque_points_set_accounts'),
+function('marque_points_set_people'),
 "-- 10. Les changements annoncés aussitôt.\n" + function('marque_points_announce'),
 function('marque_points_live'),
 live_triggers(),
@@ -154,7 +161,7 @@ function('marque_points_push_gone'),
     + [grant(n) for n in ['marque_points_push_subscribe', 'marque_points_push_unsubscribe', 'marque_points_open_set']]
     + [revoke(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_reminders', 'marque_points_push_words', 'marque_points_push_gone']]
     + [grant(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_reminders', 'marque_points_push_words', 'marque_points_push_gone']]
-    + [grant(n) for n in ['marque_points_group_of', 'marque_points_group_keys', 'marque_points_set_accounts']]) + "\n",
+    + [grant(n) for n in ['marque_points_group_of', 'marque_points_group_keys', 'marque_points_set_accounts', 'marque_points_set_people']]) + "\n",
 "-- 12. Une personne sans plus aucun appareil perd son lien de retour ; les codes\n-- inconnus ne se comptent plus, et les retours n'ont plus de plafond.\n" + function('marque_points_person_out'),
 trigger('marque_points_person_out'),
 function('marque_points_ask'),

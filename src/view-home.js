@@ -25,11 +25,13 @@ import {
 } from './view-account.js';
 import { openActivityDialog, openActivityPicker, unblockedHtml } from './view-flows.js';
 import { purchasesToWrite } from './flows.js';
+import { distinctNames } from './people.js';
+import { renameAcross } from './view-people.js';
 import { ask, makeDialog, shareMessage, showCopyDialog } from './view-games.js';
 import {
-  bindData, bindInAppWarning, catchUpWith, checkPending, chooseEvent, destinationForNew, deviceLabel, forgetGate,
+  bindData, bindInAppWarning, catchUpWith, checkPending, chooseEvent, destinationForNew, forgetGate,
   forgetGroup, forgetPending, gate, groups, groupsByName, heldOrganiserSecrets, hiddenByGroupHtml, inAppWarningHtml, isOrganiser,
-  joinGroup, LINK_ONLY, loadGate, lots, myName, NAME_KEPT, onHomeScreen, pendings, refreshGroup, rememberPending,
+  joinGroup, knockAs, myNameFor, myNameIn, rosterOf, offRoster, setMyNameIn, askWhoIn, LINK_ONLY, loadGate, lots, myName, NAME_KEPT, onHomeScreen, pendings, refreshGroup, rememberGroup, rememberPending,
   remoteReason, resetGroupChoice, setMyName, shownDocs,
 } from './view-groups.js';
 import { holoHtml } from './view-holo.js';
@@ -536,7 +538,7 @@ function groupBoardHtml(group) {
  */
 function groupPeopleHtml(group) {
   const mine = (documents) => documents.filter((document_) => inGroup(document_, group.id));
-  const me = sameName(myName());
+  const me = sameName(myNameIn(group.id));
   const names = [...peopleIn({
     lists: mine(state.lists), polls: mine(state.polls), games: mine(state.games), spends: mine(state.spends),
   })].sort((a, b) => (me ? (sameName(a) === me ? 0 : 1) - (sameName(b) === me ? 0 : 1) : 0) || a.localeCompare(b));
@@ -556,6 +558,196 @@ function groupPeopleHtml(group) {
       <summary>${escapeHtml(t('group.who'))}</summary>
       <div class="game-list">${names.map(row).join('')}</div>
     </details>`;
+}
+
+/** The names written in a group's lists, polls and accounts. */
+function namesWrittenIn(group) {
+  const mine = (documents) => documents.filter((document_) => inGroup(document_, group.id) && !document_.linkOnly);
+  return peopleIn({ lists: mine(state.lists), polls: mine(state.polls), spends: mine(state.spends) });
+}
+
+/**
+ * The first names of a group, decided in advance by whoever lets people in:
+ * a list, a poll or an account of the group then takes its people from these
+ * names and no others. Here the list is fixed and changed, each device says
+ * which name it is, and a name written otherwise before — « Guillaume » when
+ * the list says « Gui » — is merged into one of the list, on a touch.
+ */
+function groupRosterHtml(group) {
+  const roster = rosterOf(group.id);
+  const admits = group.admits !== false;
+  if (!roster.length) {
+    if (!admits || !state.remote) return '';
+    return `
+      <section class="section card stack stack--tight" id="group-roster">
+        <div class="section__head"><h2>${escapeHtml(t('roster.title'))}</h2></div>
+        <p class="muted small">${escapeHtml(t('roster.offHint'))}</p>
+        <div class="row">
+          <button type="button" class="button button--small" data-roster-edit>${escapeHtml(t('roster.fix'))}</button>
+        </div>
+      </section>`;
+  }
+  const me = myNameIn(group.id);
+  const strays = offRoster(group.id, namesWrittenIn(group));
+  return `
+    <section class="section card stack stack--tight" id="group-roster">
+      <div class="section__head">
+        <h2>${escapeHtml(t('roster.title'))}</h2>
+        ${admits ? `<button type="button" class="button button--small button--ghost" data-roster-edit>${escapeHtml(t('roster.edit'))}</button>` : ''}
+      </div>
+      <p class="muted small">${escapeHtml(t(admits ? 'roster.onHintGate' : 'roster.onHint'))}</p>
+      <div class="row row--chips iam ${me ? '' : 'iam--needed'}" role="group" aria-label="${escapeHtml(t('polls.iAm'))}">
+        <span class="muted small">${escapeHtml(t('polls.iAm'))}</span>
+        ${roster
+          .map((name) => `
+            <button type="button" class="chip ${name === me ? 'chip--on' : ''}" data-roster-me="${escapeHtml(name)}"
+                    aria-pressed="${name === me ? 'true' : 'false'}">${escapeHtml(name)}</button>`)
+          .join('')}
+      </div>
+      ${me ? '' : `<p class="late small">${escapeHtml(t('roster.pickMe'))}</p>`}
+      ${
+        strays.length
+          ? `<div class="stack stack--tight" id="roster-strays">
+               <p class="small">${escapeHtml(t('roster.strays'))}</p>
+               ${strays
+                 .map((name) => `
+                   <div class="knock">
+                     <strong>${escapeHtml(name)}</strong>
+                     <div class="row">
+                       <button type="button" class="button button--small" data-stray-merge="${escapeHtml(name)}">${escapeHtml(t('roster.merge'))}</button>
+                       ${admits ? `<button type="button" class="button button--small button--ghost" data-stray-add="${escapeHtml(name)}">${escapeHtml(t('roster.addToList'))}</button>` : ''}
+                     </div>
+                   </div>`)
+                 .join('')}
+             </div>`
+          : ''
+      }
+    </section>`;
+}
+
+/** Keep the group's first names in the database, then here. Null when it could not. */
+async function saveRoster(group, names) {
+  let kept = null;
+  try {
+    kept = await state.remote.setPeople(group.key, names);
+  } catch {
+    kept = null;
+  }
+  if (!kept) return null;
+  const held = groups().find((one) => one.id === group.id) || group;
+  rememberGroup({ ...held, people: kept });
+  return kept;
+}
+
+/** Fix the group's first names, change them, or stop fixing them. */
+function openRosterDialog(group) {
+  const roster = rosterOf(group.id);
+  // Nothing fixed yet: start from the names the group already writes.
+  const start = roster.length ? roster : distinctNames([myName(), ...namesWrittenIn(group)]);
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('roster.editTitle', { name: group.name }))}</h2>
+      <p class="muted small">${escapeHtml(t('roster.editHint'))}</p>
+      <label class="visually-hidden" for="roster-names">${escapeHtml(t('roster.title'))}</label>
+      <textarea id="roster-names" rows="8" autocomplete="off">${escapeHtml(start.join('\n'))}</textarea>
+      <p class="late small" id="roster-problem" aria-live="polite" hidden></p>
+      <div class="row">
+        <button type="button" class="button button--primary" data-roster-save>${escapeHtml(t('action.save'))}</button>
+        <button type="button" class="button" data-roster-cancel>${escapeHtml(t('action.cancel'))}</button>
+        ${roster.length ? `<button type="button" class="button button--ghost" data-roster-off>${escapeHtml(t('roster.stop'))}</button>` : ''}
+      </div>
+    </div>`;
+  const keep = async (names, said) => {
+    const buttons = dialog.querySelectorAll('button');
+    buttons.forEach((button) => { button.disabled = true; });
+    const kept = await saveRoster(group, names);
+    if (!kept) {
+      buttons.forEach((button) => { button.disabled = false; });
+      const problem = dialog.querySelector('#roster-problem');
+      problem.textContent = t('groups.unsure');
+      problem.hidden = false;
+      return;
+    }
+    dialog.close();
+    flash(said(kept));
+    render();
+  };
+  dialog.querySelector('[data-roster-save]').addEventListener('click', () => {
+    const names = distinctNames(dialog.querySelector('#roster-names').value.split('\n')).map((name) => name.slice(0, NAME_KEPT));
+    if (!names.length && !roster.length) {
+      dialog.querySelector('#roster-names').focus();
+      return;
+    }
+    void keep(names, (kept) => (kept.length ? t('roster.saved', { count: kept.length }) : t('roster.stopped')));
+  });
+  dialog.querySelector('[data-roster-off]')?.addEventListener('click', () => void keep([], () => t('roster.stopped')));
+  dialog.querySelector('[data-roster-cancel]').addEventListener('click', () => dialog.close());
+  dialog.showModal();
+}
+
+/** « Guillaume », written before the list said « Gui »: which name of the list is it? */
+function openMergeDialog(group, stray) {
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('roster.mergeTitle', { name: stray }))}</h2>
+      <p class="muted small">${escapeHtml(t('roster.mergeHint', { name: stray }))}</p>
+      <div class="row row--chips">
+        ${rosterOf(group.id).map((name) => `<button type="button" class="chip" data-merge-into="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')}
+      </div>
+      <div class="row">
+        <button type="button" class="button button--ghost" data-merge-cancel>${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </div>`;
+  dialog.querySelectorAll('[data-merge-into]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const into = chip.dataset.mergeInto;
+      dialog.close();
+      const { touched, left } = renameAcross(stray, into, (document_) => inGroup(document_, group.id));
+      flash(left
+        ? t('roster.mergedLeft', { before: stray, after: into, count: touched, left })
+        : t('roster.merged', { before: stray, after: into, count: touched }), left ? 'error' : 'info');
+      render();
+    });
+  });
+  dialog.querySelector('[data-merge-cancel]').addEventListener('click', () => dialog.close());
+  dialog.showModal();
+}
+
+/** When each group's first names were last asked for, so a page redrawn does not ask again. */
+const rosterAskedAt = new Map();
+
+export function bindGroup(group) {
+  view.querySelectorAll('[data-roster-me]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      setMyNameIn(group.id, chip.dataset.rosterMe);
+      render();
+    });
+  });
+  view.querySelector('[data-roster-edit]')?.addEventListener('click', () => openRosterDialog(group));
+  view.querySelectorAll('[data-stray-merge]').forEach((button) => {
+    button.addEventListener('click', () => openMergeDialog(group, button.dataset.strayMerge));
+  });
+  view.querySelectorAll('[data-stray-add]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      const kept = await saveRoster(group, [...rosterOf(group.id), button.dataset.strayAdd]);
+      flash(kept ? t('roster.added', { name: button.dataset.strayAdd }) : t('groups.unsure'), kept ? 'info' : 'error');
+      render();
+    });
+  });
+
+  // The names may have been changed from another device: asked on arriving
+  // here, and the page redrawn only if they did change.
+  if (state.remote && Date.now() - (rosterAskedAt.get(group.id) || 0) > 30000) {
+    rosterAskedAt.set(group.id, Date.now());
+    const before = rosterOf(group.id).join('\n');
+    void refreshGroup(group).then(() => {
+      const here = route();
+      if (rosterOf(group.id).join('\n') !== before && !isBusy() && here.name === 'group' && here.id === group.id) render();
+    });
+  }
 }
 
 /**
@@ -620,6 +812,7 @@ export function groupView(group) {
       + ${escapeHtml(t('create.title'))}
     </button>
     ${sections || `<p class="muted small">${escapeHtml(t('group.nothing'))}</p>`}
+    ${groupRosterHtml(group)}
     ${groupPeopleHtml(group)}`;
 }
 
@@ -902,12 +1095,31 @@ function forYouItems() {
       meta: t('forYou.knocksWhere', { name: group.name }),
     });
   }
-  const me = myName();
-  if (!me) return { items, noName: true };
-
-  const file = personFile({
-    lists: shownDocs(state.lists), polls: shownDocs(state.polls), spends: shownDocs(state.spends),
-  }, me);
+  // A group has fixed its first names, and this device has not said which
+  // one it is: nothing of that group can be « for you » until it does.
+  for (const group of groupsByName()) {
+    if (!rosterOf(group.id).length || myNameIn(group.id)) continue;
+    items.push({ goto: `#/group/${group.id}`, title: group.name, meta: t('roster.forYou') });
+  }
+  // One first name in each group that fixes its names, the device's own
+  // elsewhere: what waits on this device is gathered name by name.
+  const sorted = new Map();
+  for (const [kind, documents] of [['lists', state.lists], ['polls', state.polls], ['spends', state.spends]]) {
+    for (const one of shownDocs(documents)) {
+      const name = myNameFor(one);
+      if (!name) continue;
+      const key = sameName(name);
+      if (!sorted.has(key)) sorted.set(key, { name, lists: [], polls: [], spends: [] });
+      sorted.get(key)[kind].push(one);
+    }
+  }
+  if (!myName() && !sorted.size) return { items, noName: true };
+  const files = [...sorted.values()].map((held) => ({ ...held, file: personFile(held, held.name) }));
+  const file = {
+    votes: files.flatMap((held) => held.file.votes),
+    lines: files.flatMap((held) => held.file.lines),
+    accounts: files.flatMap((held) => held.file.accounts),
+  };
   for (const row of file.votes.filter((one) => !one.closed && !one.answered)) {
     items.push({ goto: `#/poll/${row.poll.id}`, title: pollTitle(row.poll), meta: t('forYou.vote') + forEventText(row.poll) });
   }
@@ -928,7 +1140,7 @@ function forYouItems() {
     });
   }
   // Bought, ticked, and in no account yet: the receipt is still in a pocket.
-  for (const row of purchasesToWrite(me, shownDocs(state.lists), everything())) {
+  for (const row of files.flatMap((held) => purchasesToWrite(held.name, held.lists, everything()))) {
     items.push({
       goto: `#/list/${row.list.id}`,
       title: listTitle(row.list),
@@ -1151,7 +1363,7 @@ export function bindOverview() {
 
     let answer = { status: 'unknown' };
     try {
-      answer = await state.remote.ask(name, code, me, deviceLabel());
+      answer = await knockAs(name, code, me);
     } catch {
       button.disabled = false;
       return joining(line, t('groups.unsure'));
@@ -1159,13 +1371,14 @@ export function bindOverview() {
     button.disabled = false;
 
     if (answer.status === 'busy') return joining(line, t('gate.busy'));
+    if (answer.status === 'who') return joining(line, t('roster.whoNeeded'));
     if (answer.status !== 'waiting') return joining(line, t('groups.codeRefused'));
 
     rememberPending({
       ticket: answer.ticket,
       groupId: answer.id,
       groupName: answer.name || name,
-      me,
+      me: answer.me,
       at: Date.now(),
     });
     flash(t('gate.asked', { name: answer.name || name }));

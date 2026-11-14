@@ -144,7 +144,9 @@ export function createRemote(config, fetchImpl = globalThis.fetch) {
      * accepts. Until then it sees nothing at all.
      *
      * Returns { status: 'waiting', ticket, id, name } | { status: 'unknown' }
-     *       | { status: 'busy' }
+     *       | { status: 'busy' } | { status: 'who', people } — the group fixes
+     *       its first names and `who` is none of them: nothing was spent, the
+     *       names are there to choose from.
      */
     async ask(name, code, who = '', label = '') {
       const answer = await call('marque_points_ask', {
@@ -156,6 +158,9 @@ export function createRemote(config, fetchImpl = globalThis.fetch) {
       const status = answer?.status;
       if (status === 'waiting' && typeof answer.ticket === 'string') {
         return { status, ticket: answer.ticket, id: answer.id, name: answer.name };
+      }
+      if (status === 'who' && Array.isArray(answer.people)) {
+        return { status, people: answer.people.filter((one) => typeof one === 'string' && one.trim()) };
       }
       return { status: status === 'busy' ? 'busy' : 'unknown' };
     },
@@ -436,6 +441,15 @@ export function createRemote(config, fetchImpl = globalThis.fetch) {
     async setAccounts(key, on, token = null) {
       const answer = await call('marque_points_set_accounts', { p_key: key, p_on: Boolean(on) }, token);
       return answer?.status || 'unknown';
+    },
+
+    /**
+     * Fix the group's first names, or stop fixing them (an empty list) — an
+     * admitting key's call. Returns the list as the database kept it, or null.
+     */
+    async setPeople(key, people) {
+      const answer = await call('marque_points_set_people', { p_key: key, p_people: people });
+      return answer?.status === 'ok' && Array.isArray(answer.people) ? answer.people : null;
     },
 
     /** Delete the account: its address, its name, its secrets, its marks. */

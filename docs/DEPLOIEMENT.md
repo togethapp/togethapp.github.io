@@ -242,6 +242,13 @@ alter table public.marque_points_group enable row level security;
 alter table public.marque_points_group
   add column if not exists accounts_required boolean not null default false;
 
+-- Les prénoms du groupe, décidés à l'avance par qui fait entrer : une liste
+-- vide ne fixe rien (on écrit les prénoms qu'on veut, comme avant) ; une liste
+-- remplie est celle où chacun dit qui il est en entrant, et où l'app prend les
+-- personnes d'une liste, d'un sondage ou d'un compte du groupe.
+alter table public.marque_points_group
+  add column if not exists people jsonb not null default '[]'::jsonb;
+
 -- Le nom du canal où la base annonce les changements du groupe (voir « Les
 -- changements annoncés aussitôt », plus bas) : tiré au hasard, donné seulement
 -- à qui a une clé.
@@ -538,7 +545,8 @@ set search_path = public
 as $$
   select jsonb_build_object('id', g.id, 'name', g.name, 'admits', k.admits,
                             'accounts', g.accounts_required, 'linked', k.user_id is not null,
-                            'channel', g.channel)
+                            'channel', g.channel, 'people', g.people,
+                            'who', (select p.name from public.marque_points_person p where p.id = k.person_id))
     from public.marque_points_group_key k
     join public.marque_points_group g on g.id = k.group_id
    where k.key_hash = md5(coalesce(p_key, '') || k.key_salt)
@@ -1030,6 +1038,8 @@ declare
   v_bucket text;
   v_misses integer;
   v_waiting integer;
+  v_people jsonb;
+  v_who text := left(coalesce(btrim(p_who), ''), 24);
 begin
   delete from public.marque_points_join_miss where at < now() - interval '1 hour';
   -- Une demande sans réponse finit par s'effacer, et une réponse finit par être
@@ -1085,9 +1095,23 @@ begin
     return jsonb_build_object('status', 'busy');
   end if;
 
+  -- Le groupe a fixé ses prénoms : qui frappe dit lequel il est, écrit comme la
+  -- liste l'écrit. Un prénom qui n'y est pas reçoit la liste, pour choisir, et
+  -- rien n'est consommé : ni l'invitation, ni une demande.
+  select g.people into v_people from public.marque_points_group g where g.id = v_invite.group_id;
+  if jsonb_typeof(v_people) = 'array' and jsonb_array_length(v_people) > 0 then
+    select listed.value into v_who
+      from jsonb_array_elements_text(v_people) as listed(value)
+     where lower(listed.value) = lower(v_who)
+     limit 1;
+    if not found then
+      return jsonb_build_object('status', 'who', 'people', v_people);
+    end if;
+  end if;
+
   insert into public.marque_points_request (id, group_id, name, label, ticket_hash, ticket_salt)
   values (replace(gen_random_uuid()::text, '-', ''), v_invite.group_id,
-          left(coalesce(btrim(p_who), ''), 24), left(coalesce(btrim(p_label), ''), 80),
+          v_who, left(coalesce(btrim(p_label), ''), 80),
           md5(v_ticket || v_salt), v_salt);
 
   update public.marque_points_invite set uses = uses - 1 where code = v_invite.code;
@@ -1724,6 +1748,50 @@ begin
   end if;
   update public.marque_points_group set accounts_required = coalesce(p_on, false) where id = v_group;
   return jsonb_build_object('status', 'ok');
+end;
+$$;
+
+-- Fixer les prénoms du groupe, ou ne plus les fixer (une liste vide) : une clé
+-- qui fait entrer. Chaque prénom est nettoyé, gardé une fois (« gui » et
+-- « Gui » sont le même), dans l'ordre donné ; soixante au plus.
+create or replace function public.marque_points_set_people(p_key text, p_people jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_group text;
+  v_people jsonb;
+begin
+  select k.group_id into v_group
+    from public.marque_points_group_key k
+    join public.marque_points_group g on g.id = k.group_id
+   where k.key_hash = md5(coalesce(p_key, '') || k.key_salt)
+     and k.admits
+     and (not g.accounts_required or k.user_id is not null);
+  if not found then
+    raise exception 'cette cle ne fait pas entrer';
+  end if;
+  if p_people is null or jsonb_typeof(p_people) <> 'array' then
+    return jsonb_build_object('status', 'invalid');
+  end if;
+
+  select coalesce(jsonb_agg(kept.name order by kept.first), '[]'::jsonb) into v_people
+    from (
+      select (array_agg(named.name order by named.at))[1] as name, min(named.at) as first
+        from (
+          select left(btrim(given.value), 24) as name, given.ordinality as at
+            from jsonb_array_elements_text(p_people) with ordinality as given(value, ordinality)
+        ) named
+       where named.name <> ''
+       group by lower(named.name)
+       order by min(named.at)
+       limit 60
+    ) kept;
+
+  update public.marque_points_group set people = v_people where id = v_group;
+  return jsonb_build_object('status', 'ok', 'people', v_people);
 end;
 $$;
 
@@ -2440,6 +2508,7 @@ grant execute on function public.marque_points_account_restore(jsonb, text) to a
 grant execute on function public.marque_points_account_leave(text) to authenticated;
 revoke all on function public.marque_points_account_delete() from public, anon;
 grant execute on function public.marque_points_set_accounts(text, boolean) to anon, authenticated;
+grant execute on function public.marque_points_set_people(text, jsonb) to anon, authenticated;
 revoke all on function public.marque_points_account_cut_mark() from public, anon, authenticated;
 revoke all on function public.marque_points_announce(text) from public, anon, authenticated;
 revoke all on function public.marque_points_live() from public, anon, authenticated;

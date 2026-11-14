@@ -49,7 +49,7 @@ import { swipeable } from './swipe.js';
 import { prefillOf, withoutPrefill } from './prefill.js';
 import { createLive, docTopic, groupTopic, liveUrl } from './live.js';
 import { bindNotify, syncPush, tell, tellKnock } from './view-notify.js';
-import { bindOverview, groupsView, groupView, openCreateMenu, overviewView, settingsView } from './view-home.js';
+import { bindGroup, bindOverview, groupsView, groupView, openCreateMenu, overviewView, settingsView } from './view-home.js';
 import { backView, bindBack, bindJoin, joinView, showsGate, watchGate, watchPending } from './view-join.js';
 import { personView, renameEverywhere, statsView } from './view-people.js';
 import { bindSearch, searchView } from './view-search.js';
@@ -1242,6 +1242,7 @@ export function render() {
     // the filter, which then quietly sent everything the "+" made afterwards,
     // from anywhere, into this group. The "+" opened here proposes it instead.
     view.innerHTML = groupView(group);
+    bindGroup(group);
   } else if (current.name === 'back') {
     stopWatching();
     view.innerHTML = backView(current.token);

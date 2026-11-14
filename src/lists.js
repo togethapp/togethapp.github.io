@@ -15,7 +15,7 @@
 
 import { uid } from './model.js';
 import { later, touch, prune } from './stamp.js';
-import { addPerson, renamePerson, removePerson } from './people.js';
+import { addPerson, renamePerson, removePerson, distinctNames } from './people.js';
 
 /** A new list. `names` are the people it is shared between; it can be nobody. */
 export function createList({ name = '', names = [], shared = false, groupId = null } = {}) {
@@ -42,10 +42,7 @@ export function createList({ name = '', names = [], shared = false, groupId = nu
     // The lines deleted here, and when — without this a deletion is undone by
     // the next copy that still holds the line.
     removed: {},
-    people: names
-      .map((raw) => String(raw || '').trim())
-      .filter(Boolean)
-      .map((personName) => ({ id: uid('w'), name: personName })),
+    people: distinctNames(names).map((personName) => ({ id: uid('w'), name: personName })),
     items: [],
   };
 }
