@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  ARCADE_DIRS, ARCADE_GAMES, GLOUTON_MAZE, SNAKE_SIZE, canEnter, cellAt, newGlouton, newSnake, parseMaze, pelletsLeft,
+  ARCADE_DIRS, ARCADE_GAMES, ARCADE_MODES, EXTRA_LIFE, FRUITS, angerOf, fruitOf, inTunnel, speeds, GLOUTON_MAZE, SNAKE_SIZE, canEnter, cellAt, newGlouton, newSnake, parseMaze, pelletsLeft,
   snakeRate, starPoints, steerGlouton, steerSnake, stepGlouton, stepSnake, togglePause,
 } from '../src/arcade.js';
 import { t, setLanguage } from '../src/i18n.js';
@@ -431,4 +431,154 @@ test('played by a random hand, the snake stays on the field, in one piece, until
     }
     assert.notEqual(game.state, 'play', 'a random hand crashes sooner or later');
   }
+});
+
+/* ------------------------------------------------------- the real thing --- */
+
+test('a late turn, just past a crossing, is still taken', () => {
+  const game = newGlouton();
+  game.ghosts = [];
+  game.state = 'play';
+  // The start tile (9, 15) has an opening above at (9, 14)? No: go to a crossing.
+  Object.assign(game.player, { x: 4.2, y: 13, dir: 'right', want: 'right' });
+  assert.equal(canEnter(game.maze, 4, 14), true, 'a way down at (4, 13)');
+  steerGlouton(game, 'down');
+  assert.equal(game.player.dir, 'down');
+  assert.deepEqual({ x: game.player.x, y: game.player.y }, { x: 4, y: 13 });
+  // Too late: it waits for the next opening.
+  Object.assign(game.player, { x: 4.6, y: 13, dir: 'right', want: 'right' });
+  steerGlouton(game, 'down');
+  assert.equal(game.player.dir, 'right');
+});
+
+test('two fruits a level, worth more level after level, gone after a while', () => {
+  const game = newGlouton();
+  game.ghosts = [];
+  game.state = 'play';
+  assert.equal(cellAt(game.maze, game.maze.fruit.x, game.maze.fruit.y), ' ');
+  game.eaten = Math.ceil(game.total * 0.3) - 1;
+  // One pellet more brings it out.
+  const { x, y } = game.player;
+  game.maze.cells[y][x - 1] = '.';
+  for (let i = 0; i < 20 && !game.fruit; i += 1) stepGlouton(game, 1 / 60);
+  assert.ok(game.fruit, 'a fruit');
+  assert.equal(game.fruit.points, 100);
+  Object.assign(game.player, { x: game.fruit.x, y: game.fruit.y });
+  const before = game.score;
+  assert.ok(stepGlouton(game, 1 / 60).includes('fruit'));
+  assert.ok(game.score - before >= 100);
+  assert.equal(game.fruit, null);
+  assert.equal(game.popups.at(-1).points, 100);
+  assert.ok(fruitOf(2).points > fruitOf(1).points);
+  assert.equal(fruitOf(99), FRUITS.at(-1));
+  // The second one leaves by itself.
+  game.eaten = Math.ceil(game.total * 0.7) - 1;
+  game.maze.cells[13][1] = '.';
+  Object.assign(game.player, { x: 2, y: 13, dir: 'left', want: 'left' });
+  for (let i = 0; i < 20 && !game.fruit; i += 1) stepGlouton(game, 1 / 60);
+  assert.ok(game.fruit, 'a second fruit');
+  for (let i = 0; i < 60 * 10; i += 1) stepGlouton(game, 1 / 60);
+  assert.equal(game.fruit, null);
+});
+
+test('eating a ghost shows its points and stops everything a moment', () => {
+  const game = newGlouton();
+  game.state = 'play';
+  const red = game.ghosts[0];
+  Object.assign(red, { x: game.player.x, y: game.player.y, scared: true, mode: 'out' });
+  game.fright = 5;
+  stepGlouton(game, 1 / 60);
+  assert.equal(game.popups[0].points, 200);
+  const where = { ...game.player };
+  stepGlouton(game, 0.1);
+  assert.deepEqual({ x: game.player.x, y: game.player.y }, { x: where.x, y: where.y }, 'frozen');
+  for (let i = 0; i < 60; i += 1) stepGlouton(game, 1 / 60);
+  assert.notDeepEqual({ x: game.player.x, y: game.player.y }, { x: where.x, y: where.y }, 'going again');
+});
+
+test('a life more at 10,000 points, once', () => {
+  const game = newGlouton();
+  game.ghosts = [];
+  game.state = 'play';
+  game.score = EXTRA_LIFE - 10;
+  const lives = game.lives;
+  const events = run(game, 1);
+  assert.ok(events.includes('life'));
+  assert.equal(game.lives, lives + 1);
+  game.score = EXTRA_LIFE * 3;
+  run(game, 1);
+  assert.equal(game.lives, lives + 1);
+});
+
+test('the ghosts crawl in the tunnel', () => {
+  const game = newGlouton();
+  assert.equal(inTunnel(game.maze, 0, 9), true);
+  assert.equal(inTunnel(game.maze, 18, 9), true);
+  assert.equal(inTunnel(game.maze, 4, 9), false, 'the pellet at the tunnel mouth is outside');
+  game.state = 'play';
+  Object.assign(game.player, { x: 9, y: 19 });
+  const red = game.ghosts[0];
+  game.ghosts = [red];
+  Object.assign(red, { x: 3, y: 9, dir: 'left', mode: 'out' });
+  stepGlouton(game, 0.1);
+  assert.ok(Math.abs(3 - red.x - speeds(1).ghost * 0.1 * 0.5) < 1e-6, String(red.x));
+});
+
+test('near the end the red ghost gets angry, except in the easy mode', () => {
+  const game = newGlouton();
+  assert.equal(angerOf(game), 0);
+  game.eaten = game.total - 10;
+  assert.ok(angerOf(game) >= 1);
+  game.eaten = game.total - 2;
+  assert.equal(angerOf(game), 2);
+  const easy = newGlouton(GLOUTON_MAZE, 'easy');
+  easy.eaten = easy.total - 2;
+  assert.equal(angerOf(easy), 0);
+});
+
+test('the modes: more lives and slower ghosts when easy, faster ones when hard', () => {
+  assert.deepEqual(ARCADE_MODES, ['easy', 'normal', 'hard']);
+  assert.equal(newGlouton(GLOUTON_MAZE, 'easy').lives, 5);
+  assert.equal(newGlouton().lives, 3);
+  assert.equal(newGlouton(GLOUTON_MAZE, 'nonsense').mode, 'normal');
+  assert.ok(speeds(1, 'easy').ghost < speeds(1).ghost);
+  assert.ok(speeds(1, 'hard').ghost > speeds(1).ghost);
+  assert.ok(speeds(1, 'easy').fright > speeds(1, 'hard').fright);
+  assert.ok(speeds(9, 'hard').fright >= 1);
+  assert.ok(snakeRate(0, 'easy') < snakeRate(0) && snakeRate(0) < snakeRate(0, 'hard'));
+});
+
+test('an easy snake goes through the edges and comes out opposite', () => {
+  const game = newSnake(seeded(), SNAKE_SIZE, 'easy');
+  assert.equal(game.wrap, true);
+  appleAside(game);
+  game.apple = { x: 0, y: 0 };
+  steerSnake(game, 'up');
+  const events = [];
+  for (let i = 0; i < 60 * 4; i += 1) events.push(...stepSnake(game, 1 / 60));
+  assert.equal(events.includes('crash'), false);
+  assert.equal(game.state, 'play');
+  for (const part of game.body) {
+    assert.ok(part.x >= 0 && part.x < SNAKE_SIZE && part.y >= 0 && part.y < SNAKE_SIZE);
+  }
+  assert.equal(newSnake(seeded(), SNAKE_SIZE, 'normal').wrap, false);
+});
+
+test('a hard snake: twenty points an apple', () => {
+  const game = newSnake(seeded(), SNAKE_SIZE, 'hard');
+  steerSnake(game, 'right');
+  game.apple = { x: game.body[0].x + 1, y: game.body[0].y };
+  for (let i = 0; i < 30 && !game.apples; i += 1) stepSnake(game, 1 / 60);
+  assert.equal(game.score, 20);
+});
+
+test('the modes are named in both languages', () => {
+  for (const language of ['fr', 'en']) {
+    setLanguage(language);
+    for (const mode of ARCADE_MODES) {
+      assert.notEqual(t(`arcade.mode.${mode}`), `arcade.mode.${mode}`);
+      for (const { id } of ARCADE_GAMES) assert.notEqual(t(`arcade.${id}.mode.${mode}`), `arcade.${id}.mode.${mode}`);
+    }
+  }
+  setLanguage('fr');
 });

@@ -181,6 +181,42 @@ await page.waitForSelector('#arcade-board[data-arcade="snake"]');
 await page.waitForTimeout(200);
 check('le Snake aussi', /Pause/.test(await status()), await status());
 
+// La difficulté : choisie au-dessus du jeu, gardée, avec son propre record.
+check('Normal est choisi d’abord', (await page.locator('[data-arcade-mode="normal"]').getAttribute('aria-pressed')) === 'true');
+await page.locator('[data-arcade-mode="easy"]').click();
+await page.waitForTimeout(150);
+check('Facile choisi', (await page.locator('[data-arcade-mode="easy"]').getAttribute('aria-pressed')) === 'true');
+check('une nouvelle partie, qui attend son premier geste', /Glissez/.test(await status()), await status());
+check('le record de Facile est à part', (await page.locator('#arcade-best').innerText()).trim() === '0');
+check('la règle de Facile est dite', /traverse les bords/.test(await page.locator('.arcade__rules').innerText()));
+// Un glissement à côté des flèches, hors du terrain, le fait partir.
+await page.evaluate(() => {
+  const pad = document.querySelector('.arcade-pad').getBoundingClientRect();
+  const zone = document.querySelector('.arcade');
+  const at = (x) => ({ clientX: x, clientY: pad.y + pad.height / 2, pointerId: 3, bubbles: true });
+  const start = Math.max(4, pad.x - 70);
+  zone.dispatchEvent(new PointerEvent('pointerdown', at(start)));
+  zone.dispatchEvent(new PointerEvent('pointermove', at(start - 30)));
+  zone.dispatchEvent(new PointerEvent('pointerup', at(start - 30)));
+});
+await page.waitForTimeout(150);
+check('un glissement à côté des flèches le fait partir', (await status()) === '', await status());
+let wrapped = false;
+for (let i = 0; i < 30 && !wrapped; i += 1) {
+  await page.waitForTimeout(150);
+  wrapped = /terminée/.test(await status());
+}
+check('en Facile, il traverse le bord au lieu de s’y écraser', !wrapped);
+await shot('snake-facile');
+await page.reload();
+await page.waitForSelector('#arcade-board[data-arcade="snake"]');
+check('la difficulté est gardée', (await page.locator('[data-arcade-mode="easy"]').getAttribute('aria-pressed')) === 'true');
+const sound = page.locator('#arcade-sound');
+check('le son est là, allumé', (await sound.getAttribute('aria-pressed')) === 'true');
+await sound.click();
+check('il s’éteint', (await sound.getAttribute('aria-pressed')) === 'false'
+  && await page.evaluate(() => JSON.parse(localStorage.getItem('marque-points:prefs:v1')).arcadeSound === false));
+
 check('une adresse de jeu inconnue ramène aux Jeux', await (async () => {
   await page.goto(`${B}#/arcade/inconnu`);
   await page.waitForTimeout(400);

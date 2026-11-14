@@ -6,11 +6,11 @@
     <!-- Only the app's own scripts run: its files, and the script below named
          by its hash. Written by tools/bundle.js; first, since it only covers
          what comes after it. -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-elUTsNszNFQD+0sw84nx3LsVFtCG3U0xMZ0gDvCi0P8='; object-src 'none'; base-uri 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-y0WD1DFImJJ2R0sRaR9jQD5eFMcpVdTjz9KJSrMukY8='; object-src 'none'; base-uri 'none'" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="7eb0a130" />
+    <meta name="app-build" content="3877e8c2" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -3389,7 +3389,7 @@ body.holo-open { overflow: hidden; }
 }
 
 /* One game's page: the numbers, the maze, the arrows. */
-.arcade { display: grid; gap: 10px; justify-items: center; }
+.arcade { display: grid; gap: 10px; justify-items: center; touch-action: none; }
 .arcade__hud {
   display: flex;
   flex-wrap: wrap;
@@ -3406,7 +3406,7 @@ body.holo-open { overflow: hidden; }
 .arcade__board {
   display: block;
   width: 100%;
-  max-width: min(480px, calc((100dvh - 320px) * 19 / 21));
+  max-width: min(480px, calc((100dvh - 360px) * 19 / 21));
   min-width: 240px;
   height: auto;
   aspect-ratio: 19 / 21;
@@ -3419,7 +3419,7 @@ body.holo-open { overflow: hidden; }
 }
 .arcade__board--snake {
   aspect-ratio: 1 / 1;
-  max-width: min(480px, calc(100dvh - 320px));
+  max-width: min(480px, calc(100dvh - 360px));
 }
 .arcade__status { min-height: 1.3em; margin: 0; font-weight: 650; text-align: center; }
 .arcade-pad {
@@ -3448,6 +3448,12 @@ body.holo-open { overflow: hidden; }
 .arcade-pad__key--right { grid-area: 2 / 3; }
 .arcade-pad__key--pause { grid-area: 2 / 2; border-radius: 50%; color: var(--accent); }
 .arcade-pad__key--pause svg { width: 18px; height: 18px; }
+.arcade-pad__key--sound { grid-area: 1 / 3; border-radius: 50%; color: var(--muted); }
+.arcade-pad__key--sound[aria-pressed="true"] { color: var(--accent); }
+.arcade-pad__key--sound svg { width: 18px; height: 18px; }
+.arcade__modes { width: 100%; max-width: 480px; }
+.arcade__rules { max-width: 480px; margin: 12px auto 0; }
+.arcade__modes .segmented__option { padding: 7px 4px; font-size: 0.85rem; }
 
 /* While playing, the tabs are gone and the page needs no room for them. */
 body.playing .tabs { display: none; }
@@ -3684,12 +3690,26 @@ const STRINGS = {
     'arcade.dir.right': 'Droite',
     'arcade.glouton.name': 'Glouton',
     'arcade.glouton.short': 'Mangez tout, évitez les fantômes',
-    'arcade.glouton.rules': 'Mangez toutes les pastilles sans vous faire attraper. Une grosse pastille effraie les fantômes : mangez-les à leur tour.',
+    'arcade.glouton.rules': 'Mangez toutes les pastilles sans vous faire attraper. Une grosse pastille effraie les fantômes : mangez-les à leur tour (200, 400, 800, 1 600). Deux fois par niveau, un fruit apparaît sous la maison. Dans le tunnel, les fantômes ralentissent. Une vie de plus à 10 000 points.',
     'arcade.snake.name': 'Snake',
     'arcade.snake.short': 'Grandir sans se mordre la queue',
     'arcade.snake.rules': 'Mangez les pommes pour grandir, sans toucher les bords ni votre queue. De temps en temps, une étoile : plus vite on l’attrape, plus elle rapporte.',
     'arcade.snake.ready': 'Glissez ou touchez une flèche pour partir.',
     'arcade.snake.crash': 'Aïe !',
+    'arcade.mode': 'Difficulté',
+    'arcade.mode.easy': 'Facile',
+    'arcade.mode.normal': 'Normal',
+    'arcade.mode.hard': 'Difficile',
+    'arcade.sound': 'Son',
+    'arcade.newRecord': 'Nouveau record : {score} {score|point|points} ! Touchez le jeu pour rejouer.',
+    'arcade.recordShort': 'Record !',
+    'arcade.extraLife': 'Une vie de plus !',
+    'arcade.glouton.mode.easy': 'Facile : 5 vies, fantômes plus lents et plus longtemps effrayés.',
+    'arcade.glouton.mode.normal': 'Normal : 3 vies ; près de la fin, le rouge accélère et ne lâche plus.',
+    'arcade.glouton.mode.hard': 'Difficile : fantômes plus rapides, qui sortent plus tôt et ont moins peur.',
+    'arcade.snake.mode.easy': 'Facile : lent, et on traverse les bords pour ressortir en face.',
+    'arcade.snake.mode.normal': 'Normal : les bords sont des murs ; chaque pomme vaut 10.',
+    'arcade.snake.mode.hard': 'Difficile : rapide dès le départ, chaque pomme vaut 20.',
     'tab.home': 'Accueil',
     'tab.groups': 'Groupes',
     'tab.settings': 'Réglages',
@@ -5034,12 +5054,26 @@ const STRINGS = {
     'arcade.dir.right': 'Right',
     'arcade.glouton.name': 'Gobbler',
     'arcade.glouton.short': 'Eat everything, dodge the ghosts',
-    'arcade.glouton.rules': 'Eat every pellet without getting caught. A big pellet frightens the ghosts: eat them in turn.',
+    'arcade.glouton.rules': 'Eat every pellet without getting caught. A big pellet frightens the ghosts: eat them in turn (200, 400, 800, 1,600). Twice a level, a fruit shows below the house. In the tunnel, the ghosts slow down. An extra life at 10,000 points.',
     'arcade.snake.name': 'Snake',
     'arcade.snake.short': 'Grow without biting your tail',
     'arcade.snake.rules': 'Eat the apples to grow, without touching the edges or your tail. Now and then a star: the sooner you catch it, the more it is worth.',
     'arcade.snake.ready': 'Swipe or touch an arrow to start.',
     'arcade.snake.crash': 'Ouch!',
+    'arcade.mode': 'Difficulty',
+    'arcade.mode.easy': 'Easy',
+    'arcade.mode.normal': 'Normal',
+    'arcade.mode.hard': 'Hard',
+    'arcade.sound': 'Sound',
+    'arcade.newRecord': 'New best: {score} {score|point|points}! Touch the game to play again.',
+    'arcade.recordShort': 'New best!',
+    'arcade.extraLife': 'Extra life!',
+    'arcade.glouton.mode.easy': 'Easy: 5 lives, slower ghosts, frightened for longer.',
+    'arcade.glouton.mode.normal': 'Normal: 3 lives; near the end, the red one speeds up and never lets go.',
+    'arcade.glouton.mode.hard': 'Hard: faster ghosts, out sooner and less afraid.',
+    'arcade.snake.mode.easy': 'Easy: slow, and you go through the edges to come out opposite.',
+    'arcade.snake.mode.normal': 'Normal: the edges are walls; each apple is worth 10.',
+    'arcade.snake.mode.hard': 'Hard: fast from the start, each apple is worth 20.',
     'tab.home': 'Home',
     'tab.groups': 'Groups',
     'tab.settings': 'Settings',
@@ -28570,6 +28604,13 @@ function bindTalk(root) {
 /** The games of the arcade, in the order shown. */
 const ARCADE_GAMES = [{ id: 'glouton' }, { id: 'snake' }];
 
+/** How hard a game is, chosen before it starts; each keeps its own record. */
+const ARCADE_MODES = ['easy', 'normal', 'hard'];
+
+function arcadeMode(mode) {
+  return ARCADE_MODES.includes(mode) ? mode : 'normal';
+}
+
 /**
  * The maze. `#` wall, `.` pellet, `o` big pellet, `-` the ghosts' door,
  * `P` where one starts, `G` where the ghosts do (the first one outside). A row
@@ -28614,10 +28655,39 @@ const GHOST_NAMES = ['red', 'pink', 'cyan', 'orange'];
 const RELEASE = [0, 1.5, 5, 9];
 /** Scatter, then chase, then scatter… — the last chase lasts for ever. */
 const PHASES = [7, 20, 7, 20, 5, 20, 5];
+/** From this level on, the ghosts scatter for shorter. */
+const SHORT_SCATTER_LEVEL = 3;
 const POINTS = { pellet: 10, power: 50 };
 const READY_TIME = 2;
 const DYING_TIME = 1.6;
 const CLEARED_TIME = 1.8;
+/** Eating a ghost stops everything for a moment, to see what it was worth. */
+const GHOST_FREEZE = 0.5;
+const POPUP_TIME = 1.2;
+/** A life more, once, at this score. */
+const EXTRA_LIFE = 10000;
+/** A fruit comes out when this share of the pellets is eaten, and stays a while. */
+const FRUIT_AT = [0.3, 0.7];
+const FRUIT_TIME = 9.5;
+/** What the fruit is, and is worth, level after level; the last one stays. */
+const FRUITS = [
+  { kind: 'cherry', points: 100 },
+  { kind: 'strawberry', points: 300 },
+  { kind: 'orange', points: 500 },
+  { kind: 'apple', points: 700 },
+  { kind: 'grapes', points: 1000 },
+  { kind: 'melon', points: 2000 },
+  { kind: 'bell', points: 3000 },
+  { kind: 'key', points: 5000 },
+];
+/** How far past a crossing a turn still takes it, in tiles: late fingers forgiven. */
+const CORNER = 0.35;
+/** The modes: lives, the ghosts' pace and wait at home, how much longer fright lasts. */
+const GLOUTON_MODES = {
+  easy: { lives: 5, ghost: 0.82, release: 1.6, fright: 2.5, angry: false },
+  normal: { lives: 3, ghost: 1, release: 1, fright: 0, angry: true },
+  hard: { lives: 3, ghost: 1.1, release: 0.6, fright: -1.5, angry: true },
+};
 const EPSILON = 1e-6;
 
 /** The maze as a grid, with where everyone starts. */
@@ -28639,7 +28709,23 @@ function parseMaze(rows = GLOUTON_MAZE) {
     }
     cells.push(line);
   }
-  return { width, height, cells, player, ghosts, door };
+  // The tunnel: on a row open at both ends, the empty tiles from each edge in.
+  const tunnel = new Set();
+  for (let y = 0; y < height; y += 1) {
+    if (cells[y][0] === '#' || cells[y][width - 1] === '#') continue;
+    for (let x = 0; x < width && cells[y][x] === ' '; x += 1) tunnel.add(`${x},${y}`);
+    for (let x = width - 1; x >= 0 && cells[y][x] === ' '; x -= 1) tunnel.add(`${x},${y}`);
+  }
+  // The fruit shows below the ghosts' house, else where the player starts.
+  const under = door && { x: door.x, y: door.y + 3 };
+  const fruit = under && cells[under.y]?.[under.x] === ' ' ? under : player;
+  return { width, height, cells, player, ghosts, door, tunnel, fruit };
+}
+
+/** Whether a tile is in the tunnel, where the ghosts slow down. */
+function inTunnel(maze, x, y) {
+  const column = ((Math.round(x) % maze.width) + maze.width) % maze.width;
+  return maze.tunnel.has(`${column},${Math.round(y)}`);
 }
 
 /** What is at a tile; a tunnel wraps from one side to the other. */
@@ -28664,11 +28750,47 @@ function pelletsLeft(maze) {
 }
 
 /** A new game, at level one. */
-function newGlouton(rows = GLOUTON_MAZE) {
+function newGlouton(rows = GLOUTON_MAZE, mode = 'normal') {
   const maze = parseMaze(rows);
-  const game = { rows, maze, score: 0, lives: 3, level: 1, total: pelletsLeft(maze), eaten: 0 };
+  const settings = GLOUTON_MODES[arcadeMode(mode)];
+  const game = {
+    rows,
+    maze,
+    mode: arcadeMode(mode),
+    score: 0,
+    lives: settings.lives,
+    level: 1,
+    total: pelletsLeft(maze),
+    eaten: 0,
+    fruits: 0,
+    fruit: null,
+    popups: [],
+    freeze: 0,
+    extra: false,
+  };
   startLife(game);
   return game;
+}
+
+/** The fruit of a level. */
+function fruitOf(level) {
+  return FRUITS[Math.min(level, FRUITS.length) - 1];
+}
+
+/** Points, and a life more the first time the score passes EXTRA_LIFE. */
+function addPoints(game, points) {
+  game.score += points;
+  if (!game.extra && game.score >= EXTRA_LIFE) {
+    game.extra = true;
+    game.lives += 1;
+    game.events.push('life');
+  }
+}
+
+/** The scatter and chase phases of a level: scattering shortens later on. */
+function phasesOf(game) {
+  if (game.level < SHORT_SCATTER_LEVEL) return PHASES;
+  return PHASES.map((time, index) => (index % 2 ? time : Math.min(time, 5)));
 }
 
 /** Everyone back to their place, a short « Prêt ! » before it starts again. */
@@ -28681,7 +28803,7 @@ function startLife(game) {
     y: at.y,
     dir: index === 0 ? 'left' : null,
     mode: index === 0 ? 'out' : 'house',
-    release: RELEASE[index] ?? RELEASE.at(-1) + index,
+    release: (RELEASE[index] ?? RELEASE.at(-1) + index) * GLOUTON_MODES[game.mode || 'normal'].release,
     home: { x: at.x, y: at.y },
   }));
   game.phase = 0;
@@ -28689,31 +28811,64 @@ function startLife(game) {
   game.clock = 0;
   game.fright = 0;
   game.chain = 0;
+  game.fruit = null;
+  game.freeze = 0;
+  game.popups = [];
   game.state = 'ready';
   game.timer = READY_TIME;
 }
 
-/** Turn: the player goes that way as soon as the maze allows it. */
+/**
+ * Turn: the player goes that way as soon as the maze allows it. A turn asked
+ * for just after a crossing still takes it, as if the finger had been on time.
+ */
 function steerGlouton(game, dir) {
   if (!ARCADE_DIRS[dir]) return;
-  game.player.want = dir;
+  const { player, maze } = game;
+  player.want = dir;
   // Turning back needs no crossing: it happens at once.
-  if (dir === OPPOSITE[game.player.dir]) {
-    game.player.dir = dir;
-    game.player.moving = true;
+  if (dir === OPPOSITE[player.dir]) {
+    player.dir = dir;
+    player.moving = true;
+    return;
+  }
+  if (dir === player.dir || centred(player) || !ARCADE_DIRS[player.dir]) return;
+  const step = ARCADE_DIRS[player.dir];
+  const tile = { x: Math.round(player.x), y: Math.round(player.y) };
+  const past = (player.x - tile.x) * step.x + (player.y - tile.y) * step.y;
+  const turn = ARCADE_DIRS[dir];
+  if (past > 0 && past <= CORNER && canEnter(maze, tile.x + turn.x, tile.y + turn.y)) {
+    player.x = tile.x;
+    player.y = tile.y;
+    player.dir = dir;
+    player.moving = true;
   }
 }
 
-/** Speeds, in tiles per second, a little faster at each level. */
-function speeds(level) {
+/** Speeds, in tiles per second, a little faster at each level and harder mode. */
+function speeds(level, mode = 'normal') {
+  const settings = GLOUTON_MODES[arcadeMode(mode)];
   const lift = Math.min(level - 1, 6) * 0.05;
   return {
     player: 6 * (1 + lift / 2),
-    ghost: 5.4 * (1 + lift),
+    ghost: 5.4 * (1 + lift) * settings.ghost,
     scared: 3.4,
     eaten: 12,
-    fright: Math.max(1.5, 6.5 - level),
+    fright: Math.max(1, 6.5 - level + settings.fright),
   };
+}
+
+/**
+ * How angry the red ghost is, from 0 to 2: with few pellets left it goes
+ * faster, and no longer scatters (not in the easy mode).
+ */
+function angerOf(game) {
+  if (!GLOUTON_MODES[game.mode || 'normal'].angry) return 0;
+  const left = game.total - game.eaten;
+  const threshold = Math.max(10, Math.round(game.total * 0.12));
+  if (left <= threshold / 2) return 2;
+  if (left <= threshold) return 1;
+  return 0;
 }
 
 /** Whether an actor stands right in the middle of a tile. */
@@ -28778,8 +28933,8 @@ function ghostTarget(game, ghost) {
     cyan: { x: maze.width - 1, y: maze.height },
     orange: { x: 0, y: maze.height },
   };
-  const scatter = PHASES.length > game.phase && game.phase % 2 === 0;
-  if (scatter) return corners[ghost.name];
+  const scatter = phasesOf(game).length > game.phase && game.phase % 2 === 0;
+  if (scatter && !(ghost.name === 'red' && angerOf(game))) return corners[ghost.name];
   const px = Math.round(player.x);
   const py = Math.round(player.y);
   const ahead = ARCADE_DIRS[player.dir] || { x: 0, y: 0 };
@@ -28833,11 +28988,11 @@ function eatAt(game) {
   const y = Math.round(player.y);
   const cell = maze.cells[y][x];
   if (cell === '.') {
-    game.score += POINTS.pellet;
+    addPoints(game, POINTS.pellet);
     game.events.push('pellet');
   } else if (cell === 'o') {
-    game.score += POINTS.power;
-    game.fright = speeds(game.level).fright;
+    addPoints(game, POINTS.power);
+    game.fright = speeds(game.level, game.mode).fright;
     game.chain = 0;
     for (const ghost of game.ghosts) {
       if (ghost.mode !== 'out') continue;
@@ -28851,6 +29006,10 @@ function eatAt(game) {
   }
   maze.cells[y][x] = ' ';
   game.eaten += 1;
+  if (game.fruits < FRUIT_AT.length && game.eaten >= Math.ceil(game.total * FRUIT_AT[game.fruits])) {
+    game.fruits += 1;
+    game.fruit = { ...maze.fruit, ...fruitOf(game.level), left: FRUIT_TIME };
+  }
 }
 
 /** Whether the player and a ghost touch. */
@@ -28862,12 +29021,14 @@ function touching(a, b, width) {
 
 /**
  * Let `dt` seconds go by. Returns what happened, for the screen to make
- * something of it: 'pellet', 'power', 'ghost', 'caught', 'cleared', 'over'.
+ * something of it: 'pellet', 'power', 'ghost', 'fruit', 'life', 'caught',
+ * 'cleared', 'over'.
  */
 function stepGlouton(game, dt, random = Math.random) {
   game.events = [];
   const time = Math.min(Math.max(dt, 0), 0.1);
   if (game.state === 'over' || game.state === 'paused') return game.events;
+  game.popups = (game.popups || []).filter((popup) => (popup.left -= time) > 0);
   if (game.state !== 'play') {
     game.timer -= time;
     if (game.timer > 0) return game.events;
@@ -28882,6 +29043,7 @@ function stepGlouton(game, dt, random = Math.random) {
       game.level += 1;
       game.maze = parseMaze(game.rows);
       game.eaten = 0;
+      game.fruits = 0;
       startLife(game);
     } else {
       game.state = 'play';
@@ -28889,14 +29051,25 @@ function stepGlouton(game, dt, random = Math.random) {
     return game.events;
   }
 
-  const speed = speeds(game.level);
+  // A ghost just eaten: everything waits, the points showing.
+  if (game.freeze > 0) {
+    game.freeze = Math.max(0, game.freeze - time);
+    return game.events;
+  }
+
+  const speed = speeds(game.level, game.mode);
+  const phases = phasesOf(game);
   game.clock += time;
+  if (game.fruit) {
+    game.fruit.left -= time;
+    if (game.fruit.left <= 0) game.fruit = null;
+  }
   if (game.fright > 0) {
     game.fright = Math.max(0, game.fright - time);
     if (!game.fright) for (const ghost of game.ghosts) ghost.scared = false;
-  } else if (game.phase < PHASES.length) {
+  } else if (game.phase < phases.length) {
     game.phaseTime += time;
-    if (game.phaseTime >= PHASES[game.phase]) {
+    if (game.phaseTime >= phases[game.phase]) {
       game.phaseTime = 0;
       game.phase += 1;
       // A change of mind shows: they all turn back.
@@ -28919,7 +29092,10 @@ function stepGlouton(game, dt, random = Math.random) {
       if (game.clock >= ghost.release) ghost.mode = 'leaving';
       else continue;
     }
-    const pace = ghost.mode === 'eaten' ? speed.eaten : ghost.scared ? speed.scared : speed.ghost;
+    let pace = ghost.mode === 'eaten' ? speed.eaten : ghost.scared ? speed.scared : speed.ghost;
+    if (ghost.mode === 'out' && !ghost.scared && ghost.name === 'red') pace *= 1 + 0.07 * angerOf(game);
+    // In the tunnel a ghost crawls: a way to shake them off.
+    if (ghost.mode !== 'eaten' && inTunnel(maze, ghost.x, ghost.y)) pace *= 0.5;
     advance(maze, ghost, pace * time, (actor) => {
       const exit = exitTile(maze);
       if (actor.mode === 'leaving' && actor.x === exit.x && actor.y === exit.y) {
@@ -28939,7 +29115,10 @@ function stepGlouton(game, dt, random = Math.random) {
     if (ghost.mode !== 'out' || !touching(player, ghost, maze.width)) continue;
     if (ghost.scared) {
       game.chain += 1;
-      game.score += 100 * 2 ** game.chain;
+      const points = 100 * 2 ** game.chain;
+      addPoints(game, points);
+      game.popups.push({ x: ghost.x, y: ghost.y, points, left: POPUP_TIME });
+      game.freeze = GHOST_FREEZE;
       ghost.mode = 'eaten';
       ghost.scared = false;
       game.events.push('ghost');
@@ -28950,6 +29129,13 @@ function stepGlouton(game, dt, random = Math.random) {
       game.events.push('caught');
       return game.events;
     }
+  }
+
+  if (game.fruit && touching(player, game.fruit, maze.width)) {
+    addPoints(game, game.fruit.points);
+    game.popups.push({ x: game.fruit.x, y: game.fruit.y, points: game.fruit.points, left: POPUP_TIME });
+    game.fruit = null;
+    game.events.push('fruit');
   }
 
   if (!pelletsLeft(maze)) {
@@ -28972,9 +29158,21 @@ const SNAKE_DYING_TIME = 1.2;
 const STAR_EVERY = 5;
 const STAR_TIME = 6;
 
+/**
+ * The modes: the pace at the start, what each apple adds to it, the top
+ * pace, what an apple is worth, and whether the snake goes through the edges
+ * (out on one side, in at the other) instead of crashing into them.
+ */
+const SNAKE_MODES = {
+  easy: { start: 5, gain: 0.12, top: 9, apple: 5, wrap: true },
+  normal: { start: 6.5, gain: 0.2, top: 14, apple: 10, wrap: false },
+  hard: { start: 8.5, gain: 0.3, top: 18, apple: 20, wrap: false },
+};
+
 /** Tiles per second: a little faster with every apple. */
-function snakeRate(apples) {
-  return Math.min(14, 6.5 + apples * 0.2);
+function snakeRate(apples, mode = 'normal') {
+  const settings = SNAKE_MODES[arcadeMode(mode)];
+  return Math.min(settings.top, settings.start + apples * settings.gain);
 }
 
 /** What a star is worth with `left` seconds still to shine: the sooner, the more. */
@@ -28990,13 +29188,15 @@ function starPoints(left) {
  * snake is on its way to the next tile (0 to 1): the screen draws it that
  * far behind, so that it glides instead of jumping from tile to tile.
  */
-function newSnake(random = Math.random, size = SNAKE_SIZE) {
+function newSnake(random = Math.random, size = SNAKE_SIZE, mode = 'normal') {
   const middle = Math.floor(size / 2);
   const body = [];
   for (let i = 0; i < SNAKE_LENGTH; i += 1) body.push({ x: middle - 2 - i, y: middle });
   const game = {
     width: size,
     height: size,
+    mode: arcadeMode(mode),
+    wrap: SNAKE_MODES[arcadeMode(mode)].wrap,
     body,
     dir: 'right',
     queue: [],
@@ -29041,6 +29241,10 @@ function slither(game, random) {
   if (game.queue.length) game.dir = game.queue.shift();
   const step = ARCADE_DIRS[game.dir];
   const next = { x: game.body[0].x + step.x, y: game.body[0].y + step.y };
+  if (game.wrap) {
+    next.x = (next.x + game.width) % game.width;
+    next.y = (next.y + game.height) % game.height;
+  }
   const here = (tile) => Boolean(tile) && tile.x === next.x && tile.y === next.y;
   const grows = here(game.apple);
   // The tail moves out of the way, unless the snake grows.
@@ -29063,7 +29267,7 @@ function slither(game, random) {
   }
   if (!grows) return;
   game.apples += 1;
-  game.score += POINTS.pellet;
+  game.score += SNAKE_MODES[game.mode || 'normal'].apple;
   game.swallowing = next;
   game.events.push('apple');
   if (game.body.length >= game.width * game.height) {
@@ -29105,11 +29309,12 @@ function stepSnake(game, dt, random = Math.random) {
     if (game.star.left <= 0) game.star = null;
   }
   game.acc += time;
-  while (game.state === 'play' && game.acc >= 1 / snakeRate(game.apples)) {
-    game.acc -= 1 / snakeRate(game.apples);
+  const rate = () => snakeRate(game.apples, game.mode);
+  while (game.state === 'play' && game.acc >= 1 / rate()) {
+    game.acc -= 1 / rate();
     slither(game, random);
   }
-  game.progress = game.state === 'play' ? Math.min(1, game.acc * snakeRate(game.apples)) : 1;
+  game.progress = game.state === 'play' ? Math.min(1, game.acc * rate()) : 1;
   return game.events;
 }
 
@@ -29150,7 +29355,7 @@ const arcadeRuns = new Map();
  */
 const ARCADE_ENGINES = {
   glouton: {
-    create: () => newGlouton(),
+    create: (mode) => newGlouton(GLOUTON_MAZE, mode),
     step: stepGlouton,
     steer: steerGlouton,
     draw: drawGlouton,
@@ -29159,7 +29364,7 @@ const ARCADE_ENGINES = {
     shake: 'caught',
   },
   snake: {
-    create: () => newSnake(),
+    create: (mode) => newSnake(Math.random, SNAKE_SIZE, mode),
     step: stepSnake,
     steer: steerSnake,
     draw: drawSnake,
@@ -29183,6 +29388,8 @@ const ARROWS = [
   ['down', 'M12 18 5 8h14z'],
   ['right', 'M18 12 8 5v14z'],
 ];
+const SOUND_ON_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const SOUND_OFF_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="m16 9 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const PAUSE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
 const PLAY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
 const KEYS = {
@@ -29194,14 +29401,96 @@ function engineOf(id) {
   return Object.hasOwn(ARCADE_ENGINES, id) ? ARCADE_ENGINES[id] : null;
 }
 
-function bestOf(id) {
-  return Number(state.prefs?.arcade?.[id]) || 0;
+/** The mode chosen for a game, kept on the phone. */
+function modeOf(id) {
+  return arcadeMode(state.prefs?.arcadeMode?.[id]);
 }
 
-function keepBest(id, score) {
-  if (score <= bestOf(id)) return;
-  state.prefs.arcade = { ...(state.prefs.arcade || {}), [id]: score };
+/** Where a record is kept: the normal mode's where it always was. */
+function recordKey(id, mode) {
+  return mode === 'normal' ? id : `${id}:${mode}`;
+}
+
+function bestOf(id, mode = modeOf(id)) {
+  return Number(state.prefs?.arcade?.[recordKey(id, mode)]) || 0;
+}
+
+/** Keep a score if it beats the record; says whether it did. */
+function keepBest(id, mode, score) {
+  if (score <= bestOf(id, mode)) return false;
+  state.prefs.arcade = { ...(state.prefs.arcade || {}), [recordKey(id, mode)]: score };
   savePrefs(state.prefs);
+  return true;
+}
+
+/* ------------------------------------------------------------------ sound --- */
+
+/**
+ * Little sounds made on the spot (Web Audio), as the old machines did: no
+ * file to load. Off with the button by the arrows; the phone remembers.
+ */
+let audio = null;
+let pellets = 0;
+
+function soundOn() {
+  return state.prefs?.arcadeSound !== false;
+}
+
+/** Wake the sound up: a phone only lets it start at a touch. */
+function wakeAudio() {
+  if (!soundOn()) return;
+  try {
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if (!audio && Context) audio = new Context();
+    if (audio?.state === 'suspended') audio.resume();
+  } catch {
+    audio = null;
+  }
+}
+
+function tone(freq, start, length, { type = 'square', volume = 0.035, to = 0 } = {}) {
+  const at = audio.currentTime + start;
+  const oscillator = audio.createOscillator();
+  const gain = audio.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(freq, at);
+  if (to) oscillator.frequency.exponentialRampToValueAtTime(to, at + length);
+  gain.gain.setValueAtTime(volume, at);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
+  oscillator.connect(gain);
+  gain.connect(audio.destination);
+  oscillator.start(at);
+  oscillator.stop(at + length + 0.02);
+}
+
+const notes = (list, gap, options) => list.forEach((freq, index) => tone(freq, index * gap, gap * 1.4, options));
+
+const SOUNDS = {
+  pellet: () => {
+    pellets += 1;
+    tone(pellets % 2 ? 480 : 360, 0, 0.06, { type: 'triangle', volume: 0.06 });
+  },
+  power: () => tone(180, 0, 0.4, { type: 'sawtooth', to: 720, volume: 0.03 }),
+  ghost: () => tone(300, 0, 0.3, { type: 'square', to: 1400 }),
+  fruit: () => notes([660, 990], 0.08, { type: 'triangle', volume: 0.06 }),
+  life: () => notes([523, 659, 784, 1047], 0.09, { type: 'square' }),
+  caught: () => tone(700, 0, 1.1, { type: 'triangle', to: 90, volume: 0.07 }),
+  cleared: () => notes([523, 659, 784, 1047, 784, 1047], 0.1, { type: 'square' }),
+  apple: () => notes([440, 660], 0.05, { type: 'square', volume: 0.04 }),
+  star: () => notes([784, 988, 1175, 1568], 0.06, { type: 'triangle', volume: 0.06 }),
+  crash: () => tone(260, 0, 0.5, { type: 'sawtooth', to: 50, volume: 0.05 }),
+  record: () => notes([523, 659, 784, 659, 784, 1047], 0.11, { type: 'square' }),
+};
+
+function playSounds(events) {
+  if (!audio || !soundOn() || audio.state !== 'running') return;
+  for (const event of new Set(events)) {
+    try {
+      SOUNDS[event]?.();
+    } catch {
+      // A sound that fails is no reason to stop the game.
+    }
+  }
 }
 
 /** The arcade's cards, at the top of the Games tab. */
@@ -29235,16 +29524,23 @@ function arcadeView(id) {
             aria-label="${escapeHtml(t(`arcade.dir.${dir}`))}">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg>
     </button>`;
+  const chosen = modeOf(id);
+  const mode = (option) => `
+    <button type="button" class="segmented__option" data-arcade-mode="${option}"
+            aria-pressed="${option === chosen}">${escapeHtml(t(`arcade.mode.${option}`))}</button>`;
   return `
     <div class="spread page-head">
       ${backButtonHtml('#/games')}
       <h1>${name}</h1>
     </div>
     <div class="arcade">
+      <div class="segmented arcade__modes" role="group" aria-label="${escapeHtml(t('arcade.mode'))}">
+        ${ARCADE_MODES.map(mode).join('')}
+      </div>
       <div class="arcade__hud">
         <span>${escapeHtml(t('arcade.score'))} <strong id="arcade-score">0</strong></span>
         ${engine.hud.includes('level') ? `<span>${escapeHtml(t('arcade.level'))} <strong id="arcade-level">1</strong></span>` : ''}
-        <span>${escapeHtml(t('arcade.record'))} <strong id="arcade-best">${bestOf(id)}</strong></span>
+        <span>${escapeHtml(t('arcade.record'))} <strong id="arcade-best">${bestOf(id, chosen)}</strong></span>
         ${engine.hud.includes('lives') ? '<span id="arcade-lives" class="arcade__lives" role="img"></span>' : ''}
       </div>
       <canvas id="arcade-board" class="arcade__board arcade__board--${escapeHtml(id)}" data-arcade="${escapeHtml(id)}"
@@ -29254,22 +29550,27 @@ function arcadeView(id) {
         ${ARROWS.map(arrow).join('')}
         <button type="button" class="arcade-pad__key arcade-pad__key--pause" id="arcade-pause"
                 aria-label="${escapeHtml(t('arcade.pause'))}" title="${escapeHtml(t('arcade.pause'))}">${PAUSE_ICON}</button>
+        <button type="button" class="arcade-pad__key arcade-pad__key--sound" id="arcade-sound"
+                aria-pressed="${soundOn()}" aria-label="${escapeHtml(t('arcade.sound'))}"
+                title="${escapeHtml(t('arcade.sound'))}">${soundOn() ? SOUND_ON_ICON : SOUND_OFF_ICON}</button>
       </div>
-      <p class="muted small">${escapeHtml(t(`arcade.${id}.rules`))} ${escapeHtml(t('arcade.how'))}</p>
-    </div>`;
+    </div>
+    <p class="muted small arcade__rules">${escapeHtml(t(`arcade.${id}.rules`))} <span id="arcade-mode-rule">${escapeHtml(t(`arcade.${id}.mode.${chosen}`))}</span> ${escapeHtml(t('arcade.how'))}</p>`;
 }
 
 function bindArcade(id) {
   const canvas = document.getElementById('arcade-board');
   const engine = engineOf(id);
   if (!canvas || !engine) return;
-  if (!arcadeRuns.has(id)) arcadeRuns.set(id, { game: engine.create(), shown: null });
+  if (!arcadeRuns.has(id)) arcadeRuns.set(id, { game: engine.create(modeOf(id)), shown: null });
   const run = arcadeRuns.get(id);
   run.shown = null;
   const context = canvas.getContext('2d');
 
   const afresh = () => {
-    run.game = engine.create();
+    run.game = engine.create(modeOf(id));
+    run.record = false;
+    run.flash = null;
   };
   const restartOrResume = () => {
     if (run.game.state === 'over') afresh();
@@ -29280,9 +29581,35 @@ function bindArcade(id) {
     else togglePause(run.game);
   };
   const go = (dir) => {
+    wakeAudio();
     restartOrResume();
     engine.steer(run.game, dir);
   };
+
+  // Another mode: a new game in it, at once.
+  document.querySelectorAll('[data-arcade-mode]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const mode = arcadeMode(button.dataset.arcadeMode);
+      state.prefs.arcadeMode = { ...(state.prefs.arcadeMode || {}), [id]: mode };
+      savePrefs(state.prefs);
+      afresh();
+      document.querySelectorAll('[data-arcade-mode]').forEach((other) => {
+        other.setAttribute('aria-pressed', String(other === button));
+      });
+      const rule = document.getElementById('arcade-mode-rule');
+      if (rule) rule.textContent = t(`arcade.${id}.mode.${mode}`);
+      run.shown = null;
+    });
+  });
+
+  const sound = document.getElementById('arcade-sound');
+  sound.addEventListener('click', () => {
+    state.prefs.arcadeSound = !soundOn();
+    savePrefs(state.prefs);
+    sound.setAttribute('aria-pressed', String(soundOn()));
+    sound.innerHTML = soundOn() ? SOUND_ON_ICON : SOUND_OFF_ICON;
+    wakeAudio();
+  });
 
   document.querySelectorAll('[data-arcade-dir]').forEach((button) => {
     // At the touch, not at the click: a click waits for the finger to lift.
@@ -29294,19 +29621,30 @@ function bindArcade(id) {
       if (event.detail === 0) go(button.dataset.arcadeDir);
     });
   });
-  document.getElementById('arcade-pause').addEventListener('click', pauseOrRestart);
-
-  // A swipe on the game steers; the finger may go on and turn again.
-  let origin = null;
-  canvas.addEventListener('pointerdown', (event) => {
-    origin = { x: event.clientX, y: event.clientY };
-    canvas.setPointerCapture?.(event.pointerId);
+  document.getElementById('arcade-pause').addEventListener('click', () => {
+    wakeAudio();
+    pauseOrRestart();
   });
-  canvas.addEventListener('pointermove', (event) => {
+
+  // A swipe anywhere on the game's part of the page steers — on the maze, or
+  // beside the arrows, where the thumbs are; the finger may go on and turn again.
+  const zone = canvas.closest('.arcade') || canvas;
+  let origin = null;
+  zone.addEventListener('pointerdown', (event) => {
+    if (event.target instanceof Element && event.target.closest('button')) return;
+    wakeAudio();
+    origin = { x: event.clientX, y: event.clientY };
+    try {
+      zone.setPointerCapture?.(event.pointerId);
+    } catch {
+      // A pointer the browser no longer knows: the swipe works without.
+    }
+  });
+  zone.addEventListener('pointermove', (event) => {
     if (!origin) return;
     const dx = event.clientX - origin.x;
     const dy = event.clientY - origin.y;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < 18) return;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 14) return;
     go(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
     origin = { x: event.clientX, y: event.clientY };
   });
@@ -29314,8 +29652,8 @@ function bindArcade(id) {
     if (origin && ['over', 'paused'].includes(run.game.state)) restartOrResume();
     origin = null;
   };
-  canvas.addEventListener('pointerup', lift);
-  canvas.addEventListener('pointercancel', () => { origin = null; });
+  zone.addEventListener('pointerup', lift);
+  zone.addEventListener('pointercancel', () => { origin = null; });
 
   const onKey = (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
@@ -29354,7 +29692,16 @@ function bindArcade(id) {
     last = now;
     const events = engine.step(run.game, dt);
     if (events.includes(engine.shake)) navigator.vibrate?.(200);
-    if (events.includes('over')) keepBest(id, run.game.score);
+    else if (events.includes('ghost') || events.includes('star')) navigator.vibrate?.(30);
+    if (events.includes('over')) {
+      const before = bestOf(id, run.game.mode);
+      run.record = keepBest(id, run.game.mode, run.game.score) && before > 0;
+      run.game.record = run.record;
+      if (run.record) events.push('record');
+    }
+    if (events.includes('life')) run.flash = { text: t('arcade.extraLife'), until: now + 2000 };
+    playSounds(events);
+    run.now = now;
     engine.draw(canvas, context, run.game, now);
     showHud(run, id, engine);
     requestAnimationFrame(frame);
@@ -29363,8 +29710,11 @@ function bindArcade(id) {
 }
 
 /** The line under the game. */
-function statusOf(game, engine) {
+function statusOf(run, engine) {
+  const { game } = run;
+  if (game.state === 'over' && run.record) return t('arcade.newRecord', { score: game.score });
   if (game.state === 'over') return t(game.won ? 'arcade.won' : 'arcade.over', { score: game.score });
+  if (run.flash && run.now < run.flash.until) return run.flash.text;
   if (game.state === 'cleared') return t('arcade.cleared', { level: game.level });
   if (game.state === 'paused') return t('arcade.paused');
   return engine.texts[game.state] ? t(engine.texts[game.state]) : '';
@@ -29372,6 +29722,7 @@ function statusOf(game, engine) {
 
 /** The word across the game, when it is not running. */
 function bannerOf(game) {
+  if (game.state === 'over' && game.record) return t('arcade.recordShort');
   if (game.state === 'over') return t(game.won ? 'arcade.wonShort' : 'arcade.overShort');
   if (game.state === 'cleared') return t('arcade.cleared', { level: game.level });
   if (game.state === 'paused') return t('arcade.paused');
@@ -29382,7 +29733,7 @@ function bannerOf(game) {
 /** The numbers and the line under the game, touched only when they change. */
 function showHud(run, id, engine) {
   const { game } = run;
-  const status = statusOf(game, engine);
+  const status = statusOf(run, engine);
   const shown = `${game.score}|${game.level}|${game.lives}|${status}`;
   if (run.shown === shown) return;
   run.shown = shown;
@@ -29392,7 +29743,7 @@ function showHud(run, id, engine) {
   };
   put('arcade-score', game.score);
   put('arcade-level', game.level);
-  put('arcade-best', Math.max(bestOf(id), game.score));
+  put('arcade-best', Math.max(bestOf(id, game.mode), game.score));
   put('arcade-status', status);
   const lives = document.getElementById('arcade-lives');
   if (lives) {
@@ -29510,6 +29861,10 @@ function drawGlouton(canvas, context, game, now) {
     }
   }
 
+  if (game.fruit && (game.fruit.left > 2 || Math.floor(now / 150) % 2 === 0)) {
+    drawFruit(context, game.fruit.kind, (game.fruit.x + 0.5) * size, (game.fruit.y + 0.5) * size, size * 0.42);
+  }
+
   // The glutton: a mouth that opens and closes as it goes.
   const { player } = game;
   const angle = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[player.dir] || 0;
@@ -29534,8 +29889,27 @@ function drawGlouton(canvas, context, game, now) {
   context.shadowBlur = 0;
 
   // The ghosts: hidden while the glutton is caught, so that one sees it go.
+  // While a ghost's points show, the ghosts just eaten are not seen.
   if (game.state !== 'dying') {
-    for (const ghost of game.ghosts) drawGhost(context, ghost, game, size, now);
+    for (const ghost of game.ghosts) {
+      if (!(game.freeze > 0 && ghost.mode === 'eaten')) drawGhost(context, ghost, game, size, now);
+    }
+  }
+
+  // The points of a ghost or a fruit, where it was eaten, rising a little.
+  context.font = `800 ${Math.round(size * 0.75)}px system-ui, sans-serif`;
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  for (const popup of game.popups || []) {
+    const rise = (1.2 - popup.left) * size * 0.4;
+    context.fillStyle = deep;
+    context.globalAlpha = 0.7;
+    const text = String(popup.points);
+    const boxWidth = context.measureText(text).width + size * 0.3;
+    context.fillRect(at(popup.x) - boxWidth / 2, at(popup.y) - rise - size * 0.45, boxWidth, size * 0.9);
+    context.globalAlpha = 1;
+    context.fillStyle = GHOST_COLOURS.cyan;
+    context.fillText(text, at(popup.x), at(popup.y) - rise);
   }
 
   drawBanner(context, bannerOf(game), width / 2, (maze.door.y + 3.5) * size, size, deep);
@@ -29585,6 +29959,100 @@ function drawGhost(context, ghost, game, size, now) {
   }
 }
 
+/** The bonus fruit, one shape per level. */
+function drawFruit(context, kind, x, y, r) {
+  const disc = (cx, cy, radius, colour) => {
+    context.fillStyle = colour;
+    context.beginPath();
+    context.arc(cx, cy, radius, 0, Math.PI * 2);
+    context.fill();
+  };
+  const stem = (points, colour = SNAKE_GREEN) => {
+    context.strokeStyle = colour;
+    context.lineWidth = Math.max(1, r * 0.16);
+    context.lineCap = 'round';
+    context.beginPath();
+    context.moveTo(...points[0]);
+    for (const point of points.slice(1)) context.lineTo(...point);
+    context.stroke();
+  };
+  context.shadowBlur = r * 0.8;
+  if (kind === 'cherry') {
+    context.shadowColor = APPLE_RED;
+    stem([[x - r * 0.45, y + r * 0.3], [x + r * 0.35, y - r * 0.85], [x + r * 0.4, y + r * 0.4]]);
+    disc(x - r * 0.45, y + r * 0.4, r * 0.45, APPLE_RED);
+    disc(x + r * 0.4, y + r * 0.5, r * 0.45, APPLE_RED);
+  } else if (kind === 'strawberry') {
+    context.shadowColor = APPLE_RED;
+    context.fillStyle = APPLE_RED;
+    context.beginPath();
+    context.moveTo(x - r * 0.85, y - r * 0.35);
+    context.quadraticCurveTo(x, y - r * 0.75, x + r * 0.85, y - r * 0.35);
+    context.quadraticCurveTo(x + r * 0.6, y + r * 0.7, x, y + r);
+    context.quadraticCurveTo(x - r * 0.6, y + r * 0.7, x - r * 0.85, y - r * 0.35);
+    context.fill();
+    context.shadowBlur = 0;
+    for (const [dx, dy] of [[-0.35, 0], [0.35, 0], [0, 0.4], [0, -0.2]]) disc(x + dx * r, y + dy * r, r * 0.08, '#ffe2c4');
+    stem([[x - r * 0.4, y - r * 0.6], [x, y - r * 0.45], [x + r * 0.4, y - r * 0.6]]);
+  } else if (kind === 'orange') {
+    context.shadowColor = '#ffad4d';
+    disc(x, y + r * 0.1, r * 0.85, '#ffad4d');
+    context.shadowBlur = 0;
+    stem([[x, y - r * 0.7], [x + r * 0.45, y - r * 0.95]]);
+  } else if (kind === 'apple') {
+    context.shadowBlur = 0;
+    drawApple(context, x, y + r * 0.1, r * 0.8);
+  } else if (kind === 'grapes') {
+    context.shadowColor = '#b46cff';
+    for (const [dx, dy] of [[-0.45, -0.35], [0, -0.35], [0.45, -0.35], [-0.22, 0.1], [0.22, 0.1], [0, 0.55]]) {
+      disc(x + dx * r, y + dy * r, r * 0.3, '#b46cff');
+    }
+    context.shadowBlur = 0;
+    stem([[x, y - r * 0.65], [x + r * 0.2, y - r]]);
+  } else if (kind === 'melon') {
+    context.shadowColor = SNAKE_GREEN;
+    context.fillStyle = SNAKE_GREEN;
+    context.beginPath();
+    context.ellipse(x, y + r * 0.1, r * 0.95, r * 0.75, 0, 0, Math.PI * 2);
+    context.fill();
+    context.shadowBlur = 0;
+    context.strokeStyle = '#0b5d36';
+    context.lineWidth = Math.max(1, r * 0.1);
+    for (const dx of [-0.45, 0, 0.45]) {
+      context.beginPath();
+      context.moveTo(x + dx * r, y - r * 0.6);
+      context.quadraticCurveTo(x + dx * r * 1.4, y + r * 0.1, x + dx * r, y + r * 0.8);
+      context.stroke();
+    }
+  } else if (kind === 'bell') {
+    context.shadowColor = GOLD;
+    context.fillStyle = GOLD;
+    context.beginPath();
+    context.moveTo(x - r * 0.9, y + r * 0.6);
+    context.quadraticCurveTo(x - r * 0.7, y - r * 0.95, x, y - r * 0.9);
+    context.quadraticCurveTo(x + r * 0.7, y - r * 0.95, x + r * 0.9, y + r * 0.6);
+    context.closePath();
+    context.fill();
+    context.shadowBlur = 0;
+    disc(x, y + r * 0.75, r * 0.22, GOLD);
+  } else {
+    // The key.
+    context.shadowColor = GHOST_COLOURS.cyan;
+    context.strokeStyle = GHOST_COLOURS.cyan;
+    context.lineWidth = Math.max(1.5, r * 0.25);
+    context.beginPath();
+    context.arc(x, y - r * 0.45, r * 0.4, 0, Math.PI * 2);
+    context.moveTo(x, y - r * 0.05);
+    context.lineTo(x, y + r);
+    context.moveTo(x, y + r * 0.55);
+    context.lineTo(x + r * 0.35, y + r * 0.55);
+    context.moveTo(x, y + r * 0.9);
+    context.lineTo(x + r * 0.3, y + r * 0.9);
+    context.stroke();
+  }
+  context.shadowBlur = 0;
+}
+
 /* ------------------------------------------------------------------ snake --- */
 
 /**
@@ -29607,9 +30075,12 @@ function drawSnake(canvas, context, game, now) {
   }
   context.globalAlpha = 1;
 
+  // The wall; dashed when the snake goes through it (easy mode).
   context.beginPath();
   context.rect(size / 4, size / 4, width - size / 2, height - size / 2);
+  if (game.wrap) context.setLineDash([size * 0.5, size * 0.6]);
   glowStroke(context, wall, size * 0.4, Math.max(1.5, size * 0.12));
+  context.setLineDash([]);
 
   const pulse = 1 + 0.06 * Math.sin(now / 180);
   if (game.apple) drawApple(context, at(game.apple.x), at(game.apple.y), size * 0.36 * pulse);
@@ -29625,32 +30096,64 @@ function drawSnake(canvas, context, game, now) {
     x: from.x + (to.x - from.x) * game.progress,
     y: from.y + (to.y - from.y) * game.progress,
   });
-  const head = mix(body[1], body[0]);
-  const tail = game.trail ? mix(game.trail, body.at(-1)) : body.at(-1);
-  const points = [head, ...body.slice(1), tail];
+  // Through the edges, a tile and the next may sit on both sides of the field:
+  // the snake is laid out in one piece first (each tile next to the one
+  // before), then drawn once more on the other side where it sticks out.
+  const near = (value, from, span) => value + Math.round((from - value) / span) * span;
+  const beside = (tile, before) => ({ x: near(tile.x, before.x, game.width), y: near(tile.y, before.y, game.height) });
+  const flat = [{ ...body[0] }];
+  for (const tile of body.slice(1)) flat.push(beside(tile, flat.at(-1)));
+  const flatTrail = game.trail && beside(game.trail, flat.at(-1));
+  const ahead = { x: flat[0].x - flat[1].x, y: flat[0].y - flat[1].y };
+  const head = mix(flat[1], flat[0]);
+  const tail = flatTrail ? mix(flatTrail, flat.at(-1)) : flat.at(-1);
+  const points = [head, ...flat.slice(1), tail];
   const colour = game.state === 'dying' && Math.floor(now / 120) % 2 === 0 ? APPLE_RED : SNAKE_GREEN;
+  const shifts = [{ x: 0, y: 0 }];
+  if (game.wrap) {
+    const xs = points.map((point) => point.x);
+    const ys = points.map((point) => point.y);
+    for (const dx of [-game.width, 0, game.width]) {
+      for (const dy of [-game.height, 0, game.height]) {
+        if (!dx && !dy) continue;
+        const inside = Math.max(...xs) + dx > -1 && Math.min(...xs) + dx < game.width
+          && Math.max(...ys) + dy > -1 && Math.min(...ys) + dy < game.height;
+        if (inside) shifts.push({ x: dx, y: dy });
+      }
+    }
+    context.save();
+    context.beginPath();
+    context.rect(size / 2, size / 2, width - size, height - size);
+    context.clip();
+  }
   context.globalAlpha = game.state === 'over' ? 0.5 : 1;
-  context.beginPath();
-  context.moveTo(at(points[0].x), at(points[0].y));
-  for (const point of points.slice(1)) context.lineTo(at(point.x), at(point.y));
-  context.lineCap = 'round';
-  context.lineJoin = 'round';
-  context.strokeStyle = colour;
-  context.shadowColor = colour;
-  context.shadowBlur = size * 0.5;
-  context.lineWidth = size * 0.72;
-  context.stroke();
-  context.shadowBlur = 0;
-  context.strokeStyle = 'rgba(255, 255, 255, 0.28)';
-  context.lineWidth = size * 0.2;
-  context.stroke();
-
-  // The head, looking the way it goes, its tongue out now and then.
-  const ahead = { x: body[0].x - body[1].x, y: body[0].y - body[1].y };
-  const side = { x: -ahead.y, y: ahead.x };
-  const hx = at(head.x);
-  const hy = at(head.y);
   const r = size * 0.42;
+  for (const shift of shifts) {
+    context.beginPath();
+    context.moveTo(at(points[0].x + shift.x), at(points[0].y + shift.y));
+    for (const point of points.slice(1)) context.lineTo(at(point.x + shift.x), at(point.y + shift.y));
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.strokeStyle = colour;
+    context.shadowColor = colour;
+    context.shadowBlur = size * 0.5;
+    context.lineWidth = size * 0.72;
+    context.stroke();
+    context.shadowBlur = 0;
+    context.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+    context.lineWidth = size * 0.2;
+    context.stroke();
+    drawSnakeHead(context, game, at(head.x + shift.x), at(head.y + shift.y), ahead, r, colour, size, now);
+  }
+  if (game.wrap) context.restore();
+  context.globalAlpha = 1;
+
+  drawBanner(context, bannerOf(game), width / 2, height * 0.27, size, deep);
+}
+
+/** The head, looking the way it goes, its tongue out now and then. */
+function drawSnakeHead(context, game, hx, hy, ahead, r, colour, size, now) {
+  const side = { x: -ahead.y, y: ahead.x };
   if (game.state === 'play' && Math.floor(now / 700) % 3 === 0) {
     const tip = { x: hx + ahead.x * r * 1.7, y: hy + ahead.y * r * 1.7 };
     context.strokeStyle = APPLE_RED;
@@ -29680,9 +30183,6 @@ function drawSnake(canvas, context, game, now) {
     context.arc(ex + ahead.x * r * 0.1, ey + ahead.y * r * 0.1, r * 0.13, 0, Math.PI * 2);
     context.fill();
   }
-  context.globalAlpha = 1;
-
-  drawBanner(context, bannerOf(game), width / 2, height * 0.27, size, deep);
 }
 
 function drawApple(context, x, y, r) {

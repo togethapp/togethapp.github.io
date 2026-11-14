@@ -12,6 +12,13 @@
 /** The games of the arcade, in the order shown. */
 export const ARCADE_GAMES = [{ id: 'glouton' }, { id: 'snake' }];
 
+/** How hard a game is, chosen before it starts; each keeps its own record. */
+export const ARCADE_MODES = ['easy', 'normal', 'hard'];
+
+export function arcadeMode(mode) {
+  return ARCADE_MODES.includes(mode) ? mode : 'normal';
+}
+
 /**
  * The maze. `#` wall, `.` pellet, `o` big pellet, `-` the ghosts' door,
  * `P` where one starts, `G` where the ghosts do (the first one outside). A row
@@ -56,10 +63,39 @@ export const GHOST_NAMES = ['red', 'pink', 'cyan', 'orange'];
 const RELEASE = [0, 1.5, 5, 9];
 /** Scatter, then chase, then scatter… — the last chase lasts for ever. */
 const PHASES = [7, 20, 7, 20, 5, 20, 5];
+/** From this level on, the ghosts scatter for shorter. */
+const SHORT_SCATTER_LEVEL = 3;
 const POINTS = { pellet: 10, power: 50 };
 const READY_TIME = 2;
 const DYING_TIME = 1.6;
 const CLEARED_TIME = 1.8;
+/** Eating a ghost stops everything for a moment, to see what it was worth. */
+const GHOST_FREEZE = 0.5;
+const POPUP_TIME = 1.2;
+/** A life more, once, at this score. */
+export const EXTRA_LIFE = 10000;
+/** A fruit comes out when this share of the pellets is eaten, and stays a while. */
+const FRUIT_AT = [0.3, 0.7];
+const FRUIT_TIME = 9.5;
+/** What the fruit is, and is worth, level after level; the last one stays. */
+export const FRUITS = [
+  { kind: 'cherry', points: 100 },
+  { kind: 'strawberry', points: 300 },
+  { kind: 'orange', points: 500 },
+  { kind: 'apple', points: 700 },
+  { kind: 'grapes', points: 1000 },
+  { kind: 'melon', points: 2000 },
+  { kind: 'bell', points: 3000 },
+  { kind: 'key', points: 5000 },
+];
+/** How far past a crossing a turn still takes it, in tiles: late fingers forgiven. */
+const CORNER = 0.35;
+/** The modes: lives, the ghosts' pace and wait at home, how much longer fright lasts. */
+const GLOUTON_MODES = {
+  easy: { lives: 5, ghost: 0.82, release: 1.6, fright: 2.5, angry: false },
+  normal: { lives: 3, ghost: 1, release: 1, fright: 0, angry: true },
+  hard: { lives: 3, ghost: 1.1, release: 0.6, fright: -1.5, angry: true },
+};
 const EPSILON = 1e-6;
 
 /** The maze as a grid, with where everyone starts. */
@@ -81,7 +117,23 @@ export function parseMaze(rows = GLOUTON_MAZE) {
     }
     cells.push(line);
   }
-  return { width, height, cells, player, ghosts, door };
+  // The tunnel: on a row open at both ends, the empty tiles from each edge in.
+  const tunnel = new Set();
+  for (let y = 0; y < height; y += 1) {
+    if (cells[y][0] === '#' || cells[y][width - 1] === '#') continue;
+    for (let x = 0; x < width && cells[y][x] === ' '; x += 1) tunnel.add(`${x},${y}`);
+    for (let x = width - 1; x >= 0 && cells[y][x] === ' '; x -= 1) tunnel.add(`${x},${y}`);
+  }
+  // The fruit shows below the ghosts' house, else where the player starts.
+  const under = door && { x: door.x, y: door.y + 3 };
+  const fruit = under && cells[under.y]?.[under.x] === ' ' ? under : player;
+  return { width, height, cells, player, ghosts, door, tunnel, fruit };
+}
+
+/** Whether a tile is in the tunnel, where the ghosts slow down. */
+export function inTunnel(maze, x, y) {
+  const column = ((Math.round(x) % maze.width) + maze.width) % maze.width;
+  return maze.tunnel.has(`${column},${Math.round(y)}`);
 }
 
 /** What is at a tile; a tunnel wraps from one side to the other. */
@@ -106,11 +158,47 @@ export function pelletsLeft(maze) {
 }
 
 /** A new game, at level one. */
-export function newGlouton(rows = GLOUTON_MAZE) {
+export function newGlouton(rows = GLOUTON_MAZE, mode = 'normal') {
   const maze = parseMaze(rows);
-  const game = { rows, maze, score: 0, lives: 3, level: 1, total: pelletsLeft(maze), eaten: 0 };
+  const settings = GLOUTON_MODES[arcadeMode(mode)];
+  const game = {
+    rows,
+    maze,
+    mode: arcadeMode(mode),
+    score: 0,
+    lives: settings.lives,
+    level: 1,
+    total: pelletsLeft(maze),
+    eaten: 0,
+    fruits: 0,
+    fruit: null,
+    popups: [],
+    freeze: 0,
+    extra: false,
+  };
   startLife(game);
   return game;
+}
+
+/** The fruit of a level. */
+export function fruitOf(level) {
+  return FRUITS[Math.min(level, FRUITS.length) - 1];
+}
+
+/** Points, and a life more the first time the score passes EXTRA_LIFE. */
+function addPoints(game, points) {
+  game.score += points;
+  if (!game.extra && game.score >= EXTRA_LIFE) {
+    game.extra = true;
+    game.lives += 1;
+    game.events.push('life');
+  }
+}
+
+/** The scatter and chase phases of a level: scattering shortens later on. */
+function phasesOf(game) {
+  if (game.level < SHORT_SCATTER_LEVEL) return PHASES;
+  return PHASES.map((time, index) => (index % 2 ? time : Math.min(time, 5)));
 }
 
 /** Everyone back to their place, a short « Prêt ! » before it starts again. */
@@ -123,7 +211,7 @@ function startLife(game) {
     y: at.y,
     dir: index === 0 ? 'left' : null,
     mode: index === 0 ? 'out' : 'house',
-    release: RELEASE[index] ?? RELEASE.at(-1) + index,
+    release: (RELEASE[index] ?? RELEASE.at(-1) + index) * GLOUTON_MODES[game.mode || 'normal'].release,
     home: { x: at.x, y: at.y },
   }));
   game.phase = 0;
@@ -131,31 +219,64 @@ function startLife(game) {
   game.clock = 0;
   game.fright = 0;
   game.chain = 0;
+  game.fruit = null;
+  game.freeze = 0;
+  game.popups = [];
   game.state = 'ready';
   game.timer = READY_TIME;
 }
 
-/** Turn: the player goes that way as soon as the maze allows it. */
+/**
+ * Turn: the player goes that way as soon as the maze allows it. A turn asked
+ * for just after a crossing still takes it, as if the finger had been on time.
+ */
 export function steerGlouton(game, dir) {
   if (!ARCADE_DIRS[dir]) return;
-  game.player.want = dir;
+  const { player, maze } = game;
+  player.want = dir;
   // Turning back needs no crossing: it happens at once.
-  if (dir === OPPOSITE[game.player.dir]) {
-    game.player.dir = dir;
-    game.player.moving = true;
+  if (dir === OPPOSITE[player.dir]) {
+    player.dir = dir;
+    player.moving = true;
+    return;
+  }
+  if (dir === player.dir || centred(player) || !ARCADE_DIRS[player.dir]) return;
+  const step = ARCADE_DIRS[player.dir];
+  const tile = { x: Math.round(player.x), y: Math.round(player.y) };
+  const past = (player.x - tile.x) * step.x + (player.y - tile.y) * step.y;
+  const turn = ARCADE_DIRS[dir];
+  if (past > 0 && past <= CORNER && canEnter(maze, tile.x + turn.x, tile.y + turn.y)) {
+    player.x = tile.x;
+    player.y = tile.y;
+    player.dir = dir;
+    player.moving = true;
   }
 }
 
-/** Speeds, in tiles per second, a little faster at each level. */
-export function speeds(level) {
+/** Speeds, in tiles per second, a little faster at each level and harder mode. */
+export function speeds(level, mode = 'normal') {
+  const settings = GLOUTON_MODES[arcadeMode(mode)];
   const lift = Math.min(level - 1, 6) * 0.05;
   return {
     player: 6 * (1 + lift / 2),
-    ghost: 5.4 * (1 + lift),
+    ghost: 5.4 * (1 + lift) * settings.ghost,
     scared: 3.4,
     eaten: 12,
-    fright: Math.max(1.5, 6.5 - level),
+    fright: Math.max(1, 6.5 - level + settings.fright),
   };
+}
+
+/**
+ * How angry the red ghost is, from 0 to 2: with few pellets left it goes
+ * faster, and no longer scatters (not in the easy mode).
+ */
+export function angerOf(game) {
+  if (!GLOUTON_MODES[game.mode || 'normal'].angry) return 0;
+  const left = game.total - game.eaten;
+  const threshold = Math.max(10, Math.round(game.total * 0.12));
+  if (left <= threshold / 2) return 2;
+  if (left <= threshold) return 1;
+  return 0;
 }
 
 /** Whether an actor stands right in the middle of a tile. */
@@ -220,8 +341,8 @@ export function ghostTarget(game, ghost) {
     cyan: { x: maze.width - 1, y: maze.height },
     orange: { x: 0, y: maze.height },
   };
-  const scatter = PHASES.length > game.phase && game.phase % 2 === 0;
-  if (scatter) return corners[ghost.name];
+  const scatter = phasesOf(game).length > game.phase && game.phase % 2 === 0;
+  if (scatter && !(ghost.name === 'red' && angerOf(game))) return corners[ghost.name];
   const px = Math.round(player.x);
   const py = Math.round(player.y);
   const ahead = ARCADE_DIRS[player.dir] || { x: 0, y: 0 };
@@ -275,11 +396,11 @@ function eatAt(game) {
   const y = Math.round(player.y);
   const cell = maze.cells[y][x];
   if (cell === '.') {
-    game.score += POINTS.pellet;
+    addPoints(game, POINTS.pellet);
     game.events.push('pellet');
   } else if (cell === 'o') {
-    game.score += POINTS.power;
-    game.fright = speeds(game.level).fright;
+    addPoints(game, POINTS.power);
+    game.fright = speeds(game.level, game.mode).fright;
     game.chain = 0;
     for (const ghost of game.ghosts) {
       if (ghost.mode !== 'out') continue;
@@ -293,6 +414,10 @@ function eatAt(game) {
   }
   maze.cells[y][x] = ' ';
   game.eaten += 1;
+  if (game.fruits < FRUIT_AT.length && game.eaten >= Math.ceil(game.total * FRUIT_AT[game.fruits])) {
+    game.fruits += 1;
+    game.fruit = { ...maze.fruit, ...fruitOf(game.level), left: FRUIT_TIME };
+  }
 }
 
 /** Whether the player and a ghost touch. */
@@ -304,12 +429,14 @@ function touching(a, b, width) {
 
 /**
  * Let `dt` seconds go by. Returns what happened, for the screen to make
- * something of it: 'pellet', 'power', 'ghost', 'caught', 'cleared', 'over'.
+ * something of it: 'pellet', 'power', 'ghost', 'fruit', 'life', 'caught',
+ * 'cleared', 'over'.
  */
 export function stepGlouton(game, dt, random = Math.random) {
   game.events = [];
   const time = Math.min(Math.max(dt, 0), 0.1);
   if (game.state === 'over' || game.state === 'paused') return game.events;
+  game.popups = (game.popups || []).filter((popup) => (popup.left -= time) > 0);
   if (game.state !== 'play') {
     game.timer -= time;
     if (game.timer > 0) return game.events;
@@ -324,6 +451,7 @@ export function stepGlouton(game, dt, random = Math.random) {
       game.level += 1;
       game.maze = parseMaze(game.rows);
       game.eaten = 0;
+      game.fruits = 0;
       startLife(game);
     } else {
       game.state = 'play';
@@ -331,14 +459,25 @@ export function stepGlouton(game, dt, random = Math.random) {
     return game.events;
   }
 
-  const speed = speeds(game.level);
+  // A ghost just eaten: everything waits, the points showing.
+  if (game.freeze > 0) {
+    game.freeze = Math.max(0, game.freeze - time);
+    return game.events;
+  }
+
+  const speed = speeds(game.level, game.mode);
+  const phases = phasesOf(game);
   game.clock += time;
+  if (game.fruit) {
+    game.fruit.left -= time;
+    if (game.fruit.left <= 0) game.fruit = null;
+  }
   if (game.fright > 0) {
     game.fright = Math.max(0, game.fright - time);
     if (!game.fright) for (const ghost of game.ghosts) ghost.scared = false;
-  } else if (game.phase < PHASES.length) {
+  } else if (game.phase < phases.length) {
     game.phaseTime += time;
-    if (game.phaseTime >= PHASES[game.phase]) {
+    if (game.phaseTime >= phases[game.phase]) {
       game.phaseTime = 0;
       game.phase += 1;
       // A change of mind shows: they all turn back.
@@ -361,7 +500,10 @@ export function stepGlouton(game, dt, random = Math.random) {
       if (game.clock >= ghost.release) ghost.mode = 'leaving';
       else continue;
     }
-    const pace = ghost.mode === 'eaten' ? speed.eaten : ghost.scared ? speed.scared : speed.ghost;
+    let pace = ghost.mode === 'eaten' ? speed.eaten : ghost.scared ? speed.scared : speed.ghost;
+    if (ghost.mode === 'out' && !ghost.scared && ghost.name === 'red') pace *= 1 + 0.07 * angerOf(game);
+    // In the tunnel a ghost crawls: a way to shake them off.
+    if (ghost.mode !== 'eaten' && inTunnel(maze, ghost.x, ghost.y)) pace *= 0.5;
     advance(maze, ghost, pace * time, (actor) => {
       const exit = exitTile(maze);
       if (actor.mode === 'leaving' && actor.x === exit.x && actor.y === exit.y) {
@@ -381,7 +523,10 @@ export function stepGlouton(game, dt, random = Math.random) {
     if (ghost.mode !== 'out' || !touching(player, ghost, maze.width)) continue;
     if (ghost.scared) {
       game.chain += 1;
-      game.score += 100 * 2 ** game.chain;
+      const points = 100 * 2 ** game.chain;
+      addPoints(game, points);
+      game.popups.push({ x: ghost.x, y: ghost.y, points, left: POPUP_TIME });
+      game.freeze = GHOST_FREEZE;
       ghost.mode = 'eaten';
       ghost.scared = false;
       game.events.push('ghost');
@@ -392,6 +537,13 @@ export function stepGlouton(game, dt, random = Math.random) {
       game.events.push('caught');
       return game.events;
     }
+  }
+
+  if (game.fruit && touching(player, game.fruit, maze.width)) {
+    addPoints(game, game.fruit.points);
+    game.popups.push({ x: game.fruit.x, y: game.fruit.y, points: game.fruit.points, left: POPUP_TIME });
+    game.fruit = null;
+    game.events.push('fruit');
   }
 
   if (!pelletsLeft(maze)) {
@@ -414,9 +566,21 @@ const SNAKE_DYING_TIME = 1.2;
 const STAR_EVERY = 5;
 const STAR_TIME = 6;
 
+/**
+ * The modes: the pace at the start, what each apple adds to it, the top
+ * pace, what an apple is worth, and whether the snake goes through the edges
+ * (out on one side, in at the other) instead of crashing into them.
+ */
+const SNAKE_MODES = {
+  easy: { start: 5, gain: 0.12, top: 9, apple: 5, wrap: true },
+  normal: { start: 6.5, gain: 0.2, top: 14, apple: 10, wrap: false },
+  hard: { start: 8.5, gain: 0.3, top: 18, apple: 20, wrap: false },
+};
+
 /** Tiles per second: a little faster with every apple. */
-export function snakeRate(apples) {
-  return Math.min(14, 6.5 + apples * 0.2);
+export function snakeRate(apples, mode = 'normal') {
+  const settings = SNAKE_MODES[arcadeMode(mode)];
+  return Math.min(settings.top, settings.start + apples * settings.gain);
 }
 
 /** What a star is worth with `left` seconds still to shine: the sooner, the more. */
@@ -432,13 +596,15 @@ export function starPoints(left) {
  * snake is on its way to the next tile (0 to 1): the screen draws it that
  * far behind, so that it glides instead of jumping from tile to tile.
  */
-export function newSnake(random = Math.random, size = SNAKE_SIZE) {
+export function newSnake(random = Math.random, size = SNAKE_SIZE, mode = 'normal') {
   const middle = Math.floor(size / 2);
   const body = [];
   for (let i = 0; i < SNAKE_LENGTH; i += 1) body.push({ x: middle - 2 - i, y: middle });
   const game = {
     width: size,
     height: size,
+    mode: arcadeMode(mode),
+    wrap: SNAKE_MODES[arcadeMode(mode)].wrap,
     body,
     dir: 'right',
     queue: [],
@@ -483,6 +649,10 @@ function slither(game, random) {
   if (game.queue.length) game.dir = game.queue.shift();
   const step = ARCADE_DIRS[game.dir];
   const next = { x: game.body[0].x + step.x, y: game.body[0].y + step.y };
+  if (game.wrap) {
+    next.x = (next.x + game.width) % game.width;
+    next.y = (next.y + game.height) % game.height;
+  }
   const here = (tile) => Boolean(tile) && tile.x === next.x && tile.y === next.y;
   const grows = here(game.apple);
   // The tail moves out of the way, unless the snake grows.
@@ -505,7 +675,7 @@ function slither(game, random) {
   }
   if (!grows) return;
   game.apples += 1;
-  game.score += POINTS.pellet;
+  game.score += SNAKE_MODES[game.mode || 'normal'].apple;
   game.swallowing = next;
   game.events.push('apple');
   if (game.body.length >= game.width * game.height) {
@@ -547,11 +717,12 @@ export function stepSnake(game, dt, random = Math.random) {
     if (game.star.left <= 0) game.star = null;
   }
   game.acc += time;
-  while (game.state === 'play' && game.acc >= 1 / snakeRate(game.apples)) {
-    game.acc -= 1 / snakeRate(game.apples);
+  const rate = () => snakeRate(game.apples, game.mode);
+  while (game.state === 'play' && game.acc >= 1 / rate()) {
+    game.acc -= 1 / rate();
     slither(game, random);
   }
-  game.progress = game.state === 'play' ? Math.min(1, game.acc * snakeRate(game.apples)) : 1;
+  game.progress = game.state === 'play' ? Math.min(1, game.acc * rate()) : 1;
   return game.events;
 }
 
