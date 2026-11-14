@@ -51,6 +51,8 @@
 --  16. les prénoms d'un groupe : qui fait entrer en fixe la liste, chacun
 --      dit lequel il est en entrant, et les listes, sondages et comptes du
 --      groupe prennent leurs personnes dans cette liste.
+--  17. le classement des jeux de l'app, par groupe : le meilleur score de
+--      chaque prénom, par jeu et par difficulté.
 --
 -- Généré depuis docs/DEPLOIEMENT.md, étape 2 bis ; un test vérifie que les
 -- deux disent la même chose. Modifiez le guide, pas ce fichier seul.
@@ -888,6 +890,87 @@ begin
 end;
 $$;
 
+-- 17. Le classement des jeux de l'app.
+create table if not exists public.marque_points_arcade (
+  group_id text not null references public.marque_points_group(id) on delete cascade,
+  game text not null,
+  mode text not null,
+  name text not null,
+  score integer not null,
+  at timestamptz not null default now()
+);
+alter table public.marque_points_arcade enable row level security;
+create unique index if not exists marque_points_arcade_name
+  on public.marque_points_arcade (group_id, game, mode, lower(name));
+
+create or replace function public.marque_points_arcade_top(p_key text, p_game text, p_mode text)
+returns jsonb
+language sql
+security definer
+set search_path = public
+as $$
+  select coalesce(jsonb_agg(jsonb_build_object('name', best.name, 'score', best.score,
+                                               'at', (extract(epoch from best.at) * 1000)::bigint)
+                            order by best.score desc, best.at), '[]'::jsonb)
+    from (
+      select a.name, a.score, a.at
+        from public.marque_points_arcade a
+        join public.marque_points_group_key k on k.group_id = a.group_id
+        join public.marque_points_group g on g.id = k.group_id
+       where k.key_hash = md5(coalesce(p_key, '') || k.key_salt)
+         and (not g.accounts_required or k.user_id is not null)
+         and a.game = p_game
+         and a.mode = p_mode
+       order by a.score desc, a.at
+       limit 10
+    ) best;
+$$;
+
+create or replace function public.marque_points_arcade_score(
+  p_key text, p_game text, p_mode text, p_name text, p_score integer)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_group text;
+  v_people jsonb;
+  v_name text;
+begin
+  select k.group_id, g.people into v_group, v_people
+    from public.marque_points_group_key k
+    join public.marque_points_group g on g.id = k.group_id
+   where k.key_hash = md5(coalesce(p_key, '') || k.key_salt)
+     and (not g.accounts_required or k.user_id is not null);
+  if not found then
+    return jsonb_build_object('status', 'key');
+  end if;
+  v_name := left(btrim(coalesce(p_name, '')), 24);
+  if coalesce(p_game, '') not in ('glouton', 'snake') or coalesce(p_mode, '') not in ('easy', 'normal', 'hard')
+     or v_name = '' or p_score is null or p_score <= 0 or p_score > 10000000 then
+    return jsonb_build_object('status', 'invalid');
+  end if;
+  if jsonb_array_length(coalesce(v_people, '[]'::jsonb)) > 0 then
+    select listed.value into v_name
+      from jsonb_array_elements_text(v_people) as listed(value)
+     where lower(listed.value) = lower(v_name)
+     limit 1;
+    if not found then
+      return jsonb_build_object('status', 'name');
+    end if;
+  end if;
+
+  insert into public.marque_points_arcade as a (group_id, game, mode, name, score)
+  values (v_group, p_game, p_mode, v_name, p_score)
+  on conflict (group_id, game, mode, lower(name)) do update
+     set score = excluded.score, name = excluded.name, at = now()
+   where a.score < excluded.score;
+
+  return jsonb_build_object('status', 'ok', 'top', public.marque_points_arcade_top(p_key, p_game, p_mode));
+end;
+$$;
+
 -- 10. Les changements annoncés aussitôt.
 create or replace function public.marque_points_announce(p_topic text)
 returns void
@@ -1429,6 +1512,8 @@ grant execute on function public.marque_points_group_of(text) to anon, authentic
 grant execute on function public.marque_points_group_keys(text) to anon, authenticated;
 grant execute on function public.marque_points_set_accounts(text, boolean) to anon, authenticated;
 grant execute on function public.marque_points_set_people(text, jsonb) to anon, authenticated;
+grant execute on function public.marque_points_arcade_top(text, text, text) to anon, authenticated;
+grant execute on function public.marque_points_arcade_score(text, text, text, text, integer) to anon, authenticated;
 
 -- 12. Une personne sans plus aucun appareil perd son lien de retour ; les codes
 -- inconnus ne se comptent plus, et les retours n'ont plus de plafond.

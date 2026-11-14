@@ -10,9 +10,11 @@
 
 import { backButtonHtml, escapeHtml, state } from './app.js';
 import {
-  ARCADE_GAMES, newGlouton, newSnake, steerGlouton, steerSnake, stepGlouton, stepSnake, togglePause,
+  ARCADE_GAMES, ARCADE_MODES, GLOUTON_MAZE, SNAKE_SIZE, arcadeMode, newGlouton, newSnake, steerGlouton, steerSnake,
+  stepGlouton, stepSnake, togglePause,
 } from './arcade.js';
 import { savePrefs } from './storage.js';
+import { groups, myNameIn } from './view-groups.js';
 import { t } from './i18n.js';
 
 /** The games being played, by id: kept across redraws, and while one plays another. */
@@ -25,7 +27,7 @@ const arcadeRuns = new Map();
  */
 const ARCADE_ENGINES = {
   glouton: {
-    create: () => newGlouton(),
+    create: (mode) => newGlouton(GLOUTON_MAZE, mode),
     step: stepGlouton,
     steer: steerGlouton,
     draw: drawGlouton,
@@ -34,7 +36,7 @@ const ARCADE_ENGINES = {
     shake: 'caught',
   },
   snake: {
-    create: () => newSnake(),
+    create: (mode) => newSnake(Math.random, SNAKE_SIZE, mode),
     step: stepSnake,
     steer: steerSnake,
     draw: drawSnake,
@@ -58,6 +60,8 @@ const ARROWS = [
   ['down', 'M12 18 5 8h14z'],
   ['right', 'M18 12 8 5v14z'],
 ];
+const SOUND_ON_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const SOUND_OFF_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="m16 9 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const PAUSE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
 const PLAY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
 const KEYS = {
@@ -69,14 +73,192 @@ function engineOf(id) {
   return Object.hasOwn(ARCADE_ENGINES, id) ? ARCADE_ENGINES[id] : null;
 }
 
-function bestOf(id) {
-  return Number(state.prefs?.arcade?.[id]) || 0;
+/** The mode chosen for a game, kept on the phone. */
+function modeOf(id) {
+  return arcadeMode(state.prefs?.arcadeMode?.[id]);
 }
 
-function keepBest(id, score) {
-  if (score <= bestOf(id)) return;
-  state.prefs.arcade = { ...(state.prefs.arcade || {}), [id]: score };
+/** Where a record is kept: the normal mode's where it always was. */
+function recordKey(id, mode) {
+  return mode === 'normal' ? id : `${id}:${mode}`;
+}
+
+function bestOf(id, mode = modeOf(id)) {
+  return Number(state.prefs?.arcade?.[recordKey(id, mode)]) || 0;
+}
+
+/** Keep a score if it beats the record; says whether it did. */
+function keepBest(id, mode, score) {
+  if (score <= bestOf(id, mode)) return false;
+  state.prefs.arcade = { ...(state.prefs.arcade || {}), [recordKey(id, mode)]: score };
   savePrefs(state.prefs);
+  return true;
+}
+
+/* ---------------------------------------------------------------- ranking --- */
+
+/**
+ * Each group's ranking, in the database: the best score of each of its
+ * first names, by game and mode. A game over sends its score to every group
+ * this device is in, under the name it has there; the page shows one group's
+ * top ten, the one last chosen.
+ */
+const rankings = new Map();
+
+function rankingKey(groupId, id, mode) {
+  return `${groupId}|${id}|${mode}`;
+}
+
+/** The group whose ranking shows: the one chosen, else the first. */
+function rankingGroup() {
+  const held = groups();
+  return held.find((group) => group.id === state.prefs.arcadeGroup) || held[0] || null;
+}
+
+/** Send a score to every group, under this device's name there. Never throws. */
+async function sendScore(id, mode, score) {
+  if (!state.remote || !(score > 0)) return;
+  await Promise.all(groups().map(async (group) => {
+    const name = myNameIn(group.id);
+    if (!name) return;
+    try {
+      const top = await state.remote.arcadeScore(group.key, id, mode, name, score);
+      if (top) rankings.set(rankingKey(group.id, id, mode), top);
+    } catch {
+      // Offline, or a database not yet updated: the record stays here, and
+      // goes with the next game or the next visit.
+    }
+  }));
+}
+
+/**
+ * Draw the ranking under the game, from what is known, then ask the database
+ * when `ask`. Hidden without a database or a group, and as long as the
+ * database has never answered (one not yet updated knows no ranking).
+ */
+async function showRanking(id, mode, ask = true) {
+  const box = document.getElementById('arcade-ranking');
+  const group = state.remote ? rankingGroup() : null;
+  if (!box || !group) {
+    if (box) box.hidden = true;
+    return;
+  }
+  const key = rankingKey(group.id, id, mode);
+  const draw = () => {
+    const shown = document.getElementById('arcade-ranking');
+    const top = rankings.get(key);
+    if (!shown || !top || rankingGroup()?.id !== group.id || modeOf(id) !== mode) return;
+    const me = myNameIn(group.id);
+    const held = groups();
+    const chips = held.length > 1 ? `
+      <div class="arcade-ranking__groups" role="group" aria-label="${escapeHtml(t('arcade.ranking.groups'))}">
+        ${held.map((one) => `
+          <button type="button" class="chip${one.id === group.id ? ' chip--on' : ''}" data-arcade-group="${escapeHtml(one.id)}"
+                  aria-pressed="${one.id === group.id}">${escapeHtml(one.name || '')}</button>`).join('')}
+      </div>` : '';
+    const line = (entry, index) => {
+      const mine = me && entry.name.toLowerCase() === me.toLowerCase();
+      return `
+        <li class="arcade-ranking__line${mine ? ' arcade-ranking__line--me' : ''}">
+          <span class="arcade-ranking__rank">${index + 1}</span>
+          <span class="arcade-ranking__name">${escapeHtml(entry.name)}</span>
+          <strong class="arcade-ranking__score">${escapeHtml(String(entry.score))}</strong>
+        </li>`;
+    };
+    shown.hidden = false;
+    shown.innerHTML = `
+      <h2>${escapeHtml(t('arcade.ranking', { group: group.name || '' }))} · ${escapeHtml(t(`arcade.mode.${mode}`))}</h2>
+      ${chips}
+      ${top.length
+        ? `<ol class="arcade-ranking__list">${top.map(line).join('')}</ol>`
+        : `<p class="muted small">${escapeHtml(t('arcade.ranking.empty'))}</p>`}
+      ${me ? '' : `<p class="muted small">${escapeHtml(t('arcade.ranking.who'))}</p>`}`;
+    shown.querySelectorAll('[data-arcade-group]').forEach((button) => {
+      button.addEventListener('click', () => {
+        state.prefs.arcadeGroup = button.dataset.arcadeGroup;
+        savePrefs(state.prefs);
+        void showRanking(id, modeOf(id));
+      });
+    });
+  };
+  draw();
+  if (!ask) return;
+  try {
+    rankings.set(key, await state.remote.arcadeTop(group.key, id, mode));
+  } catch {
+    return;
+  }
+  draw();
+}
+
+/* ------------------------------------------------------------------ sound --- */
+
+/**
+ * Little sounds made on the spot (Web Audio), as the old machines did: no
+ * file to load. Off with the button by the arrows; the phone remembers.
+ */
+let audio = null;
+let pellets = 0;
+
+function soundOn() {
+  return state.prefs?.arcadeSound !== false;
+}
+
+/** Wake the sound up: a phone only lets it start at a touch. */
+function wakeAudio() {
+  if (!soundOn()) return;
+  try {
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if (!audio && Context) audio = new Context();
+    if (audio?.state === 'suspended') audio.resume();
+  } catch {
+    audio = null;
+  }
+}
+
+function tone(freq, start, length, { type = 'square', volume = 0.035, to = 0 } = {}) {
+  const at = audio.currentTime + start;
+  const oscillator = audio.createOscillator();
+  const gain = audio.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(freq, at);
+  if (to) oscillator.frequency.exponentialRampToValueAtTime(to, at + length);
+  gain.gain.setValueAtTime(volume, at);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
+  oscillator.connect(gain);
+  gain.connect(audio.destination);
+  oscillator.start(at);
+  oscillator.stop(at + length + 0.02);
+}
+
+const notes = (list, gap, options) => list.forEach((freq, index) => tone(freq, index * gap, gap * 1.4, options));
+
+const SOUNDS = {
+  pellet: () => {
+    pellets += 1;
+    tone(pellets % 2 ? 480 : 360, 0, 0.06, { type: 'triangle', volume: 0.06 });
+  },
+  power: () => tone(180, 0, 0.4, { type: 'sawtooth', to: 720, volume: 0.03 }),
+  ghost: () => tone(300, 0, 0.3, { type: 'square', to: 1400 }),
+  fruit: () => notes([660, 990], 0.08, { type: 'triangle', volume: 0.06 }),
+  life: () => notes([523, 659, 784, 1047], 0.09, { type: 'square' }),
+  caught: () => tone(700, 0, 1.1, { type: 'triangle', to: 90, volume: 0.07 }),
+  cleared: () => notes([523, 659, 784, 1047, 784, 1047], 0.1, { type: 'square' }),
+  apple: () => notes([440, 660], 0.05, { type: 'square', volume: 0.04 }),
+  star: () => notes([784, 988, 1175, 1568], 0.06, { type: 'triangle', volume: 0.06 }),
+  crash: () => tone(260, 0, 0.5, { type: 'sawtooth', to: 50, volume: 0.05 }),
+  record: () => notes([523, 659, 784, 659, 784, 1047], 0.11, { type: 'square' }),
+};
+
+function playSounds(events) {
+  if (!audio || !soundOn() || audio.state !== 'running') return;
+  for (const event of new Set(events)) {
+    try {
+      SOUNDS[event]?.();
+    } catch {
+      // A sound that fails is no reason to stop the game.
+    }
+  }
 }
 
 /** The arcade's cards, at the top of the Games tab. */
@@ -110,16 +292,23 @@ export function arcadeView(id) {
             aria-label="${escapeHtml(t(`arcade.dir.${dir}`))}">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg>
     </button>`;
+  const chosen = modeOf(id);
+  const mode = (option) => `
+    <button type="button" class="segmented__option" data-arcade-mode="${option}"
+            aria-pressed="${option === chosen}">${escapeHtml(t(`arcade.mode.${option}`))}</button>`;
   return `
     <div class="spread page-head">
       ${backButtonHtml('#/games')}
       <h1>${name}</h1>
     </div>
     <div class="arcade">
+      <div class="segmented arcade__modes" role="group" aria-label="${escapeHtml(t('arcade.mode'))}">
+        ${ARCADE_MODES.map(mode).join('')}
+      </div>
       <div class="arcade__hud">
         <span>${escapeHtml(t('arcade.score'))} <strong id="arcade-score">0</strong></span>
         ${engine.hud.includes('level') ? `<span>${escapeHtml(t('arcade.level'))} <strong id="arcade-level">1</strong></span>` : ''}
-        <span>${escapeHtml(t('arcade.record'))} <strong id="arcade-best">${bestOf(id)}</strong></span>
+        <span>${escapeHtml(t('arcade.record'))} <strong id="arcade-best">${bestOf(id, chosen)}</strong></span>
         ${engine.hud.includes('lives') ? '<span id="arcade-lives" class="arcade__lives" role="img"></span>' : ''}
       </div>
       <canvas id="arcade-board" class="arcade__board arcade__board--${escapeHtml(id)}" data-arcade="${escapeHtml(id)}"
@@ -129,22 +318,28 @@ export function arcadeView(id) {
         ${ARROWS.map(arrow).join('')}
         <button type="button" class="arcade-pad__key arcade-pad__key--pause" id="arcade-pause"
                 aria-label="${escapeHtml(t('arcade.pause'))}" title="${escapeHtml(t('arcade.pause'))}">${PAUSE_ICON}</button>
+        <button type="button" class="arcade-pad__key arcade-pad__key--sound" id="arcade-sound"
+                aria-pressed="${soundOn()}" aria-label="${escapeHtml(t('arcade.sound'))}"
+                title="${escapeHtml(t('arcade.sound'))}">${soundOn() ? SOUND_ON_ICON : SOUND_OFF_ICON}</button>
       </div>
-      <p class="muted small">${escapeHtml(t(`arcade.${id}.rules`))} ${escapeHtml(t('arcade.how'))}</p>
-    </div>`;
+    </div>
+    <section id="arcade-ranking" class="arcade-ranking" hidden></section>
+    <p class="muted small arcade__rules">${escapeHtml(t(`arcade.${id}.rules`))} <span id="arcade-mode-rule">${escapeHtml(t(`arcade.${id}.mode.${chosen}`))}</span> ${escapeHtml(t('arcade.how'))}</p>`;
 }
 
 export function bindArcade(id) {
   const canvas = document.getElementById('arcade-board');
   const engine = engineOf(id);
   if (!canvas || !engine) return;
-  if (!arcadeRuns.has(id)) arcadeRuns.set(id, { game: engine.create(), shown: null });
+  if (!arcadeRuns.has(id)) arcadeRuns.set(id, { game: engine.create(modeOf(id)), shown: null });
   const run = arcadeRuns.get(id);
   run.shown = null;
   const context = canvas.getContext('2d');
 
   const afresh = () => {
-    run.game = engine.create();
+    run.game = engine.create(modeOf(id));
+    run.record = false;
+    run.flash = null;
   };
   const restartOrResume = () => {
     if (run.game.state === 'over') afresh();
@@ -155,9 +350,43 @@ export function bindArcade(id) {
     else togglePause(run.game);
   };
   const go = (dir) => {
+    wakeAudio();
     restartOrResume();
     engine.steer(run.game, dir);
   };
+
+  // Another mode: a new game in it, at once.
+  document.querySelectorAll('[data-arcade-mode]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const mode = arcadeMode(button.dataset.arcadeMode);
+      state.prefs.arcadeMode = { ...(state.prefs.arcadeMode || {}), [id]: mode };
+      savePrefs(state.prefs);
+      afresh();
+      document.querySelectorAll('[data-arcade-mode]').forEach((other) => {
+        other.setAttribute('aria-pressed', String(other === button));
+      });
+      void showRanking(id, mode, false);
+      void sendScore(id, mode, bestOf(id, mode)).then(() => showRanking(id, mode));
+      const rule = document.getElementById('arcade-mode-rule');
+      if (rule) rule.textContent = t(`arcade.${id}.mode.${mode}`);
+      run.shown = null;
+    });
+  });
+
+  // The record kept here goes to the groups too: one made before the
+  // ranking existed, or while offline.
+  const opened = modeOf(id);
+  void showRanking(id, opened, false);
+  void sendScore(id, opened, bestOf(id, opened)).then(() => showRanking(id, opened));
+
+  const sound = document.getElementById('arcade-sound');
+  sound.addEventListener('click', () => {
+    state.prefs.arcadeSound = !soundOn();
+    savePrefs(state.prefs);
+    sound.setAttribute('aria-pressed', String(soundOn()));
+    sound.innerHTML = soundOn() ? SOUND_ON_ICON : SOUND_OFF_ICON;
+    wakeAudio();
+  });
 
   document.querySelectorAll('[data-arcade-dir]').forEach((button) => {
     // At the touch, not at the click: a click waits for the finger to lift.
@@ -169,19 +398,30 @@ export function bindArcade(id) {
       if (event.detail === 0) go(button.dataset.arcadeDir);
     });
   });
-  document.getElementById('arcade-pause').addEventListener('click', pauseOrRestart);
-
-  // A swipe on the game steers; the finger may go on and turn again.
-  let origin = null;
-  canvas.addEventListener('pointerdown', (event) => {
-    origin = { x: event.clientX, y: event.clientY };
-    canvas.setPointerCapture?.(event.pointerId);
+  document.getElementById('arcade-pause').addEventListener('click', () => {
+    wakeAudio();
+    pauseOrRestart();
   });
-  canvas.addEventListener('pointermove', (event) => {
+
+  // A swipe anywhere on the game's part of the page steers — on the maze, or
+  // beside the arrows, where the thumbs are; the finger may go on and turn again.
+  const zone = canvas.closest('.arcade') || canvas;
+  let origin = null;
+  zone.addEventListener('pointerdown', (event) => {
+    if (event.target instanceof Element && event.target.closest('button')) return;
+    wakeAudio();
+    origin = { x: event.clientX, y: event.clientY };
+    try {
+      zone.setPointerCapture?.(event.pointerId);
+    } catch {
+      // A pointer the browser no longer knows: the swipe works without.
+    }
+  });
+  zone.addEventListener('pointermove', (event) => {
     if (!origin) return;
     const dx = event.clientX - origin.x;
     const dy = event.clientY - origin.y;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < 18) return;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 14) return;
     go(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
     origin = { x: event.clientX, y: event.clientY };
   });
@@ -189,8 +429,8 @@ export function bindArcade(id) {
     if (origin && ['over', 'paused'].includes(run.game.state)) restartOrResume();
     origin = null;
   };
-  canvas.addEventListener('pointerup', lift);
-  canvas.addEventListener('pointercancel', () => { origin = null; });
+  zone.addEventListener('pointerup', lift);
+  zone.addEventListener('pointercancel', () => { origin = null; });
 
   const onKey = (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
@@ -229,7 +469,18 @@ export function bindArcade(id) {
     last = now;
     const events = engine.step(run.game, dt);
     if (events.includes(engine.shake)) navigator.vibrate?.(200);
-    if (events.includes('over')) keepBest(id, run.game.score);
+    else if (events.includes('ghost') || events.includes('star')) navigator.vibrate?.(30);
+    if (events.includes('over')) {
+      const before = bestOf(id, run.game.mode);
+      run.record = keepBest(id, run.game.mode, run.game.score) && before > 0;
+      run.game.record = run.record;
+      const { mode, score } = run.game;
+      void sendScore(id, mode, score).then(() => showRanking(id, mode, false));
+      if (run.record) events.push('record');
+    }
+    if (events.includes('life')) run.flash = { text: t('arcade.extraLife'), until: now + 2000 };
+    playSounds(events);
+    run.now = now;
     engine.draw(canvas, context, run.game, now);
     showHud(run, id, engine);
     requestAnimationFrame(frame);
@@ -238,8 +489,11 @@ export function bindArcade(id) {
 }
 
 /** The line under the game. */
-function statusOf(game, engine) {
+function statusOf(run, engine) {
+  const { game } = run;
+  if (game.state === 'over' && run.record) return t('arcade.newRecord', { score: game.score });
   if (game.state === 'over') return t(game.won ? 'arcade.won' : 'arcade.over', { score: game.score });
+  if (run.flash && run.now < run.flash.until) return run.flash.text;
   if (game.state === 'cleared') return t('arcade.cleared', { level: game.level });
   if (game.state === 'paused') return t('arcade.paused');
   return engine.texts[game.state] ? t(engine.texts[game.state]) : '';
@@ -247,6 +501,7 @@ function statusOf(game, engine) {
 
 /** The word across the game, when it is not running. */
 function bannerOf(game) {
+  if (game.state === 'over' && game.record) return t('arcade.recordShort');
   if (game.state === 'over') return t(game.won ? 'arcade.wonShort' : 'arcade.overShort');
   if (game.state === 'cleared') return t('arcade.cleared', { level: game.level });
   if (game.state === 'paused') return t('arcade.paused');
@@ -257,7 +512,7 @@ function bannerOf(game) {
 /** The numbers and the line under the game, touched only when they change. */
 function showHud(run, id, engine) {
   const { game } = run;
-  const status = statusOf(game, engine);
+  const status = statusOf(run, engine);
   const shown = `${game.score}|${game.level}|${game.lives}|${status}`;
   if (run.shown === shown) return;
   run.shown = shown;
@@ -267,7 +522,7 @@ function showHud(run, id, engine) {
   };
   put('arcade-score', game.score);
   put('arcade-level', game.level);
-  put('arcade-best', Math.max(bestOf(id), game.score));
+  put('arcade-best', Math.max(bestOf(id, game.mode), game.score));
   put('arcade-status', status);
   const lives = document.getElementById('arcade-lives');
   if (lives) {
@@ -385,6 +640,10 @@ function drawGlouton(canvas, context, game, now) {
     }
   }
 
+  if (game.fruit && (game.fruit.left > 2 || Math.floor(now / 150) % 2 === 0)) {
+    drawFruit(context, game.fruit.kind, (game.fruit.x + 0.5) * size, (game.fruit.y + 0.5) * size, size * 0.42);
+  }
+
   // The glutton: a mouth that opens and closes as it goes.
   const { player } = game;
   const angle = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[player.dir] || 0;
@@ -409,8 +668,27 @@ function drawGlouton(canvas, context, game, now) {
   context.shadowBlur = 0;
 
   // The ghosts: hidden while the glutton is caught, so that one sees it go.
+  // While a ghost's points show, the ghosts just eaten are not seen.
   if (game.state !== 'dying') {
-    for (const ghost of game.ghosts) drawGhost(context, ghost, game, size, now);
+    for (const ghost of game.ghosts) {
+      if (!(game.freeze > 0 && ghost.mode === 'eaten')) drawGhost(context, ghost, game, size, now);
+    }
+  }
+
+  // The points of a ghost or a fruit, where it was eaten, rising a little.
+  context.font = `800 ${Math.round(size * 0.75)}px system-ui, sans-serif`;
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  for (const popup of game.popups || []) {
+    const rise = (1.2 - popup.left) * size * 0.4;
+    context.fillStyle = deep;
+    context.globalAlpha = 0.7;
+    const text = String(popup.points);
+    const boxWidth = context.measureText(text).width + size * 0.3;
+    context.fillRect(at(popup.x) - boxWidth / 2, at(popup.y) - rise - size * 0.45, boxWidth, size * 0.9);
+    context.globalAlpha = 1;
+    context.fillStyle = GHOST_COLOURS.cyan;
+    context.fillText(text, at(popup.x), at(popup.y) - rise);
   }
 
   drawBanner(context, bannerOf(game), width / 2, (maze.door.y + 3.5) * size, size, deep);
@@ -460,6 +738,100 @@ function drawGhost(context, ghost, game, size, now) {
   }
 }
 
+/** The bonus fruit, one shape per level. */
+function drawFruit(context, kind, x, y, r) {
+  const disc = (cx, cy, radius, colour) => {
+    context.fillStyle = colour;
+    context.beginPath();
+    context.arc(cx, cy, radius, 0, Math.PI * 2);
+    context.fill();
+  };
+  const stem = (points, colour = SNAKE_GREEN) => {
+    context.strokeStyle = colour;
+    context.lineWidth = Math.max(1, r * 0.16);
+    context.lineCap = 'round';
+    context.beginPath();
+    context.moveTo(...points[0]);
+    for (const point of points.slice(1)) context.lineTo(...point);
+    context.stroke();
+  };
+  context.shadowBlur = r * 0.8;
+  if (kind === 'cherry') {
+    context.shadowColor = APPLE_RED;
+    stem([[x - r * 0.45, y + r * 0.3], [x + r * 0.35, y - r * 0.85], [x + r * 0.4, y + r * 0.4]]);
+    disc(x - r * 0.45, y + r * 0.4, r * 0.45, APPLE_RED);
+    disc(x + r * 0.4, y + r * 0.5, r * 0.45, APPLE_RED);
+  } else if (kind === 'strawberry') {
+    context.shadowColor = APPLE_RED;
+    context.fillStyle = APPLE_RED;
+    context.beginPath();
+    context.moveTo(x - r * 0.85, y - r * 0.35);
+    context.quadraticCurveTo(x, y - r * 0.75, x + r * 0.85, y - r * 0.35);
+    context.quadraticCurveTo(x + r * 0.6, y + r * 0.7, x, y + r);
+    context.quadraticCurveTo(x - r * 0.6, y + r * 0.7, x - r * 0.85, y - r * 0.35);
+    context.fill();
+    context.shadowBlur = 0;
+    for (const [dx, dy] of [[-0.35, 0], [0.35, 0], [0, 0.4], [0, -0.2]]) disc(x + dx * r, y + dy * r, r * 0.08, '#ffe2c4');
+    stem([[x - r * 0.4, y - r * 0.6], [x, y - r * 0.45], [x + r * 0.4, y - r * 0.6]]);
+  } else if (kind === 'orange') {
+    context.shadowColor = '#ffad4d';
+    disc(x, y + r * 0.1, r * 0.85, '#ffad4d');
+    context.shadowBlur = 0;
+    stem([[x, y - r * 0.7], [x + r * 0.45, y - r * 0.95]]);
+  } else if (kind === 'apple') {
+    context.shadowBlur = 0;
+    drawApple(context, x, y + r * 0.1, r * 0.8);
+  } else if (kind === 'grapes') {
+    context.shadowColor = '#b46cff';
+    for (const [dx, dy] of [[-0.45, -0.35], [0, -0.35], [0.45, -0.35], [-0.22, 0.1], [0.22, 0.1], [0, 0.55]]) {
+      disc(x + dx * r, y + dy * r, r * 0.3, '#b46cff');
+    }
+    context.shadowBlur = 0;
+    stem([[x, y - r * 0.65], [x + r * 0.2, y - r]]);
+  } else if (kind === 'melon') {
+    context.shadowColor = SNAKE_GREEN;
+    context.fillStyle = SNAKE_GREEN;
+    context.beginPath();
+    context.ellipse(x, y + r * 0.1, r * 0.95, r * 0.75, 0, 0, Math.PI * 2);
+    context.fill();
+    context.shadowBlur = 0;
+    context.strokeStyle = '#0b5d36';
+    context.lineWidth = Math.max(1, r * 0.1);
+    for (const dx of [-0.45, 0, 0.45]) {
+      context.beginPath();
+      context.moveTo(x + dx * r, y - r * 0.6);
+      context.quadraticCurveTo(x + dx * r * 1.4, y + r * 0.1, x + dx * r, y + r * 0.8);
+      context.stroke();
+    }
+  } else if (kind === 'bell') {
+    context.shadowColor = GOLD;
+    context.fillStyle = GOLD;
+    context.beginPath();
+    context.moveTo(x - r * 0.9, y + r * 0.6);
+    context.quadraticCurveTo(x - r * 0.7, y - r * 0.95, x, y - r * 0.9);
+    context.quadraticCurveTo(x + r * 0.7, y - r * 0.95, x + r * 0.9, y + r * 0.6);
+    context.closePath();
+    context.fill();
+    context.shadowBlur = 0;
+    disc(x, y + r * 0.75, r * 0.22, GOLD);
+  } else {
+    // The key.
+    context.shadowColor = GHOST_COLOURS.cyan;
+    context.strokeStyle = GHOST_COLOURS.cyan;
+    context.lineWidth = Math.max(1.5, r * 0.25);
+    context.beginPath();
+    context.arc(x, y - r * 0.45, r * 0.4, 0, Math.PI * 2);
+    context.moveTo(x, y - r * 0.05);
+    context.lineTo(x, y + r);
+    context.moveTo(x, y + r * 0.55);
+    context.lineTo(x + r * 0.35, y + r * 0.55);
+    context.moveTo(x, y + r * 0.9);
+    context.lineTo(x + r * 0.3, y + r * 0.9);
+    context.stroke();
+  }
+  context.shadowBlur = 0;
+}
+
 /* ------------------------------------------------------------------ snake --- */
 
 /**
@@ -482,9 +854,12 @@ function drawSnake(canvas, context, game, now) {
   }
   context.globalAlpha = 1;
 
+  // The wall; dashed when the snake goes through it (easy mode).
   context.beginPath();
   context.rect(size / 4, size / 4, width - size / 2, height - size / 2);
+  if (game.wrap) context.setLineDash([size * 0.5, size * 0.6]);
   glowStroke(context, wall, size * 0.4, Math.max(1.5, size * 0.12));
+  context.setLineDash([]);
 
   const pulse = 1 + 0.06 * Math.sin(now / 180);
   if (game.apple) drawApple(context, at(game.apple.x), at(game.apple.y), size * 0.36 * pulse);
@@ -500,32 +875,64 @@ function drawSnake(canvas, context, game, now) {
     x: from.x + (to.x - from.x) * game.progress,
     y: from.y + (to.y - from.y) * game.progress,
   });
-  const head = mix(body[1], body[0]);
-  const tail = game.trail ? mix(game.trail, body.at(-1)) : body.at(-1);
-  const points = [head, ...body.slice(1), tail];
+  // Through the edges, a tile and the next may sit on both sides of the field:
+  // the snake is laid out in one piece first (each tile next to the one
+  // before), then drawn once more on the other side where it sticks out.
+  const near = (value, from, span) => value + Math.round((from - value) / span) * span;
+  const beside = (tile, before) => ({ x: near(tile.x, before.x, game.width), y: near(tile.y, before.y, game.height) });
+  const flat = [{ ...body[0] }];
+  for (const tile of body.slice(1)) flat.push(beside(tile, flat.at(-1)));
+  const flatTrail = game.trail && beside(game.trail, flat.at(-1));
+  const ahead = { x: flat[0].x - flat[1].x, y: flat[0].y - flat[1].y };
+  const head = mix(flat[1], flat[0]);
+  const tail = flatTrail ? mix(flatTrail, flat.at(-1)) : flat.at(-1);
+  const points = [head, ...flat.slice(1), tail];
   const colour = game.state === 'dying' && Math.floor(now / 120) % 2 === 0 ? APPLE_RED : SNAKE_GREEN;
+  const shifts = [{ x: 0, y: 0 }];
+  if (game.wrap) {
+    const xs = points.map((point) => point.x);
+    const ys = points.map((point) => point.y);
+    for (const dx of [-game.width, 0, game.width]) {
+      for (const dy of [-game.height, 0, game.height]) {
+        if (!dx && !dy) continue;
+        const inside = Math.max(...xs) + dx > -1 && Math.min(...xs) + dx < game.width
+          && Math.max(...ys) + dy > -1 && Math.min(...ys) + dy < game.height;
+        if (inside) shifts.push({ x: dx, y: dy });
+      }
+    }
+    context.save();
+    context.beginPath();
+    context.rect(size / 2, size / 2, width - size, height - size);
+    context.clip();
+  }
   context.globalAlpha = game.state === 'over' ? 0.5 : 1;
-  context.beginPath();
-  context.moveTo(at(points[0].x), at(points[0].y));
-  for (const point of points.slice(1)) context.lineTo(at(point.x), at(point.y));
-  context.lineCap = 'round';
-  context.lineJoin = 'round';
-  context.strokeStyle = colour;
-  context.shadowColor = colour;
-  context.shadowBlur = size * 0.5;
-  context.lineWidth = size * 0.72;
-  context.stroke();
-  context.shadowBlur = 0;
-  context.strokeStyle = 'rgba(255, 255, 255, 0.28)';
-  context.lineWidth = size * 0.2;
-  context.stroke();
-
-  // The head, looking the way it goes, its tongue out now and then.
-  const ahead = { x: body[0].x - body[1].x, y: body[0].y - body[1].y };
-  const side = { x: -ahead.y, y: ahead.x };
-  const hx = at(head.x);
-  const hy = at(head.y);
   const r = size * 0.42;
+  for (const shift of shifts) {
+    context.beginPath();
+    context.moveTo(at(points[0].x + shift.x), at(points[0].y + shift.y));
+    for (const point of points.slice(1)) context.lineTo(at(point.x + shift.x), at(point.y + shift.y));
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.strokeStyle = colour;
+    context.shadowColor = colour;
+    context.shadowBlur = size * 0.5;
+    context.lineWidth = size * 0.72;
+    context.stroke();
+    context.shadowBlur = 0;
+    context.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+    context.lineWidth = size * 0.2;
+    context.stroke();
+    drawSnakeHead(context, game, at(head.x + shift.x), at(head.y + shift.y), ahead, r, colour, size, now);
+  }
+  if (game.wrap) context.restore();
+  context.globalAlpha = 1;
+
+  drawBanner(context, bannerOf(game), width / 2, height * 0.27, size, deep);
+}
+
+/** The head, looking the way it goes, its tongue out now and then. */
+function drawSnakeHead(context, game, hx, hy, ahead, r, colour, size, now) {
+  const side = { x: -ahead.y, y: ahead.x };
   if (game.state === 'play' && Math.floor(now / 700) % 3 === 0) {
     const tip = { x: hx + ahead.x * r * 1.7, y: hy + ahead.y * r * 1.7 };
     context.strokeStyle = APPLE_RED;
@@ -555,9 +962,6 @@ function drawSnake(canvas, context, game, now) {
     context.arc(ex + ahead.x * r * 0.1, ey + ahead.y * r * 0.1, r * 0.13, 0, Math.PI * 2);
     context.fill();
   }
-  context.globalAlpha = 1;
-
-  drawBanner(context, bannerOf(game), width / 2, height * 0.27, size, deep);
 }
 
 function drawApple(context, x, y, r) {

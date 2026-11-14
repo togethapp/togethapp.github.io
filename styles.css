@@ -3354,7 +3354,7 @@ body.holo-open { overflow: hidden; }
 }
 
 /* One game's page: the numbers, the maze, the arrows. */
-.arcade { display: grid; gap: 10px; justify-items: center; }
+.arcade { display: grid; gap: 10px; justify-items: center; touch-action: none; }
 .arcade__hud {
   display: flex;
   flex-wrap: wrap;
@@ -3371,7 +3371,7 @@ body.holo-open { overflow: hidden; }
 .arcade__board {
   display: block;
   width: 100%;
-  max-width: min(480px, calc((100dvh - 320px) * 19 / 21));
+  max-width: min(480px, calc((100dvh - 360px) * 19 / 21));
   min-width: 240px;
   height: auto;
   aspect-ratio: 19 / 21;
@@ -3384,7 +3384,7 @@ body.holo-open { overflow: hidden; }
 }
 .arcade__board--snake {
   aspect-ratio: 1 / 1;
-  max-width: min(480px, calc(100dvh - 320px));
+  max-width: min(480px, calc(100dvh - 360px));
 }
 .arcade__status { min-height: 1.3em; margin: 0; font-weight: 650; text-align: center; }
 .arcade-pad {
@@ -3413,6 +3413,31 @@ body.holo-open { overflow: hidden; }
 .arcade-pad__key--right { grid-area: 2 / 3; }
 .arcade-pad__key--pause { grid-area: 2 / 2; border-radius: 50%; color: var(--accent); }
 .arcade-pad__key--pause svg { width: 18px; height: 18px; }
+.arcade-pad__key--sound { grid-area: 1 / 3; border-radius: 50%; color: var(--muted); }
+.arcade-pad__key--sound[aria-pressed="true"] { color: var(--accent); }
+.arcade-pad__key--sound svg { width: 18px; height: 18px; }
+.arcade__modes { width: 100%; max-width: 480px; }
+.arcade__rules { width: 100%; max-width: 480px; margin: 12px auto 0; }
+.arcade-ranking { width: 100%; max-width: 480px; margin: 16px auto 0; display: grid; gap: 8px; }
+.arcade-ranking h2 { margin: 0; font-size: 1rem; }
+.arcade-ranking__groups { display: flex; flex-wrap: wrap; gap: 6px; }
+.arcade-ranking__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.arcade-ranking__line {
+  display: grid;
+  grid-template-columns: 2em 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.arcade-ranking__line--me { border-color: var(--accent); background: var(--accent-soft); }
+.arcade-ranking__rank { font-family: var(--hud); color: var(--muted); }
+.arcade-ranking__line:first-child .arcade-ranking__rank { color: var(--accent-amber); font-weight: 700; }
+.arcade-ranking__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arcade-ranking__score { font-family: var(--hud); }
+.arcade__modes .segmented__option { padding: 7px 4px; font-size: 0.85rem; }
 
 /* While playing, the tabs are gone and the page needs no room for them. */
 body.playing .tabs { display: none; }

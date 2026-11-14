@@ -452,6 +452,24 @@ export function createRemote(config, fetchImpl = globalThis.fetch) {
       return answer?.status === 'ok' && Array.isArray(answer.people) ? answer.people : null;
     },
 
+    /**
+     * A score of the app's games, for a group's ranking: kept if it beats
+     * that name's. Answers the group's top ten, or null when it was refused
+     * (a key the group no longer knows, a name not on its list).
+     */
+    async arcadeScore(key, game, mode, name, score) {
+      const answer = await call('marque_points_arcade_score', {
+        p_key: key, p_game: game, p_mode: mode, p_name: name, p_score: Math.round(score),
+      });
+      return answer?.status === 'ok' && Array.isArray(answer.top) ? answer.top : null;
+    },
+
+    /** A group's top ten for a game and a mode: [{ name, score, at }]. */
+    async arcadeTop(key, game, mode) {
+      const answer = await call('marque_points_arcade_top', { p_key: key, p_game: game, p_mode: mode });
+      return Array.isArray(answer) ? answer : [];
+    },
+
     /** Delete the account: its address, its name, its secrets, its marks. */
     async accountDelete(token) {
       return call('marque_points_account_delete', {}, token);

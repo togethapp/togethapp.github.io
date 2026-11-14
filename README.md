@@ -128,9 +128,18 @@ web, aucune dépendance, aucun build.
   Pac-Man : manger toutes les pastilles, fuir les fantômes, les manger à leur
   tour après une grosse pastille. Le **Snake** grandit à chaque pomme, sans
   toucher les bords ni sa queue ; une étoile passe de temps en temps, qui
-  rapporte d'autant plus qu'on l'attrape vite. Doigt glissé, flèches à l'écran
-  ou clavier ; la barre d'onglets s'efface pendant la partie. Chaque jeu garde
-  sa partie, en pause quand on va ailleurs. Le record reste sur l'appareil.
+  rapporte d'autant plus qu'on l'attrape vite. Trois difficultés (Facile,
+  Normal, Difficile), chacune avec son record : au Glouton, des vies et la
+  vitesse des fantômes ; au Snake, la vitesse, et en Facile on traverse les
+  bords. Comme dans les vrais : un fruit deux fois par niveau, les points d'un
+  fantôme affichés là où il est mangé, une vie de plus à 10 000, les fantômes
+  ralentis dans le tunnel, le rouge qui accélère en fin de niveau, un virage
+  demandé un peu tard encore pris, et des petits sons (qu'on peut couper). Doigt glissé
+  sur le jeu ou à côté des flèches, flèches à l'écran ou clavier ; la barre
+  d'onglets s'efface pendant la partie. Chaque jeu garde sa partie, en pause
+  quand on va ailleurs. Le record reste sur l'appareil, et part au
+  **classement de chaque groupe** (avec la base) sous le prénom qu'on y a :
+  sous le jeu, les dix meilleurs du groupe choisi, par difficulté.
 - **Compter les cartes au doigt** : pour les jeux dont le score est une pile de
   cartes, un compteur s'ouvre depuis la manche en cours. On touche les cartes
   ramassées, il fait la somme et reporte le score — plus d'addition de tête.
