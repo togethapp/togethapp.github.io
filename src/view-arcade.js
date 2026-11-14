@@ -14,6 +14,7 @@ import {
   stepGlouton, stepSnake, togglePause,
 } from './arcade.js';
 import { savePrefs } from './storage.js';
+import { groups, myNameIn } from './view-groups.js';
 import { t } from './i18n.js';
 
 /** The games being played, by id: kept across redraws, and while one plays another. */
@@ -92,6 +93,102 @@ function keepBest(id, mode, score) {
   state.prefs.arcade = { ...(state.prefs.arcade || {}), [recordKey(id, mode)]: score };
   savePrefs(state.prefs);
   return true;
+}
+
+/* ---------------------------------------------------------------- ranking --- */
+
+/**
+ * Each group's ranking, in the database: the best score of each of its
+ * first names, by game and mode. A game over sends its score to every group
+ * this device is in, under the name it has there; the page shows one group's
+ * top ten, the one last chosen.
+ */
+const rankings = new Map();
+
+function rankingKey(groupId, id, mode) {
+  return `${groupId}|${id}|${mode}`;
+}
+
+/** The group whose ranking shows: the one chosen, else the first. */
+function rankingGroup() {
+  const held = groups();
+  return held.find((group) => group.id === state.prefs.arcadeGroup) || held[0] || null;
+}
+
+/** Send a score to every group, under this device's name there. Never throws. */
+async function sendScore(id, mode, score) {
+  if (!state.remote || !(score > 0)) return;
+  await Promise.all(groups().map(async (group) => {
+    const name = myNameIn(group.id);
+    if (!name) return;
+    try {
+      const top = await state.remote.arcadeScore(group.key, id, mode, name, score);
+      if (top) rankings.set(rankingKey(group.id, id, mode), top);
+    } catch {
+      // Offline, or a database not yet updated: the record stays here, and
+      // goes with the next game or the next visit.
+    }
+  }));
+}
+
+/**
+ * Draw the ranking under the game, from what is known, then ask the database
+ * when `ask`. Hidden without a database or a group, and as long as the
+ * database has never answered (one not yet updated knows no ranking).
+ */
+async function showRanking(id, mode, ask = true) {
+  const box = document.getElementById('arcade-ranking');
+  const group = state.remote ? rankingGroup() : null;
+  if (!box || !group) {
+    if (box) box.hidden = true;
+    return;
+  }
+  const key = rankingKey(group.id, id, mode);
+  const draw = () => {
+    const shown = document.getElementById('arcade-ranking');
+    const top = rankings.get(key);
+    if (!shown || !top || rankingGroup()?.id !== group.id || modeOf(id) !== mode) return;
+    const me = myNameIn(group.id);
+    const held = groups();
+    const chips = held.length > 1 ? `
+      <div class="arcade-ranking__groups" role="group" aria-label="${escapeHtml(t('arcade.ranking.groups'))}">
+        ${held.map((one) => `
+          <button type="button" class="chip${one.id === group.id ? ' chip--on' : ''}" data-arcade-group="${escapeHtml(one.id)}"
+                  aria-pressed="${one.id === group.id}">${escapeHtml(one.name || '')}</button>`).join('')}
+      </div>` : '';
+    const line = (entry, index) => {
+      const mine = me && entry.name.toLowerCase() === me.toLowerCase();
+      return `
+        <li class="arcade-ranking__line${mine ? ' arcade-ranking__line--me' : ''}">
+          <span class="arcade-ranking__rank">${index + 1}</span>
+          <span class="arcade-ranking__name">${escapeHtml(entry.name)}</span>
+          <strong class="arcade-ranking__score">${escapeHtml(String(entry.score))}</strong>
+        </li>`;
+    };
+    shown.hidden = false;
+    shown.innerHTML = `
+      <h2>${escapeHtml(t('arcade.ranking', { group: group.name || '' }))} · ${escapeHtml(t(`arcade.mode.${mode}`))}</h2>
+      ${chips}
+      ${top.length
+        ? `<ol class="arcade-ranking__list">${top.map(line).join('')}</ol>`
+        : `<p class="muted small">${escapeHtml(t('arcade.ranking.empty'))}</p>`}
+      ${me ? '' : `<p class="muted small">${escapeHtml(t('arcade.ranking.who'))}</p>`}`;
+    shown.querySelectorAll('[data-arcade-group]').forEach((button) => {
+      button.addEventListener('click', () => {
+        state.prefs.arcadeGroup = button.dataset.arcadeGroup;
+        savePrefs(state.prefs);
+        void showRanking(id, modeOf(id));
+      });
+    });
+  };
+  draw();
+  if (!ask) return;
+  try {
+    rankings.set(key, await state.remote.arcadeTop(group.key, id, mode));
+  } catch {
+    return;
+  }
+  draw();
 }
 
 /* ------------------------------------------------------------------ sound --- */
@@ -226,6 +323,7 @@ export function arcadeView(id) {
                 title="${escapeHtml(t('arcade.sound'))}">${soundOn() ? SOUND_ON_ICON : SOUND_OFF_ICON}</button>
       </div>
     </div>
+    <section id="arcade-ranking" class="arcade-ranking" hidden></section>
     <p class="muted small arcade__rules">${escapeHtml(t(`arcade.${id}.rules`))} <span id="arcade-mode-rule">${escapeHtml(t(`arcade.${id}.mode.${chosen}`))}</span> ${escapeHtml(t('arcade.how'))}</p>`;
 }
 
@@ -267,11 +365,19 @@ export function bindArcade(id) {
       document.querySelectorAll('[data-arcade-mode]').forEach((other) => {
         other.setAttribute('aria-pressed', String(other === button));
       });
+      void showRanking(id, mode, false);
+      void sendScore(id, mode, bestOf(id, mode)).then(() => showRanking(id, mode));
       const rule = document.getElementById('arcade-mode-rule');
       if (rule) rule.textContent = t(`arcade.${id}.mode.${mode}`);
       run.shown = null;
     });
   });
+
+  // The record kept here goes to the groups too: one made before the
+  // ranking existed, or while offline.
+  const opened = modeOf(id);
+  void showRanking(id, opened, false);
+  void sendScore(id, opened, bestOf(id, opened)).then(() => showRanking(id, opened));
 
   const sound = document.getElementById('arcade-sound');
   sound.addEventListener('click', () => {
@@ -368,6 +474,8 @@ export function bindArcade(id) {
       const before = bestOf(id, run.game.mode);
       run.record = keepBest(id, run.game.mode, run.game.score) && before > 0;
       run.game.record = run.record;
+      const { mode, score } = run.game;
+      void sendScore(id, mode, score).then(() => showRanking(id, mode, false));
       if (run.record) events.push('record');
     }
     if (events.includes('life')) run.flash = { text: t('arcade.extraLife'), until: now + 2000 };

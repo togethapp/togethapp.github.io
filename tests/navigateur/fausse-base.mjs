@@ -75,6 +75,8 @@ const CUT = new Map(); // `${compte}|${groupe}` → quand une clé du compte y a
 const REQUIRED = new Set(); // groupes qui exigent un compte
 // Les prénoms fixés d'un groupe : id du groupe → liste.
 const PEOPLE = new Map();
+// Le classement des jeux : `${groupe}|${jeu}|${difficulté}` → [{ name, score, at }].
+const ARCADE = new Map();
 const REVOKED = new Set(); // comptes déconnectés partout : leur jeton de renouvellement ne sert plus
 const PUSH = []; // marque_points_push : { endpoint, group, lang, app, tz }
 const NOTIFIED = []; // ce que la fonction « notifier » a reçu
@@ -380,6 +382,28 @@ const server = createServer(async (req, res) => {
     if (at.p_on) REQUIRED.add(group.id);
     else REQUIRED.delete(group.id);
     return send(200, { status: 'ok' });
+  }
+  if (fn === 'marque_points_arcade_top' || fn === 'marque_points_arcade_score') {
+    const group = GROUPS.get(at.p_key);
+    const top = () => [...(ARCADE.get(`${group.id}|${at.p_game}|${at.p_mode}`) ?? [])]
+      .sort((a, b) => b.score - a.score || a.at - b.at).slice(0, 10);
+    if (fn === 'marque_points_arcade_top') return send(200, group && !closed(at.p_key) ? top() : []);
+    if (!group || closed(at.p_key)) return send(200, { status: 'key' });
+    // Comme la base : jeu, difficulté, prénom et score vérifiés ; le meilleur par prénom.
+    let name = String(at.p_name ?? '').trim().slice(0, 24);
+    if (!['glouton', 'snake'].includes(at.p_game) || !['easy', 'normal', 'hard'].includes(at.p_mode)
+        || !name || !(at.p_score > 0) || at.p_score > 1e7) return send(200, { status: 'invalid' });
+    const people = PEOPLE.get(group.id) ?? [];
+    if (people.length) {
+      name = people.find((one) => one.toLowerCase() === name.toLowerCase());
+      if (!name) return send(200, { status: 'name' });
+    }
+    const list = ARCADE.get(`${group.id}|${at.p_game}|${at.p_mode}`) ?? [];
+    const mine = list.find((one) => one.name.toLowerCase() === name.toLowerCase());
+    if (!mine) list.push({ name, score: at.p_score, at: Date.now() });
+    else if (mine.score < at.p_score) Object.assign(mine, { name, score: at.p_score, at: Date.now() });
+    ARCADE.set(`${group.id}|${at.p_game}|${at.p_mode}`, list);
+    return send(200, { status: 'ok', top: top() });
   }
   if (fn === 'marque_points_set_people') {
     const group = GROUPS.get(at.p_key);

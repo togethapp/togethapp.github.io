@@ -3417,7 +3417,26 @@ body.holo-open { overflow: hidden; }
 .arcade-pad__key--sound[aria-pressed="true"] { color: var(--accent); }
 .arcade-pad__key--sound svg { width: 18px; height: 18px; }
 .arcade__modes { width: 100%; max-width: 480px; }
-.arcade__rules { max-width: 480px; margin: 12px auto 0; }
+.arcade__rules { width: 100%; max-width: 480px; margin: 12px auto 0; }
+.arcade-ranking { width: 100%; max-width: 480px; margin: 16px auto 0; display: grid; gap: 8px; }
+.arcade-ranking h2 { margin: 0; font-size: 1rem; }
+.arcade-ranking__groups { display: flex; flex-wrap: wrap; gap: 6px; }
+.arcade-ranking__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.arcade-ranking__line {
+  display: grid;
+  grid-template-columns: 2em 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.arcade-ranking__line--me { border-color: var(--accent); background: var(--accent-soft); }
+.arcade-ranking__rank { font-family: var(--hud); color: var(--muted); }
+.arcade-ranking__line:first-child .arcade-ranking__rank { color: var(--accent-amber); font-weight: 700; }
+.arcade-ranking__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arcade-ranking__score { font-family: var(--hud); }
 .arcade__modes .segmented__option { padding: 7px 4px; font-size: 0.85rem; }
 
 /* While playing, the tabs are gone and the page needs no room for them. */

@@ -39,6 +39,8 @@ def live_triggers():
     m = re.search(r"(drop trigger if exists marque_points_live on public\.marque_points_games;\n.*?for each row execute function public\.marque_points_live\(\);\n\ndrop trigger if exists marque_points_live on public\.marque_points_request;\n.*?for each row execute function public\.marque_points_live\(\);\n)", bis, flags=re.S); assert m; return m.group(1)
 def push_tz_column():
     m = re.search(r"(alter table public\.marque_points_push\n  add column if not exists tz[^;]*;\n)", bis); assert m; return m.group(1)
+def arcade_index():
+    m = re.search(r"(create unique index if not exists marque_points_arcade_name\n[^;]*;\n)", bis); assert m; return m.group(1)
 def alter(column):
     m = re.search(r"(alter table public\.marque_points_games\n  add column if not exists " + column + r"[^;]*;\n)", bis); assert m, column; return m.group(1)
 out = "\n".join([
@@ -95,6 +97,8 @@ out = "\n".join([
 --  16. les prénoms d'un groupe : qui fait entrer en fixe la liste, chacun
 --      dit lequel il est en entrant, et les listes, sondages et comptes du
 --      groupe prennent leurs personnes dans cette liste.
+--  17. le classement des jeux de l'app, par groupe : le meilleur score de
+--      chaque prénom, par jeu et par difficulté.
 --
 -- Généré depuis docs/DEPLOIEMENT.md, étape 2 bis ; un test vérifie que les
 -- deux disent la même chose. Modifiez le guide, pas ce fichier seul.
@@ -139,6 +143,9 @@ function('marque_points_account_delete'),
 function('marque_points_group_keys'),
 function('marque_points_set_accounts'),
 function('marque_points_set_people'),
+"-- 17. Le classement des jeux de l'app.\n" + table('marque_points_arcade') + arcade_index(),
+function('marque_points_arcade_top'),
+function('marque_points_arcade_score'),
 "-- 10. Les changements annoncés aussitôt.\n" + function('marque_points_announce'),
 function('marque_points_live'),
 live_triggers(),
@@ -161,7 +168,8 @@ function('marque_points_push_gone'),
     + [grant(n) for n in ['marque_points_push_subscribe', 'marque_points_push_unsubscribe', 'marque_points_open_set']]
     + [revoke(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_reminders', 'marque_points_push_words', 'marque_points_push_gone']]
     + [grant(n) for n in ['marque_points_push_vapid', 'marque_points_push_event', 'marque_points_push_knock', 'marque_points_push_reminders', 'marque_points_push_words', 'marque_points_push_gone']]
-    + [grant(n) for n in ['marque_points_group_of', 'marque_points_group_keys', 'marque_points_set_accounts', 'marque_points_set_people']]) + "\n",
+    + [grant(n) for n in ['marque_points_group_of', 'marque_points_group_keys', 'marque_points_set_accounts', 'marque_points_set_people',
+                          'marque_points_arcade_top', 'marque_points_arcade_score']]) + "\n",
 "-- 12. Une personne sans plus aucun appareil perd son lien de retour ; les codes\n-- inconnus ne se comptent plus, et les retours n'ont plus de plafond.\n" + function('marque_points_person_out'),
 trigger('marque_points_person_out'),
 function('marque_points_ask'),

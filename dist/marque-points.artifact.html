@@ -3419,7 +3419,26 @@ body.holo-open { overflow: hidden; }
 .arcade-pad__key--sound[aria-pressed="true"] { color: var(--accent); }
 .arcade-pad__key--sound svg { width: 18px; height: 18px; }
 .arcade__modes { width: 100%; max-width: 480px; }
-.arcade__rules { max-width: 480px; margin: 12px auto 0; }
+.arcade__rules { width: 100%; max-width: 480px; margin: 12px auto 0; }
+.arcade-ranking { width: 100%; max-width: 480px; margin: 16px auto 0; display: grid; gap: 8px; }
+.arcade-ranking h2 { margin: 0; font-size: 1rem; }
+.arcade-ranking__groups { display: flex; flex-wrap: wrap; gap: 6px; }
+.arcade-ranking__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.arcade-ranking__line {
+  display: grid;
+  grid-template-columns: 2em 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.arcade-ranking__line--me { border-color: var(--accent); background: var(--accent-soft); }
+.arcade-ranking__rank { font-family: var(--hud); color: var(--muted); }
+.arcade-ranking__line:first-child .arcade-ranking__rank { color: var(--accent-amber); font-weight: 700; }
+.arcade-ranking__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arcade-ranking__score { font-family: var(--hud); }
 .arcade__modes .segmented__option { padding: 7px 4px; font-size: 0.85rem; }
 
 /* While playing, the tabs are gone and the page needs no room for them. */
@@ -3646,6 +3665,10 @@ const STRINGS = {
     'arcade.newRecord': 'Nouveau record : {score} {score|point|points} ! Touchez le jeu pour rejouer.',
     'arcade.recordShort': 'Record !',
     'arcade.extraLife': 'Une vie de plus !',
+    'arcade.ranking': 'Classement {group}',
+    'arcade.ranking.groups': 'Groupe du classement',
+    'arcade.ranking.empty': 'Personne encore : à vous de jouer ! Chaque partie terminée y entre toute seule.',
+    'arcade.ranking.who': 'Pour y figurer, dites qui vous êtes sur la page du groupe.',
     'arcade.glouton.mode.easy': 'Facile : 5 vies, fantômes plus lents et plus longtemps effrayés.',
     'arcade.glouton.mode.normal': 'Normal : 3 vies ; près de la fin, le rouge accélère et ne lâche plus.',
     'arcade.glouton.mode.hard': 'Difficile : fantômes plus rapides, qui sortent plus tôt et ont moins peur.',
@@ -5010,6 +5033,10 @@ const STRINGS = {
     'arcade.newRecord': 'New best: {score} {score|point|points}! Touch the game to play again.',
     'arcade.recordShort': 'New best!',
     'arcade.extraLife': 'Extra life!',
+    'arcade.ranking': '{group} ranking',
+    'arcade.ranking.groups': 'Ranking group',
+    'arcade.ranking.empty': 'Nobody yet: your turn! Every finished game goes in by itself.',
+    'arcade.ranking.who': 'To be in it, say who you are on the group\'s page.',
     'arcade.glouton.mode.easy': 'Easy: 5 lives, slower ghosts, frightened for longer.',
     'arcade.glouton.mode.normal': 'Normal: 3 lives; near the end, the red one speeds up and never lets go.',
     'arcade.glouton.mode.hard': 'Hard: faster ghosts, out sooner and less afraid.',
@@ -13034,6 +13061,24 @@ function createRemote(config, fetchImpl = globalThis.fetch) {
     async setPeople(key, people) {
       const answer = await call('marque_points_set_people', { p_key: key, p_people: people });
       return answer?.status === 'ok' && Array.isArray(answer.people) ? answer.people : null;
+    },
+
+    /**
+     * A score of the app's games, for a group's ranking: kept if it beats
+     * that name's. Answers the group's top ten, or null when it was refused
+     * (a key the group no longer knows, a name not on its list).
+     */
+    async arcadeScore(key, game, mode, name, score) {
+      const answer = await call('marque_points_arcade_score', {
+        p_key: key, p_game: game, p_mode: mode, p_name: name, p_score: Math.round(score),
+      });
+      return answer?.status === 'ok' && Array.isArray(answer.top) ? answer.top : null;
+    },
+
+    /** A group's top ten for a game and a mode: [{ name, score, at }]. */
+    async arcadeTop(key, game, mode) {
+      const answer = await call('marque_points_arcade_top', { p_key: key, p_game: game, p_mode: mode });
+      return Array.isArray(answer) ? answer : [];
     },
 
     /** Delete the account: its address, its name, its secrets, its marks. */
@@ -29287,6 +29332,7 @@ function togglePause(game) {
 
 
 
+
 /** The games being played, by id: kept across redraws, and while one plays another. */
 const arcadeRuns = new Map();
 
@@ -29363,6 +29409,102 @@ function keepBest(id, mode, score) {
   state.prefs.arcade = { ...(state.prefs.arcade || {}), [recordKey(id, mode)]: score };
   savePrefs(state.prefs);
   return true;
+}
+
+/* ---------------------------------------------------------------- ranking --- */
+
+/**
+ * Each group's ranking, in the database: the best score of each of its
+ * first names, by game and mode. A game over sends its score to every group
+ * this device is in, under the name it has there; the page shows one group's
+ * top ten, the one last chosen.
+ */
+const rankings = new Map();
+
+function rankingKey(groupId, id, mode) {
+  return `${groupId}|${id}|${mode}`;
+}
+
+/** The group whose ranking shows: the one chosen, else the first. */
+function rankingGroup() {
+  const held = groups();
+  return held.find((group) => group.id === state.prefs.arcadeGroup) || held[0] || null;
+}
+
+/** Send a score to every group, under this device's name there. Never throws. */
+async function sendScore(id, mode, score) {
+  if (!state.remote || !(score > 0)) return;
+  await Promise.all(groups().map(async (group) => {
+    const name = myNameIn(group.id);
+    if (!name) return;
+    try {
+      const top = await state.remote.arcadeScore(group.key, id, mode, name, score);
+      if (top) rankings.set(rankingKey(group.id, id, mode), top);
+    } catch {
+      // Offline, or a database not yet updated: the record stays here, and
+      // goes with the next game or the next visit.
+    }
+  }));
+}
+
+/**
+ * Draw the ranking under the game, from what is known, then ask the database
+ * when `ask`. Hidden without a database or a group, and as long as the
+ * database has never answered (one not yet updated knows no ranking).
+ */
+async function showRanking(id, mode, ask = true) {
+  const box = document.getElementById('arcade-ranking');
+  const group = state.remote ? rankingGroup() : null;
+  if (!box || !group) {
+    if (box) box.hidden = true;
+    return;
+  }
+  const key = rankingKey(group.id, id, mode);
+  const draw = () => {
+    const shown = document.getElementById('arcade-ranking');
+    const top = rankings.get(key);
+    if (!shown || !top || rankingGroup()?.id !== group.id || modeOf(id) !== mode) return;
+    const me = myNameIn(group.id);
+    const held = groups();
+    const chips = held.length > 1 ? `
+      <div class="arcade-ranking__groups" role="group" aria-label="${escapeHtml(t('arcade.ranking.groups'))}">
+        ${held.map((one) => `
+          <button type="button" class="chip${one.id === group.id ? ' chip--on' : ''}" data-arcade-group="${escapeHtml(one.id)}"
+                  aria-pressed="${one.id === group.id}">${escapeHtml(one.name || '')}</button>`).join('')}
+      </div>` : '';
+    const line = (entry, index) => {
+      const mine = me && entry.name.toLowerCase() === me.toLowerCase();
+      return `
+        <li class="arcade-ranking__line${mine ? ' arcade-ranking__line--me' : ''}">
+          <span class="arcade-ranking__rank">${index + 1}</span>
+          <span class="arcade-ranking__name">${escapeHtml(entry.name)}</span>
+          <strong class="arcade-ranking__score">${escapeHtml(String(entry.score))}</strong>
+        </li>`;
+    };
+    shown.hidden = false;
+    shown.innerHTML = `
+      <h2>${escapeHtml(t('arcade.ranking', { group: group.name || '' }))} · ${escapeHtml(t(`arcade.mode.${mode}`))}</h2>
+      ${chips}
+      ${top.length
+        ? `<ol class="arcade-ranking__list">${top.map(line).join('')}</ol>`
+        : `<p class="muted small">${escapeHtml(t('arcade.ranking.empty'))}</p>`}
+      ${me ? '' : `<p class="muted small">${escapeHtml(t('arcade.ranking.who'))}</p>`}`;
+    shown.querySelectorAll('[data-arcade-group]').forEach((button) => {
+      button.addEventListener('click', () => {
+        state.prefs.arcadeGroup = button.dataset.arcadeGroup;
+        savePrefs(state.prefs);
+        void showRanking(id, modeOf(id));
+      });
+    });
+  };
+  draw();
+  if (!ask) return;
+  try {
+    rankings.set(key, await state.remote.arcadeTop(group.key, id, mode));
+  } catch {
+    return;
+  }
+  draw();
 }
 
 /* ------------------------------------------------------------------ sound --- */
@@ -29497,6 +29639,7 @@ function arcadeView(id) {
                 title="${escapeHtml(t('arcade.sound'))}">${soundOn() ? SOUND_ON_ICON : SOUND_OFF_ICON}</button>
       </div>
     </div>
+    <section id="arcade-ranking" class="arcade-ranking" hidden></section>
     <p class="muted small arcade__rules">${escapeHtml(t(`arcade.${id}.rules`))} <span id="arcade-mode-rule">${escapeHtml(t(`arcade.${id}.mode.${chosen}`))}</span> ${escapeHtml(t('arcade.how'))}</p>`;
 }
 
@@ -29538,11 +29681,19 @@ function bindArcade(id) {
       document.querySelectorAll('[data-arcade-mode]').forEach((other) => {
         other.setAttribute('aria-pressed', String(other === button));
       });
+      void showRanking(id, mode, false);
+      void sendScore(id, mode, bestOf(id, mode)).then(() => showRanking(id, mode));
       const rule = document.getElementById('arcade-mode-rule');
       if (rule) rule.textContent = t(`arcade.${id}.mode.${mode}`);
       run.shown = null;
     });
   });
+
+  // The record kept here goes to the groups too: one made before the
+  // ranking existed, or while offline.
+  const opened = modeOf(id);
+  void showRanking(id, opened, false);
+  void sendScore(id, opened, bestOf(id, opened)).then(() => showRanking(id, opened));
 
   const sound = document.getElementById('arcade-sound');
   sound.addEventListener('click', () => {
@@ -29639,6 +29790,8 @@ function bindArcade(id) {
       const before = bestOf(id, run.game.mode);
       run.record = keepBest(id, run.game.mode, run.game.score) && before > 0;
       run.game.record = run.record;
+      const { mode, score } = run.game;
+      void sendScore(id, mode, score).then(() => showRanking(id, mode, false));
       if (run.record) events.push('record');
     }
     if (events.includes('life')) run.flash = { text: t('arcade.extraLife'), until: now + 2000 };
