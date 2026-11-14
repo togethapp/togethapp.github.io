@@ -53,7 +53,7 @@ import { bindGroup, bindOverview, groupsView, groupView, openCreateMenu, overvie
 import { backView, bindBack, bindJoin, joinView, showsGate, watchGate, watchPending } from './view-join.js';
 import { personView, renameEverywhere, statsView } from './view-people.js';
 import { bindSearch, searchView } from './view-search.js';
-import { arcadeHtml, arcadeView, bindArcade } from './view-arcade.js';
+import { arcadeHtml, arcadeView, bindArcade, bindArcadeRanking } from './view-arcade.js';
 import { moveInto, takeMove } from './move.js';
 
 export const view = document.getElementById('view');
@@ -1258,6 +1258,7 @@ export function render() {
     view.innerHTML = homeView();
     bindHome();
     bindDocSwipes();
+    bindArcadeRanking();
   } else if (current.name === 'spends') {
     stopWatching();
     view.innerHTML = spendsView();

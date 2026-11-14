@@ -1,7 +1,8 @@
 /**
  * Le classement des jeux, par groupe : le record gardé sur un téléphone part
- * vers ses groupes sous le prénom qu'il y a ; la page du jeu montre les dix
- * meilleurs du groupe choisi, par difficulté ; on passe d'un groupe à l'autre.
+ * vers ses groupes sous le prénom qu'il y a ; l'onglet Jeux montre, sous les
+ * cartes des jeux, les meilleurs du groupe choisi, jeu par jeu et par
+ * difficulté ; on passe d'un groupe à l'autre.
  * Sans base, pas de classement.
  */
 import { chromium } from 'playwright';
@@ -26,7 +27,7 @@ async function device(label, prefs, remote = true) {
   }, [CONFIG, prefs, remote]);
   return page;
 }
-const lines = async (page) => (await page.locator('.arcade-ranking__line').allTextContents())
+const lines = async (page, game = 'snake') => (await page.locator(`[data-arcade-ranking="${game}"] .arcade-ranking__line`).allTextContents())
   .map((text) => text.replace(/\s+/g, ' ').trim());
 const until = async (page, test) => {
   for (let i = 0; i < 40; i += 1) {
@@ -40,13 +41,26 @@ const gui = await device('Gui', {
   me: 'Gui', lang: 'fr', arcade: { snake: 500 },
   groups: [{ id: 'grp_famille', name: 'Mifa', key: 'la-cle-famille', admits: true }],
 });
-await gui.goto(`${B}#/arcade/snake`);
-await gui.waitForSelector('#arcade-board');
-check('le record du téléphone entre au classement du groupe',
+await gui.goto(`${B}#/games`);
+await gui.waitForSelector('.arcade-card');
+check('le classement est dans l’onglet Jeux, sous « Jouer ici », et le record du téléphone y entre',
   await until(gui, async () => (await lines(gui)).join('|') === '1 Gui 500'), (await lines(gui)).join('|'));
-check('le classement dit son groupe et sa difficulté', /Classement Mifa · Normal/.test(await gui.locator('#arcade-ranking h2').innerText()));
+check('il vient après les cartes des jeux', await gui.evaluate(() => {
+  const cards = document.querySelector('.arcade-list');
+  const ranking = document.getElementById('arcade-ranking');
+  return Boolean(cards && ranking && (cards.compareDocumentPosition(ranking) & Node.DOCUMENT_POSITION_FOLLOWING));
+}));
+check('il dit son groupe', /Classement Mifa/i.test(await gui.locator('#arcade-ranking h2').innerText()));
+check('chaque jeu a sa colonne', (await gui.locator('[data-arcade-ranking]').count()) === 2
+  && /Personne encore/.test(await gui.locator('[data-arcade-ranking="glouton"]').innerText()));
 check('ma ligne ressort', (await gui.locator('.arcade-ranking__line--me').count()) === 1);
 check('un seul groupe : pas de choix de groupe', (await gui.locator('[data-arcade-group]').count()) === 0);
+check('plus de classement sur la page du jeu', await (async () => {
+  await gui.goto(`${B}#/arcade/snake`);
+  await gui.waitForSelector('#arcade-board');
+  await gui.waitForTimeout(300);
+  return (await gui.locator('#arcade-ranking').count()) === 0;
+})());
 
 const alice = await device('Alice', {
   me: 'Alice', lang: 'fr', arcade: { snake: 800, 'snake:hard': 40 },
@@ -55,8 +69,8 @@ const alice = await device('Alice', {
     { id: 'grp_copains', name: 'Copains du mardi', key: 'la-cle-copains', admits: true },
   ],
 });
-await alice.goto(`${B}#/arcade/snake`);
-await alice.waitForSelector('#arcade-board');
+await alice.goto(`${B}#/games`);
+await alice.waitForSelector('.arcade-card');
 check('Alice passe devant Gui',
   await until(alice, async () => (await lines(alice)).join('|') === '1 Alice 800|2 Gui 500'), (await lines(alice)).join('|'));
 if (SHOTS) await alice.locator('#arcade-ranking').scrollIntoViewIfNeeded().then(() => alice.screenshot({ path: `${SHOTS}/classement.png` }));
@@ -65,26 +79,22 @@ await alice.locator('[data-arcade-group="grp_copains"]').click();
 check('aux Copains, seule Alice', await until(alice, async () => (await lines(alice)).join('|') === '1 Alice 800'), (await lines(alice)).join('|'));
 check('le groupe choisi est gardé',
   await alice.evaluate(() => JSON.parse(localStorage.getItem('marque-points:prefs:v1')).arcadeGroup === 'grp_copains'));
+await alice.locator('[data-group-filter="grp_famille"]').click();
+check('filtré sur un groupe, l’onglet montre son classement, sans second choix',
+  await until(alice, async () => (await lines(alice)).join('|') === '1 Alice 800|2 Gui 500'
+    && (await alice.locator('[data-arcade-group]').count()) === 0), (await lines(alice)).join('|'));
 
-await alice.locator('[data-arcade-mode="hard"]').click();
+await alice.locator('[data-arcade-rank-mode="hard"]').click();
 check('en Difficile, un autre classement', await until(alice, async () => (await lines(alice)).join('|') === '1 Alice 40'),
   (await lines(alice)).join('|'));
-await alice.locator('[data-arcade-mode="easy"]').click();
-check('en Facile, personne encore', await until(alice, async () => /Personne encore/.test(await alice.locator('#arcade-ranking').innerText())));
-
-await gui.reload();
-await gui.waitForSelector('#arcade-board');
-check('Gui voit Alice devant lui, à son tour',
-  await until(gui, async () => (await lines(gui)).join('|') === '1 Alice 800|2 Gui 500'), (await lines(gui)).join('|'));
-await gui.goto(`${B}#/arcade/glouton`);
-await gui.waitForSelector('#arcade-board[data-arcade="glouton"]');
-check('le Glouton a son propre classement, vide', await until(gui, async () => /Personne encore/.test(await gui.locator('#arcade-ranking').innerText())));
+await alice.locator('[data-arcade-rank-mode="easy"]').click();
+check('en Facile, personne encore', await until(alice, async () => /Personne encore/.test(await alice.locator('[data-arcade-ranking="snake"]').innerText())));
 
 const alone = await device('seul', { me: 'Zoé', lang: 'fr', arcade: { snake: 300 } }, false);
-await alone.goto(`${B}#/arcade/snake`);
-await alone.waitForSelector('#arcade-board');
+await alone.goto(`${B}#/games`);
+await alone.waitForSelector('.arcade-card');
 await alone.waitForTimeout(500);
-check('sans base ni groupe, pas de classement', await alone.locator('#arcade-ranking').isHidden());
+check('sans base ni groupe, pas de classement', (await alone.locator('#arcade-ranking').count()) === 0);
 
 check('aucune erreur de script', errors.length === 0, errors.join(' | '));
 await browser.close();
