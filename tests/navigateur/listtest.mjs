@@ -50,6 +50,15 @@ check('une ligne s’ajoute', (await page.locator('.line').count()) === 5);
 check('et le champ reste prêt pour la suivante',
   await page.evaluate(() => document.activeElement?.id) === 'new-line');
 
+// la même ligne, encore à faire : dite plutôt qu'écrite deux fois
+await page.fill('#new-line', 'fromage');
+await page.press('#new-line', 'Enter');
+await page.waitForTimeout(200);
+check('une ligne déjà là n’est pas écrite deux fois', (await page.locator('.line').count()) === 5);
+check('et l’app le dit', /déjà dans la liste/.test(await page.locator('.banner').first().textContent()));
+check('le champ est vidé, prêt pour la suivante', (await page.inputValue('#new-line')) === ''
+  && await page.evaluate(() => document.activeElement?.id) === 'new-line');
+
 // cocher
 await page.locator('[data-tick]').first().click();
 await page.waitForTimeout(200);

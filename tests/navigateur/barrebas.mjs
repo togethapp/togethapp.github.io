@@ -4,7 +4,7 @@
  * page d'un groupe : tout ce qui est en cours dans ce groupe, sur une seule page.
  */
 import { chromium } from 'playwright';
-import { createPoll, addOptions } from '../../src/polls.js';
+import { createPoll, addOptions, setVote } from '../../src/polls.js';
 import { createList, addItems, assignItem } from '../../src/lists.js';
 
 const results = [];
@@ -16,6 +16,11 @@ const check = (n, ok, d = '') => results.push({ n, ok, d });
 const mifaList = { ...addItems(createList({ name: 'Courses Mifa', names: ['Gui'] }), 'Pain'), groupId: 'grp_famille', shared: true };
 const mifaPoll = { ...addOptions(createPoll({ question: 'Quel soir pour la raclette ?', names: ['Gui'] }), 'vendredi'), groupId: 'grp_famille', shared: true };
 const giftPoll = { ...addOptions(createPoll({ question: 'Quel cadeau pour Léa ?', names: ['Gui'] }), 'Livre\nVélo'), groupId: 'grp_famille', shared: true };
+// Tout le monde a répondu au sondage du resto, que cet appareil organise :
+// à lui de conclure.
+let restoPoll = addOptions(createPoll({ question: 'Quel resto ?', names: ['Gui', 'Alice'] }), 'Pizza\nSushi');
+restoPoll = setVote(restoPoll, restoPoll.people[0].id, restoPoll.options[0].id, 'yes');
+restoPoll = { ...setVote(restoPoll, restoPoll.people[1].id, restoPoll.options[1].id, 'yes'), groupId: 'grp_famille', shared: true };
 const valiseBase = addItems(createList({ name: 'Valise', names: ['Gui'] }), 'Maillot');
 const valise = { ...assignItem(valiseBase, valiseBase.items[0].id, valiseBase.people[0].id), groupId: 'grp_famille', shared: true };
 const copainsList = { ...addItems(createList({ name: 'Bières Copains', names: ['Gui'] }), 'Blonde'), groupId: 'grp_copains', shared: true };
@@ -28,7 +33,7 @@ const seed = {
       { id: 'grp_copains', name: 'Copains', key: 'la-cle-copains', admits: true },
     ],
   },
-  'marque-points:polls:v1': [mifaPoll, giftPoll],
+  'marque-points:polls:v1': [mifaPoll, giftPoll, restoPoll],
   'marque-points:lists:v1': [mifaList, copainsList, valise],
   'marque-points:games:v1': [],
   'marque-points:remote:v1': { url: 'http://127.0.0.1:8123', key: 'test-anon-key' },
@@ -75,6 +80,8 @@ check('« Tout » y est choisi',
 const forYou = await page.locator('#for-you').textContent();
 check('« Pour vous » : les deux sondages où Gui n’a pas répondu',
   forYou.includes('Quel soir pour la raclette') && forYou.includes('Quel cadeau pour Léa'), forYou);
+check('un sondage où tout le monde a répondu attend son organisateur',
+  /Quel resto \?\s*tout le monde a répondu : à vous de conclure/.test(forYou), forYou);
 check('une liste dont les lignes ne sont à personne n’y est pas', !forYou.includes('Courses Mifa'), forYou);
 check('une ligne confiée à Gui y est', /Valise/.test(forYou) && /1 chose pour vous/.test(forYou), forYou);
 check('rien n’y est montré deux fois',

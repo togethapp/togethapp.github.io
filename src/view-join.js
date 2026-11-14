@@ -16,8 +16,8 @@ import { backLink } from './remote.js';
 import { offerAccount } from './view-account.js';
 import { ask, makeDialog, showCopyDialog } from './view-games.js';
 import {
-  bindInAppWarning, catchUpWith, checkPending, deviceLabel, forgetPending, groups, inAppWarningHtml, myName,
-  NAME_KEPT, onHomeScreen, pendingFor, refreshGate, rememberGroup, rememberPending, setMyName,
+  bindInAppWarning, catchUpWith, checkPending, deviceLabel, forgetPending, knockAs, groups, inAppWarningHtml, myName,
+  NAME_KEPT, onHomeScreen, pendingFor, refreshGate, refreshGroup, rememberGroup, rememberPending, setMyName,
 } from './view-groups.js';
 import { bindInvitationPaste, waitingLine } from './view-home.js';
 import { installFirstHtml, installOfferHtml, phoneToInstall } from './view-install.js';
@@ -78,9 +78,12 @@ export function bindBack(token) {
     if (answer.status === 'busy') return void (line.textContent = t('gate.busy'));
     if (answer.status !== 'ok') return void (line.textContent = t('back.refused'));
 
-    if (answer.who) setMyName(answer.who);
-    const group = { id: answer.id, name: answer.name, key: answer.key, admits: false };
+    // The name they are in this group; the device keeps its own if it has one.
+    if (answer.who && !myName()) setMyName(answer.who);
+    const group = { id: answer.id, name: answer.name, key: answer.key, admits: false, me: answer.who || '' };
     rememberGroup(group);
+    // The first names the group fixes, of which this person is one.
+    await refreshGroup(group);
     let taken = 0;
     try {
       taken = await catchUpWith(group);
@@ -446,7 +449,7 @@ export function bindJoin() {
     say(t('groups.checking'));
     let answer = { status: 'unknown' };
     try {
-      answer = await state.remote.ask(group, code, me, deviceLabel());
+      answer = await knockAs(group, code, me);
     } catch {
       button.disabled = false;
       knocking = false;
@@ -456,13 +459,14 @@ export function bindJoin() {
     knocking = false;
 
     if (answer.status === 'busy') return say(t('gate.busy'));
+    if (answer.status === 'who') return say(t('roster.whoNeeded'));
     if (answer.status !== 'waiting') return say(t('groups.codeRefused'));
 
     rememberPending({
       ticket: answer.ticket,
       groupId: answer.id,
       groupName: answer.name || group,
-      me,
+      me: answer.me,
       at: Date.now(),
     });
     render();

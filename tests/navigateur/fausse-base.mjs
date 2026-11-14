@@ -73,6 +73,8 @@ const ACCOUNTS = new Map(); // id du compte → prénom
 const OWNED = new Map(); // `${compte}|${doc}` → secret d'organisateur
 const CUT = new Map(); // `${compte}|${groupe}` → quand une clé du compte y a été coupée
 const REQUIRED = new Set(); // groupes qui exigent un compte
+// Les prénoms fixés d'un groupe : id du groupe → liste.
+const PEOPLE = new Map();
 const REVOKED = new Set(); // comptes déconnectés partout : leur jeton de renouvellement ne sert plus
 const PUSH = []; // marque_points_push : { endpoint, group, lang, app, tz }
 const NOTIFIED = []; // ce que la fonction « notifier » a reçu
@@ -349,6 +351,7 @@ const server = createServer(async (req, res) => {
     return send(200, group ? {
       ...group, admits: ADMITS.has(at.p_key), accounts: REQUIRED.has(group.id),
       linked: Boolean(KEYS.find((one) => one.key === at.p_key)?.user), channel: channelOf(group.id),
+      people: PEOPLE.get(group.id) ?? [], who: PERSONS.find((one) => one.id === KEYS.find((key) => key.key === at.p_key)?.person)?.name ?? null,
     } : null);
   }
   if (fn === 'marque_points_push_subscribe') {
@@ -378,6 +381,23 @@ const server = createServer(async (req, res) => {
     else REQUIRED.delete(group.id);
     return send(200, { status: 'ok' });
   }
+  if (fn === 'marque_points_set_people') {
+    const group = GROUPS.get(at.p_key);
+    if (!group || !ADMITS.has(at.p_key) || closed(at.p_key)) return raise('cette cle ne fait pas entrer');
+    if (!Array.isArray(at.p_people)) return send(200, { status: 'invalid' });
+    // Comme la base : nettoyés, une fois chacun, dans l'ordre donné, 60 au plus.
+    const seen = new Set();
+    const people = [];
+    for (const given of at.p_people) {
+      const name = String(given ?? '').trim().slice(0, 24);
+      if (!name || seen.has(name.toLowerCase())) continue;
+      seen.add(name.toLowerCase());
+      people.push(name);
+    }
+    PEOPLE.set(group.id, people.slice(0, 60));
+    setTimeout(() => announce(`group-${channelOf(group.id)}`), 30);
+    return send(200, { status: 'ok', people: PEOPLE.get(group.id) });
+  }
   if (fn === 'marque_points_invite') {
     const group = GROUPS.get(at.p_key);
     if (!group || closed(at.p_key)) return raise('cle de groupe invalide');
@@ -402,6 +422,16 @@ const server = createServer(async (req, res) => {
       return send(200, { status: 'busy' });
     }
 
+    // Les prénoms du groupe sont fixés : qui frappe dit lequel il est, ou
+    // reçoit la liste — sans rien consommer.
+    const fixed = PEOPLE.get(invite.group.id) ?? [];
+    let who = String(at.p_who ?? '').trim().slice(0, 24);
+    if (fixed.length) {
+      const listed = fixed.find((one) => one.toLowerCase() === who.toLowerCase());
+      if (!listed) return send(200, { status: 'who', people: fixed });
+      who = listed;
+    }
+
     invite.uses -= 1;
     if (invite.uses <= 0) INVITES.delete(String(at.p_code));
     MISSES.delete(name);
@@ -411,7 +441,7 @@ const server = createServer(async (req, res) => {
     REQUESTS.push({
       id: `req_${Math.random().toString(36).slice(2, 10)}`,
       group: invite.group.id,
-      name: String(at.p_who ?? '').trim().slice(0, 24),
+      name: who,
       label: String(at.p_label ?? '').trim().slice(0, 80),
       ticket,
       state: 'waiting',

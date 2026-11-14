@@ -48,6 +48,14 @@ test('the update brings what the app now relies on', async () => {
   // Two days for an invitation: without it the app asks and the base shortens.
   assert.match(inUpdate.get('marque_points_invite'), /least\(coalesce\(p_minutes, 30\), 2880\)/);
 
+  // The group's first names: the column, who may fix them, and the knock
+  // that hands the list back instead of spending an invitation.
+  assert.match(update, /add column if not exists people jsonb not null default '\[\]'::jsonb/);
+  assert.match(inUpdate.get('marque_points_group_of'), /'people', g\.people/);
+  assert.match(inUpdate.get('marque_points_set_people'), /and k\.admits/);
+  assert.match(inUpdate.get('marque_points_ask'), /'status', 'who', 'people', v_people/);
+  assert.match(update, /grant execute on function public\.marque_points_set_people\(text, jsonb\)/);
+
   // Link only: the column, set at the first write, and left out of both
   // listings a group reads — its tabs, and its calendar.
   assert.match(update, /add column if not exists listed boolean not null default true/);

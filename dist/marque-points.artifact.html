@@ -3705,6 +3705,7 @@ const STRINGS = {
     'forYou.nothing': 'Rien ne vous attend. Tranquille.',
     'forYou.noName': 'Votre prénom, et l’app vous montrera ici ce qui vous attend :',
     'forYou.vote': 'votre réponse est attendue',
+    'forYou.decide': 'tout le monde a répondu : à vous de conclure',
     'forYou.lines': '{count} {count|chose|choses} pour vous',
     'forYou.purchases': '{count} {count|achat|achats} à noter dans « {name} »',
     'forYou.knocks': '{count} {count|personne|personnes} {count|demande|demandent} à entrer',
@@ -4101,6 +4102,39 @@ const STRINGS = {
     'spends.rename': 'Renommer le compte',
     'spends.renameHint': 'Le nom du compte, tel qu’il apparaît dans la liste.',
     'people.renameHint': 'Son prénom, tel qu’il s’affichera ici.',
+    'people.already': '{name} est déjà là.',
+    'roster.title': 'Les prénoms du groupe',
+    'roster.offHint': 'Décidez à l’avance des prénoms du groupe : chacun dira lequel il est en entrant, et les listes, sondages et comptes du groupe prendront leurs personnes dans cette liste — plus de « Gui » ici et « Guillaume » là.',
+    'roster.fix': 'Fixer les prénoms',
+    'roster.edit': 'Modifier',
+    'roster.onHintGate': 'Fixés par vous, qui faites entrer : les listes, sondages et comptes du groupe prennent leurs personnes ici, et nulle part ailleurs.',
+    'roster.onHint': 'Fixés par la personne qui fait entrer : les listes, sondages et comptes du groupe prennent leurs personnes ici, et nulle part ailleurs.',
+    'roster.pickMe': 'Touchez votre prénom : c’est vous, dans ce groupe.',
+    'roster.strays': 'Écrits autrement avant que la liste existe :',
+    'roster.merge': 'C’est…',
+    'roster.addToList': 'Ajouter à la liste',
+    'roster.added': '{name} est dans la liste du groupe.',
+    'roster.editTitle': 'Les prénoms de « {name} »',
+    'roster.editHint': 'Un prénom par ligne, tel qu’il s’écrira partout dans le groupe. Pensez à ceux qui n’ont pas l’app : les enfants, les grands-parents.',
+    'roster.stop': 'Ne plus fixer',
+    'roster.saved': 'C’est fixé : {count} {count|prénom|prénoms} dans le groupe.',
+    'roster.stopped': 'Les prénoms du groupe ne sont plus fixés.',
+    'roster.mergeTitle': '« {name} », c’est qui ?',
+    'roster.mergeHint': 'Touchez son prénom dans la liste : « {name} » sera écrit ainsi dans tout le groupe.',
+    'roster.merged': '« {before} » est maintenant « {after} » dans {count} {count|élément|éléments}.',
+    'roster.mergedLeft': '« {before} » est maintenant « {after} » dans {count} {count|élément|éléments} ; {left} {left|autre a|autres ont} déjà « {after} » : retirez-y « {before} » à la main.',
+    'roster.whoTitle': 'Qui êtes-vous dans « {name} » ?',
+    'roster.whoHint': 'Ce groupe a fixé ses prénoms : touchez le vôtre.',
+    'roster.whoNeeded': 'Ce groupe a fixé ses prénoms : touchez le vôtre pour demander à entrer.',
+    'roster.everyone': 'Tout le monde',
+    'roster.forYou': 'ce groupe a fixé ses prénoms : dites lequel est le vôtre',
+    'roster.formHint': 'Les prénoms sont ceux du groupe « {name} ».',
+    'roster.notListed': 'pas dans la liste du groupe',
+    'roster.isWho': 'C’est :',
+    'roster.addFrom': 'Ajouter quelqu’un du groupe :',
+    'roster.allIn': 'Tout le groupe y est.',
+    'roster.notAsked': 'Vous n’y êtes pas ?',
+    'roster.gameNames': 'Dans « {name} », les joueurs se choisissent parmi : {names}.',
     'spends.confirmRemovePerson': 'Retirer cette personne du compte ?',
     'spends.confirmDelete': 'Supprimer ce compte et toutes ses dépenses ? C’est définitif.',
     'spends.loading': 'On va chercher ce compte…',
@@ -4572,6 +4606,8 @@ const STRINGS = {
     'lists.paidTicket': '{name} a payé {amount} pour {count} lignes',
     'lists.paidTicketNobody': 'Payé {amount} pour {count} lignes',
     'lists.addLine': 'Ajouter une ligne',
+    'lists.already': '« {line} » est déjà dans la liste : pas ajouté une deuxième fois.',
+    'lists.alreadyMany': '{count} lignes étaient déjà dans la liste : pas ajoutées une deuxième fois.',
     'lists.addFirst': 'Écrivez la première ligne ci-dessus.',
     'lists.nothingHere': 'Rien ici pour l’instant.',
     'lists.everyone': 'Tout',
@@ -5016,6 +5052,7 @@ const STRINGS = {
     'forYou.nothing': 'Nothing is waiting on you. All quiet.',
     'forYou.noName': 'Your first name, and the app will show you here what is waiting on you:',
     'forYou.vote': 'your answer is awaited',
+    'forYou.decide': 'everyone has answered: yours to settle',
     'forYou.lines': '{count} {count|thing|things} for you',
     'forYou.purchases': '{count} {count|purchase|purchases} to write in “{name}”',
     'forYou.knocks': '{count} {count|person|people} asking to join',
@@ -5412,6 +5449,39 @@ const STRINGS = {
     'spends.rename': 'Rename the account',
     'spends.renameHint': 'The account’s name, as it appears in the list.',
     'people.renameHint': 'Their first name, as it will show here.',
+    'people.already': '{name} is already there.',
+    'roster.title': 'The group’s first names',
+    'roster.offHint': 'Decide the group’s first names in advance: everyone says which one they are on the way in, and the group’s lists, polls and accounts take their people from this list — no more “Will” here and “William” there.',
+    'roster.fix': 'Fix the first names',
+    'roster.edit': 'Edit',
+    'roster.onHintGate': 'Fixed by you, who let people in: the group’s lists, polls and accounts take their people here, and nowhere else.',
+    'roster.onHint': 'Fixed by whoever lets people in: the group’s lists, polls and accounts take their people here, and nowhere else.',
+    'roster.pickMe': 'Touch your first name: that is you, in this group.',
+    'roster.strays': 'Written otherwise before the list existed:',
+    'roster.merge': 'That is…',
+    'roster.addToList': 'Add to the list',
+    'roster.added': '{name} is on the group’s list.',
+    'roster.editTitle': 'The first names of “{name}”',
+    'roster.editHint': 'One first name per line, as it will be written everywhere in the group. Think of those without the app: children, grandparents.',
+    'roster.stop': 'Stop fixing them',
+    'roster.saved': 'Fixed: {count} first {count|name|names} in the group.',
+    'roster.stopped': 'The group’s first names are no longer fixed.',
+    'roster.mergeTitle': 'Who is “{name}”?',
+    'roster.mergeHint': 'Touch their name on the list: “{name}” will be written that way all over the group.',
+    'roster.merged': '“{before}” is now “{after}” in {count} {count|item|items}.',
+    'roster.mergedLeft': '“{before}” is now “{after}” in {count} {count|item|items}; {left} {left|other already has|others already have} “{after}”: take “{before}” out of there by hand.',
+    'roster.whoTitle': 'Who are you in “{name}”?',
+    'roster.whoHint': 'This group has fixed its first names: touch yours.',
+    'roster.whoNeeded': 'This group has fixed its first names: touch yours to ask to join.',
+    'roster.everyone': 'Everyone',
+    'roster.forYou': 'this group has fixed its first names: say which one is yours',
+    'roster.formHint': 'The first names are those of the group “{name}”.',
+    'roster.notListed': 'not on the group’s list',
+    'roster.isWho': 'That is:',
+    'roster.addFrom': 'Add someone of the group:',
+    'roster.allIn': 'The whole group is in.',
+    'roster.notAsked': 'Not in it?',
+    'roster.gameNames': 'In “{name}”, players are picked among: {names}.',
     'spends.confirmRemovePerson': 'Remove this person from the account?',
     'spends.confirmDelete': 'Delete this account and everything spent on it? This cannot be undone.',
     'spends.loading': 'Fetching that account…',
@@ -5873,6 +5943,8 @@ const STRINGS = {
     'lists.paidTicket': '{name} paid {amount} for {count} lines',
     'lists.paidTicketNobody': 'Paid {amount} for {count} lines',
     'lists.addLine': 'Add a line',
+    'lists.already': '“{line}” is already on the list: not added twice.',
+    'lists.alreadyMany': '{count} lines were already on the list: not added twice.',
     'lists.addFirst': 'Write the first line above.',
     'lists.nothingHere': 'Nothing here for now.',
     'lists.everyone': 'All',
@@ -7630,9 +7702,33 @@ function prune(removed, now = Date.now()) {
 
 
 
+
+/**
+ * The names a new document starts with: trimmed, and each person once —
+ * « gui » written after « Gui » is the same person, not a second one.
+ */
+function distinctNames(names) {
+  const seen = new Set();
+  return (names || [])
+    .map((raw) => String(raw || '').trim())
+    .filter((name) => {
+      const key = sameName(name) || name;
+      if (!name || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+/** Whether someone of that name is already among the document's people. */
+function hasPerson(document_, name, exceptId = null) {
+  const key = sameName(name);
+  return Boolean(key) && document_.people.some((person) => person.id !== exceptId && sameName(person.name) === key);
+}
+
 function addPerson(document_, name) {
   const clean = String(name || '').trim();
-  if (!clean) return document_;
+  // Already there, however it is written: one person, not two.
+  if (!clean || hasPerson(document_, clean)) return document_;
   return touch(document_, {
     people: [...document_.people, { id: uid('w'), name: clean }],
     peopleAt: later(document_.peopleAt),
@@ -7641,7 +7737,8 @@ function addPerson(document_, name) {
 
 function renamePerson(document_, personId, name) {
   const clean = String(name || '').trim();
-  if (!clean) return document_;
+  // Never onto someone else's name: the document would have that person twice.
+  if (!clean || hasPerson(document_, clean, personId)) return document_;
   return touch(document_, {
     people: document_.people.map((person) =>
       (person.id === personId ? { ...person, name: clean } : person)),
@@ -7901,10 +7998,7 @@ function createList({ name = '', names = [], shared = false, groupId = null } = 
     // The lines deleted here, and when — without this a deletion is undone by
     // the next copy that still holds the line.
     removed: {},
-    people: names
-      .map((raw) => String(raw || '').trim())
-      .filter(Boolean)
-      .map((personName) => ({ id: uid('w'), name: personName })),
+    people: distinctNames(names).map((personName) => ({ id: uid('w'), name: personName })),
     items: [],
   };
 }
@@ -7914,14 +8008,40 @@ function createList({ name = '', names = [], shared = false, groupId = null } = 
  * Add a line. Several lines at once when a whole list is pasted in — which is
  * how a list arrives from a message more often than it is typed.
  */
-function addItems(list, text) {
-  const now = Date.now();
-  const fresh = String(text || '')
+function linesOf(text) {
+  return String(text || '')
     .split('\n')
     // A bullet, or a number *used as* a bullet — "1." or "2)". A bare number
     // is a quantity, and "2 baguettes" must stay two baguettes.
     .map((line) => line.replace(/^\s*(?:[-*•–—]+|\d+\s*[.)])\s+/, '').trim())
-    .filter(Boolean)
+    .filter(Boolean);
+}
+
+const sameLine = (text) => String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+/**
+ * Split what was typed into the lines a list does not have yet and those it
+ * already has, still to do — « pain » when « Pain » is on it, unticked. Two
+ * people filling the same list for a picnic would otherwise both write the
+ * bread. A line already ticked can come back: it is wanted again.
+ */
+function newLines(list, text) {
+  const open = new Set(list.items.filter((item) => !item.done).map((item) => sameLine(item.text)));
+  const typed = new Set();
+  const fresh = [];
+  const known = [];
+  for (const line of linesOf(text)) {
+    const key = sameLine(line);
+    if (open.has(key)) known.push(line);
+    else if (!typed.has(key)) fresh.push(line);
+    typed.add(key);
+  }
+  return { fresh: fresh.join('\n'), known };
+}
+
+function addItems(list, text) {
+  const now = Date.now();
+  const fresh = linesOf(text)
     .map((line) => ({
       id: uid('i'),
       text: line,
@@ -8185,10 +8305,7 @@ function createPoll({ question = '', names = [], shared = false, groupId = null 
     shared: Boolean(shared),
     groupId: groupId || null,
     removed: {},
-    people: names
-      .map((raw) => String(raw || '').trim())
-      .filter(Boolean)
-      .map((name) => ({ id: uid('w'), name })),
+    people: distinctNames(names).map((name) => ({ id: uid('w'), name })),
     options: [],
     // { "personId|optionId": { v: 'yes' | 'maybe' | 'no', at } }
     votes: {},
@@ -8815,10 +8932,7 @@ function createSpend({ name = '', names = [], shared = false, groupId = null, cu
     groupId: groupId || null,
     archivedAt: null,
     removed: {},
-    people: names
-      .map((raw) => String(raw || '').trim())
-      .filter(Boolean)
-      .map((personName) => ({ id: uid('w'), name: personName })),
+    people: distinctNames(names).map((personName) => ({ id: uid('w'), name: personName })),
     lines: [],
   };
 }
@@ -8904,13 +9018,21 @@ function paidFields(spend, amount, currency, rate) {
 }
 
 /**
- * Lire un montant tel qu'il se tape : « 12,50 », « 12.5 », « 12 », « 3 € ».
+ * Lire un montant tel qu'il se tape : « 12,50 », « 12.5 », « 12 », « 3 € »,
+ * « 1 234,56 », « 1.234,56 », « 1'234.50 ».
  * Rend des centimes, ou null quand ce n'est pas un montant.
  */
 function readAmount(raw) {
-  const clean = String(raw ?? '')
-    .replace(/[\s €$£]|chf/gi, '')
-    .replace(',', '.');
+  let clean = String(raw ?? '').replace(/[\s\u00a0\u202f€$£'’]|chf/gi, '');
+  // Both marks, « 1.234,56 » or « 1,234.56 »: the last one is the decimal
+  // point, the other only groups thousands.
+  if (clean.includes(',') && clean.includes('.')) {
+    const point = Math.max(clean.lastIndexOf(','), clean.lastIndexOf('.'));
+    const whole = clean.slice(0, point);
+    if (!/^\d{1,3}([.,]\d{3})*$/.test(whole)) return null;
+    clean = `${whole.replace(/[.,]/g, '')}.${clean.slice(point + 1)}`;
+  }
+  clean = clean.replace(',', '.');
   if (!/^\d+(\.\d{0,2})?$/.test(clean)) return null;
   const value = Math.round(Number(clean) * 100);
   return Number.isFinite(value) && value > 0 ? value : null;
@@ -12566,7 +12688,9 @@ function createRemote(config, fetchImpl = globalThis.fetch) {
      * accepts. Until then it sees nothing at all.
      *
      * Returns { status: 'waiting', ticket, id, name } | { status: 'unknown' }
-     *       | { status: 'busy' }
+     *       | { status: 'busy' } | { status: 'who', people } — the group fixes
+     *       its first names and `who` is none of them: nothing was spent, the
+     *       names are there to choose from.
      */
     async ask(name, code, who = '', label = '') {
       const answer = await call('marque_points_ask', {
@@ -12578,6 +12702,9 @@ function createRemote(config, fetchImpl = globalThis.fetch) {
       const status = answer?.status;
       if (status === 'waiting' && typeof answer.ticket === 'string') {
         return { status, ticket: answer.ticket, id: answer.id, name: answer.name };
+      }
+      if (status === 'who' && Array.isArray(answer.people)) {
+        return { status, people: answer.people.filter((one) => typeof one === 'string' && one.trim()) };
       }
       return { status: status === 'busy' ? 'busy' : 'unknown' };
     },
@@ -12858,6 +12985,15 @@ function createRemote(config, fetchImpl = globalThis.fetch) {
     async setAccounts(key, on, token = null) {
       const answer = await call('marque_points_set_accounts', { p_key: key, p_on: Boolean(on) }, token);
       return answer?.status || 'unknown';
+    },
+
+    /**
+     * Fix the group's first names, or stop fixing them (an empty list) — an
+     * admitting key's call. Returns the list as the database kept it, or null.
+     */
+    async setPeople(key, people) {
+      const answer = await call('marque_points_set_people', { p_key: key, p_people: people });
+      return answer?.status === 'ok' && Array.isArray(answer.people) ? answer.people : null;
     },
 
     /** Delete the account: its address, its name, its secrets, its marks. */
@@ -14098,7 +14234,7 @@ function pollsView() {
 }
 
 function newPollView() {
-  const suggestions = [...new Set([myName(), ...recentPeople(state.polls), ...recentPeople(state.lists), ...recentNames(state.games)].filter(Boolean))].slice(0, 12);
+  const suggestions = [...new Set([myName(), ...recentPeople(state.polls), ...recentPeople(state.lists), ...recentNames(state.games)].filter(Boolean))].filter((name) => !writtenNames(state.newPollPeople).has(name.toLowerCase())).slice(0, 12);
   return `
     ${flashHtml()}
     <div class="spread page-head">
@@ -14119,6 +14255,7 @@ function newPollView() {
       </label>
       ${newPollDaysHtml()}
 
+      ${rosterPickHtml(state.newPollPeople, t('polls.peopleHint')) || `
       <div class="stack stack--tight">
         <span class="muted small">${escapeHtml(t('polls.peopleHint'))}</span>
         ${state.newPollPeople
@@ -14144,7 +14281,7 @@ function newPollView() {
                 .join('')}</div>`
             : ''
         }
-      </div>
+      </div>`}
 
       <label class="checkbox">
         <input type="checkbox" id="poll-for-activity" ${state.newPollForActivity ? 'checked' : ''} />
@@ -14212,7 +14349,7 @@ function gaugeHtml(poll) {
 function voterOf(poll) {
   const chosen = state.prefs.voter?.[poll.id];
   if (poll.people.some((person) => person.id === chosen)) return chosen;
-  const mine = sameName(myName());
+  const mine = sameName(myNameFor(poll));
   return (mine && poll.people.find((person) => sameName(person.name) === mine)?.id) || null;
 }
 
@@ -14304,7 +14441,7 @@ function pollView(poll, { solo = false } = {}) {
         : ''
     }
 
-    ${guest && !closed ? soloJoinHtml() : ''}
+    ${guest && !closed ? soloJoinHtml(poll, solo) : ''}
 
     ${
       // An event: what is made for it first — it is what the page is for —
@@ -14752,7 +14889,19 @@ function eventLinkHtml(document_) {
  * Whoever sends a link to a chat does not know every name in it; without
  * this, a guest could look but never tick.
  */
-function soloJoinHtml() {
+function soloJoinHtml(poll, solo) {
+  // A member of a group that fixes its names says which one they are, among
+  // those not asked yet; a visitor from a link writes theirs.
+  const roster = solo ? [] : rosterFor(poll);
+  if (roster.length) {
+    const free = roster.filter((name) => !poll.people.some((person) => sameName(person.name) === sameName(name)));
+    if (!free.length) return '';
+    return `
+      <div class="row row--chips" id="solo-me-listed">
+        <span class="muted small">${escapeHtml(t('roster.notAsked'))}</span>
+        ${free.map((name) => `<button type="button" class="chip" data-solo-as="${escapeHtml(name)}">+ ${escapeHtml(name)}</button>`).join('')}
+      </div>`;
+  }
   return `
     <form id="solo-me-form" class="row row--tight">
       <label class="visually-hidden" for="solo-me">${escapeHtml(t('polls.soloMe'))}</label>
@@ -15059,6 +15208,15 @@ function bindNewPoll() {
     });
   };
 
+  // Where the group fixes its first names, the people are ticked, not typed.
+  bindRosterPick(view, () => state.newPollPeople, (names) => {
+    state.newPollPeople = names;
+  });
+  view.querySelector('form')?.addEventListener('rosterchange', () => {
+    snapshot();
+    render();
+  });
+
   view.querySelectorAll('[data-new-group]').forEach((chip) => {
     chip.addEventListener('click', () => {
       snapshot();
@@ -15145,7 +15303,7 @@ function bindNewPoll() {
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     snapshot();
-    let poll = signed(organise(landing(createPoll({ question: state.newPollQuestion, names: state.newPollPeople }))));
+    let poll = signed(organise(landing(createPoll({ question: state.newPollQuestion, names: peopleForNew(state.newPollPeople) }))));
     poll = addOptions(poll, state.newPollChoices);
     // A day typed out already is not offered twice.
     const typed = new Set(poll.options.map((option) => choiceWhen(option)?.date).filter(Boolean));
@@ -15252,9 +15410,7 @@ function bindPoll(poll) {
   });
 
   // A guest not on the list adds their own name, and is then who answers.
-  view.querySelector('#solo-me-form')?.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const name = view.querySelector('#solo-me').value.trim();
+  const joinAs = (name) => {
     if (!name) return;
     // Matched the way everywhere else matches names — case, accents and
     // blanks aside — so "chloe" does not add a second Chloé.
@@ -15270,6 +15426,13 @@ function bindPoll(poll) {
     if (next === poll) render();
     else replacePoll(next);
     showMyColumn({ always: true });
+  };
+  view.querySelector('#solo-me-form')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    joinAs(view.querySelector('#solo-me').value.trim());
+  });
+  view.querySelectorAll('[data-solo-as]').forEach((chip) => {
+    chip.addEventListener('click', () => joinAs(chip.dataset.soloAs));
   });
 
   // Opening the poll: straight to one's own column, so answering takes no
@@ -15400,6 +15563,7 @@ function bindPoll(poll) {
     });
   });
 
+  keepUntilAfter(view.querySelector('#poll-day'), view.querySelector('#poll-until'));
   view.querySelector('#poll-date-save')?.addEventListener('click', () => {
     const day = view.querySelector('#poll-day').value;
     const hour = view.querySelector('#poll-hour').value;
@@ -15620,6 +15784,7 @@ function openChoiceDialog(poll, optionId) {
 function openPollPeopleDialog(poll) {
   const held = () => getPoll(poll.id) || poll;
   openPeopleEditor({
+    roster: rosterFor(held()),
     hint: t('polls.peopleHint'),
     confirmRemove: t('polls.confirmRemovePerson'),
     people: () => held().people,
@@ -15852,6 +16017,7 @@ function watchSpend(id) {
 
 
 
+
 /* ------------------------------------------------------------------ lists --- */
 
 /**
@@ -15956,7 +16122,7 @@ function newListView() {
   const templates = state.lists.filter((list) => list.template && !list.archivedAt);
   const suggestions = [...new Set([
     myName(), ...recentPeople(state.lists), ...recentPeople(state.polls), ...recentNames(state.games),
-  ].filter(Boolean))].slice(0, 12);
+  ].filter(Boolean))].filter((name) => !writtenNames(state.newListPeople).has(name.toLowerCase())).slice(0, 12);
   return `
     ${flashHtml()}
     <div class="spread page-head">
@@ -15991,6 +16157,7 @@ function newListView() {
                value="${escapeHtml(state.newListName)}" required />
       </label>
 
+      ${rosterPickHtml(state.newListPeople, t('lists.peopleHint')) || `
       <div class="stack stack--tight">
         <span class="muted small">${escapeHtml(t('lists.peopleHint'))}</span>
         ${state.newListPeople
@@ -16016,7 +16183,7 @@ function newListView() {
                 .join('')}</div>`
             : ''
         }
-      </div>
+      </div>`}
 
       <label>
         ${escapeHtml(t('lists.firstLines'))}
@@ -16304,6 +16471,15 @@ function bindNewList() {
     render();
   });
 
+  // Where the group fixes its first names, the people are ticked, not typed.
+  bindRosterPick(view, () => state.newListPeople, (names) => {
+    state.newListPeople = names;
+  });
+  view.querySelector('form')?.addEventListener('rosterchange', () => {
+    snapshot();
+    render();
+  });
+
   view.querySelectorAll('[data-new-group]').forEach((chip) => {
     chip.addEventListener('click', () => {
       snapshot();
@@ -16327,7 +16503,7 @@ function bindNewList() {
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     snapshot();
-    let list = signed(landing(createList({ name: state.newListName, names: state.newListPeople })));
+    let list = signed(landing(createList({ name: state.newListName, names: peopleForNew(state.newListPeople) })));
     list = addItems(list, state.newListLines);
 
     state.lists = [...state.lists, list];
@@ -16352,8 +16528,17 @@ function bindList(list) {
   view.querySelector('#add-line')?.addEventListener('submit', (event) => {
     event.preventDefault();
     const field = view.querySelector('#new-line');
-    const next = addItems(list, field.value);
-    if (next === list) return;
+    const { fresh, known } = newLines(list, field.value);
+    // Already there, still to do: said rather than written twice.
+    if (known.length) flash(known.length > 1 ? t('lists.alreadyMany', { count: known.length }) : t('lists.already', { line: known[0] }));
+    const next = addItems(list, fresh);
+    if (next === list) {
+      if (!known.length) return;
+      field.value = '';
+      render();
+      view.querySelector('#new-line')?.focus();
+      return;
+    }
     replaceList(next);
     // Straight back to the field: a list is written in one go, not one
     // reopened dialog at a time.
@@ -16573,11 +16758,17 @@ function openLineDialog(list, itemId) {
  * knows of them — an account's parts —: `html(person)`, and `bind(dialog,
  * redraw)` for its buttons, which write at once like the others.
  */
-function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remove, blocked = () => null, extra = null }) {
+function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remove, blocked = () => null, extra = null, roster = [] }) {
   const dialog = makeDialog();
+  // `roster`: the first names the document's group has fixed. People are then
+  // added by touching one, never typed; someone written otherwise is said to
+  // be one of them, in one touch.
+  const fixed = roster.length > 0;
+  const listed = (name) => roster.some((one) => sameName(one) === sameName(name));
 
   const draw = () => {
     const current = people();
+    const free = roster.filter((name) => !current.some((person) => sameName(person.name) === sameName(name)));
     dialog.innerHTML = `
       <div class="stack">
         <h2>${escapeHtml(t('lists.people'))}</h2>
@@ -16589,10 +16780,25 @@ function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remov
                 <div class="knock">
                   <strong>${escapeHtml(person.name)}</strong>
                   ${extra ? extra.html(person) : ''}
+                  ${
+                    fixed && !listed(person.name)
+                      ? `<span class="late small">${escapeHtml(t('roster.notListed'))}</span>
+                         ${free.length
+                           ? `<div class="row row--chips">
+                                <span class="muted small">${escapeHtml(t('roster.isWho'))}</span>
+                                ${free.map((name) => `<button type="button" class="chip" data-person-is="${escapeHtml(person.id)}" data-name="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')}
+                              </div>`
+                           : ''}`
+                      : ''
+                  }
                   <div class="row">
-                    <button type="button" class="button button--small" data-rename="${escapeHtml(person.id)}">
-                      ${escapeHtml(t('action.rename'))}
-                    </button>
+                    ${
+                      fixed
+                        ? ''
+                        : `<button type="button" class="button button--small" data-rename="${escapeHtml(person.id)}">
+                             ${escapeHtml(t('action.rename'))}
+                           </button>`
+                    }
                     <button type="button" class="button button--small button--ghost" data-remove="${escapeHtml(person.id)}">
                       ${escapeHtml(t('lists.dropPerson'))}
                     </button>
@@ -16602,11 +16808,21 @@ function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remov
             .join('')}
           ${current.length ? '' : `<p class="muted small">${escapeHtml(t('lists.nobodyYet'))}</p>`}
         </div>
-        <div class="row row--tight">
-          <input type="text" id="person-new" placeholder="${escapeHtml(t('lists.addPerson'))}"
-                 aria-label="${escapeHtml(t('lists.addPerson'))}" autocomplete="off" />
-          <button type="button" class="button button--primary" id="person-add" aria-label="${escapeHtml(t('lists.addPerson'))}">+</button>
-        </div>
+        ${
+          fixed
+            ? `<div class="stack stack--tight">
+                 <span class="muted small">${escapeHtml(t(free.length ? 'roster.addFrom' : 'roster.allIn'))}</span>
+                 <div class="row row--chips">
+                   ${free.map((name) => `<button type="button" class="chip" data-add-listed="${escapeHtml(name)}">+ ${escapeHtml(name)}</button>`).join('')}
+                 </div>
+               </div>`
+            : `<div class="row row--tight">
+                 <input type="text" id="person-new" placeholder="${escapeHtml(t('lists.addPerson'))}"
+                        aria-label="${escapeHtml(t('lists.addPerson'))}" autocomplete="off" />
+                 <button type="button" class="button button--primary" id="person-add" aria-label="${escapeHtml(t('lists.addPerson'))}">+</button>
+               </div>
+               <p class="late small" id="person-problem" aria-live="polite" hidden></p>`
+        }
         <div class="row">
           <button type="button" class="button" id="people-close">${escapeHtml(t('action.close'))}</button>
         </div>
@@ -16617,15 +16833,37 @@ function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remov
     // and answer false when it was called off: the name typed stays.
     const addOne = async () => {
       if (!field.value.trim()) return;
+      // Already among them, however it is written: said, not added twice.
+      const twin = people().find((person) => sameName(person.name) === sameName(field.value));
+      if (twin) {
+        const problem = dialog.querySelector('#person-problem');
+        problem.textContent = t('people.already', { name: twin.name });
+        problem.hidden = false;
+        field.select();
+        return;
+      }
       if ((await add(field.value)) === false) return;
       draw();
       dialog.querySelector('#person-new').focus();
     };
-    dialog.querySelector('#person-add').addEventListener('click', addOne);
-    field.addEventListener('keydown', (event) => {
+    dialog.querySelector('#person-add')?.addEventListener('click', addOne);
+    field?.addEventListener('keydown', (event) => {
       if (event.key !== 'Enter') return;
       event.preventDefault();
       addOne();
+    });
+
+    dialog.querySelectorAll('[data-add-listed]').forEach((chip) => {
+      chip.addEventListener('click', async () => {
+        if ((await add(chip.dataset.addListed)) === false) return;
+        draw();
+      });
+    });
+    dialog.querySelectorAll('[data-person-is]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        rename(chip.dataset.personIs, chip.dataset.name);
+        draw();
+      });
     });
 
     dialog.querySelectorAll('[data-rename]').forEach((button) => {
@@ -16639,6 +16877,12 @@ function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remov
           confirmLabel: t('action.save'),
         });
         if (name === null || !name.trim()) return;
+        // Someone else's name already: the document would have them twice.
+        if (people().some((other) => other.id !== person.id && sameName(other.name) === sameName(name))) {
+          flash(t('people.already', { name: name.trim() }), 'error');
+          dialog.close();
+          return;
+        }
         rename(person.id, name);
         draw();
       });
@@ -16673,6 +16917,7 @@ function openPeopleDialog(list) {
   openPeopleEditor({
     hint: t('lists.peopleHint'),
     confirmRemove: t('lists.confirmRemovePerson'),
+    roster: rosterFor(held()),
     people: () => held().people,
     add: (name) => replaceList(addListPerson(held(), name), { redraw: false }),
     rename: (id, name) => replaceList(renameListPerson(held(), id, name), { redraw: false }),
@@ -16789,7 +17034,7 @@ function spendTitle(spend) {
 
 /** Ce que ce compte dit de moi : ce qu'on me doit, ou ce que je dois. */
 function myBalance(spend) {
-  const me = sameName(myName());
+  const me = sameName(myNameFor(spend));
   if (!me) return null;
   return balances(spend).find((row) => sameName(row.name) === me) || null;
 }
@@ -16947,7 +17192,7 @@ function eventCardHtml(poll) {
 function newEventView() {
   const suggestions = [...new Set([
     myName(), ...recentPeople(state.polls), ...recentPeople(state.lists), ...recentPeople(state.spends), ...recentNames(state.games),
-  ].filter(Boolean))].slice(0, 12);
+  ].filter(Boolean))].filter((name) => !writtenNames(state.newEventPeople).has(name.toLowerCase())).slice(0, 12);
 
   return `
     ${flashHtml()}
@@ -16978,6 +17223,7 @@ function newEventView() {
         <input type="date" id="event-until" value="${escapeHtml(state.newEventUntil)}" />
       </label>
 
+      ${rosterPickHtml(state.newEventPeople, t('events.peopleHint')) || `
       <div class="stack stack--tight">
         <span class="muted small">${escapeHtml(t('events.peopleHint'))}</span>
         ${state.newEventPeople
@@ -17003,7 +17249,7 @@ function newEventView() {
                 .join('')}</div>`
             : ''
         }
-      </div>
+      </div>`}
 
       ${willBeInHtml({ events: false })}
 
@@ -17014,6 +17260,7 @@ function newEventView() {
 function bindNewEvent() {
   const form = view.querySelector('#new-event');
   if (!form) return;
+  keepUntilAfter(view.querySelector('#event-day'), view.querySelector('#event-until'));
 
   const snapshot = () => {
     state.newEventName = view.querySelector('#event-name').value;
@@ -17035,6 +17282,15 @@ function bindNewEvent() {
   view.querySelector('#drop-person')?.addEventListener('click', () => {
     snapshot();
     state.newEventPeople = state.newEventPeople.slice(0, -1);
+    render();
+  });
+
+  // Where the group fixes its first names, the people are ticked, not typed.
+  bindRosterPick(view, () => state.newEventPeople, (names) => {
+    state.newEventPeople = names;
+  });
+  view.querySelector('form')?.addEventListener('rosterchange', () => {
+    snapshot();
     render();
   });
 
@@ -17063,7 +17319,7 @@ function bindNewEvent() {
     snapshot();
     const poll = signed(organise(landing(createEvent({
       name: state.newEventName,
-      names: state.newEventPeople,
+      names: peopleForNew(state.newEventPeople),
       date: state.newEventDay,
       at: state.newEventHour,
       until: state.newEventUntil,
@@ -17083,7 +17339,7 @@ function bindNewEvent() {
 function newSpendView() {
   const suggestions = [...new Set([
     myName(), ...recentPeople(state.spends), ...recentPeople(state.lists), ...recentNames(state.games),
-  ].filter(Boolean))].slice(0, 12);
+  ].filter(Boolean))].filter((name) => !writtenNames(state.newSpendPeople).has(name.toLowerCase())).slice(0, 12);
 
   return `
     ${flashHtml()}
@@ -17106,6 +17362,7 @@ function newSpendView() {
         </select>
       </label>
 
+      ${rosterPickHtml(state.newSpendPeople, t('spends.peopleHint')) || `
       <div class="stack stack--tight">
         <span class="muted small">${escapeHtml(t('spends.peopleHint'))}</span>
         ${state.newSpendPeople
@@ -17131,7 +17388,7 @@ function newSpendView() {
                 .join('')}</div>`
             : ''
         }
-      </div>
+      </div>`}
 
       ${willBeInHtml()}
 
@@ -17260,6 +17517,7 @@ function amountFieldHtml(spend, { id, cents = null, paid = null, pill = false })
         </label>
         <span class="muted small" data-converted aria-live="polite"></span>
       </div>
+      <p class="late small" data-amount-problem aria-live="polite" hidden></p>
     </div>`;
 }
 
@@ -17277,6 +17535,7 @@ function bindAmountField(root, spend, changed = () => {}) {
   const pick = box.querySelector('[data-currency]');
   const rate = box.querySelector('[data-rate]');
   const note = box.querySelector('[data-converted]');
+  const amountProblem = box.querySelector('[data-amount-problem]');
 
   const read = () => {
     const currency = pick.value || own;
@@ -17296,6 +17555,7 @@ function bindAmountField(root, spend, changed = () => {}) {
     box.querySelector('[data-rate-sign]').textContent = currencySymbol(now.currency);
     box.querySelector('[data-rate-row]').hidden = now.currency === own;
     note.classList.remove('late');
+    if (now.amount) amountProblem.hidden = true;
     note.textContent = now.cents && now.currency !== own ? t('spends.converted', { amount: money(now.cents, spend) }) : '';
   };
 
@@ -17316,13 +17576,19 @@ function bindAmountField(root, spend, changed = () => {}) {
   }
   refresh();
 
-  const problem = () => {
+  // `inField`: said under the field — a window that has its own place for
+  // mistakes only takes the words back.
+  const problem = (inField = true) => {
     const now = read();
     if (now.error === 'rate') {
       note.textContent = t('spends.notARate', { sign: currencySymbol(own) });
       note.classList.add('late');
       rate.focus();
     } else {
+      // Said under the field, where the eyes are: a message at the top of
+      // the page would be out of sight, and redrawing would wipe the rest.
+      amountProblem.textContent = t('spends.notAnAmount');
+      amountProblem.hidden = !inField;
       input.focus();
     }
     return now.error === 'rate' ? t('spends.notARate', { sign: currencySymbol(own) }) : t('spends.notAnAmount');
@@ -17539,7 +17805,7 @@ function spendView(spend) {
   }
   const rows = balances(spend);
   const moves = settle(spend);
-  const me = sameName(myName());
+  const me = sameName(myNameFor(spend));
 
   const segmented = `
     <div class="segmented" role="tablist" aria-label="${escapeHtml(t('spends.sections'))}">
@@ -17766,6 +18032,15 @@ function bindNewSpend() {
     render();
   });
 
+  // Where the group fixes its first names, the people are ticked, not typed.
+  bindRosterPick(view, () => state.newSpendPeople, (names) => {
+    state.newSpendPeople = names;
+  });
+  view.querySelector('form')?.addEventListener('rosterchange', () => {
+    snapshot();
+    render();
+  });
+
   view.querySelectorAll('[data-new-group]').forEach((chip) => {
     chip.addEventListener('click', () => {
       snapshot();
@@ -17791,7 +18066,7 @@ function bindNewSpend() {
     snapshot();
     const spend = landing(createSpend({
       name: state.newSpendName,
-      names: state.newSpendPeople,
+      names: peopleForNew(state.newSpendPeople),
       currency: state.newSpendCurrency,
     }));
     state.spends = [...state.spends, spend];
@@ -17837,14 +18112,9 @@ function bindSpend(spend) {
     event.preventDefault();
     const text = view.querySelector('#spend-text');
     const paid = amountField.read();
-    if (paid.error === 'rate') {
-      // Said under the rate, without redrawing what has been typed.
-      amountField.problem();
-      return;
-    }
     if (paid.error) {
-      flash(t('spends.notAnAmount'), 'error');
-      render();
+      // Said under the field, without redrawing what has been typed.
+      amountField.problem();
       return;
     }
     // Tous cochés (ou une seule personne, sans case) : « tout le monde » au
@@ -18010,7 +18280,7 @@ function openSpendLineDialog(spend, lineId) {
   dialog.querySelector('#line-save').addEventListener('click', () => {
     const paid = amountField.read();
     if (paid.error) {
-      problem(amountField.problem());
+      problem(amountField.problem(false));
       return;
     }
     const shared = split.read();
@@ -18079,6 +18349,7 @@ function openRepayDialog(spend, { move = null, line = null }) {
         ${escapeHtml(t('spends.when'))}
         <input type="date" id="repay-day" value="${escapeHtml(line?.day || dayNow())}" />
       </label>
+      <p class="late small" id="repay-error" aria-live="polite" hidden></p>
       <div class="row">
         <button type="button" class="button button--primary" id="repay-save">
           ${escapeHtml(line ? t('action.save') : t('spends.markPaid'))}
@@ -18094,17 +18365,16 @@ function openRepayDialog(spend, { move = null, line = null }) {
     const day = dialog.querySelector('#repay-day').value || dayNow();
     const payer = dialog.querySelector('#repay-from')?.value || from;
     const payee = dialog.querySelector('#repay-to')?.value || to;
+    // A mistake is said in the window, which stays open with what was typed.
+    const wrong = !cents ? t('spends.notAnAmount') : payer === payee ? t('spends.repaySame') : '';
+    if (wrong) {
+      const error = dialog.querySelector('#repay-error');
+      error.textContent = wrong;
+      error.hidden = false;
+      dialog.querySelector(cents ? '#repay-to' : '#repay-amount')?.focus();
+      return;
+    }
     dialog.close();
-    if (!cents) {
-      flash(t('spends.notAnAmount'), 'error');
-      render();
-      return;
-    }
-    if (payer === payee) {
-      flash(t('spends.repaySame'), 'error');
-      render();
-      return;
-    }
     const current = getSpend(spend.id) || spend;
     replaceSpend(line
       ? editSpend(current, line.id, { amount: cents, by: payer, forWhom: [payee], day })
@@ -18157,6 +18427,7 @@ function askLatecomer(name) {
 function openSpendPeopleDialog(spend) {
   const held = () => getSpend(spend.id) || spend;
   openPeopleEditor({
+    roster: rosterFor(held()),
     hint: t('spends.peoplePartsHint'),
     extra: {
       html: (person) => `
@@ -18913,7 +19184,9 @@ function newGameView() {
   while (state.newGameNames.length < min) state.newGameNames.push('');
   const names = state.newGameNames.slice(0, Math.max(min, Math.min(state.newGameNames.length, max)));
 
-  const known = [...new Set([isTeam ? '' : myName(), ...recentNames(state.games)].filter(Boolean))];
+  // In a group that fixes its first names, only those are proposed.
+  const fixed = isTeam ? [] : rosterForNew();
+  const known = fixed.length ? fixed : [...new Set([isTeam ? '' : myName(), ...recentNames(state.games)].filter(Boolean))];
   const nameRows = names
     .map(
       (value, index) => `
@@ -19900,9 +20173,25 @@ function bindNewGame() {
     const preset = getPreset(presetId);
     const config = readConfigFromForm();
     const [min, max] = preset.players;
-    const names = state.newGameNames
+    let names = state.newGameNames
       .slice(0, max)
       .map((name, index) => (name || '').trim() || t(config.entrantLabel === 'team' ? 'new.teamName' : 'new.playerName', { n: index + 1 }));
+
+    // In a group that fixes its first names, the players are among them —
+    // written as the list writes them. Teams are not people: any name.
+    const roster = config.entrantLabel === 'team' ? [] : rosterForNew();
+    if (roster.length) {
+      const { group } = destinationForNew();
+      const mine = myNameIn(group.id);
+      const listed = names.map((name) => rosterName(group.id, name)
+        || (mine && name.toLowerCase() === myName().toLowerCase() ? mine : ''));
+      if (listed.some((name) => !name)) {
+        flash(t('roster.gameNames', { name: group.name, names: roster.join(', ') }), 'error');
+        render();
+        return;
+      }
+      names = listed;
+    }
 
     if (names.length < min || names.length > max) {
       flash(t('new.errorPlayers', { min, max, label: t(config.entrantLabel === 'team' ? 'new.teams' : 'new.players').toLowerCase() }), 'error');
@@ -20509,6 +20798,7 @@ function bindGame(game) {
 
 
 
+
 /* ------------------------------------------------------------- the chain --- */
 
 /** Write a document back, whatever its kind. */
@@ -20754,6 +21044,140 @@ function forgetGroup(id) {
   savePrefs(state.prefs);
 }
 
+/** The first names a group has fixed, as the database gave them — or none. */
+function fixedPeople(found) {
+  return Array.isArray(found?.people)
+    ? found.people.filter((name) => typeof name === 'string' && name.trim()).map((name) => name.trim().slice(0, 24))
+    : [];
+}
+
+/** The first name this device's person entered the group under, as the database has it. */
+function knownAs(found) {
+  return typeof found?.who === 'string' ? found.who.trim().slice(0, 24) : '';
+}
+
+/**
+ * The first names a group has decided on, or [] when it fixes none.
+ *
+ * Decided in advance by whoever lets people in, on the group's page: then a
+ * list, a poll or an account of the group takes its people from these names
+ * and no others — « Gui » is not « Guillaume » in the next list.
+ */
+function rosterOf(groupId) {
+  const group = groupId ? groups().find((held) => held.id === groupId) : null;
+  return Array.isArray(group?.people) ? group.people : [];
+}
+
+/** A name as the group's list writes it, or '' when it is not on it. */
+function rosterName(groupId, name) {
+  const key = sameName(name);
+  return (key && rosterOf(groupId).find((one) => sameName(one) === key)) || '';
+}
+
+/**
+ * Who this device is in a group. Where the group fixes its names: the one
+ * chosen there, or the device's own name when the list has it — and nobody
+ * until one is chosen. Elsewhere, the device's name.
+ */
+function myNameIn(groupId) {
+  if (!rosterOf(groupId).length) return myName();
+  const group = groups().find((held) => held.id === groupId);
+  return rosterName(groupId, group?.me) || rosterName(groupId, myName());
+}
+
+/**
+ * The names a document takes its people from: its group's, when the group
+ * fixes them. A link-only document is in no group's tabs, and takes any.
+ */
+function rosterFor(document_) {
+  return document_?.groupId && !document_.linkOnly ? rosterOf(document_.groupId) : [];
+}
+
+/** Who this device is for a document: in its group, or by its own name. */
+function myNameFor(document_) {
+  return rosterFor(document_).length ? myNameIn(document_.groupId) : myName();
+}
+
+/** Say who this device is in a group that fixes its names. */
+function setMyNameIn(groupId, name) {
+  const group = groups().find((held) => held.id === groupId);
+  const listed = rosterName(groupId, name);
+  if (!group || !listed || group.me === listed) return;
+  rememberGroup({ ...group, me: listed });
+}
+
+/** A window of names, to touch one. Answers it, or '' when the window is left. */
+function chooseName(names, title, hint) {
+  return new Promise((resolve) => {
+    const dialog = makeDialog();
+    let chosen = '';
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(title)}</h2>
+        <p class="muted small">${escapeHtml(hint)}</p>
+        <div class="row row--chips">
+          ${names.map((name) => `<button type="button" class="chip" data-who="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')}
+        </div>
+        <div class="row">
+          <button type="button" class="button button--ghost" data-who-cancel>${escapeHtml(t('action.cancel'))}</button>
+        </div>
+      </div>`;
+    dialog.querySelectorAll('[data-who]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        chosen = chip.dataset.who;
+        dialog.close();
+      });
+    });
+    dialog.querySelector('[data-who-cancel]').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('close', () => resolve(chosen));
+    dialog.showModal();
+  });
+}
+
+/**
+ * « Qui êtes-vous dans ce groupe ? » — the group's names, to touch one. Kept
+ * for the group; answers the name, or '' when the window is left.
+ */
+async function askWhoIn(groupId) {
+  const group = groups().find((held) => held.id === groupId);
+  const roster = rosterOf(groupId);
+  if (!group || !roster.length) return '';
+  const chosen = await chooseName(roster, t('roster.whoTitle', { name: group.name }), t('roster.whoHint'));
+  if (chosen) setMyNameIn(groupId, chosen);
+  return chosen;
+}
+
+/**
+ * Knock at a group's door as `me`. Where the group fixes its first names and
+ * `me` is none of them, they are shown, to touch one, and the knock is made
+ * again as that one. Answers as remote.ask() does, with `me`: who knocked —
+ * and { status: 'who' } when no name was chosen. Throws when out of reach.
+ */
+async function knockAs(name, code, me) {
+  const answer = await state.remote.ask(name, code, me, deviceLabel());
+  if (answer.status !== 'who') return { ...answer, me };
+  const chosen = await chooseName(answer.people, t('roster.whoTitle', { name }), t('roster.whoHint'));
+  if (!chosen) return { status: 'who', me };
+  return { ...(await state.remote.ask(name, code, chosen, deviceLabel())), me: chosen };
+}
+
+/**
+ * The names written in a group's documents that its list does not have:
+ * each is to be merged into a name of the list, or added to it.
+ */
+function offRoster(groupId, names) {
+  if (!rosterOf(groupId).length) return [];
+  const seen = new Set();
+  const out = [];
+  for (const name of names) {
+    const key = sameName(name);
+    if (!key || seen.has(key) || rosterName(groupId, name)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}
+
 /** The groups by name, so the pastilles keep their order from render to render. */
 function groupsByName() {
   return [...groups()].sort((a, b) => String(a.name).localeCompare(String(b.name)));
@@ -20930,6 +21354,90 @@ function willBeInHtml({ events = true } = {}) {
   return `${groupChoiceHtml()}${events ? eventChoiceHtml() : ''}`;
 }
 
+/**
+ * The names a new document may take its people from — those of the group it
+ * is about to land in, when that group fixes them — or [] for any name.
+ */
+function rosterForNew() {
+  const { group, linkOnly } = destinationForNew();
+  return group && !linkOnly ? rosterOf(group.id) : [];
+}
+
+/**
+ * The people of a new document: those written, or — where the group fixes its
+ * names — those of them the list has, as it writes them and in its order. The
+ * device's own name stands for whoever it is in that group.
+ */
+function peopleForNew(names) {
+  const roster = rosterForNew();
+  if (!roster.length) return names;
+  const { group } = destinationForNew();
+  const me = sameName(myName());
+  const mine = sameName(myNameIn(group.id));
+  const keys = new Set(names.map(sameName).filter(Boolean).map((key) => (key === me && mine ? mine : key)));
+  return roster.filter((name) => keys.has(sameName(name)));
+}
+
+/**
+ * The people of a new document, where its group fixes its first names: the
+ * list, to tick — nothing to type, so nothing to mistype. '' elsewhere: the
+ * form keeps its fields.
+ */
+function rosterPickHtml(names, hint) {
+  const roster = rosterForNew();
+  if (!roster.length) return '';
+  const { group } = destinationForNew();
+  const on = new Set(peopleForNew(names).map(sameName));
+  return `
+    <div class="stack stack--tight" data-roster-pick>
+      <span class="muted small">${escapeHtml(hint)}</span>
+      <div class="row row--chips" role="group" aria-label="${escapeHtml(t('roster.title'))}">
+        ${roster
+          .map((name) => `
+            <button type="button" class="chip ${on.has(sameName(name)) ? 'chip--on' : ''}"
+                    data-roster-name="${escapeHtml(name)}" aria-pressed="${on.has(sameName(name)) ? 'true' : 'false'}">
+              ${escapeHtml(name)}
+            </button>`)
+          .join('')}
+      </div>
+      <div class="row">
+        <button type="button" class="button button--small button--ghost" data-roster-all>${escapeHtml(t('roster.everyone'))}</button>
+      </div>
+      <p class="muted small">${escapeHtml(t('roster.formHint', { name: group.name }))}</p>
+    </div>`;
+}
+
+/**
+ * Make the ticked list work: `read()` gives the form's names, `write(names)`
+ * keeps them. A group or an event chosen further down the form may change
+ * whose list this is: the form is then told (« rosterchange ») and redraws.
+ */
+function bindRosterPick(root, read, write) {
+  const mark = () => {
+    const on = new Set(peopleForNew(read()).map(sameName));
+    root.querySelectorAll('[data-roster-name]').forEach((chip) => {
+      const lit = on.has(sameName(chip.dataset.rosterName));
+      chip.classList.toggle('chip--on', lit);
+      chip.setAttribute('aria-pressed', lit ? 'true' : 'false');
+    });
+  };
+  root.querySelectorAll('[data-roster-name]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const key = sameName(chip.dataset.rosterName);
+      const held = peopleForNew(read());
+      write(held.some((name) => sameName(name) === key)
+        ? held.filter((name) => sameName(name) !== key)
+        : [...held, chip.dataset.rosterName]);
+      mark();
+    });
+  });
+  root.querySelector('[data-roster-all]')?.addEventListener('click', () => {
+    const all = rosterForNew();
+    write(peopleForNew(read()).length === all.length ? [] : [...all]);
+    mark();
+  });
+}
+
 function groupChoiceHtml() {
   const held = groups();
   if (!state.remote || !held.length) return '';
@@ -20983,8 +21491,15 @@ function bindEventChips(root) {
   root.querySelectorAll('[data-new-event]').forEach((node) => {
     node.addEventListener('click', () => {
       const poll = state.polls.find((one) => one.id === node.dataset.newEvent) || null;
+      const before = rosterForNew().join('\n');
       chooseEvent(poll);
       const form = node.closest('form') || root;
+      // The event brought its group along, and that group's first names: the
+      // form redraws its people (it keeps what was typed first).
+      if (rosterForNew().join('\n') !== before) {
+        form.dispatchEvent(new CustomEvent('rosterchange'));
+        return;
+      }
       const mark = (selector, value) => form.querySelectorAll(selector).forEach((other) => {
         const on = other.dataset[selector === '[data-new-event]' ? 'newEvent' : 'newGroup'] === value;
         other.classList.toggle('chip--on', on);
@@ -21535,6 +22050,7 @@ async function joinGroup(key) {
   rememberGroup({
     id: group.id, name: group.name, key: clean, admits: Boolean(group.admits),
     accounts: Boolean(group.accounts), linked: Boolean(group.linked), channel: liveChannel(group),
+    people: fixedPeople(group),
   });
   return group;
 }
@@ -21564,10 +22080,13 @@ async function verifyGroups() {
     }
     if (found.name !== group.name || Boolean(found.admits) !== group.admits
         || Boolean(found.accounts) !== Boolean(group.accounts) || Boolean(found.linked) !== Boolean(group.linked)
-        || liveChannel(found) !== (group.channel || '')) {
+        || liveChannel(found) !== (group.channel || '')
+        || fixedPeople(found).join('\n') !== rosterOf(group.id).join('\n')
+        || (!group.me && found.who)) {
       rememberGroup({
         ...group, name: found.name || group.name, admits: Boolean(found.admits),
         accounts: Boolean(found.accounts), linked: Boolean(found.linked), channel: liveChannel(found),
+        people: fixedPeople(found), me: group.me || knownAs(found),
       });
       learnt = true;
     }
@@ -21637,9 +22156,11 @@ async function checkPending(knock) {
     // ticket it was just handed is an ordinary key, and the one it holds may be
     // the only one in the group that lets anyone in.
     const alreadyIn = groups().find((item) => item.id === answer.id);
-    const group = alreadyIn || { id: answer.id, name: answer.name || knock.groupName, key: knock.ticket, admits: false };
+    const group = alreadyIn || { id: answer.id, name: answer.name || knock.groupName, key: knock.ticket, admits: false, me: knock.me || '' };
     rememberGroup(group);
     forgetPending(knock.ticket);
+    // The names the group fixes, among which this device has just said who it is.
+    await refreshGroup(group);
     let taken = 0;
     try {
       taken = await catchUpWith(group);
@@ -21775,9 +22296,12 @@ async function refreshGroup(group) {
     return false;
   }
   if (!found) return false;
+  // Read again: the group may have been remembered anew while the answer came.
+  const held = groups().find((one) => one.id === group.id) || group;
   rememberGroup({
-    ...group, name: found.name || group.name, admits: Boolean(found.admits),
+    ...held, name: found.name || held.name, admits: Boolean(found.admits),
     accounts: Boolean(found.accounts), linked: Boolean(found.linked), channel: liveChannel(found),
+    people: fixedPeople(found), me: held.me || knownAs(found),
   });
   return true;
 }
@@ -22468,7 +22992,7 @@ function openTicketDialog(spend, list, picked) {
   const holder = holders.length === 1 ? source.people.find((person) => person.id === holders[0])?.name || '' : '';
   const names = [...new Set([holder, ...account.people.map((person) => person.name), ...source.people.map((person) => person.name)]
     .map((name) => String(name || '').trim()).filter(Boolean))];
-  let payer = holder || names.find((name) => sameName(name) === sameName(myName())) || names[0] || '';
+  let payer = holder || names.find((name) => sameName(name) === sameName(myNameFor(account))) || names[0] || '';
   const guess = () => estimateOf(lines());
 
   const dialog = makeDialog();
@@ -22587,7 +23111,7 @@ async function voteOnIdeas(board) {
     confirmLabel: t('flows.voteMake'),
   });
   if (question === null || question === undefined) return;
-  const poll = signed(organise(pollFromIdeas(board, { question, names: [myName()].filter(Boolean) })));
+  const poll = signed(organise(pollFromIdeas(board, { question, names: [myNameFor(board)].filter(Boolean) })));
   state.polls = [...state.polls, poll];
   persistPoll(poll);
   flash(t('flows.voteMade'));
@@ -24813,6 +25337,8 @@ function bindLook(view) {
 
 
 
+
+
 /* --------------------------------------------------------------- overview --- */
 
 /**
@@ -25307,7 +25833,7 @@ function groupBoardHtml(group) {
  */
 function groupPeopleHtml(group) {
   const mine = (documents) => documents.filter((document_) => inGroup(document_, group.id));
-  const me = sameName(myName());
+  const me = sameName(myNameIn(group.id));
   const names = [...peopleIn({
     lists: mine(state.lists), polls: mine(state.polls), games: mine(state.games), spends: mine(state.spends),
   })].sort((a, b) => (me ? (sameName(a) === me ? 0 : 1) - (sameName(b) === me ? 0 : 1) : 0) || a.localeCompare(b));
@@ -25327,6 +25853,196 @@ function groupPeopleHtml(group) {
       <summary>${escapeHtml(t('group.who'))}</summary>
       <div class="game-list">${names.map(row).join('')}</div>
     </details>`;
+}
+
+/** The names written in a group's lists, polls and accounts. */
+function namesWrittenIn(group) {
+  const mine = (documents) => documents.filter((document_) => inGroup(document_, group.id) && !document_.linkOnly);
+  return peopleIn({ lists: mine(state.lists), polls: mine(state.polls), spends: mine(state.spends) });
+}
+
+/**
+ * The first names of a group, decided in advance by whoever lets people in:
+ * a list, a poll or an account of the group then takes its people from these
+ * names and no others. Here the list is fixed and changed, each device says
+ * which name it is, and a name written otherwise before — « Guillaume » when
+ * the list says « Gui » — is merged into one of the list, on a touch.
+ */
+function groupRosterHtml(group) {
+  const roster = rosterOf(group.id);
+  const admits = group.admits !== false;
+  if (!roster.length) {
+    if (!admits || !state.remote) return '';
+    return `
+      <section class="section card stack stack--tight" id="group-roster">
+        <div class="section__head"><h2>${escapeHtml(t('roster.title'))}</h2></div>
+        <p class="muted small">${escapeHtml(t('roster.offHint'))}</p>
+        <div class="row">
+          <button type="button" class="button button--small" data-roster-edit>${escapeHtml(t('roster.fix'))}</button>
+        </div>
+      </section>`;
+  }
+  const me = myNameIn(group.id);
+  const strays = offRoster(group.id, namesWrittenIn(group));
+  return `
+    <section class="section card stack stack--tight" id="group-roster">
+      <div class="section__head">
+        <h2>${escapeHtml(t('roster.title'))}</h2>
+        ${admits ? `<button type="button" class="button button--small button--ghost" data-roster-edit>${escapeHtml(t('roster.edit'))}</button>` : ''}
+      </div>
+      <p class="muted small">${escapeHtml(t(admits ? 'roster.onHintGate' : 'roster.onHint'))}</p>
+      <div class="row row--chips iam ${me ? '' : 'iam--needed'}" role="group" aria-label="${escapeHtml(t('polls.iAm'))}">
+        <span class="muted small">${escapeHtml(t('polls.iAm'))}</span>
+        ${roster
+          .map((name) => `
+            <button type="button" class="chip ${name === me ? 'chip--on' : ''}" data-roster-me="${escapeHtml(name)}"
+                    aria-pressed="${name === me ? 'true' : 'false'}">${escapeHtml(name)}</button>`)
+          .join('')}
+      </div>
+      ${me ? '' : `<p class="late small">${escapeHtml(t('roster.pickMe'))}</p>`}
+      ${
+        strays.length
+          ? `<div class="stack stack--tight" id="roster-strays">
+               <p class="small">${escapeHtml(t('roster.strays'))}</p>
+               ${strays
+                 .map((name) => `
+                   <div class="knock">
+                     <strong>${escapeHtml(name)}</strong>
+                     <div class="row">
+                       <button type="button" class="button button--small" data-stray-merge="${escapeHtml(name)}">${escapeHtml(t('roster.merge'))}</button>
+                       ${admits ? `<button type="button" class="button button--small button--ghost" data-stray-add="${escapeHtml(name)}">${escapeHtml(t('roster.addToList'))}</button>` : ''}
+                     </div>
+                   </div>`)
+                 .join('')}
+             </div>`
+          : ''
+      }
+    </section>`;
+}
+
+/** Keep the group's first names in the database, then here. Null when it could not. */
+async function saveRoster(group, names) {
+  let kept = null;
+  try {
+    kept = await state.remote.setPeople(group.key, names);
+  } catch {
+    kept = null;
+  }
+  if (!kept) return null;
+  const held = groups().find((one) => one.id === group.id) || group;
+  rememberGroup({ ...held, people: kept });
+  return kept;
+}
+
+/** Fix the group's first names, change them, or stop fixing them. */
+function openRosterDialog(group) {
+  const roster = rosterOf(group.id);
+  // Nothing fixed yet: start from the names the group already writes.
+  const start = roster.length ? roster : distinctNames([myName(), ...namesWrittenIn(group)]);
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('roster.editTitle', { name: group.name }))}</h2>
+      <p class="muted small">${escapeHtml(t('roster.editHint'))}</p>
+      <label class="visually-hidden" for="roster-names">${escapeHtml(t('roster.title'))}</label>
+      <textarea id="roster-names" rows="8" autocomplete="off">${escapeHtml(start.join('\n'))}</textarea>
+      <p class="late small" id="roster-problem" aria-live="polite" hidden></p>
+      <div class="row">
+        <button type="button" class="button button--primary" data-roster-save>${escapeHtml(t('action.save'))}</button>
+        <button type="button" class="button" data-roster-cancel>${escapeHtml(t('action.cancel'))}</button>
+        ${roster.length ? `<button type="button" class="button button--ghost" data-roster-off>${escapeHtml(t('roster.stop'))}</button>` : ''}
+      </div>
+    </div>`;
+  const keep = async (names, said) => {
+    const buttons = dialog.querySelectorAll('button');
+    buttons.forEach((button) => { button.disabled = true; });
+    const kept = await saveRoster(group, names);
+    if (!kept) {
+      buttons.forEach((button) => { button.disabled = false; });
+      const problem = dialog.querySelector('#roster-problem');
+      problem.textContent = t('groups.unsure');
+      problem.hidden = false;
+      return;
+    }
+    dialog.close();
+    flash(said(kept));
+    render();
+  };
+  dialog.querySelector('[data-roster-save]').addEventListener('click', () => {
+    const names = distinctNames(dialog.querySelector('#roster-names').value.split('\n')).map((name) => name.slice(0, NAME_KEPT));
+    if (!names.length && !roster.length) {
+      dialog.querySelector('#roster-names').focus();
+      return;
+    }
+    void keep(names, (kept) => (kept.length ? t('roster.saved', { count: kept.length }) : t('roster.stopped')));
+  });
+  dialog.querySelector('[data-roster-off]')?.addEventListener('click', () => void keep([], () => t('roster.stopped')));
+  dialog.querySelector('[data-roster-cancel]').addEventListener('click', () => dialog.close());
+  dialog.showModal();
+}
+
+/** « Guillaume », written before the list said « Gui »: which name of the list is it? */
+function openMergeDialog(group, stray) {
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('roster.mergeTitle', { name: stray }))}</h2>
+      <p class="muted small">${escapeHtml(t('roster.mergeHint', { name: stray }))}</p>
+      <div class="row row--chips">
+        ${rosterOf(group.id).map((name) => `<button type="button" class="chip" data-merge-into="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')}
+      </div>
+      <div class="row">
+        <button type="button" class="button button--ghost" data-merge-cancel>${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </div>`;
+  dialog.querySelectorAll('[data-merge-into]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const into = chip.dataset.mergeInto;
+      dialog.close();
+      const { touched, left } = renameAcross(stray, into, (document_) => inGroup(document_, group.id));
+      flash(left
+        ? t('roster.mergedLeft', { before: stray, after: into, count: touched, left })
+        : t('roster.merged', { before: stray, after: into, count: touched }), left ? 'error' : 'info');
+      render();
+    });
+  });
+  dialog.querySelector('[data-merge-cancel]').addEventListener('click', () => dialog.close());
+  dialog.showModal();
+}
+
+/** When each group's first names were last asked for, so a page redrawn does not ask again. */
+const rosterAskedAt = new Map();
+
+function bindGroup(group) {
+  view.querySelectorAll('[data-roster-me]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      setMyNameIn(group.id, chip.dataset.rosterMe);
+      render();
+    });
+  });
+  view.querySelector('[data-roster-edit]')?.addEventListener('click', () => openRosterDialog(group));
+  view.querySelectorAll('[data-stray-merge]').forEach((button) => {
+    button.addEventListener('click', () => openMergeDialog(group, button.dataset.strayMerge));
+  });
+  view.querySelectorAll('[data-stray-add]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      const kept = await saveRoster(group, [...rosterOf(group.id), button.dataset.strayAdd]);
+      flash(kept ? t('roster.added', { name: button.dataset.strayAdd }) : t('groups.unsure'), kept ? 'info' : 'error');
+      render();
+    });
+  });
+
+  // The names may have been changed from another device: asked on arriving
+  // here, and the page redrawn only if they did change.
+  if (state.remote && Date.now() - (rosterAskedAt.get(group.id) || 0) > 30000) {
+    rosterAskedAt.set(group.id, Date.now());
+    const before = rosterOf(group.id).join('\n');
+    void refreshGroup(group).then(() => {
+      const here = route();
+      if (rosterOf(group.id).join('\n') !== before && !isBusy() && here.name === 'group' && here.id === group.id) render();
+    });
+  }
 }
 
 /**
@@ -25391,6 +26107,7 @@ function groupView(group) {
       + ${escapeHtml(t('create.title'))}
     </button>
     ${sections || `<p class="muted small">${escapeHtml(t('group.nothing'))}</p>`}
+    ${groupRosterHtml(group)}
     ${groupPeopleHtml(group)}`;
 }
 
@@ -25673,14 +26390,41 @@ function forYouItems() {
       meta: t('forYou.knocksWhere', { name: group.name }),
     });
   }
-  const me = myName();
-  if (!me) return { items, noName: true };
-
-  const file = personFile({
-    lists: shownDocs(state.lists), polls: shownDocs(state.polls), spends: shownDocs(state.spends),
-  }, me);
+  // A group has fixed its first names, and this device has not said which
+  // one it is: nothing of that group can be « for you » until it does.
+  for (const group of groupsByName()) {
+    if (!rosterOf(group.id).length || myNameIn(group.id)) continue;
+    items.push({ goto: `#/group/${group.id}`, title: group.name, meta: t('roster.forYou') });
+  }
+  // One first name in each group that fixes its names, the device's own
+  // elsewhere: what waits on this device is gathered name by name.
+  const sorted = new Map();
+  for (const [kind, documents] of [['lists', state.lists], ['polls', state.polls], ['spends', state.spends]]) {
+    for (const one of shownDocs(documents)) {
+      const name = myNameFor(one);
+      if (!name) continue;
+      const key = sameName(name);
+      if (!sorted.has(key)) sorted.set(key, { name, lists: [], polls: [], spends: [] });
+      sorted.get(key)[kind].push(one);
+    }
+  }
+  if (!myName() && !sorted.size) return { items, noName: true };
+  const files = [...sorted.values()].map((held) => ({ ...held, file: personFile(held, held.name) }));
+  const file = {
+    votes: files.flatMap((held) => held.file.votes),
+    lines: files.flatMap((held) => held.file.lines),
+    accounts: files.flatMap((held) => held.file.accounts),
+  };
   for (const row of file.votes.filter((one) => !one.closed && !one.answered)) {
     items.push({ goto: `#/poll/${row.poll.id}`, title: pollTitle(row.poll), meta: t('forYou.vote') + forEventText(row.poll) });
+  }
+  // Everyone has answered a poll this device organises, and it is still
+  // open: the next move is the organiser's, who may not look at it again.
+  for (const poll of shownDocs(state.polls)) {
+    if (poll.closedAt || poll.date || poll.archivedAt || isEvent(poll) || !isOrganiser(poll)) continue;
+    if (poll.people.length < 2 || !poll.options.length) continue;
+    if (tally(poll).answered < poll.people.length) continue;
+    items.push({ goto: `#/poll/${poll.id}`, title: pollTitle(poll), meta: t('forYou.decide') + forEventText(poll) });
   }
   for (const row of file.lines.filter((one) => one.left > 0).sort((a, b) => b.late - a.late)) {
     items.push({
@@ -25691,7 +26435,7 @@ function forYouItems() {
     });
   }
   // Bought, ticked, and in no account yet: the receipt is still in a pocket.
-  for (const row of purchasesToWrite(me, shownDocs(state.lists), everything())) {
+  for (const row of files.flatMap((held) => purchasesToWrite(held.name, held.lists, everything()))) {
     items.push({
       goto: `#/list/${row.list.id}`,
       title: listTitle(row.list),
@@ -25914,7 +26658,7 @@ function bindOverview() {
 
     let answer = { status: 'unknown' };
     try {
-      answer = await state.remote.ask(name, code, me, deviceLabel());
+      answer = await knockAs(name, code, me);
     } catch {
       button.disabled = false;
       return joining(line, t('groups.unsure'));
@@ -25922,13 +26666,14 @@ function bindOverview() {
     button.disabled = false;
 
     if (answer.status === 'busy') return joining(line, t('gate.busy'));
+    if (answer.status === 'who') return joining(line, t('roster.whoNeeded'));
     if (answer.status !== 'waiting') return joining(line, t('groups.codeRefused'));
 
     rememberPending({
       ticket: answer.ticket,
       groupId: answer.id,
       groupName: answer.name || name,
-      me,
+      me: answer.me,
       at: Date.now(),
     });
     flash(t('gate.asked', { name: answer.name || name }));
@@ -26336,9 +27081,12 @@ function bindBack(token) {
     if (answer.status === 'busy') return void (line.textContent = t('gate.busy'));
     if (answer.status !== 'ok') return void (line.textContent = t('back.refused'));
 
-    if (answer.who) setMyName(answer.who);
-    const group = { id: answer.id, name: answer.name, key: answer.key, admits: false };
+    // The name they are in this group; the device keeps its own if it has one.
+    if (answer.who && !myName()) setMyName(answer.who);
+    const group = { id: answer.id, name: answer.name, key: answer.key, admits: false, me: answer.who || '' };
     rememberGroup(group);
+    // The first names the group fixes, of which this person is one.
+    await refreshGroup(group);
     let taken = 0;
     try {
       taken = await catchUpWith(group);
@@ -26704,7 +27452,7 @@ function bindJoin() {
     say(t('groups.checking'));
     let answer = { status: 'unknown' };
     try {
-      answer = await state.remote.ask(group, code, me, deviceLabel());
+      answer = await knockAs(group, code, me);
     } catch {
       button.disabled = false;
       knocking = false;
@@ -26714,13 +27462,14 @@ function bindJoin() {
     knocking = false;
 
     if (answer.status === 'busy') return say(t('gate.busy'));
+    if (answer.status === 'who') return say(t('roster.whoNeeded'));
     if (answer.status !== 'waiting') return say(t('groups.codeRefused'));
 
     rememberPending({
       ticket: answer.ticket,
       groupId: answer.id,
       groupName: answer.name || group,
-      me,
+      me: answer.me,
       at: Date.now(),
     });
     render();
@@ -26791,6 +27540,7 @@ function watchPending() {
 
 
 
+
 /**
  * Rename a player in every game they appear in.
  *
@@ -26810,44 +27560,7 @@ async function renameEverywhere(before) {
   if (!clean || clean === before) return;
 
   const key = sameName(before);
-  let touched = 0;
-
-  // Games first, then lists and polls: the same person, written the same way,
-  // in every document that names them. A name matched forgivingly here, as
-  // everywhere else — otherwise the rename would miss exactly the spellings it
-  // exists to reconcile.
-  for (const game of state.games) {
-    const players = game.players.filter((player) => sameName(player.name) === key);
-    if (!players.length) continue;
-    let next = game;
-    for (const player of players) next = renamePlayer(next, player.id, clean);
-    if (next === game) continue;
-    state.games = state.games.map((held) => (held.id === next.id ? next : held));
-    persist(next);
-    touched += 1;
-  }
-
-  for (const list of state.lists) {
-    const people = list.people.filter((person) => sameName(person.name) === key);
-    if (!people.length) continue;
-    let next = list;
-    for (const person of people) next = renameListPerson(next, person.id, clean);
-    if (next === list) continue;
-    state.lists = state.lists.map((held) => (held.id === next.id ? next : held));
-    persistList(next);
-    touched += 1;
-  }
-
-  for (const poll of state.polls) {
-    const people = poll.people.filter((person) => sameName(person.name) === key);
-    if (!people.length) continue;
-    let next = poll;
-    for (const person of people) next = renamePollPerson(next, person.id, clean);
-    if (next === poll) continue;
-    state.polls = state.polls.map((held) => (held.id === next.id ? next : held));
-    persistPoll(next);
-    touched += 1;
-  }
+  const { touched } = renameAcross(before, clean);
 
   flash(touched ? t('stats.renamed', { name: clean, count: touched }) : t('stats.renamedNone'));
   // The page may be keyed on the old name: follow the person to their new one.
@@ -26856,6 +27569,58 @@ async function renameEverywhere(before) {
     return;
   }
   render();
+}
+
+/**
+ * Write `before` as `after` in every document that names them — or only in
+ * those `only` keeps (a group's). Games first, then lists, polls and accounts:
+ * the same person, written the same way. A name matched forgivingly here, as
+ * everywhere else — otherwise the rename would miss exactly the spellings it
+ * exists to reconcile. A document where `after` is already someone else is
+ * left as it is (it would have them twice), and counted in `left`.
+ */
+function renameAcross(before, after, only = () => true) {
+  const key = sameName(before);
+  let touched = 0;
+  let left = 0;
+
+  for (const game of state.games.filter(only)) {
+    const players = game.players.filter((player) => sameName(player.name) === key);
+    if (!players.length) continue;
+    if (game.players.some((player) => !players.includes(player) && sameName(player.name) === sameName(after))) {
+      left += 1;
+      continue;
+    }
+    let next = game;
+    for (const player of players) next = renamePlayer(next, player.id, after);
+    if (next === game) continue;
+    state.games = state.games.map((held) => (held.id === next.id ? next : held));
+    persist(next);
+    touched += 1;
+  }
+
+  const kinds = [
+    ['lists', renameListPerson, persistList],
+    ['polls', renamePollPerson, persistPoll],
+    ['spends', renameSpendPerson, persistSpend],
+  ];
+  for (const [kind, rename, keep] of kinds) {
+    for (const document_ of state[kind].filter(only)) {
+      const people = document_.people.filter((person) => sameName(person.name) === key);
+      if (!people.length) continue;
+      let next = document_;
+      for (const person of people) next = rename(next, person.id, after);
+      if (next === document_) {
+        // Written exactly so already, or `after` is someone else in there.
+        if (people.some((person) => person.name !== after)) left += 1;
+        continue;
+      }
+      state[kind] = state[kind].map((held) => (held.id === next.id ? next : held));
+      keep(next);
+      touched += 1;
+    }
+  }
+  return { touched, left };
 }
 
 /* ---------------------------------------------------------------- person --- */
@@ -27533,7 +28298,7 @@ const WORDS_SHOWN = 2;
  * the row (an event's page), where the rest only count them.
  */
 function talkHtml(document_, target, { title = '', said = false } = {}) {
-  const me = myName();
+  const me = myNameFor(document_);
   const rows = reactionsTo(document_, target, me);
   const words = wordsOn(document_, target, me);
   const chips = rows.map((row) => `
@@ -27580,8 +28345,12 @@ function keepTalk(next) {
   else if (next.kind === 'poll') replacePoll(next);
 }
 
-/** Who reacts on this device: its first name — asked once, if it has none yet. */
-async function talkName() {
+/**
+ * Who reacts on this device: its first name — asked once, if it has none yet —
+ * or, in a group that fixes its names, the one it is there.
+ */
+async function talkName(document_) {
+  if (rosterFor(document_).length) return myNameFor(document_) || askWhoIn(document_.groupId);
   const held = myName();
   if (held) return held;
   const name = await askForText({
@@ -27594,7 +28363,7 @@ async function talkName() {
 
 /** React with `emoji` — or take it back — as this device's first name. */
 async function reactTo(id, target, emoji) {
-  const name = await talkName();
+  const name = await talkName(talkDocument(id));
   const current = talkDocument(id);
   if (!name || !current) return;
   keepTalk(react(current, target, name, emoji));
@@ -27609,7 +28378,7 @@ function openTalk(id, target, title) {
       dialog.close();
       return;
     }
-    const me = myName();
+    const me = myNameFor(current);
     const mine = myReaction(current, target, me);
     const rows = reactionsTo(current, target, me);
     const words = wordsOn(current, target, me);
@@ -27664,7 +28433,7 @@ function openTalk(id, target, title) {
         field.focus();
         return;
       }
-      const name = await talkName();
+      const name = await talkName(talkDocument(id));
       const now = talkDocument(id);
       if (!name || !now) return;
       keepTalk(addWords(now, target, name, text));
@@ -29354,6 +30123,7 @@ function flashHtml() {
   // say — is still read rather than silently dropped.
   if (!shownAt) {
     state.flash = { ...state.flash, shownAt: Date.now() };
+    state.flashFresh = kind === 'error';
   } else if (Date.now() - shownAt > FLASH_KEPT) {
     state.flash = null;
     return '';
@@ -30076,6 +30846,7 @@ function render() {
     // the filter, which then quietly sent everything the "+" made afterwards,
     // from anywhere, into this group. The "+" opened here proposes it instead.
     view.innerHTML = groupView(group);
+    bindGroup(group);
   } else if (current.name === 'back') {
     stopWatching();
     view.innerHTML = backView(current.token);
@@ -30188,9 +30959,23 @@ function render() {
   });
 
   restoreScrolls(kept);
+  showFreshError();
   fadeKinds();
   showTouched();
   arrive();
+}
+
+/**
+ * A mistake said at the head of a long form — two players with one name, a
+ * code refused — while the thumb is on the button at its foot: brought into
+ * sight, or the button seems to do nothing.
+ */
+function showFreshError() {
+  if (!state.flashFresh) return;
+  state.flashFresh = false;
+  const banner = view.querySelector('.banner--warn');
+  const bar = document.querySelector('.app-bar')?.getBoundingClientRect().bottom || 0;
+  if (banner && banner.getBoundingClientRect().top < bar) banner.scrollIntoView({ block: 'center' });
 }
 
 /**
@@ -30213,6 +30998,28 @@ function fadeKinds() {
     mark();
     row.addEventListener('scroll', mark, { passive: true });
   });
+}
+
+/**
+ * « Jusqu'au » cannot come before the day: the calendar starts at the day,
+ * and moving the day past it empties it — rather than an end kept silently
+ * nowhere (setPollDate() drops an end before the start).
+ */
+function keepUntilAfter(dayField, untilField) {
+  if (!dayField || !untilField) return;
+  const follow = () => {
+    untilField.min = dayField.value || '';
+    if (dayField.value && untilField.value && untilField.value <= dayField.value) untilField.value = '';
+  };
+  follow();
+  dayField.addEventListener('input', follow);
+  dayField.addEventListener('change', follow);
+  untilField.addEventListener('change', follow);
+}
+
+/** The names already written in a form, to offer only the others. */
+function writtenNames(names) {
+  return new Set((names || []).map((name) => String(name || '').trim().toLowerCase()).filter(Boolean));
 }
 
 /**

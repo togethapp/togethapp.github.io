@@ -137,10 +137,11 @@ if (await page.locator('#spend-add-open').count()) await page.click('#spend-add-
 await page.fill('#spend-text', 'Rien');
 await page.fill('#spend-amount', 'douze euros');
 await page.click('#add-spend button[type=submit]');
-await page.waitForSelector('.banner');
-check('un montant illisible est refusé, en disant comment écrire',
-  /12,50/.test(await page.locator('.banner').first().textContent()),
-  (await page.locator('.banner').first().textContent()).trim());
+await page.waitForSelector('[data-amount-problem]:not([hidden])');
+check('un montant illisible est refusé, en disant comment écrire, sous le champ',
+  /12,50/.test(await page.locator('[data-amount-problem]').first().textContent()),
+  (await page.locator('[data-amount-problem]').first().textContent()).trim());
+check('et ce qui était écrit reste écrit', (await page.inputValue('#spend-text')) === 'Rien');
 check('et rien n’a été ajouté', (await page.locator('.line').count()) === 3);
 
 /* ---- 7. le compte remonte partout ---------------------------------------- */

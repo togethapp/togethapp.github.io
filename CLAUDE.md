@@ -83,6 +83,12 @@ guide en français.
 - **Un prénom n'est pas un compte** : dans un sondage, on peut répondre pour
   n'importe quel prénom. Accepté (alourdirait tout) ; option légère si un jour
   besoin : « voir et annuler » (journal des modifications, l'organisateur annule).
+- **Prénoms fixés par groupe** (novembre 2026) : qui fait entrer écrit la
+  liste (`group.people`, `marque_points_set_people`) ; chacun y choisit qui il
+  est, par groupe (`group.me`, `myNameIn`/`myNameFor`, pas `myName()` dans un
+  élément de groupe) ; les formulaires du groupe se cochent
+  (`rosterPickHtml`) ; l'existant hors liste se fusionne à la demande sur la
+  page du groupe. Liste vide = prénoms libres, comme hors groupe.
 - **Tout document appartient à un groupe** (choisi à la création), fixé à la
   première écriture ; « copier vers un groupe » crée une copie (nouvel id).
   **« Lien seulement »** : dans aucun onglet ni agenda de groupe, seulement par lien.

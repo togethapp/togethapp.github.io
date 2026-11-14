@@ -24,6 +24,7 @@ import { uid } from './model.js';
 import { inAppBrowser } from './helpers.js';
 import { progress } from './lists.js';
 import { withMeFirst } from './people.js';
+import { sameName } from './stats.js';
 import {
   inGroup, upcomingEvents, attach, attachTargets, isEventDoc, kindOf, parentId, relationsOf, linkTargets, linkTo, unlinkFrom,
 } from './dashboard.js';
@@ -282,6 +283,140 @@ export function forgetGroup(id) {
   savePrefs(state.prefs);
 }
 
+/** The first names a group has fixed, as the database gave them — or none. */
+function fixedPeople(found) {
+  return Array.isArray(found?.people)
+    ? found.people.filter((name) => typeof name === 'string' && name.trim()).map((name) => name.trim().slice(0, 24))
+    : [];
+}
+
+/** The first name this device's person entered the group under, as the database has it. */
+function knownAs(found) {
+  return typeof found?.who === 'string' ? found.who.trim().slice(0, 24) : '';
+}
+
+/**
+ * The first names a group has decided on, or [] when it fixes none.
+ *
+ * Decided in advance by whoever lets people in, on the group's page: then a
+ * list, a poll or an account of the group takes its people from these names
+ * and no others — « Gui » is not « Guillaume » in the next list.
+ */
+export function rosterOf(groupId) {
+  const group = groupId ? groups().find((held) => held.id === groupId) : null;
+  return Array.isArray(group?.people) ? group.people : [];
+}
+
+/** A name as the group's list writes it, or '' when it is not on it. */
+export function rosterName(groupId, name) {
+  const key = sameName(name);
+  return (key && rosterOf(groupId).find((one) => sameName(one) === key)) || '';
+}
+
+/**
+ * Who this device is in a group. Where the group fixes its names: the one
+ * chosen there, or the device's own name when the list has it — and nobody
+ * until one is chosen. Elsewhere, the device's name.
+ */
+export function myNameIn(groupId) {
+  if (!rosterOf(groupId).length) return myName();
+  const group = groups().find((held) => held.id === groupId);
+  return rosterName(groupId, group?.me) || rosterName(groupId, myName());
+}
+
+/**
+ * The names a document takes its people from: its group's, when the group
+ * fixes them. A link-only document is in no group's tabs, and takes any.
+ */
+export function rosterFor(document_) {
+  return document_?.groupId && !document_.linkOnly ? rosterOf(document_.groupId) : [];
+}
+
+/** Who this device is for a document: in its group, or by its own name. */
+export function myNameFor(document_) {
+  return rosterFor(document_).length ? myNameIn(document_.groupId) : myName();
+}
+
+/** Say who this device is in a group that fixes its names. */
+export function setMyNameIn(groupId, name) {
+  const group = groups().find((held) => held.id === groupId);
+  const listed = rosterName(groupId, name);
+  if (!group || !listed || group.me === listed) return;
+  rememberGroup({ ...group, me: listed });
+}
+
+/** A window of names, to touch one. Answers it, or '' when the window is left. */
+function chooseName(names, title, hint) {
+  return new Promise((resolve) => {
+    const dialog = makeDialog();
+    let chosen = '';
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(title)}</h2>
+        <p class="muted small">${escapeHtml(hint)}</p>
+        <div class="row row--chips">
+          ${names.map((name) => `<button type="button" class="chip" data-who="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')}
+        </div>
+        <div class="row">
+          <button type="button" class="button button--ghost" data-who-cancel>${escapeHtml(t('action.cancel'))}</button>
+        </div>
+      </div>`;
+    dialog.querySelectorAll('[data-who]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        chosen = chip.dataset.who;
+        dialog.close();
+      });
+    });
+    dialog.querySelector('[data-who-cancel]').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('close', () => resolve(chosen));
+    dialog.showModal();
+  });
+}
+
+/**
+ * « Qui êtes-vous dans ce groupe ? » — the group's names, to touch one. Kept
+ * for the group; answers the name, or '' when the window is left.
+ */
+export async function askWhoIn(groupId) {
+  const group = groups().find((held) => held.id === groupId);
+  const roster = rosterOf(groupId);
+  if (!group || !roster.length) return '';
+  const chosen = await chooseName(roster, t('roster.whoTitle', { name: group.name }), t('roster.whoHint'));
+  if (chosen) setMyNameIn(groupId, chosen);
+  return chosen;
+}
+
+/**
+ * Knock at a group's door as `me`. Where the group fixes its first names and
+ * `me` is none of them, they are shown, to touch one, and the knock is made
+ * again as that one. Answers as remote.ask() does, with `me`: who knocked —
+ * and { status: 'who' } when no name was chosen. Throws when out of reach.
+ */
+export async function knockAs(name, code, me) {
+  const answer = await state.remote.ask(name, code, me, deviceLabel());
+  if (answer.status !== 'who') return { ...answer, me };
+  const chosen = await chooseName(answer.people, t('roster.whoTitle', { name }), t('roster.whoHint'));
+  if (!chosen) return { status: 'who', me };
+  return { ...(await state.remote.ask(name, code, chosen, deviceLabel())), me: chosen };
+}
+
+/**
+ * The names written in a group's documents that its list does not have:
+ * each is to be merged into a name of the list, or added to it.
+ */
+export function offRoster(groupId, names) {
+  if (!rosterOf(groupId).length) return [];
+  const seen = new Set();
+  const out = [];
+  for (const name of names) {
+    const key = sameName(name);
+    if (!key || seen.has(key) || rosterName(groupId, name)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}
+
 /** The groups by name, so the pastilles keep their order from render to render. */
 export function groupsByName() {
   return [...groups()].sort((a, b) => String(a.name).localeCompare(String(b.name)));
@@ -458,6 +593,90 @@ export function willBeInHtml({ events = true } = {}) {
   return `${groupChoiceHtml()}${events ? eventChoiceHtml() : ''}`;
 }
 
+/**
+ * The names a new document may take its people from — those of the group it
+ * is about to land in, when that group fixes them — or [] for any name.
+ */
+export function rosterForNew() {
+  const { group, linkOnly } = destinationForNew();
+  return group && !linkOnly ? rosterOf(group.id) : [];
+}
+
+/**
+ * The people of a new document: those written, or — where the group fixes its
+ * names — those of them the list has, as it writes them and in its order. The
+ * device's own name stands for whoever it is in that group.
+ */
+export function peopleForNew(names) {
+  const roster = rosterForNew();
+  if (!roster.length) return names;
+  const { group } = destinationForNew();
+  const me = sameName(myName());
+  const mine = sameName(myNameIn(group.id));
+  const keys = new Set(names.map(sameName).filter(Boolean).map((key) => (key === me && mine ? mine : key)));
+  return roster.filter((name) => keys.has(sameName(name)));
+}
+
+/**
+ * The people of a new document, where its group fixes its first names: the
+ * list, to tick — nothing to type, so nothing to mistype. '' elsewhere: the
+ * form keeps its fields.
+ */
+export function rosterPickHtml(names, hint) {
+  const roster = rosterForNew();
+  if (!roster.length) return '';
+  const { group } = destinationForNew();
+  const on = new Set(peopleForNew(names).map(sameName));
+  return `
+    <div class="stack stack--tight" data-roster-pick>
+      <span class="muted small">${escapeHtml(hint)}</span>
+      <div class="row row--chips" role="group" aria-label="${escapeHtml(t('roster.title'))}">
+        ${roster
+          .map((name) => `
+            <button type="button" class="chip ${on.has(sameName(name)) ? 'chip--on' : ''}"
+                    data-roster-name="${escapeHtml(name)}" aria-pressed="${on.has(sameName(name)) ? 'true' : 'false'}">
+              ${escapeHtml(name)}
+            </button>`)
+          .join('')}
+      </div>
+      <div class="row">
+        <button type="button" class="button button--small button--ghost" data-roster-all>${escapeHtml(t('roster.everyone'))}</button>
+      </div>
+      <p class="muted small">${escapeHtml(t('roster.formHint', { name: group.name }))}</p>
+    </div>`;
+}
+
+/**
+ * Make the ticked list work: `read()` gives the form's names, `write(names)`
+ * keeps them. A group or an event chosen further down the form may change
+ * whose list this is: the form is then told (« rosterchange ») and redraws.
+ */
+export function bindRosterPick(root, read, write) {
+  const mark = () => {
+    const on = new Set(peopleForNew(read()).map(sameName));
+    root.querySelectorAll('[data-roster-name]').forEach((chip) => {
+      const lit = on.has(sameName(chip.dataset.rosterName));
+      chip.classList.toggle('chip--on', lit);
+      chip.setAttribute('aria-pressed', lit ? 'true' : 'false');
+    });
+  };
+  root.querySelectorAll('[data-roster-name]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const key = sameName(chip.dataset.rosterName);
+      const held = peopleForNew(read());
+      write(held.some((name) => sameName(name) === key)
+        ? held.filter((name) => sameName(name) !== key)
+        : [...held, chip.dataset.rosterName]);
+      mark();
+    });
+  });
+  root.querySelector('[data-roster-all]')?.addEventListener('click', () => {
+    const all = rosterForNew();
+    write(peopleForNew(read()).length === all.length ? [] : [...all]);
+    mark();
+  });
+}
+
 function groupChoiceHtml() {
   const held = groups();
   if (!state.remote || !held.length) return '';
@@ -511,8 +730,15 @@ export function bindEventChips(root) {
   root.querySelectorAll('[data-new-event]').forEach((node) => {
     node.addEventListener('click', () => {
       const poll = state.polls.find((one) => one.id === node.dataset.newEvent) || null;
+      const before = rosterForNew().join('\n');
       chooseEvent(poll);
       const form = node.closest('form') || root;
+      // The event brought its group along, and that group's first names: the
+      // form redraws its people (it keeps what was typed first).
+      if (rosterForNew().join('\n') !== before) {
+        form.dispatchEvent(new CustomEvent('rosterchange'));
+        return;
+      }
       const mark = (selector, value) => form.querySelectorAll(selector).forEach((other) => {
         const on = other.dataset[selector === '[data-new-event]' ? 'newEvent' : 'newGroup'] === value;
         other.classList.toggle('chip--on', on);
@@ -1063,6 +1289,7 @@ export async function joinGroup(key) {
   rememberGroup({
     id: group.id, name: group.name, key: clean, admits: Boolean(group.admits),
     accounts: Boolean(group.accounts), linked: Boolean(group.linked), channel: liveChannel(group),
+    people: fixedPeople(group),
   });
   return group;
 }
@@ -1092,10 +1319,13 @@ export async function verifyGroups() {
     }
     if (found.name !== group.name || Boolean(found.admits) !== group.admits
         || Boolean(found.accounts) !== Boolean(group.accounts) || Boolean(found.linked) !== Boolean(group.linked)
-        || liveChannel(found) !== (group.channel || '')) {
+        || liveChannel(found) !== (group.channel || '')
+        || fixedPeople(found).join('\n') !== rosterOf(group.id).join('\n')
+        || (!group.me && found.who)) {
       rememberGroup({
         ...group, name: found.name || group.name, admits: Boolean(found.admits),
         accounts: Boolean(found.accounts), linked: Boolean(found.linked), channel: liveChannel(found),
+        people: fixedPeople(found), me: group.me || knownAs(found),
       });
       learnt = true;
     }
@@ -1165,9 +1395,11 @@ export async function checkPending(knock) {
     // ticket it was just handed is an ordinary key, and the one it holds may be
     // the only one in the group that lets anyone in.
     const alreadyIn = groups().find((item) => item.id === answer.id);
-    const group = alreadyIn || { id: answer.id, name: answer.name || knock.groupName, key: knock.ticket, admits: false };
+    const group = alreadyIn || { id: answer.id, name: answer.name || knock.groupName, key: knock.ticket, admits: false, me: knock.me || '' };
     rememberGroup(group);
     forgetPending(knock.ticket);
+    // The names the group fixes, among which this device has just said who it is.
+    await refreshGroup(group);
     let taken = 0;
     try {
       taken = await catchUpWith(group);
@@ -1303,9 +1535,12 @@ export async function refreshGroup(group) {
     return false;
   }
   if (!found) return false;
+  // Read again: the group may have been remembered anew while the answer came.
+  const held = groups().find((one) => one.id === group.id) || group;
   rememberGroup({
-    ...group, name: found.name || group.name, admits: Boolean(found.admits),
+    ...held, name: found.name || held.name, admits: Boolean(found.admits),
     accounts: Boolean(found.accounts), linked: Boolean(found.linked), channel: liveChannel(found),
+    people: fixedPeople(found), me: held.me || knownAs(found),
   });
   return true;
 }

@@ -17,6 +17,7 @@ import { forget, getGame, getList, persist, pullList, replaceGame } from './view
 import {
   groups, heldOrganiserSecrets, inGroupHtml, keyFor, landing, myName, openSet, organiserSecret,
   resetGroupChoice, restoreOrganiserSecrets, startSharing, willBeInHtml,
+  destinationForNew, myNameIn, rosterForNew, rosterName,
 } from './view-groups.js';
 import { PRESETS, PRESET_GROUPS, getPreset, presetConfig } from './games.js';
 import {
@@ -61,7 +62,9 @@ export function newGameView() {
   while (state.newGameNames.length < min) state.newGameNames.push('');
   const names = state.newGameNames.slice(0, Math.max(min, Math.min(state.newGameNames.length, max)));
 
-  const known = [...new Set([isTeam ? '' : myName(), ...recentNames(state.games)].filter(Boolean))];
+  // In a group that fixes its first names, only those are proposed.
+  const fixed = isTeam ? [] : rosterForNew();
+  const known = fixed.length ? fixed : [...new Set([isTeam ? '' : myName(), ...recentNames(state.games)].filter(Boolean))];
   const nameRows = names
     .map(
       (value, index) => `
@@ -1048,9 +1051,25 @@ export function bindNewGame() {
     const preset = getPreset(presetId);
     const config = readConfigFromForm();
     const [min, max] = preset.players;
-    const names = state.newGameNames
+    let names = state.newGameNames
       .slice(0, max)
       .map((name, index) => (name || '').trim() || t(config.entrantLabel === 'team' ? 'new.teamName' : 'new.playerName', { n: index + 1 }));
+
+    // In a group that fixes its first names, the players are among them —
+    // written as the list writes them. Teams are not people: any name.
+    const roster = config.entrantLabel === 'team' ? [] : rosterForNew();
+    if (roster.length) {
+      const { group } = destinationForNew();
+      const mine = myNameIn(group.id);
+      const listed = names.map((name) => rosterName(group.id, name)
+        || (mine && name.toLowerCase() === myName().toLowerCase() ? mine : ''));
+      if (listed.some((name) => !name)) {
+        flash(t('roster.gameNames', { name: group.name, names: roster.join(', ') }), 'error');
+        render();
+        return;
+      }
+      names = listed;
+    }
 
     if (names.length < min || names.length > max) {
       flash(t('new.errorPlayers', { min, max, label: t(config.entrantLabel === 'team' ? 'new.teams' : 'new.players').toLowerCase() }), 'error');

@@ -32,6 +32,11 @@ test('un compte est un nom, des personnes, et des lignes', () => {
 test('un montant se tape comme il se dit', () => {
   assert.equal(readAmount('12,50'), 1250);
   assert.equal(readAmount('12.5'), 1250);
+  // Thousands grouped as people write them, the last mark being the point.
+  assert.equal(readAmount('1.234,56'), 123456);
+  assert.equal(readAmount('1,234.56'), 123456);
+  assert.equal(readAmount("1'234.50 CHF"), 123450);
+  assert.equal(readAmount('1.2.3,4'), null);
   assert.equal(readAmount('12'), 1200);
   assert.equal(readAmount(' 3 € '), 300);
   assert.equal(readAmount('0,99'), 99);

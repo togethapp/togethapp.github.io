@@ -9,7 +9,7 @@ import {
   askForText, escapeHtml, flash, flashHtml, formatDate, formatDay, groupChipsHtml, kindsHtml, navigate, render,
   state, view,
   attachedHtml, chainButtonsHtml, adoptGame,
-  backButtonHtml, hintHtml, markTouched, newButtonHtml, peopleHtml, everything,
+  backButtonHtml, hintHtml, writtenNames, markTouched, newButtonHtml, peopleHtml, everything,
 } from './app.js';
 import {
   actionsHtml, eventLinkHtml, eventTagHtml, keptElsewhere, openSignatureDialog, pushFailed, pushMerged, shareBarHtml, signed,
@@ -17,10 +17,11 @@ import {
   whenAbsent,
 } from './view-polls.js';
 import { ask, makeDialog, showCopyDialog } from './view-games.js';
+import { sameName } from './stats.js';
 import {
   hiddenByGroupHtml, inGroupHtml, keyFor, landing, myName, organiserSecret, resetGroupChoice,
   shownDocs, startSharing, willBeInHtml,
-  removeEverywhere,
+  removeEverywhere, rosterPickHtml, bindRosterPick, peopleForNew, rosterFor, myNameFor,
 } from './view-groups.js';
 import { listFlowsHtml } from './view-flows.js';
 import { money } from './view-spends.js';
@@ -28,7 +29,7 @@ import { accountsFor, estimateOf, paidLines } from './flows.js';
 import { showAmount, spendCurrency, priceCurrency } from './spends.js';
 import { recentNames, isValidGame } from './model.js';
 import {
-  createList, addItems, renameItem, assignItem, toggleItem, removeItem, reuseList, addListPerson,
+  createList, addItems, newLines, renameItem, assignItem, toggleItem, removeItem, reuseList, addListPerson,
   renameListPerson, removeListPerson, shareOut, progress, mergeLists, isValidList, setItemDue,
   archiveList, makeTemplate,
 } from './lists.js';
@@ -143,7 +144,7 @@ export function newListView() {
   const templates = state.lists.filter((list) => list.template && !list.archivedAt);
   const suggestions = [...new Set([
     myName(), ...recentPeople(state.lists), ...recentPeople(state.polls), ...recentNames(state.games),
-  ].filter(Boolean))].slice(0, 12);
+  ].filter(Boolean))].filter((name) => !writtenNames(state.newListPeople).has(name.toLowerCase())).slice(0, 12);
   return `
     ${flashHtml()}
     <div class="spread page-head">
@@ -178,6 +179,7 @@ export function newListView() {
                value="${escapeHtml(state.newListName)}" required />
       </label>
 
+      ${rosterPickHtml(state.newListPeople, t('lists.peopleHint')) || `
       <div class="stack stack--tight">
         <span class="muted small">${escapeHtml(t('lists.peopleHint'))}</span>
         ${state.newListPeople
@@ -203,7 +205,7 @@ export function newListView() {
                 .join('')}</div>`
             : ''
         }
-      </div>
+      </div>`}
 
       <label>
         ${escapeHtml(t('lists.firstLines'))}
@@ -491,6 +493,15 @@ export function bindNewList() {
     render();
   });
 
+  // Where the group fixes its first names, the people are ticked, not typed.
+  bindRosterPick(view, () => state.newListPeople, (names) => {
+    state.newListPeople = names;
+  });
+  view.querySelector('form')?.addEventListener('rosterchange', () => {
+    snapshot();
+    render();
+  });
+
   view.querySelectorAll('[data-new-group]').forEach((chip) => {
     chip.addEventListener('click', () => {
       snapshot();
@@ -514,7 +525,7 @@ export function bindNewList() {
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     snapshot();
-    let list = signed(landing(createList({ name: state.newListName, names: state.newListPeople })));
+    let list = signed(landing(createList({ name: state.newListName, names: peopleForNew(state.newListPeople) })));
     list = addItems(list, state.newListLines);
 
     state.lists = [...state.lists, list];
@@ -539,8 +550,17 @@ export function bindList(list) {
   view.querySelector('#add-line')?.addEventListener('submit', (event) => {
     event.preventDefault();
     const field = view.querySelector('#new-line');
-    const next = addItems(list, field.value);
-    if (next === list) return;
+    const { fresh, known } = newLines(list, field.value);
+    // Already there, still to do: said rather than written twice.
+    if (known.length) flash(known.length > 1 ? t('lists.alreadyMany', { count: known.length }) : t('lists.already', { line: known[0] }));
+    const next = addItems(list, fresh);
+    if (next === list) {
+      if (!known.length) return;
+      field.value = '';
+      render();
+      view.querySelector('#new-line')?.focus();
+      return;
+    }
     replaceList(next);
     // Straight back to the field: a list is written in one go, not one
     // reopened dialog at a time.
@@ -760,11 +780,17 @@ function openLineDialog(list, itemId) {
  * knows of them — an account's parts —: `html(person)`, and `bind(dialog,
  * redraw)` for its buttons, which write at once like the others.
  */
-export function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remove, blocked = () => null, extra = null }) {
+export function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remove, blocked = () => null, extra = null, roster = [] }) {
   const dialog = makeDialog();
+  // `roster`: the first names the document's group has fixed. People are then
+  // added by touching one, never typed; someone written otherwise is said to
+  // be one of them, in one touch.
+  const fixed = roster.length > 0;
+  const listed = (name) => roster.some((one) => sameName(one) === sameName(name));
 
   const draw = () => {
     const current = people();
+    const free = roster.filter((name) => !current.some((person) => sameName(person.name) === sameName(name)));
     dialog.innerHTML = `
       <div class="stack">
         <h2>${escapeHtml(t('lists.people'))}</h2>
@@ -776,10 +802,25 @@ export function openPeopleEditor({ hint = '', confirmRemove, people, add, rename
                 <div class="knock">
                   <strong>${escapeHtml(person.name)}</strong>
                   ${extra ? extra.html(person) : ''}
+                  ${
+                    fixed && !listed(person.name)
+                      ? `<span class="late small">${escapeHtml(t('roster.notListed'))}</span>
+                         ${free.length
+                           ? `<div class="row row--chips">
+                                <span class="muted small">${escapeHtml(t('roster.isWho'))}</span>
+                                ${free.map((name) => `<button type="button" class="chip" data-person-is="${escapeHtml(person.id)}" data-name="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')}
+                              </div>`
+                           : ''}`
+                      : ''
+                  }
                   <div class="row">
-                    <button type="button" class="button button--small" data-rename="${escapeHtml(person.id)}">
-                      ${escapeHtml(t('action.rename'))}
-                    </button>
+                    ${
+                      fixed
+                        ? ''
+                        : `<button type="button" class="button button--small" data-rename="${escapeHtml(person.id)}">
+                             ${escapeHtml(t('action.rename'))}
+                           </button>`
+                    }
                     <button type="button" class="button button--small button--ghost" data-remove="${escapeHtml(person.id)}">
                       ${escapeHtml(t('lists.dropPerson'))}
                     </button>
@@ -789,11 +830,21 @@ export function openPeopleEditor({ hint = '', confirmRemove, people, add, rename
             .join('')}
           ${current.length ? '' : `<p class="muted small">${escapeHtml(t('lists.nobodyYet'))}</p>`}
         </div>
-        <div class="row row--tight">
-          <input type="text" id="person-new" placeholder="${escapeHtml(t('lists.addPerson'))}"
-                 aria-label="${escapeHtml(t('lists.addPerson'))}" autocomplete="off" />
-          <button type="button" class="button button--primary" id="person-add" aria-label="${escapeHtml(t('lists.addPerson'))}">+</button>
-        </div>
+        ${
+          fixed
+            ? `<div class="stack stack--tight">
+                 <span class="muted small">${escapeHtml(t(free.length ? 'roster.addFrom' : 'roster.allIn'))}</span>
+                 <div class="row row--chips">
+                   ${free.map((name) => `<button type="button" class="chip" data-add-listed="${escapeHtml(name)}">+ ${escapeHtml(name)}</button>`).join('')}
+                 </div>
+               </div>`
+            : `<div class="row row--tight">
+                 <input type="text" id="person-new" placeholder="${escapeHtml(t('lists.addPerson'))}"
+                        aria-label="${escapeHtml(t('lists.addPerson'))}" autocomplete="off" />
+                 <button type="button" class="button button--primary" id="person-add" aria-label="${escapeHtml(t('lists.addPerson'))}">+</button>
+               </div>
+               <p class="late small" id="person-problem" aria-live="polite" hidden></p>`
+        }
         <div class="row">
           <button type="button" class="button" id="people-close">${escapeHtml(t('action.close'))}</button>
         </div>
@@ -804,15 +855,37 @@ export function openPeopleEditor({ hint = '', confirmRemove, people, add, rename
     // and answer false when it was called off: the name typed stays.
     const addOne = async () => {
       if (!field.value.trim()) return;
+      // Already among them, however it is written: said, not added twice.
+      const twin = people().find((person) => sameName(person.name) === sameName(field.value));
+      if (twin) {
+        const problem = dialog.querySelector('#person-problem');
+        problem.textContent = t('people.already', { name: twin.name });
+        problem.hidden = false;
+        field.select();
+        return;
+      }
       if ((await add(field.value)) === false) return;
       draw();
       dialog.querySelector('#person-new').focus();
     };
-    dialog.querySelector('#person-add').addEventListener('click', addOne);
-    field.addEventListener('keydown', (event) => {
+    dialog.querySelector('#person-add')?.addEventListener('click', addOne);
+    field?.addEventListener('keydown', (event) => {
       if (event.key !== 'Enter') return;
       event.preventDefault();
       addOne();
+    });
+
+    dialog.querySelectorAll('[data-add-listed]').forEach((chip) => {
+      chip.addEventListener('click', async () => {
+        if ((await add(chip.dataset.addListed)) === false) return;
+        draw();
+      });
+    });
+    dialog.querySelectorAll('[data-person-is]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        rename(chip.dataset.personIs, chip.dataset.name);
+        draw();
+      });
     });
 
     dialog.querySelectorAll('[data-rename]').forEach((button) => {
@@ -826,6 +899,12 @@ export function openPeopleEditor({ hint = '', confirmRemove, people, add, rename
           confirmLabel: t('action.save'),
         });
         if (name === null || !name.trim()) return;
+        // Someone else's name already: the document would have them twice.
+        if (people().some((other) => other.id !== person.id && sameName(other.name) === sameName(name))) {
+          flash(t('people.already', { name: name.trim() }), 'error');
+          dialog.close();
+          return;
+        }
         rename(person.id, name);
         draw();
       });
@@ -860,6 +939,7 @@ function openPeopleDialog(list) {
   openPeopleEditor({
     hint: t('lists.peopleHint'),
     confirmRemove: t('lists.confirmRemovePerson'),
+    roster: rosterFor(held()),
     people: () => held().people,
     add: (name) => replaceList(addListPerson(held(), name), { redraw: false }),
     rename: (id, name) => replaceList(renameListPerson(held(), id, name), { redraw: false }),

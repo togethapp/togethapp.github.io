@@ -34,7 +34,7 @@ const dayIn = (days) => {
 function documents(where) {
   const list = { ...addItems(createList({ name: 'Courses', names: ['Gui', 'Alice'] }), 'Pain\nLait\nRéserver le camion'), ...where };
   let poll = { ...addOptions(createPoll({ question: 'Quel soir ?', names: ['Gui', 'Alice'] }), 'Vendredi 12\nSamedi 13'), ...where };
-  poll = setVote(poll, poll.people[0].id, poll.options[0].id, true);
+  poll = setVote(poll, poll.people[0].id, poll.options[0].id, 'yes');
   const event = { ...createEvent({ name: 'Raclette', names: ['Gui', 'Alice'], date: dayIn(5), at: '19:00' }), ...where };
   // La liste est rattachée à l'événement : une chaîne, pour les règles qui la regardent.
   list.parent = event.id;
