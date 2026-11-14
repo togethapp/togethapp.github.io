@@ -139,7 +139,8 @@ web, aucune dépendance, aucun build.
   d'onglets s'efface pendant la partie. Chaque jeu garde sa partie, en pause
   quand on va ailleurs. Le record reste sur l'appareil, et part au
   **classement de chaque groupe** (avec la base) sous le prénom qu'on y a :
-  sous le jeu, les dix meilleurs du groupe choisi, par difficulté.
+  dans l'onglet Jeux, sous « Jouer ici », les meilleurs du groupe choisi (ou
+  de celui sur lequel l'onglet est filtré), jeu par jeu et par difficulté.
 - **Compter les cartes au doigt** : pour les jeux dont le score est une pile de
   cartes, un compteur s'ouvre depuis la manche en cours. On touche les cartes
   ramassées, il fait la somme et reporte le score — plus d'addition de tête.

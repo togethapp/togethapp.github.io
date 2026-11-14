@@ -3418,16 +3418,22 @@ body.holo-open { overflow: hidden; }
 .arcade-pad__key--sound svg { width: 18px; height: 18px; }
 .arcade__modes { width: 100%; max-width: 480px; }
 .arcade__rules { width: 100%; max-width: 480px; margin: 12px auto 0; }
-.arcade-ranking { width: 100%; max-width: 480px; margin: 16px auto 0; display: grid; gap: 8px; }
-.arcade-ranking h2 { margin: 0; font-size: 1rem; }
-.arcade-ranking__groups { display: flex; flex-wrap: wrap; gap: 6px; }
+.arcade-ranking { display: grid; gap: 10px; }
+.arcade-ranking .arcade__modes { max-width: none; }
+.arcade-ranking__games { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.arcade-ranking__game { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.arcade-ranking__game h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 0.95rem; }
+.arcade-ranking__icon { display: inline-grid; color: var(--night-amber); }
+.arcade-ranking__icon.arcade-card__icon--snake { color: var(--night-green); }
+.arcade-ranking__icon svg { width: 18px; height: 18px; fill: currentColor; }
+.arcade-ranking__game .muted { margin: 0; }
 .arcade-ranking__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .arcade-ranking__line {
   display: grid;
-  grid-template-columns: 2em 1fr auto;
+  grid-template-columns: 1.4em 1fr auto;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: 6px;
+  padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
