@@ -97,14 +97,17 @@ export function peopleIn({ lists = [], polls = [], games = [], spends = [] } = {
 export function groupCounts({ lists = [], polls = [], games = [], spends = [], boards = [] } = {}, groupId = '', today = dayNow()) {
   const mine = (documents) => documents.filter((document_) => inGroup(document_, groupId));
   const held = { lists: mine(lists), polls: mine(polls), games: mine(games), spends: mine(spends) };
-  const live = {
-    lists: held.lists.filter(isLive),
-    polls: held.polls.filter(isLive),
-    games: held.games.filter(isLive),
-    spends: held.spends.filter(isLive),
-  };
   const ideas = mine(boards);
   const everything = [...held.lists, ...held.polls, ...held.games, ...held.spends, ...ideas];
+  // Whatever belongs to an event that is over is not going on any more.
+  const all = [...lists, ...polls, ...games, ...spends, ...boards];
+  const current = (document_) => isLive(document_) && !isOver(document_, all, today);
+  const live = {
+    lists: held.lists.filter(current),
+    polls: held.polls.filter(current),
+    games: held.games.filter(current),
+    spends: held.spends.filter(current),
+  };
 
   return {
     lists: live.lists.filter((list) => progress(list).left > 0).length,
@@ -114,7 +117,7 @@ export function groupCounts({ lists = [], polls = [], games = [], spends = [], b
     // soldé n'est pas en cours, il est fini.
     spends: live.spends.filter((spend) => balances(spend).some((row) => row.balance !== 0)).length,
     // A board has nothing to finish: it counts for as long as it is out.
-    boards: ideas.filter(isLive).length,
+    boards: ideas.filter(current).length,
     left: live.lists.reduce((sum, list) => sum + progress(list).left, 0),
     late: live.lists.reduce((sum, list) => sum + list.items.filter((item) => isLate(item, today)).length, 0),
     people: peopleIn(held).length,
@@ -369,6 +372,19 @@ export function topEventOf(document_, all) {
   const event = isEventDoc(document_) ? document_ : eventOf(document_, all);
   if (!event) return null;
   return isActivity(event, all) ? all.find((one) => one.id === parentId(event)) || event : event;
+}
+
+/**
+ * Whether a document's day has gone: a poll whose day is behind us, or
+ * anything that belongs to an event that is over. What is over is no longer
+ * « going on », even if a line was left unticked or a debt unsettled.
+ */
+export function isOver(document_, all, today = dayNow()) {
+  const own = document_?.date ? lastDay(document_) : null;
+  if (own && own < today) return true;
+  const event = topEventOf(document_, all);
+  const ends = event ? lastDay(event) : null;
+  return Boolean(ends && ends < today);
 }
 
 /** The days an event takes up, first to last — two weeks at most. */
