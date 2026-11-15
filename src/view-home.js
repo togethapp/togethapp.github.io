@@ -10,7 +10,7 @@ import {
   gameTitle, groupChipsHtml, isBusy, kindsHtml, navigate, render, route, state, view, whenText,
   backButtonHtml,
 } from './app.js';
-import { dayNow, groupCounts, inGroup, isLive, peopleIn, personFile, topEventOf, upcomingEvents } from './dashboard.js';
+import { dayNow, groupCounts, inGroup, isLive, isOver, peopleIn, personFile, topEventOf, upcomingEvents } from './dashboard.js';
 import { getLanguage, t } from './i18n.js';
 import { agendaFor, eventName } from './ics.js';
 import { progress } from './lists.js';
@@ -145,7 +145,10 @@ function eventsHtml() {
 function pendingHtml(shown = new Set()) {
   const lines = [];
   const recent = (a, b) => b.updatedAt - a.updatedAt;
-  const notShown = (goto) => (document_) => !shown.has(`${goto}${document_.id}`);
+  const all = everything();
+  const today = dayNow();
+  // What is over is not going on any more, whatever was left undone in it.
+  const notShown = (goto) => (document_) => !shown.has(`${goto}${document_.id}`) && !isOver(document_, all, today);
 
   const ongoing = shownDocs(state.games).filter((game) => isLive(game) && !gameStatus(game).finished)
     .filter(notShown('#/game/')).sort(recent);

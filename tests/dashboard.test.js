@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { inGroup, peopleIn, groupCounts, personFile, dayNow, isLate, isLive } from '../src/dashboard.js';
+import { inGroup, peopleIn, groupCounts, personFile, dayNow, isLate, isLive, isOver } from '../src/dashboard.js';
 import {
   createList, addItems, assignItem, toggleItem, setItemDue, archiveList, makeTemplate,
 } from '../src/lists.js';
@@ -458,4 +458,16 @@ test('dans l’arbre, les liens rangent : ce qui doit être fait avant vient d�
   // « Vient avant », dit depuis l’autre côté, range pareil.
   const avant = linkTo(attach(createPoll({ question: 'Qui vient ?' }), raclette.id), vin.id, 'before');
   assert.equal(stepOf(vin, [...all, avant]), 1);
+});
+
+test('what belongs to an event that is over is no longer going on', () => {
+  const event = { id: 'e1', kind: 'poll', date: '2026-11-01', closedAt: 1, people: [], options: [], votes: {} };
+  const list = { id: 'l1', kind: 'list', parent: 'e1', items: [{ id: 'i', text: 'pain', done: false }] };
+  const later = { id: 'l2', kind: 'list', items: [{ id: 'j', text: 'vin', done: false }] };
+  const all = [event, list, later];
+  assert.equal(isOver(event, all, '2026-11-15'), true);
+  assert.equal(isOver(list, all, '2026-11-15'), true);
+  assert.equal(isOver(list, all, '2026-10-30'), false);
+  assert.equal(isOver(later, all, '2026-11-15'), false);
+  assert.equal(groupCounts({ lists: [list, later], polls: [event] }, '', '2026-11-15').lists, 1);
 });
