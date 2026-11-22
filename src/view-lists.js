@@ -543,9 +543,8 @@ export function bindList(list) {
   bindSwipes('item', (itemId) => {
     const current = getList(list.id);
     if (!current) return;
-    flash(t('swipe.lineDeleted'));
     replaceList(removeItem(current, itemId));
-  });
+  }, { undo: t('swipe.lineDeleted') });
 
   view.querySelector('#add-line')?.addEventListener('submit', (event) => {
     event.preventDefault();

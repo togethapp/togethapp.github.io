@@ -44,8 +44,20 @@ await swipe(row.locator('.swipe__body'));
 check('une ligne glissée découvre « Supprimer »', await isOpen(row));
 check('sans ouvrir la ligne', (await page.locator('dialog[open]').count()) === 0);
 await row.locator('.swipe__delete').click();
-await page.waitForFunction(() => document.querySelectorAll('.lines .line').length === 2);
+check('la ligne quitte l’écran', await row.isHidden());
+check('« Annuler » s’offre au pied', /Ligne supprimée/.test(await page.locator('#undo-toast').textContent()));
+await page.click('#undo-toast [data-undo]');
+check('Annuler la ramène', await row.isVisible());
+check('et le bandeau s’en va', (await page.locator('#undo-toast').count()) === 0);
+await page.waitForTimeout(5500);
+check('rien n’est supprimé après coup', (await page.locator('.lines .line').count()) === 3);
+
+await swipe(row.locator('.swipe__body'));
+await row.locator('.swipe__delete').click();
+// Supprimée pour de bon quelques secondes plus tard, sans rien toucher.
+await page.waitForFunction(() => document.querySelectorAll('.lines .line').length === 2, null, { timeout: 8000 });
 check('et la ligne part', !/Lait/.test(await page.locator('.lines').textContent()));
+check('le bandeau aussi', (await page.locator('#undo-toast').count()) === 0);
 
 // Cocher une ligne marche toujours : un toucher n'est pas un glissement.
 await page.locator('.lines [data-tick]').first().click();

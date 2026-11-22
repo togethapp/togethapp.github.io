@@ -228,9 +228,8 @@ export function bindBoard(board) {
   bindSwipes('card', (cardId) => {
     const current = getBoard(board.id);
     if (!current) return;
-    flash(t('ideas.cardDeleted'));
     replaceBoard(removeCard(current, cardId));
-  });
+  }, { undo: t('ideas.cardDeleted') });
 
   view.querySelector('#board-add-note')?.addEventListener('click', () => openNoteDialog(board.id, null));
   view.querySelector('#board-add-sketch')?.addEventListener('click', () => openSketchDialog(board.id, null));

@@ -853,6 +853,19 @@ quelqu'un qui frappe. Toucher la notification ouvre la bonne page.
   `notifier`, `rappels`, contrôles SQL `notifications` et `rappels`, suite
   `notifications`.
 
+## Les gestes d'une app de téléphone
+
+- **L'écran glisse** d'une page à l'autre : en avant vers un document ou un
+  formulaire, en arrière au retour, en fondu entre deux onglets. Seule la page
+  bouge, les barres restent. Rien ne glisse si le téléphone demande moins
+  d'animations (ni dans les tests navigateur, sauf `transitions`).
+- **Tirer le haut de la page vers le bas** va chercher ce que les autres ont
+  fait, comme les flèches rondes en haut — une fois l'app installée sur l'écran
+  d'accueil ; dans un onglet du navigateur, le geste reste au navigateur.
+- **Appui long sur l'icône** (Android, ordinateur) : Nouveau sondage, Nouvelle
+  liste, Nouveau compte, Agenda (`shortcuts` du manifeste). La fiche
+  d'installation d'Android montre des captures (`icons/ecran-*.jpg`).
+
 ## Supprimer d'un glissement
 
 Ce qui se supprime dans une liste de choses se glisse vers la gauche, au doigt
@@ -860,8 +873,10 @@ ou à la souris : ça découvre un bouton rouge *Supprimer*, qu'il faut toucher 
 un glissement seul n'efface rien, un défilement non plus, et toucher la carte
 la referme.
 
-- **Tout de suite** : une ligne de liste, une dépense ou un remboursement, une
-  carte d'idée — comme depuis leur fenêtre.
+- **Avec « Annuler »** : une ligne de liste, une dépense ou un remboursement,
+  une carte d'idée. Elle quitte l'écran et un bandeau au pied propose
+  *Annuler* pendant cinq secondes ; elle n'est supprimée (ici et chez les
+  autres) qu'ensuite, ou dès qu'on change d'écran ou qu'on quitte l'app.
 - **Après confirmation** : une liste, un sondage, un événement, une partie, un
   compte ou un tableau d'idées, depuis son onglet ou l'agenda — il est souvent
   à tout le groupe.
