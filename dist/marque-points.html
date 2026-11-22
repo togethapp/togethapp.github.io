@@ -6,11 +6,11 @@
     <!-- Only the app's own scripts run: its files, and the script below named
          by its hash. Written by tools/bundle.js; first, since it only covers
          what comes after it. -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-AJyz24fKnnXPIyCcmiHUYe4chywBYyR2EZkuum/iqgM='; object-src 'none'; base-uri 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-fq9acp6iK7BaBkhMUwaDoF+FGuPKYlt7JaU2yyZYbjo='; object-src 'none'; base-uri 'none'" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="b368dfc4" />
+    <meta name="app-build" content="51e07f1a" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -3483,6 +3483,91 @@ body.holo-open { overflow: hidden; }
 /* While playing, the tabs are gone and the page needs no room for them. */
 body.playing .tabs { display: none; }
 body.playing .view { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+
+/* ------------------------------------------------- moving between screens --- */
+
+/* Only the page moves: the bar at the top and the tabs below stay put. The
+   page slides forward into a document, back out of it, and crossfades between
+   tabs (data-nav, set by renderMoving in app.js). */
+@media (prefers-reduced-motion: no-preference) {
+  #view { view-transition-name: page; }
+  /* A tap during the slide reaches the new page rather than nothing. */
+  ::view-transition { pointer-events: none; }
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation: none; }
+  ::view-transition-old(page) { animation: 140ms ease-in both page-fade-out; }
+  ::view-transition-new(page) { animation: 200ms ease-out both page-fade-in; }
+  :root[data-nav="forward"]::view-transition-old(page) { animation: 220ms cubic-bezier(0.3, 0, 0.2, 1) both page-out-left; }
+  :root[data-nav="forward"]::view-transition-new(page) { animation: 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both page-in-right; }
+  :root[data-nav="back"]::view-transition-old(page) { animation: 220ms cubic-bezier(0.3, 0, 0.2, 1) both page-out-right; }
+  :root[data-nav="back"]::view-transition-new(page) { animation: 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both page-in-left; }
+}
+@keyframes page-fade-out { to { opacity: 0; } }
+@keyframes page-fade-in { from { opacity: 0; } }
+@keyframes page-out-left { to { opacity: 0; transform: translateX(-24%); } }
+@keyframes page-in-right { from { opacity: 0; transform: translateX(32%); } }
+@keyframes page-out-right { to { opacity: 0; transform: translateX(24%); } }
+@keyframes page-in-left { from { opacity: 0; transform: translateX(-32%); } }
+
+/* ----------------------------------------------------------- undo a delete --- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 32px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 10px 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-alt);
+  color: var(--text);
+  font-size: 0.92rem;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
+}
+.toast__action {
+  flex: none;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+body.playing .toast { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+@media (prefers-reduced-motion: no-preference) {
+  .toast { animation: toast-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+}
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 12px); } }
+
+/* --------------------------------------------------------- pull to refresh --- */
+
+.pull {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 56px);
+  left: 50%;
+  z-index: 25;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 1.3rem;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 30%);
+  pointer-events: none;
+}
+.pull--ready { color: var(--accent-text); background: var(--accent); border-color: var(--accent); }
     </style>
     <!-- Before the first paint: the style, colour, theme and background chosen
          in the settings, and the season of the day, so the page does not
@@ -4325,6 +4410,7 @@ const STRINGS = {
     'ideas.swipeHint': 'Glissez une carte vers la gauche pour la supprimer.',
     'swipe.deleted': '« {name} » supprimé.',
     'swipe.lineDeleted': 'Ligne supprimée.',
+    'action.undoDelete': 'Annuler',
     'ideas.cardDeleted': 'Carte supprimée.',
     'ideas.deleted': '« {name} » supprimé.',
     'spends.cannotDropPaid':
@@ -5694,6 +5780,7 @@ const STRINGS = {
     'ideas.swipeHint': 'Swipe a card to the left to delete it.',
     'swipe.deleted': '“{name}” deleted.',
     'swipe.lineDeleted': 'Line deleted.',
+    'action.undoDelete': 'Undo',
     'ideas.cardDeleted': 'Card deleted.',
     'ideas.deleted': '“{name}” deleted.',
     'spends.cannotDropPaid':
@@ -14192,9 +14279,66 @@ function swipeable(cardHtml, canDelete = () => true) {
     canDelete(document_) ? swipeHtml(document_.id, cardHtml(document_), { kind: 'doc' }) : cardHtml(document_);
 }
 
-/** Make every row of that kind on the page slide, and delete through `onDelete(id)`. */
-function bindSwipes(kind, onDelete) {
+/**
+ * A line slid away is not gone at once: it leaves the screen, and a note at the
+ * foot offers to bring it back for a few seconds. Only then is it deleted —
+ * here and for the others — so an « Annuler » never has to undo what the
+ * database already threw away. Leaving the screen, or the app, settles it.
+ */
+const UNDO_KEPT = 5000;
+let pending = null;
+
+/** Delete for good what is waiting to be, if anything. */
+function commitPendingDelete() {
+  if (!pending) return;
+  const { onDelete, id, timer } = pending;
+  pending = null;
+  clearTimeout(timer);
+  document.getElementById('undo-toast')?.remove();
+  onDelete(id);
+}
+
+function hideRow(row) {
+  row.hidden = true;
+}
+
+function offerUndo(kind, id, onDelete, said, row) {
+  commitPendingDelete();
+  hideRow(row);
+  pending = { kind, id, onDelete, timer: setTimeout(commitPendingDelete, UNDO_KEPT) };
+  const toast = document.createElement('div');
+  toast.id = 'undo-toast';
+  toast.className = 'toast';
+  toast.setAttribute('role', 'status');
+  toast.innerHTML = `<span>${escapeHtml(said)}</span>
+    <button type="button" class="toast__action" data-undo>${escapeHtml(t('action.undoDelete'))}</button>`;
+  toast.querySelector('[data-undo]').addEventListener('click', () => {
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    pending = null;
+    toast.remove();
+    // The row may have been drawn again meanwhile: show whichever is there.
+    view.querySelectorAll(`[data-swipe-kind="${kind}"]`).forEach((other) => {
+      if (other.dataset.swipe === id) other.hidden = false;
+    });
+  });
+  document.body.append(toast);
+}
+
+// Closing the app or putting it away is leaving the screen too.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') commitPendingDelete();
+});
+
+/**
+ * Make every row of that kind on the page slide, and delete through
+ * `onDelete(id)`. With `undo` (what the note at the foot says), the delete
+ * waits a few seconds and can be taken back.
+ */
+function bindSwipes(kind, onDelete, { undo = '' } = {}) {
   view.querySelectorAll(`[data-swipe-kind="${kind}"]`).forEach((row) => {
+    // Drawn again while waiting to be deleted: stays out of sight.
+    if (pending && pending.kind === kind && pending.id === row.dataset.swipe) hideRow(row);
     const body = row.querySelector('.swipe__body');
     const button = row.querySelector('[data-swipe-delete]');
     let start = null;
@@ -14253,7 +14397,85 @@ function bindSwipes(kind, onDelete) {
       moved = false;
     }, true);
 
-    button.addEventListener('click', () => onDelete(row.dataset.swipe));
+    button.addEventListener('click', () => {
+      if (undo) offerUndo(kind, row.dataset.swipe, onDelete, undo, row);
+      else onDelete(row.dataset.swipe);
+    });
+  });
+}
+
+/* --------------------------------------------------------- pull to refresh --- */
+
+/** How far down a finger pulls, in pixels, before letting go fetches. */
+const PULL_FAR = 72;
+
+/**
+ * Pull the top of the page down to fetch what the others did — the gesture of
+ * every phone app, which a web app installed on the home screen does not get
+ * from the browser. The same as the round arrows at the top (#sync), so it is
+ * offered only where they are. In a browser tab, the browser's own pull
+ * (reload) is left alone.
+ */
+function bindPullToRefresh() {
+  const installed = () =>
+    matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  let start = null;
+  let pulled = 0;
+  let mark = null;
+
+  const show = (distance) => {
+    if (!mark) {
+      mark = document.createElement('div');
+      mark.className = 'pull';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.innerHTML = '<span class="pull__arrow">↻</span>';
+      document.body.append(mark);
+    }
+    const shown = Math.min(distance, PULL_FAR * 1.4);
+    mark.style.transform = `translate(-50%, ${shown * 0.8}px) rotate(${shown * 4}deg)`;
+    mark.style.opacity = String(Math.min(1, shown / PULL_FAR));
+    mark.classList.toggle('pull--ready', distance >= PULL_FAR);
+  };
+  const hide = () => {
+    mark?.remove();
+    mark = null;
+  };
+
+  document.addEventListener('touchstart', (event) => {
+    start = null;
+    pulled = 0;
+    if (!installed() || event.touches.length !== 1 || window.scrollY > 0) return;
+    const sync = document.getElementById('sync');
+    if (!sync || sync.hidden || sync.disabled || document.body.classList.contains('playing')) return;
+    // What answers a finger of its own: the 3D view, a sketch, a slide, a form.
+    if (event.target.closest('canvas, dialog, input, textarea, select, .swipe, [data-no-pull]')) return;
+    start = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (event) => {
+    if (!start) return;
+    const dx = event.touches[0].clientX - start.x;
+    const dy = event.touches[0].clientY - start.y;
+    if (window.scrollY > 0 || dy < 0 || (pulled === 0 && Math.abs(dx) > Math.abs(dy))) {
+      start = null;
+      hide();
+      return;
+    }
+    pulled = dy;
+    if (pulled > 12) show(pulled - 12);
+  }, { passive: true });
+
+  const end = () => {
+    if (!start) return;
+    start = null;
+    const far = pulled - 12 >= PULL_FAR;
+    hide();
+    if (far) document.getElementById('sync')?.click();
+  };
+  document.addEventListener('touchend', end);
+  document.addEventListener('touchcancel', () => {
+    start = null;
+    hide();
   });
 }
 
@@ -16688,9 +16910,8 @@ function bindList(list) {
   bindSwipes('item', (itemId) => {
     const current = getList(list.id);
     if (!current) return;
-    flash(t('swipe.lineDeleted'));
     replaceList(removeItem(current, itemId));
-  });
+  }, { undo: t('swipe.lineDeleted') });
 
   view.querySelector('#add-line')?.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -18253,9 +18474,8 @@ function bindSpend(spend) {
   bindSwipes('line', (lineId) => {
     const current = getSpend(spend.id);
     if (!current) return;
-    flash(t('swipe.lineDeleted'));
     replaceSpend(removeSpend(current, lineId));
-  });
+  }, { undo: t('swipe.lineDeleted') });
 
   view.querySelectorAll('[data-spend-tab]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -18860,9 +19080,8 @@ function bindBoard(board) {
   bindSwipes('card', (cardId) => {
     const current = getBoard(board.id);
     if (!current) return;
-    flash(t('ideas.cardDeleted'));
     replaceBoard(removeCard(current, cardId));
-  });
+  }, { undo: t('ideas.cardDeleted') });
 
   view.querySelector('#board-add-note')?.addEventListener('click', () => openNoteDialog(board.id, null));
   view.querySelector('#board-add-sketch')?.addEventListener('click', () => openSketchDialog(board.id, null));
@@ -32192,6 +32411,7 @@ setLanguage(state.prefs.lang || detectLanguage());
 applyStaticText();
 applyLook();
 bindChrome();
+bindPullToRefresh();
 followTrail();
 window.addEventListener('hashchange', () => {
   followTrail();
@@ -32202,8 +32422,36 @@ window.addEventListener('hashchange', () => {
   // A message already read belongs to the screen it was read on. One that has
   // not been seen yet follows, so that nothing is lost on the way.
   if (state.flash?.shownAt) state.flash = null;
-  render();
+  commitPendingDelete();
+  renderMoving();
 });
+
+/**
+ * The screens a tab shows: going from one to a page under it slides forward,
+ * coming back slides back, and moving between two of them crossfades.
+ */
+const TOP_SCREENS = ['home', 'overview', 'agenda', 'groups', 'settings', 'lists', 'polls', 'spends', 'ideas', 'search', 'stats'];
+let shownScreen = route().name;
+
+/** Draw the new screen, sliding it in where the browser can and motion is welcome. */
+function renderMoving() {
+  const before = shownScreen;
+  const after = route().name;
+  shownScreen = after;
+  // A browser driven by a test acts within the slide, when the browser hands
+  // taps to nothing: tests see the screens as they are (tests/navigateur/
+  // transitions.mjs turns the slide back on to check it).
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches || navigator.webdriver;
+  if (!document.startViewTransition || still || before === after || isBusy()) {
+    render();
+    return;
+  }
+  const depth = (name) => (TOP_SCREENS.includes(name) ? 0 : 1);
+  const step = depth(after) - depth(before);
+  document.documentElement.dataset.nav = step > 0 ? 'forward' : step < 0 ? 'back' : 'across';
+  const moving = document.startViewTransition(() => render());
+  moving.finished.finally(() => delete document.documentElement.dataset.nav);
+}
 
 // Coming back to the app, perhaps days later: the season and the moon move
 // on, and Réglages, which names the season, says the new one.

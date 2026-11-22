@@ -1103,9 +1103,8 @@ export function bindSpend(spend) {
   bindSwipes('line', (lineId) => {
     const current = getSpend(spend.id);
     if (!current) return;
-    flash(t('swipe.lineDeleted'));
     replaceSpend(removeSpend(current, lineId));
-  });
+  }, { undo: t('swipe.lineDeleted') });
 
   view.querySelectorAll('[data-spend-tab]').forEach((button) => {
     button.addEventListener('click', () => {

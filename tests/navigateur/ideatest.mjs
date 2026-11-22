@@ -236,7 +236,10 @@ check('toucher la carte la referme, sans l’ouvrir',
 await swipe(first.locator('.swipe__body'));
 await page.waitForTimeout(250);
 await first.locator('.swipe__delete').click();
-await page.waitForFunction(() => document.querySelectorAll('.idea-card').length === 1);
+// Hors de vue tout de suite, supprimée quand « Annuler » n'a pas servi.
+await page.waitForFunction(() => [...document.querySelectorAll('.idea-card')].filter((n) => !n.closest('[hidden]')).length === 1);
+check('« Annuler » s’offre', (await page.locator('#undo-toast').count()) === 1);
+await page.waitForFunction(() => document.querySelectorAll('.idea-card').length === 1, null, { timeout: 8000 });
 check('toucher « Supprimer » retire la carte', !/À jeter/.test(await page.locator('.idea-grid').textContent()));
 
 // Un tableau, dans la liste des tableaux, se glisse aussi — mais on demande.

@@ -45,7 +45,7 @@ import { bindAccount, privacyView, syncAccount } from './view-account.js';
 import { bindInstall, startInstall } from './view-install.js';
 import { bindHolo } from './view-holo.js';
 import { applyLook, bindLook, lookIsDark, refreshSky } from './view-look.js';
-import { swipeable } from './swipe.js';
+import { bindPullToRefresh, commitPendingDelete, swipeable } from './swipe.js';
 import { prefillOf, withoutPrefill } from './prefill.js';
 import { createLive, docTopic, groupTopic, liveUrl } from './live.js';
 import { bindNotify, syncPush, tell, tellKnock } from './view-notify.js';
@@ -1740,6 +1740,7 @@ setLanguage(state.prefs.lang || detectLanguage());
 applyStaticText();
 applyLook();
 bindChrome();
+bindPullToRefresh();
 followTrail();
 window.addEventListener('hashchange', () => {
   followTrail();
@@ -1750,8 +1751,36 @@ window.addEventListener('hashchange', () => {
   // A message already read belongs to the screen it was read on. One that has
   // not been seen yet follows, so that nothing is lost on the way.
   if (state.flash?.shownAt) state.flash = null;
-  render();
+  commitPendingDelete();
+  renderMoving();
 });
+
+/**
+ * The screens a tab shows: going from one to a page under it slides forward,
+ * coming back slides back, and moving between two of them crossfades.
+ */
+const TOP_SCREENS = ['home', 'overview', 'agenda', 'groups', 'settings', 'lists', 'polls', 'spends', 'ideas', 'search', 'stats'];
+let shownScreen = route().name;
+
+/** Draw the new screen, sliding it in where the browser can and motion is welcome. */
+function renderMoving() {
+  const before = shownScreen;
+  const after = route().name;
+  shownScreen = after;
+  // A browser driven by a test acts within the slide, when the browser hands
+  // taps to nothing: tests see the screens as they are (tests/navigateur/
+  // transitions.mjs turns the slide back on to check it).
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches || navigator.webdriver;
+  if (!document.startViewTransition || still || before === after || isBusy()) {
+    render();
+    return;
+  }
+  const depth = (name) => (TOP_SCREENS.includes(name) ? 0 : 1);
+  const step = depth(after) - depth(before);
+  document.documentElement.dataset.nav = step > 0 ? 'forward' : step < 0 ? 'back' : 'across';
+  const moving = document.startViewTransition(() => render());
+  moving.finished.finally(() => delete document.documentElement.dataset.nav);
+}
 
 // Coming back to the app, perhaps days later: the season and the moon move
 // on, and Réglages, which names the season, says the new one.

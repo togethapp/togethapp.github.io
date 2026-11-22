@@ -750,6 +750,7 @@ export const STRINGS = {
     'ideas.swipeHint': 'Glissez une carte vers la gauche pour la supprimer.',
     'swipe.deleted': '« {name} » supprimé.',
     'swipe.lineDeleted': 'Ligne supprimée.',
+    'action.undoDelete': 'Annuler',
     'ideas.cardDeleted': 'Carte supprimée.',
     'ideas.deleted': '« {name} » supprimé.',
     'spends.cannotDropPaid':
@@ -2119,6 +2120,7 @@ export const STRINGS = {
     'ideas.swipeHint': 'Swipe a card to the left to delete it.',
     'swipe.deleted': '“{name}” deleted.',
     'swipe.lineDeleted': 'Line deleted.',
+    'action.undoDelete': 'Undo',
     'ideas.cardDeleted': 'Card deleted.',
     'ideas.deleted': '“{name}” deleted.',
     'spends.cannotDropPaid':
