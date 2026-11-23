@@ -511,6 +511,19 @@ function backTarget(fallback) {
 
 /* ------------------------------------------------------------------ views --- */
 
+/**
+ * Say something to a screen reader without moving it: the page itself is not
+ * read out at each redraw (others' changes arrive every few seconds), so a
+ * message goes through this one place, which stays on the page.
+ */
+export function announce(message) {
+  const out = document.getElementById('announce');
+  if (!out) return;
+  out.textContent = '';
+  // Emptied, then filled a beat later: the same message twice is read twice.
+  setTimeout(() => { out.textContent = message; }, 60);
+}
+
 export function flashHtml() {
   if (!state.flash) return '';
   const { message, kind, shownAt } = state.flash;
@@ -520,6 +533,7 @@ export function flashHtml() {
   if (!shownAt) {
     state.flash = { ...state.flash, shownAt: Date.now() };
     state.flashFresh = kind === 'error';
+    announce(message);
   } else if (Date.now() - shownAt > FLASH_KEPT) {
     state.flash = null;
     return '';
@@ -865,6 +879,15 @@ function applyStaticText() {
 }
 
 function bindChrome() {
+  // The address after "#" is the app's route: the link to skip the bars puts
+  // the reader on the page's heading instead of following it.
+  document.querySelector('.skip-link')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    const heading = view.querySelector('h1');
+    const target = heading || view;
+    target.tabIndex = -1;
+    target.focus();
+  });
   document.getElementById('create')?.addEventListener('click', openCreateMenu);
   // Night or light, from any page; the settings say the same, so on that page
   // they are drawn again to show it. See view-look.js for the rest.
@@ -1028,6 +1051,62 @@ function takePrefill(current) {
 }
 
 export function render() {
+  draw();
+  namePage();
+}
+
+/**
+ * What a reader of the screen is told the page is: one heading at the top of
+ * each screen — a tab has none on show, it gets a hidden one with the name of
+ * where it is — and the window's title after it.
+ */
+function namePage() {
+  if (!view.querySelector('h1')) {
+    const kind = view.querySelector('.segmented--kinds [aria-current="true"]');
+    const tab = document.querySelector('#tabs [aria-current="page"]');
+    const name = kind && kind.dataset.goto !== '#/' ? kind.textContent.trim() : (tab?.textContent || '').trim();
+    if (name) view.insertAdjacentHTML('afterbegin', `<h1 class="visually-hidden">${escapeHtml(name)}</h1>`);
+  }
+  const heading = (view.querySelector('h1')?.textContent || '').trim().replace(/\s+/g, ' ');
+  const app = t('app.title');
+  document.title = heading && heading !== app ? `${heading} · ${app}` : app;
+}
+
+/**
+ * A new screen: a screen reader starts reading it at its heading, as it
+ * would a new page, unless the screen already put the cursor in a field.
+ */
+function focusPage() {
+  const active = document.activeElement;
+  if (active && active !== document.body && view.contains(active)) return;
+  if (document.querySelector('dialog[open]')) return;
+  const heading = view.querySelector('h1');
+  if (!heading) return;
+  heading.tabIndex = -1;
+  heading.focus({ preventScroll: true });
+}
+
+/**
+ * While something is fetched from the database: the shape of a page to come,
+ * and a sentence that says what is coming — read out by a screen reader.
+ */
+export function loadingHtml(text) {
+  return `
+    <div class="loading" role="status">
+      <span class="loading__bar loading__bar--title" aria-hidden="true"></span>
+      <span class="loading__bar" aria-hidden="true"></span>
+      <span class="loading__bar loading__bar--short" aria-hidden="true"></span>
+      <p class="muted small">${escapeHtml(text)}</p>
+    </div>`;
+}
+
+/** A document asked for that this device does not hold: say so, then show its kind. */
+function missing(tab) {
+  flash(t('doc.missing'));
+  navigate(tab);
+}
+
+function draw() {
   const current = route();
   takePrefill(current);
   markTab(current);
@@ -1052,7 +1131,7 @@ export function render() {
       stopWatching();
       // Perhaps a list someone shared: ask the database before giving up.
       if (state.remote) {
-        view.innerHTML = `<p class="muted small">${escapeHtml(t('lists.loading'))}</p>`;
+        view.innerHTML = loadingHtml(t('lists.loading'));
         // A redraw while it is on its way must not ask for it twice.
         if (state.openingList !== current.id) {
           const asked = current.id;
@@ -1061,12 +1140,12 @@ export function render() {
             if (state.openingList !== asked) return;
             state.openingList = null;
             if (found) render();
-            else if (route().id === asked) navigate('#/lists');
+            else if (route().id === asked) missing('#/lists');
           });
         }
         return;
       }
-      navigate('#/lists');
+      missing('#/lists');
       return;
     }
     watchList(list.id);
@@ -1090,7 +1169,7 @@ export function render() {
       stopWatching();
       // Peut-être un compte que quelqu'un partage : demander avant d'abandonner.
       if (state.remote) {
-        view.innerHTML = `<p class="muted small">${escapeHtml(t('spends.loading'))}</p>`;
+        view.innerHTML = loadingHtml(t('spends.loading'));
         if (state.openingSpend !== current.id) {
           const asked = current.id;
           state.openingSpend = asked;
@@ -1098,12 +1177,12 @@ export function render() {
             if (state.openingSpend !== asked) return;
             state.openingSpend = null;
             if (found) render();
-            else if (route().id === asked) navigate('#/spends');
+            else if (route().id === asked) missing('#/spends');
           });
         }
         return;
       }
-      navigate('#/spends');
+      missing('#/spends');
       return;
     }
     watchSpend(spend.id);
@@ -1123,7 +1202,7 @@ export function render() {
       stopWatching();
       // Perhaps a board someone shares: ask before giving up.
       if (state.remote) {
-        view.innerHTML = `<p class="muted small">${escapeHtml(t('ideas.loading'))}</p>`;
+        view.innerHTML = loadingHtml(t('ideas.loading'));
         if (state.openingBoard !== current.id) {
           const asked = current.id;
           state.openingBoard = asked;
@@ -1131,12 +1210,12 @@ export function render() {
             if (state.openingBoard !== asked) return;
             state.openingBoard = null;
             if (found) render();
-            else if (route().id === asked) navigate('#/ideas');
+            else if (route().id === asked) missing('#/ideas');
           });
         }
         return;
       }
-      navigate('#/ideas');
+      missing('#/ideas');
       return;
     }
     watchBoard(board.id);
@@ -1155,7 +1234,7 @@ export function render() {
     if (!poll) {
       stopWatching();
       if (state.remote) {
-        view.innerHTML = `<p class="muted small">${escapeHtml(t('polls.loading'))}</p>`;
+        view.innerHTML = loadingHtml(t('polls.loading'));
         if (state.openingPoll !== current.id) {
           const asked = current.id;
           state.openingPoll = asked;
@@ -1183,7 +1262,7 @@ export function render() {
     bindNewGame();
   } else if (current.name === 'set') {
     stopWatching();
-    view.innerHTML = `<p class="muted small">${escapeHtml(t('shareSet.loading'))}</p>`;
+    view.innerHTML = loadingHtml(t('shareSet.loading'));
     // A redraw while the games are on their way must not fetch them twice.
     if (state.openingSet !== current.id) {
       const asked = current.id;
@@ -1203,14 +1282,14 @@ export function render() {
     if (!game) {
       // Perhaps it is a game someone shared: ask the database before giving up.
       if (state.remote) {
-        view.innerHTML = `<p class="muted small">${escapeHtml(t('share.loading'))}</p>`;
+        view.innerHTML = loadingHtml(t('share.loading'));
         pullGame(current.id).then((found) => {
           if (found) render();
-          else if (route().id === current.id) navigate('#/games');
+          else if (route().id === current.id) missing('#/games');
         });
         return;
       }
-      navigate('#/games');
+      missing('#/games');
       return;
     }
     watchGame(game.id);
@@ -1235,6 +1314,7 @@ export function render() {
     stopWatching();
     const group = groups().find((held) => held.id === current.id);
     if (!group) {
+      flash(t('group.missing'));
       navigate('#/groups');
       return;
     }
@@ -1773,12 +1853,16 @@ function renderMoving() {
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches || navigator.webdriver;
   if (!document.startViewTransition || still || before === after || isBusy()) {
     render();
+    focusPage();
     return;
   }
   const depth = (name) => (TOP_SCREENS.includes(name) ? 0 : 1);
   const step = depth(after) - depth(before);
   document.documentElement.dataset.nav = step > 0 ? 'forward' : step < 0 ? 'back' : 'across';
-  const moving = document.startViewTransition(() => render());
+  const moving = document.startViewTransition(() => {
+    render();
+    focusPage();
+  });
   moving.finished.finally(() => delete document.documentElement.dataset.nav);
 }
 

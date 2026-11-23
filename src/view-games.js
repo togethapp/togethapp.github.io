@@ -110,7 +110,7 @@ export function newGameView() {
       </label>
 
       <div class="stack">
-        <h3>${escapeHtml(t(isTeam ? 'new.teams' : 'new.players'))}</h3>
+        <h2 class="h3">${escapeHtml(t(isTeam ? 'new.teams' : 'new.players'))}</h2>
         <div class="score-rows">${nameRows}</div>
         ${
           known.length
@@ -123,7 +123,7 @@ export function newGameView() {
       </div>
 
       <div class="stack">
-        <h3>${escapeHtml(t('new.rules'))}</h3>
+        <h2 class="h3">${escapeHtml(t('new.rules'))}</h2>
         <div class="field-grid">
           <label>
             ${escapeHtml(t('new.direction'))}

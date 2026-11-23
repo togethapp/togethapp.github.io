@@ -528,7 +528,7 @@ body {
 h1, h2, h3 { line-height: 1.2; margin: 0; letter-spacing: -0.015em; }
 h1 { font-size: 1.65rem; font-weight: 750; letter-spacing: -0.025em; text-shadow: 0 0 28px var(--glow); }
 h2 { font-size: 1.15rem; font-weight: 700; }
-h3 { font-size: 1rem; }
+h3, h2.h3 { font-size: 1rem; }
 p { margin: 0; }
 
 a { color: inherit; }
@@ -3579,3 +3579,38 @@ body.playing .toast { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
   pointer-events: none;
 }
 .pull--ready { color: var(--accent-text); background: var(--accent); border-color: var(--accent); }
+
+/* --- finishing: what is on its way, where to skip to ----------------------- */
+
+/* The heading a new screen puts the cursor on: read out, not ringed. */
+#view h1:focus { outline: none; }
+
+/* First thing a keyboard reaches: past the bars, straight to the page. */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+  text-decoration: none;
+}
+.skip-link:focus { top: 12px; }
+
+/* A page fetched from the database: its shape, breathing, until it is there. */
+.loading { display: grid; gap: 12px; padding: 8px 0; }
+.loading__bar {
+  display: block;
+  height: 14px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+.loading__bar--title { height: 26px; width: 60%; }
+.loading__bar--short { width: 40%; }
+@media (prefers-reduced-motion: no-preference) {
+  .loading__bar { animation: loading-breathe 1.2s ease-in-out infinite alternate; }
+}
+@keyframes loading-breathe { from { opacity: 0.45; } to { opacity: 1; } }

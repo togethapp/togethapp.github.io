@@ -6,7 +6,8 @@
  *    téléphone : aucune erreur, aucun texte cassé (clé de traduction brute,
  *    « undefined », « NaN »), rien qui déborde sur le côté, aucun bouton sans
  *    nom ni trop petit pour un doigt, et un « Retour » sur tout ce qui n'est
- *    pas un onglet.
+ *    pas un onglet ; un seul titre principal (h1), caché sur les onglets, que
+ *    reprend le titre de la fenêtre.
  * 2. Chaque fenêtre qu'un bouton ouvre : une façon visible d'en sortir, et
  *    en sortir sans valider (Échap) ne change rien à ce qui est gardé.
  * 3. « Retour » ramène là d'où l'on vient, depuis chaque page de document.
@@ -145,6 +146,8 @@ for (const lang of ['fr', 'en']) {
           }).map((b) => `${(b.innerText || b.getAttribute('aria-label') || b.id || '').trim().slice(0, 30)} ${Math.round(b.getBoundingClientRect().width)}×${Math.round(b.getBoundingClientRect().height)}`),
           back: Boolean(document.querySelector('#view [data-back]')),
           h1: (document.querySelector('#view h1')?.textContent || '').trim(),
+          h1s: document.querySelectorAll('#view h1').length,
+          title: document.title,
           form: (() => {
             const form = document.querySelector('#view form');
             if (!form) return null;
@@ -176,6 +179,10 @@ for (const lang of ['fr', 'en']) {
       const isKindTab = ['#/lists', '#/polls', '#/games', '#/spends', '#/ideas'].includes(hash);
       if (lang === 'en' && facts.french.length) note('mot français dans l’app en anglais', `${where} : ${[...new Set(facts.french)].join(', ')}`);
       if (!TABS.includes(hash) && !facts.h1) note('pas de titre', where);
+      // Un lecteur d'écran se repère au titre : un et un seul par écran, onglets
+      // compris (caché sur ceux-là), et la fenêtre dit où l'on est.
+      if (facts.h1s !== 1) note('pas exactement un titre principal (h1)', `${where} : ${facts.h1s}`);
+      if (hash !== '#/' && !facts.title.includes(' · ')) note('titre de la fenêtre sans le nom de l’écran', `${where} : ${facts.title}`);
       if (isForm && width === 390) {
         if (!facts.form) note('formulaire introuvable', where);
         else {
