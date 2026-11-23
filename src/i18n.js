@@ -248,10 +248,9 @@ export const STRINGS = {
     'overview.what':
       'S’organiser à plusieurs : trouver une date, se répartir ce qu’il faut apporter, partager les dépenses, et compter les points d’une vingtaine de jeux.',
     'welcome.title': 'Bienvenue',
-    'welcome.name': 'D’abord, votre prénom',
     'welcome.itsMe': 'C’est moi',
     'welcome.hello': 'Bonjour {name} !',
-    'welcome.then': 'Ensuite, au choix :',
+    'welcome.alone': 'ou commencer sans groupe',
     'welcome.join': 'Rejoindre ou créer un groupe',
     'welcome.poll': 'Trouver une date',
     'welcome.list': 'Faire une liste',
@@ -1618,10 +1617,9 @@ export const STRINGS = {
     'overview.what':
       'Getting organised together: find a date, share out what to bring, split the costs, and keep score for a couple of dozen games.',
     'welcome.title': 'Welcome',
-    'welcome.name': 'First, your first name',
     'welcome.itsMe': 'That’s me',
     'welcome.hello': 'Hello {name}!',
-    'welcome.then': 'Then, as you like:',
+    'welcome.alone': 'or start without a group',
     'welcome.join': 'Join or create a group',
     'welcome.poll': 'Find a date',
     'welcome.list': 'Make a list',
