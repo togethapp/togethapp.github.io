@@ -1,5 +1,5 @@
 /**
- * La première ouverture — ce que l'app fait, un prénom, par où commencer — et
+ * La première ouverture — ce que l'app fait, par où commencer, sans rien demander — et
  * un compte tenu dans une autre monnaie que l'euro, dont le formulaire se
  * replie une fois la première dépense notée.
  */
@@ -22,12 +22,13 @@ await page.waitForSelector('.welcome');
 
 check('la première ouverture souhaite la bienvenue', (await page.locator('.welcome h2').textContent()).trim() === 'Bienvenue');
 check('sans sections vides en dessous', (await page.locator('#view .section').count()) === 0);
-const starts = (await page.locator('.welcome [data-goto]').allTextContents()).map((s) => s.trim());
-check('quatre façons de commencer', starts.join(' / ') === 'Rejoindre ou créer un groupe / Trouver une date / Faire une liste / Partager des dépenses', starts.join(' / '));
-await page.fill('#me-name', 'Gui');
-await page.click('#me-save');
-await page.waitForFunction(() => /Bonjour Gui/.test(document.querySelector('.welcome')?.textContent || ''));
-check('le prénom se donne sur place', true);
+check('et sans rien demander : pas de champ prénom', (await page.locator('#view input').count()) === 0);
+const main = page.locator('.welcome .button--primary');
+check('une seule action en avant', (await main.count()) === 1 && (await main.textContent()).trim() === 'Rejoindre ou créer un groupe');
+const starts = (await page.locator('.welcome__tile').allTextContents()).map((s) => s.trim());
+check('et trois façons de commencer seul', starts.join(' / ') === 'Trouver une date / Faire une liste / Partager des dépenses', starts.join(' / '));
+const tiles = await page.locator('.welcome__tile').evaluateAll((ns) => ns.map((n) => n.getBoundingClientRect().height));
+check('côte à côte, de la même hauteur, assez grandes pour le pouce', tiles.every((h) => h === tiles[0] && h >= 44), JSON.stringify(tiles));
 
 /* --- 2. un compte en livres -------------------------------------------- */
 
@@ -51,6 +52,11 @@ await page.click('#spend-add-open');
 await page.waitForSelector('#spend-text');
 check('« Noter une dépense » le rouvre', (await page.locator('#add-spend').count()) === 1);
 
+// Le prénom, pas demandé à la bienvenue, se donne dans Réglages.
+await page.goto('http://localhost:8099/dist/marque-points.html#/settings');
+await page.fill('#me-name', 'Gui');
+await page.click('#me-save');
+await page.waitForTimeout(300);
 await page.goto('http://localhost:8099/dist/marque-points.html#/');
 await page.waitForSelector('.game-card');
 check('l’accueil dit ce qu’on vous doit, en livres', /21,15\s?£/.test(await page.locator('#view').textContent()));

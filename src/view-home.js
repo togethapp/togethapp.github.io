@@ -1027,35 +1027,46 @@ export function waitingLine({ counts, accounts = [] }) {
     .join(' · ');
 }
 
+/** Line icons for the welcome's ways in, drawn like the tabs' own. */
+const WELCOME_ICONS = {
+  poll: '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M9 14.5l2 2 4-4"/>',
+  list: '<path d="M9 7h11M9 12h11M9 17h11"/><path d="M3.5 7l1.2 1.2L7 6M3.5 12l1.2 1.2L7 11M3.5 17l1.2 1.2L7 16"/>',
+  spend: '<circle cx="12" cy="12" r="8.5"/><path d="M15.2 8.6a4.3 4.3 0 1 0 0 6.8M7.5 11h6M7.5 13.4h6"/>',
+};
+
 /**
- * The first time the app opens, empty and in no group: what it is for, the
- * first name it goes by, and three ways to begin — rather than three empty
- * sections, each saying there is nothing yet.
+ * The first time the app opens, empty and in no group: what it is for, and
+ * one way in that matters most — a group — with three smaller ones for
+ * starting alone. The first name is not asked here: it is asked where it is
+ * used (knocking at a group, Réglages), so the first screen asks for nothing.
  */
 function welcomeHtml() {
-  const start = (goto, label, primary = false) =>
-    `<button type="button" class="button ${primary ? 'button--primary' : ''}" data-goto="${goto}">${escapeHtml(label)}</button>`;
+  const tile = (goto, label, icon) => `
+    <button type="button" class="welcome__tile" data-goto="${goto}">
+      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none" stroke="currentColor"
+           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${WELCOME_ICONS[icon]}</svg>
+      <span>${escapeHtml(label)}</span>
+    </button>`;
   return `
-    <section class="card stack welcome">
-      <h2>${escapeHtml(t('welcome.title'))}</h2>
+    <section class="welcome">
+      <span class="welcome__mark" aria-hidden="true">
+        <svg viewBox="11 18 42 28" width="84" height="56">
+          <circle cx="25" cy="32" r="12.5" fill="none" stroke="currentColor" stroke-width="3.6" />
+          <circle cx="39" cy="32" r="12.5" fill="none" stroke="currentColor" stroke-width="3.6" />
+        </svg>
+      </span>
+      <h2>${escapeHtml(myName() ? t('welcome.hello', { name: myName() }) : t('welcome.title'))}</h2>
       <p class="lead">${escapeHtml(t('overview.what'))}</p>
       ${
-        myName()
-          ? `<p>${escapeHtml(t('welcome.hello', { name: myName() }))}</p>`
-          : `<label for="me-name">${escapeHtml(t('welcome.name'))}</label>
-             <div class="row row--tight">
-               <input type="text" id="me-name" autocomplete="given-name" maxlength="${NAME_KEPT}"
-                      placeholder="${escapeHtml(t('me.placeholder'))}" />
-               <button type="button" class="button" id="me-save">${escapeHtml(t('welcome.itsMe'))}</button>
-             </div>
-             <p class="muted small">${escapeHtml(t(state.remote ? 'me.hint' : 'me.hintAlone'))}</p>`
+        state.remote
+          ? `<button type="button" class="button button--primary welcome__main" data-goto="#/groups">${escapeHtml(t('welcome.join'))}</button>
+             <p class="muted small welcome__or">${escapeHtml(t('welcome.alone'))}</p>`
+          : ''
       }
-      <span class="muted small">${escapeHtml(t('welcome.then'))}</span>
-      <div class="row">
-        ${state.remote ? start('#/groups', t('welcome.join'), true) : ''}
-        ${start('#/polls/new', t('welcome.poll'))}
-        ${start('#/lists/new', t('welcome.list'))}
-        ${start('#/spends/new', t('welcome.spend'))}
+      <div class="welcome__tiles">
+        ${tile('#/polls/new', t('welcome.poll'), 'poll')}
+        ${tile('#/lists/new', t('welcome.list'), 'list')}
+        ${tile('#/spends/new', t('welcome.spend'), 'spend')}
       </div>
     </section>`;
 }
