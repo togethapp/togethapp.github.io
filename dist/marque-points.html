@@ -6,11 +6,11 @@
     <!-- Only the app's own scripts run: its files, and the script below named
          by its hash. Written by tools/bundle.js; first, since it only covers
          what comes after it. -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-WuE0VaeXF8J3KEeGlyfTnXSTd/MmeE0aqzXm8if8V9o='; object-src 'none'; base-uri 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-k2U/pyTUJP5QTZTnjhmrpznNX6kU6SU4FYXks8zd/MI='; object-src 'none'; base-uri 'none'" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v17" />
-    <meta name="app-build" content="9d46e18c" />
+    <meta name="app-build" content="ea59066b" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -4529,7 +4529,7 @@ const FR = {
 'agenda.group': 'L’agenda du groupe',
 'agenda.title': 'L’agenda de {name}',
 'agenda.hint':
-'Collez cette adresse dans votre agenda — « s’abonner à un calendrier » — et les dates retenues et les lignes datées du groupe s’y afficheront toutes seules. Qui tient l’adresse voit ces dates : à partager en famille, pas à publier. Les agendas relisent quand ils veulent : comptez quelques heures.',
+'Collez cette adresse dans votre agenda — « s’abonner à un calendrier » — et les dates retenues et les lignes datées du groupe s’y afficheront toutes seules. Qui tient l’adresse voit ces dates : à partager en famille, pas à publier. Les agendas relisent quand ils veulent : comptez quelques heures. Si votre agenda refuse l’adresse (Family Wall, par exemple), remplacez « https:// » au début par « webcal:// ».',
 'agenda.cut': 'Couper l’adresse',
 'agenda.confirmCut':
 'Couper l’adresse de l’agenda ? Les agendas déjà abonnés cessent de recevoir quoi que ce soit. Vous pourrez en fabriquer une autre, sans rapport avec celle-ci.',
@@ -5892,7 +5892,7 @@ const EN = {
 'agenda.group': 'The group’s calendar',
 'agenda.title': '{name}’s calendar',
 'agenda.hint':
-'Paste this address into your calendar — “subscribe to a calendar” — and the group’s settled dates and dated lines appear there on their own. Whoever holds the address sees those dates: share it with the family, do not publish it. Calendars refresh when they feel like it: count a few hours.',
+'Paste this address into your calendar — “subscribe to a calendar” — and the group’s settled dates and dated lines appear there on their own. Whoever holds the address sees those dates: share it with the family, do not publish it. Calendars refresh when they feel like it: count a few hours. If your calendar refuses the address (Family Wall, for one), replace “https://” at the start with “webcal://”.',
 'agenda.cut': 'Cut the address',
 'agenda.confirmCut':
 'Cut the calendar address? Calendars already subscribed stop receiving anything. You can make another one, unrelated to this.',

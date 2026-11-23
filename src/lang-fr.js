@@ -769,7 +769,7 @@ export const FR = {
   'agenda.group': 'L’agenda du groupe',
   'agenda.title': 'L’agenda de {name}',
   'agenda.hint':
-    'Collez cette adresse dans votre agenda — « s’abonner à un calendrier » — et les dates retenues et les lignes datées du groupe s’y afficheront toutes seules. Qui tient l’adresse voit ces dates : à partager en famille, pas à publier. Les agendas relisent quand ils veulent : comptez quelques heures.',
+    'Collez cette adresse dans votre agenda — « s’abonner à un calendrier » — et les dates retenues et les lignes datées du groupe s’y afficheront toutes seules. Qui tient l’adresse voit ces dates : à partager en famille, pas à publier. Les agendas relisent quand ils veulent : comptez quelques heures. Si votre agenda refuse l’adresse (Family Wall, par exemple), remplacez « https:// » au début par « webcal:// ».',
   'agenda.cut': 'Couper l’adresse',
   'agenda.confirmCut':
     'Couper l’adresse de l’agenda ? Les agendas déjà abonnés cessent de recevoir quoi que ce soit. Vous pourrez en fabriquer une autre, sans rapport avec celle-ci.',
