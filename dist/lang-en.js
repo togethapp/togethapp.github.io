@@ -761,7 +761,7 @@
 'agenda.group': 'The group’s calendar',
 'agenda.title': '{name}’s calendar',
 'agenda.hint':
-'Paste this address into your calendar — “subscribe to a calendar” — and the group’s settled dates and dated lines appear there on their own. Whoever holds the address sees those dates: share it with the family, do not publish it. Calendars refresh when they feel like it: count a few hours.',
+'Paste this address into your calendar — “subscribe to a calendar” — and the group’s settled dates and dated lines appear there on their own. Whoever holds the address sees those dates: share it with the family, do not publish it. Calendars refresh when they feel like it: count a few hours. If your calendar refuses the address (Family Wall, for one), replace “https://” at the start with “webcal://”.',
 'agenda.cut': 'Cut the address',
 'agenda.confirmCut':
 'Cut the calendar address? Calendars already subscribed stop receiving anything. You can make another one, unrelated to this.',
