@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
-import { bundle, contentPolicy, edgeFunction } from '../tools/bundle.js';
+import { bundle, contentPolicy, edgeFunction, servedFiles, servedNames } from '../tools/bundle.js';
 
 const root = resolve(import.meta.dirname, '..');
 const BUILDS = [
@@ -42,7 +42,8 @@ test('each page lets its own scripts run, and nothing slipped in', async () => {
   const single = await readFile(join(root, 'dist', 'marque-points.html'), 'utf8');
   assert.equal(policyOf(served), contentPolicy(served), 'index.html carries the policy of its scripts — run `npm run bundle`');
   assert.equal(policyOf(single), contentPolicy(single, { self: false }));
-  assert.match(policyOf(served), /script-src 'self' 'sha256-[^']+'; object-src 'none'; base-uri 'none'/);
+  assert.match(policyOf(served), /script-src 'self' 'sha256-[^']+' 'sha256-[^']+'; object-src 'none'; base-uri 'none'/,
+    'its files, the look set before the first paint, and the words fetched');
   assert.equal((policyOf(single).match(/'sha256-/g) || []).length, 2, 'the look set before the first paint, and the app');
   for (const html of [served, single]) {
     assert.ok(html.indexOf('Content-Security-Policy') < html.indexOf('<script'), 'the policy only covers what comes after it');
@@ -80,7 +81,8 @@ test('bundling refuses to silently produce a broken page', async () => {
   // so a rename in index.html fails the build instead of shipping a blank page.
   const html = await readFile(join(root, 'index.html'), 'utf8');
   assert.match(html, /<link rel="stylesheet" href="styles\.css" \/>/);
-  assert.match(html, /<script type="module" src="src\/app\.js"><\/script>/);
+  assert.match(html, /<script src="dist\/app\.js"><\/script>/);
+  assert.match(html, /<script id="words">/);
   assert.match(html, /<title>[^<]+<\/title>/);
 });
 
@@ -213,4 +215,54 @@ test('the committed notifications function is up to date, and one file', async (
   assert.match(built, /Deno\.serve/);
   assert.match(built, /function encrypt/, 'it carries Web Push with it');
   assert.match(built, /vérification du JWT/);
+});
+
+test('the committed files of the published app are up to date', async () => {
+  const built = await servedFiles();
+  assert.deepEqual(Object.keys(built).sort(), servedNames().sort());
+  for (const [name, code] of Object.entries(built)) {
+    const committed = await readFile(join(root, 'dist', name), 'utf8');
+    assert.equal(code, committed, `dist/${name} is stale — run \`npm run bundle\` and commit the result.`);
+  }
+});
+
+test('the published app is one file, its words and its parts apart', async () => {
+  const built = await servedFiles();
+  for (const [name, code] of Object.entries(built)) {
+    assert.equal(/^\s*(?:import|export)\s/m.test(code), false, `dist/${name}: a module statement survived`);
+    assert.doesNotThrow(() => new Function(code), `dist/${name} does not parse`);
+  }
+  const app = built['app.js'];
+  // Neither language inside: index.html fetches the one in use.
+  assert.equal(app.includes("'action.newGame': 'Nouvelle partie'"), false, 'the French words are not in the app');
+  assert.equal(app.includes("'action.newGame': 'New game'"), false, 'nor the English ones');
+  assert.match(built['lang-fr.js'], /^\(globalThis\.TOGETHER_STRINGS \|\|= \{\}\)\.fr = \{$/m);
+  assert.match(built['lang-en.js'], /'action\.newGame': 'New game'/);
+  // The 3D view and the games, fetched once opened.
+  assert.equal(/function (bindHolo|holoGraph|drawGlouton|stepGlouton)\b/.test(app), false, 'the parts are not in the app');
+  assert.match(built['holo.js'], /function bindHolo\b/);
+  assert.match(built['arcade.js'], /function drawGlouton\b/);
+  assert.match(app, /togetherPart\('holo', /);
+  assert.match(app, /togetherPart\('arcade', /);
+  // The cards and ranking of the Games tab stay in the app.
+  assert.match(app, /function arcadeHtml\b/);
+
+  // And every file is in the offline cache.
+  const worker = await readFile(join(root, 'sw.js'), 'utf8');
+  for (const name of servedNames()) assert.ok(worker.includes(`'./dist/${name}'`), `sw.js caches dist/${name}`);
+});
+
+test('a part, run, gets from the app all it takes', async () => {
+  // Each name a part takes must exist in the app's scope, or the part would
+  // receive nothing for it — and fail only once opened, on someone's phone.
+  const built = await servedFiles();
+  for (const part of ['holo', 'arcade']) {
+    const takes = new RegExp(`togetherPart\\('${part}', \\(\\) => \\(\\{ ([^}]*) \\}\\)\\)`).exec(built['app.js'])?.[1];
+    assert.ok(takes, `the app fetches ${part}`);
+    const declared = new RegExp(`\\(globalThis\\.TOGETHER_PARTS \\|\\|= \\{\\}\\)\\.${part} = \\(\\{ ([^}]*) \\}\\)`).exec(built[`${part}.js`])?.[1];
+    assert.equal(takes, declared, `${part}.js takes what the app hands it`);
+    for (const name of takes.split(', ')) {
+      assert.match(built['app.js'], new RegExp(`^(?:async )?(?:const|let|function|class) ${name}\\b`, 'm'), `${name} is in the app`);
+    }
+  }
 });

@@ -34,7 +34,7 @@ import {
   joinGroup, knockAs, myNameFor, myNameIn, rosterOf, offRoster, setMyNameIn, askWhoIn, LINK_ONLY, loadGate, lots, myName, NAME_KEPT, onHomeScreen, pendings, refreshGroup, rememberGroup, rememberPending,
   remoteReason, resetGroupChoice, setMyName, shownDocs,
 } from './view-groups.js';
-import { holoHtml } from './view-holo.js';
+import { laterPart } from './later.js';
 import { boardCardHtml } from './view-ideas.js';
 import { installReminderHtml } from './view-install.js';
 import { askInvitationShape, groupNamed, showCalendar, showMyLink, showsGate } from './view-join.js';
@@ -1089,7 +1089,7 @@ export function overviewView() {
     ${flashHtml()}
     ${kindsHtml('overview')}
     ${groupChipsHtml()}
-    ${holoHtml()}
+    ${holoPlaceHtml()}
     ${nothingYet ? `<p class="lead">${escapeHtml(t('overview.what'))}</p>` : ''}
 
     ${accountNeededHtml()}
@@ -1758,4 +1758,42 @@ export function bindOverview() {
       render();
     });
   });
+}
+
+/* ------------------------------------------------------------- 3D view --- */
+
+/**
+ * Home's 3D view (view-holo.js, holo.js): a part of its own, fetched the
+ * first time Home has something to show in it (later.js). Until it is here,
+ * its place is kept, the size it will be, so that Home does not jump.
+ */
+function holoPart() {
+  return laterPart('holo', () => import('./view-holo.js'));
+}
+
+function holoPlaceHtml() {
+  const kinds = [state.lists, state.polls, state.games, state.spends, state.boards];
+  if (!kinds.some((docs) => shownDocs(docs || []).length)) return '';
+  const part = holoPart();
+  if (part.module) return part.module.holoHtml();
+  return '<section class="holo holo--waiting" id="holo-wait" aria-hidden="true"></section>';
+}
+
+/** Wire the 3D view once Home is drawn, or draw it in its place once it has come. */
+export function bindHoloPlace() {
+  if (!document.getElementById('holo') && !document.getElementById('holo-wait')) return;
+  const part = holoPart();
+  if (part.module) {
+    part.module.bindHolo();
+    return;
+  }
+  part.coming.then(
+    (module) => {
+      const wait = document.getElementById('holo-wait');
+      if (!wait) return;
+      wait.outerHTML = module.holoHtml();
+      module.bindHolo();
+    },
+    () => document.getElementById('holo-wait')?.remove(),
+  );
 }

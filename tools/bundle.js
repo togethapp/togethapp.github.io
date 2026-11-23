@@ -9,6 +9,16 @@
  * carry the stylesheet and every module inline, so the app opens from a file
  * or from a host that only takes one page, and keeps working offline.
  *
+ * And the files of the published app, which index.html loads (served over
+ * https, on GitHub Pages):
+ *
+ *   dist/app.js                      the app, every module in one file — one
+ *                                    request instead of one per module
+ *   dist/lang-fr.js, dist/lang-en.js the words of one language each: only the
+ *                                    one in use is fetched (src/i18n.js)
+ *   dist/holo.js, dist/arcade.js     the 3D view and the arcade's games,
+ *                                    fetched once opened (src/later.js)
+ *
  * Output is deterministic — same sources in, same bytes out — so a test can
  * check that the committed files are not stale. Run it with `npm run bundle`.
  */
@@ -24,7 +34,37 @@ const root = resolve(import.meta.dirname, '..');
  * for app.js and the screens split out of it (view-*.js), which call each
  * other, and only from inside functions, run once everything is loaded.
  */
-const MODULES = ['i18n.js', 'games.js', 'model.js', 'scoring.js', 'helpers.js', 'tarot.js', 'qr.js', 'stamp.js', 'people.js', 'reacts.js', 'lists.js', 'polls.js', 'spends.js', 'ideas.js', 'stats.js', 'dashboard.js', 'search.js', 'holo.js', 'sky.js', 'flows.js', 'ics.js', 'recap.js', 'export-docx.js', 'export-pdf.js', 'storage.js', 'config.js', 'lock.js', 'remote.js', 'move.js', 'prefill.js', 'cloud.js', 'live.js', 'notify.js', 'swipe.js', 'view-polls.js', 'view-lists.js', 'view-spends.js', 'view-ideas.js', 'view-games.js', 'view-groups.js', 'view-flows.js', 'view-account.js', 'view-install.js', 'view-holo.js', 'view-look.js', 'view-home.js', 'view-join.js', 'view-people.js', 'view-notify.js', 'view-search.js', 'view-reacts.js', 'arcade.js', 'view-arcade.js', 'app.js'];
+const MODULES = ['lang-fr.js', 'lang-en.js', 'i18n.js', 'later.js', 'arcade-games.js', 'games.js', 'model.js', 'scoring.js', 'helpers.js', 'tarot.js', 'qr.js', 'stamp.js', 'people.js', 'reacts.js', 'lists.js', 'polls.js', 'spends.js', 'ideas.js', 'stats.js', 'dashboard.js', 'search.js', 'holo.js', 'sky.js', 'flows.js', 'ics.js', 'recap.js', 'export-docx.js', 'export-pdf.js', 'storage.js', 'config.js', 'lock.js', 'remote.js', 'move.js', 'prefill.js', 'cloud.js', 'live.js', 'notify.js', 'swipe.js', 'view-polls.js', 'view-lists.js', 'view-spends.js', 'view-ideas.js', 'view-games.js', 'view-groups.js', 'view-flows.js', 'view-account.js', 'view-install.js', 'view-holo.js', 'view-look.js', 'view-home.js', 'view-join.js', 'view-people.js', 'view-notify.js', 'view-search.js', 'view-reacts.js', 'view-arcade.js', 'arcade.js', 'view-arcade-play.js', 'app.js'];
+
+/**
+ * The parts fetched only once needed (src/later.js), each a file of its own in
+ * the published app: dist/<name>.js. The app reaches them by
+ * `import('./<module>')` and nothing else — a static import of one from
+ * outside it would put it back in the app, and the build refuses it. Each
+ * part's modules use what the app's export, passed in when it arrives, and
+ * each other.
+ */
+const PARTS = {
+  holo: ['holo.js', 'view-holo.js'],
+  arcade: ['arcade.js', 'view-arcade-play.js'],
+};
+
+/**
+ * The words, one language per module, each one object: `export const FR = {…}`.
+ * The published app carries none of them; index.html fetches the one in use
+ * beside it, dist/lang-<lang>.js, which sets `TOGETHER_STRINGS[lang]`.
+ */
+const LANGUAGE_MODULES = { fr: ['lang-fr.js', 'FR'], en: ['lang-en.js', 'EN'] };
+
+const PART_OF = new Map(Object.entries(PARTS).flatMap(([part, names]) => names.map((name) => [name, part])));
+const LANGUAGE_OF = new Map(Object.entries(LANGUAGE_MODULES).map(([lang, [name, symbol]]) => [name, { lang, symbol }]));
+
+/** `import('./view-holo.js')`: the only way into a part. */
+const DYNAMIC_IMPORT = /\bimport\(\s*'\.\/([\w.-]+)'\s*\)/g;
+/** Each `import { a, b } from './x.js';`, with its names and where from. */
+const IMPORT_NAMES = /^import\s*\{([^}]*)\}\s*from\s*'\.\/([\w.-]+)'\s*;?\s*$/gm;
+/** Each top-level export and its kind: a `let` changes, and a part would keep its first value. */
+const EXPORTED = /^export\s+(?:async\s+)?(const|let|function|class)\s+([A-Za-z_$][\w$]*)/gm;
 
 /**
  * An import, on one line or spread over several — a long list of names wraps,
@@ -137,16 +177,21 @@ async function stampFiles(root, stamp) {
   return moved;
 }
 
+/** The names of the published app's files under dist/, as servedFiles() writes them. */
+export function servedNames() {
+  return ['app.js', ...Object.keys(LANGUAGE_MODULES).map((lang) => `lang-${lang}.js`), ...Object.keys(PARTS).map((part) => `${part}.js`)];
+}
+
 /**
- * The offline cache must know every module the served page loads: a file left
+ * The offline cache must know every file the served page loads: a file left
  * out of it is a file the app cannot open without a network on a first visit.
  * The comment in sw.js promised this check — here it is.
  */
 async function checkOfflineShell(root) {
   const worker = await readFile(join(root, 'sw.js'), 'utf8');
-  const missing = MODULES.filter((name) => !worker.includes(`./src/${name}`));
+  const missing = servedNames().filter((name) => !worker.includes(`'./dist/${name}'`));
   if (missing.length) {
-    throw new Error(`Cannot bundle: sw.js does not cache ${missing.join(', ')} — add them to SHELL and bump VERSION.`);
+    throw new Error(`Cannot bundle: sw.js does not cache dist/${missing.join(', dist/')} — add them to SHELL and bump VERSION.`);
   }
 
   // The version is written twice — in sw.js, which names the cache, and in the
@@ -267,36 +312,45 @@ function extract(source, pattern, what) {
   return match[1];
 }
 
-/** Concatenate the modules into one script, refusing any name they both define. */
-async function buildScript() {
+/** One module as it goes into a bundle: imports and `export` words gone, checked. */
+async function readModule(name) {
+  const source = await readFile(join(root, 'src', name), 'utf8');
+  const aliased = ALIASED_IMPORT.exec(source);
+  if (aliased) {
+    throw new Error(
+      `Cannot bundle: src/${name} imports "${aliased[1]}" as "${aliased[2]}". ` +
+        'The bundle strips imports, so the alias would refer to nothing — rename the export instead.',
+    );
+  }
+  const imports = [...source.matchAll(IMPORT_NAMES)].map(([, names, from]) => ({
+    from,
+    names: names.split(',').map((one) => one.trim()).filter(Boolean),
+  }));
+  const exports = [...source.matchAll(EXPORTED)].map(([, kind, identifier]) => ({ kind, identifier }));
+  const code = source
+    .replace(IMPORT_LINE, '')
+    .replace(EXPORT_LIST, '')
+    .replace(EXPORT_KEYWORD, '')
+    .trim();
+
+  // A module statement left in would make the whole bundle fail to parse,
+  // and the page would come up blank with one line in the console.
+  const leftover = code.match(LEFTOVER_MODULE);
+  if (leftover) {
+    throw new Error(
+      `Cannot bundle: src/${name} still has a module statement the bundler does not know how to strip: ${leftover[0].trim()}`,
+    );
+  }
+  return { name, code, imports, exports };
+}
+
+/** Every module, read once, in MODULES order, refusing a name two of them define. */
+async function readModules() {
+  const modules = new Map();
   const declaredIn = new Map();
-  const parts = [];
-
   for (const name of MODULES) {
-    const code = (await readFile(join(root, 'src', name), 'utf8'))
-      .replace(IMPORT_LINE, '')
-      .replace(EXPORT_LIST, '')
-      .replace(EXPORT_KEYWORD, '')
-      .trim();
-
-    const aliased = ALIASED_IMPORT.exec(await readFile(join(root, 'src', name), 'utf8'));
-    if (aliased) {
-      throw new Error(
-        `Cannot bundle: src/${name} imports "${aliased[1]}" as "${aliased[2]}". ` +
-          'The bundle strips imports, so the alias would refer to nothing — rename the export instead.',
-      );
-    }
-
-    // A module statement left in would make the whole bundle fail to parse,
-    // and the page would come up blank with one line in the console.
-    const leftover = code.match(LEFTOVER_MODULE);
-    if (leftover) {
-      throw new Error(
-        `Cannot bundle: src/${name} still has a module statement the bundler does not know how to strip: ${leftover[0].trim()}`,
-      );
-    }
-
-    for (const [, identifier] of code.matchAll(TOP_LEVEL_DECLARATION)) {
+    const module = await readModule(name);
+    for (const [, identifier] of module.code.matchAll(TOP_LEVEL_DECLARATION)) {
       const previous = declaredIn.get(identifier);
       if (previous) {
         throw new Error(
@@ -306,9 +360,148 @@ async function buildScript() {
       }
       declaredIn.set(identifier, name);
     }
-    parts.push(`  // ---- src/${name} ${'-'.repeat(Math.max(0, 60 - name.length))}\n${code}`);
+    modules.set(name, module);
+  }
+  for (const name of PART_OF.keys()) {
+    if (!modules.has(name)) throw new Error(`Cannot bundle: the part ${PART_OF.get(name)} names src/${name}, which is not in MODULES.`);
+  }
+
+  // A part is reached by import() only: a static import from outside it would
+  // need it loaded with the app, which is what it is kept out of.
+  for (const module of modules.values()) {
+    for (const { from } of module.imports) {
+      const part = PART_OF.get(from);
+      if (part && PART_OF.get(module.name) !== part) {
+        throw new Error(
+          `Cannot bundle: src/${module.name} imports src/${from}, which is fetched later (part "${part}"). ` +
+            "Reach it with later() and import('./" + from + "') instead.",
+        );
+      }
+    }
+    for (const [, target] of module.code.matchAll(DYNAMIC_IMPORT)) {
+      if (!PART_OF.has(target)) {
+        throw new Error(`Cannot bundle: src/${module.name} imports src/${target} later, but no part holds it — add it to PARTS.`);
+      }
+    }
+  }
+  return modules;
+}
+
+/** What a part hands back: every export of its modules. */
+function partExports(modules, part) {
+  return PARTS[part].flatMap((name) => modules.get(name).exports.map(({ identifier }) => identifier));
+}
+
+/**
+ * What a part takes from the app: each name its modules import from outside
+ * it. A `let` is refused — the part would hold the value it had on arrival.
+ */
+function partImports(modules, part) {
+  const names = new Set();
+  for (const name of PARTS[part]) {
+    for (const { from, names: imported } of modules.get(name).imports) {
+      if (PART_OF.get(from) === part) continue;
+      const source = modules.get(from);
+      for (const identifier of imported) {
+        const exported = source?.exports.find((one) => one.identifier === identifier);
+        if (!exported) throw new Error(`Cannot bundle: src/${name} imports "${identifier}", which src/${from} does not export.`);
+        if (exported.kind === 'let') {
+          throw new Error(`Cannot bundle: the part ${part} imports "${identifier}" from src/${from}, a \`let\` it would see frozen.`);
+        }
+        names.add(identifier);
+      }
+    }
+  }
+  return [...names].sort();
+}
+
+const section = (name, code) => `  // ---- src/${name} ${'-'.repeat(Math.max(0, 60 - name.length))}\n${code}`;
+
+/** Every module in one script, the parts included: the single-file builds. */
+async function buildScript() {
+  const modules = await readModules();
+  const parts = [];
+  for (const module of modules.values()) {
+    // The part is right there, in the same scope: import() hands it at once.
+    const code = module.code.replace(DYNAMIC_IMPORT, (_, target) =>
+      `Promise.resolve({ ${partExports(modules, PART_OF.get(target)).join(', ')} })`);
+    parts.push(section(module.name, code));
   }
   return parts.join('\n\n');
+}
+
+/**
+ * The fetching of a part, in the published app: its file, beside dist/app.js,
+ * sets TOGETHER_PARTS[name] to a function of what it takes from the app, which
+ * returns what it exports.
+ */
+const PART_LOADER = `  // ---- fetching the parts (tools/bundle.js) -----------------------------
+  const TOGETHER_AT = new URL('.', document.currentScript?.src || document.baseURI).href;
+  globalThis.TOGETHER_PARTS_AT = TOGETHER_AT;
+  function togetherPart(name, takes) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = new URL(\`\${name}.js\`, TOGETHER_AT).href;
+      script.addEventListener('load', () => {
+        script.remove();
+        const make = globalThis.TOGETHER_PARTS?.[name];
+        if (!make) {
+          reject(new Error(\`\${name}.js brought nothing\`));
+          return;
+        }
+        try {
+          resolve(make(takes()));
+        } catch (error) {
+          reject(error);
+        }
+      });
+      script.addEventListener('error', () => {
+        script.remove();
+        reject(new Error(\`Could not fetch \${name}.js\`));
+      });
+      document.head.append(script);
+    });
+  }`;
+
+/**
+ * The files of the published app: dist/app.js, one file per language, one per
+ * part. Named by their path under dist/.
+ */
+export async function servedFiles() {
+  const modules = await readModules();
+  for (const name of ['togetherPart', 'TOGETHER_AT']) {
+    if ([...modules.values()].some((module) => new RegExp(`^(?:const|let|var|function|class)\\s+${name}\\b`, 'm').test(module.code))) {
+      throw new Error(`Cannot bundle: "${name}" is the bundle's own name, rename it in the sources.`);
+    }
+  }
+  const files = {};
+  const app = [PART_LOADER];
+  for (const module of modules.values()) {
+    const language = LANGUAGE_OF.get(module.name);
+    if (language) {
+      // Not inside: what index.html fetched, if it is here already.
+      app.push(section(module.name, `const ${language.symbol} = globalThis.TOGETHER_STRINGS?.${language.lang};`));
+      const opening = `const ${language.symbol} = {`;
+      if (!module.code.includes(opening) || module.exports.length !== 1 || !module.code.endsWith('};')) {
+        throw new Error(`Cannot bundle: src/${module.name} must be one object, \`export const ${language.symbol} = {…};\`, and nothing else.`);
+      }
+      files[`lang-${language.lang}.js`] =
+        `// ${GENERATED_BY}\n${module.code.replace(opening, `(globalThis.TOGETHER_STRINGS ||= {}).${language.lang} = {`)}\n`;
+      continue;
+    }
+    if (PART_OF.has(module.name)) continue;
+    app.push(section(module.name, module.code.replace(DYNAMIC_IMPORT, (_, target) => {
+      const part = PART_OF.get(target);
+      return `togetherPart('${part}', () => ({ ${partImports(modules, part).join(', ')} }))`;
+    })));
+  }
+  files['app.js'] = `// ${GENERATED_BY}\n(() => {\n${app.join('\n\n')}\n})();\n`;
+
+  for (const part of Object.keys(PARTS)) {
+    const body = PARTS[part].map((name) => section(name, modules.get(name).code)).join('\n\n');
+    files[`${part}.js`] = `// ${GENERATED_BY}\n(globalThis.TOGETHER_PARTS ||= {}).${part} = ({ ${partImports(modules, part).join(', ')} }) => {\n${body}\n\n  return { ${partExports(modules, part).join(', ')} };\n};\n`;
+  }
+  return files;
 }
 
 /**
@@ -332,13 +525,15 @@ export async function bundle(target = 'page') {
     throw new Error('Cannot bundle: a source file contains a closing script or style tag.');
   }
 
-  const scriptTag = /^([ \t]*)<script type="module" src="src\/app\.js"><\/script>$/m;
+  const scriptTag = /^([ \t]*)<script src="dist\/app\.js"><\/script>$/m;
+  // The words fetched beside the app: here, they are inside it.
+  const wordsScript = /^[ \t]*<!-- The words of the language in use[\s\S]*?<\/script>\n/m;
   const styleLink = /^([ \t]*)<link rel="stylesheet" href="styles\.css" \/>$/m;
   // The manifest and the touch icon are files sitting next to the served app.
   // A single self-contained page has no such neighbours, so they are dropped
   // rather than left pointing at nothing.
   const strip = (html) =>
-    html
+    substitute(html, wordsScript, '', 'script fetching the words')
       .replace(/^[ \t]*<link rel="manifest"[^>]*>\n/m, '')
       .replace(/^[ \t]*<link rel="apple-touch-icon"[^>]*>\n/m, '');
   const run = (preamble, indent) =>
@@ -350,13 +545,13 @@ export async function bundle(target = 'page') {
     const title = extract(html, /<title>([^<]*)<\/title>/, 'title');
     const body = extract(strip(html), /<body>\n([\s\S]*?)\n[ \t]*<\/body>/, 'body');
     const content = substitute(body, scriptTag, (_, indent) =>
-      run("window.MARQUE_POINTS_EXPORT_MODE = 'copy';\n", indent), 'module script tag');
+      run("window.MARQUE_POINTS_EXPORT_MODE = 'copy';\n", indent), 'app script tag');
     return `<title>${title}</title>\n<style>\n${css.trimEnd()}\n</style>\n${GENERATED}\n${content}\n`;
   }
 
   let output = substitute(strip(html), styleLink, (_, indent) =>
     `${indent}<style>\n${css.trimEnd()}\n${indent}</style>`, 'stylesheet link');
-  output = substitute(output, scriptTag, (_, indent) => run('', indent), 'module script tag');
+  output = substitute(output, scriptTag, (_, indent) => run('', indent), 'app script tag');
   // One file, with nothing of its own to load: its two inline scripts, and no
   // other script from anywhere, even beside it.
   output = withPolicy(output, { self: false });
@@ -368,6 +563,10 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename
   await mkdir(join(root, 'dist'), { recursive: true });
   for (const [target, name] of [['page', 'marque-points.html'], ['artifact', 'marque-points.artifact.html']]) {
     const output = await bundle(target);
+    await writeFile(join(root, 'dist', name), output);
+    console.log(`dist/${name} — ${(output.length / 1024).toFixed(0)} KB`);
+  }
+  for (const [name, output] of Object.entries(await servedFiles())) {
     await writeFile(join(root, 'dist', name), output);
     console.log(`dist/${name} — ${(output.length / 1024).toFixed(0)} KB`);
   }

@@ -18,9 +18,9 @@
  * checks that it matches both the files it built and the version the page shows.
  */
 
-const VERSION = 'v15';
+const VERSION = 'v16';
 /** Written by tools/bundle.js from the sources: it moves whenever they do. */
-const BUILD = '59f7c026';
+const BUILD = 'a36b711a';
 const CACHE = `marque-points-${VERSION}-${BUILD}`;
 
 const SHELL = [
@@ -30,60 +30,14 @@ const SHELL = [
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './src/app.js',
-  './src/swipe.js',
-  './src/view-polls.js',
-  './src/view-lists.js',
-  './src/view-spends.js',
-  './src/view-ideas.js',
-  './src/view-games.js',
-  './src/view-groups.js',
-  './src/view-flows.js',
-  './src/view-account.js',
-  './src/view-install.js',
-  './src/view-holo.js',
-  './src/view-look.js',
-  './src/live.js',
-  './src/notify.js',
-  './src/view-notify.js',
-  './src/view-home.js',
-  './src/view-join.js',
-  './src/view-people.js',
-  './src/view-search.js',
-  './src/view-reacts.js',
-  './src/view-arcade.js',
-  './src/arcade.js',
-  './src/games.js',
-  './src/model.js',
-  './src/scoring.js',
-  './src/helpers.js',
-  './src/tarot.js',
-  './src/stats.js',
-  './src/recap.js',
-  './src/export-docx.js',
-  './src/export-pdf.js',
-  './src/stamp.js',
-  './src/people.js',
-  './src/reacts.js',
-  './src/dashboard.js',
-  './src/search.js',
-  './src/holo.js',
-  './src/sky.js',
-  './src/flows.js',
-  './src/ics.js',
-  './src/lists.js',
-  './src/polls.js',
-  './src/spends.js',
-  './src/ideas.js',
-  './src/storage.js',
-  './src/config.js',
-  './src/qr.js',
-  './src/lock.js',
-  './src/remote.js',
-  './src/move.js',
-  './src/prefill.js',
-  './src/cloud.js',
-  './src/i18n.js',
+  // The app as tools/bundle.js builds it: the modules of src/ are all in
+  // dist/app.js. Both languages and the parts fetched later are kept too, so
+  // that choosing English or opening a game works without a network.
+  './dist/app.js',
+  './dist/lang-fr.js',
+  './dist/lang-en.js',
+  './dist/holo.js',
+  './dist/arcade.js',
 ];
 
 self.addEventListener('install', (event) => {

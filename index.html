@@ -5,11 +5,11 @@
     <!-- Only the app's own scripts run: its files, and the script below named
          by its hash. Written by tools/bundle.js; first, since it only covers
          what comes after it. -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI='; object-src 'none'; base-uri 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-GbccGr8qkLkFTuo/bm9FHHkwgLQQ3z2B6Bd+Guk0y+8='; object-src 'none'; base-uri 'none'" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
-    <meta name="app-version" content="v15" />
-    <meta name="app-build" content="59f7c026" />
+    <meta name="app-version" content="v16" />
+    <meta name="app-build" content="a36b711a" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -58,6 +58,28 @@
       } catch {
         // No storage, or nothing readable in it: the app's own look.
       }
+    </script>
+    <!-- The words of the language in use, fetched now, alongside the app rather
+         than after it; the other language only once chosen (src/i18n.js,
+         loadLanguage). The single-file build has both inside, and not this. -->
+    <script id="words">
+      (() => {
+        let lang = 'fr';
+        try {
+          const prefs = JSON.parse(localStorage.getItem('marque-points:prefs:v1')) || {};
+          const tags = prefs.lang ? [prefs.lang] : navigator.languages || [navigator.language];
+          lang = tags.map((tag) => String(tag || '').toLowerCase().split('-')[0]).find((base) => base === 'fr' || base === 'en') || 'fr';
+        } catch {
+          // Nothing readable: French, the app's own.
+        }
+        const script = document.createElement('script');
+        script.src = `dist/lang-${lang}.js`;
+        script.dataset.lang = lang;
+        script.addEventListener('error', () => {
+          script.dataset.failed = '1';
+        });
+        document.head.append(script);
+      })();
     </script>
   </head>
   <body>
@@ -122,6 +144,9 @@
     <main id="view" class="view"></main>
     <p id="announce" class="visually-hidden" role="status"></p>
 
-    <script type="module" src="src/app.js"></script>
+    <!-- The app, every module in one file (tools/bundle.js): one request on a
+         first visit, not one per module. Its 3D view and arcade games come
+         later, once opened (src/later.js). -->
+    <script src="dist/app.js"></script>
   </body>
 </html>

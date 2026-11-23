@@ -1,0 +1,23889 @@
+// Généré par tools/bundle.js — modifiez les sources, pas ce fichier.
+(() => {
+  // ---- fetching the parts (tools/bundle.js) -----------------------------
+  const TOGETHER_AT = new URL('.', document.currentScript?.src || document.baseURI).href;
+  globalThis.TOGETHER_PARTS_AT = TOGETHER_AT;
+  function togetherPart(name, takes) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = new URL(`${name}.js`, TOGETHER_AT).href;
+      script.addEventListener('load', () => {
+        script.remove();
+        const make = globalThis.TOGETHER_PARTS?.[name];
+        if (!make) {
+          reject(new Error(`${name}.js brought nothing`));
+          return;
+        }
+        try {
+          resolve(make(takes()));
+        } catch (error) {
+          reject(error);
+        }
+      });
+      script.addEventListener('error', () => {
+        script.remove();
+        reject(new Error(`Could not fetch ${name}.js`));
+      });
+      document.head.append(script);
+    });
+  }
+
+  // ---- src/lang-fr.js --------------------------------------------------
+const FR = globalThis.TOGETHER_STRINGS?.fr;
+
+  // ---- src/lang-en.js --------------------------------------------------
+const EN = globalThis.TOGETHER_STRINGS?.en;
+
+  // ---- src/i18n.js -----------------------------------------------------
+/** Tiny translation layer. `t('key', {count: 3})` interpolates {placeholders}. */
+
+
+
+/**
+ * The words of each language. In the published app only the one in use comes
+ * with it (tools/bundle.js), the other is fetched once chosen: loadLanguage().
+ */
+const STRINGS = { fr: FR, en: EN };
+
+const LANGUAGES = Object.keys(STRINGS);
+
+let current = 'fr';
+
+function detectLanguage() {
+  const candidates = typeof navigator === 'undefined' ? [] : navigator.languages || [navigator.language];
+  for (const tag of candidates) {
+    if (!tag) continue;
+    const base = tag.toLowerCase().split('-')[0];
+    if (LANGUAGES.includes(base)) return base;
+  }
+  return 'fr';
+}
+
+function setLanguage(lang) {
+  current = LANGUAGES.includes(lang) ? lang : 'fr';
+  return current;
+}
+
+/**
+ * Make sure the words of `lang` are here; resolves once they are.
+ *
+ * Served from src/, or in the single-file build, both languages are always
+ * here and this resolves at once. The published app comes with only the one
+ * in use: index.html starts fetching dist/lang-<lang>.js before the app itself
+ * (the <script data-lang> it adds), and another language chosen in Réglages is
+ * fetched here, the same way. The file sets `TOGETHER_STRINGS[lang]`.
+ */
+function loadLanguage(lang) {
+  const take = () => (STRINGS[lang] ||= globalThis.TOGETHER_STRINGS?.[lang]);
+  if (!LANGUAGES.includes(lang)) return Promise.reject(new Error(`No such language: ${lang}`));
+  if (take()) return Promise.resolve(lang);
+  return new Promise((resolve, reject) => {
+    let script = document.querySelector(`script[data-lang="${lang}"]`);
+    // One that failed already — offline, before the cache held it — is tried again.
+    if (script?.dataset.failed) {
+      script.remove();
+      script = null;
+    }
+    if (!script) {
+      script = document.createElement('script');
+      script.src = new URL(`lang-${lang}.js`, globalThis.TOGETHER_PARTS_AT || document.baseURI).href;
+      script.dataset.lang = lang;
+      document.head.append(script);
+    }
+    script.addEventListener('load', () => (take() ? resolve(lang) : reject(new Error(`No words in lang-${lang}.js`))));
+    script.addEventListener('error', () => {
+      script.dataset.failed = '1';
+      reject(new Error(`Could not fetch lang-${lang}.js`));
+    });
+  });
+}
+
+function getLanguage() {
+  return current;
+}
+
+function t(key, params = {}) {
+  const template = STRINGS[current]?.[key] ?? STRINGS.fr?.[key] ?? key;
+  return template
+    .replace(/\{(\w+)\|([^|{}]*)\|([^|{}]*)\}/g, (match, name, one, many) =>
+      Object.prototype.hasOwnProperty.call(params, name) ? (isOne(params[name]) ? one : many) : match,
+    )
+    .replace(/\{(\w+)\}/g, (match, name) =>
+      Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : match,
+    );
+}
+
+/**
+ * Whether a count takes the singular: « 0 ligne, 1 ligne, 2 lignes » in
+ * French, "0 lines, 1 line, 2 lines" in English.
+ */
+function isOne(count) {
+  const n = Math.abs(Number(count));
+  return current === 'en' ? n === 1 : n < 2;
+}
+
+  // ---- src/later.js ----------------------------------------------------
+/**
+ * The parts of the app fetched only once they are needed: Home's 3D view and
+ * the arcade's games. A first visit, on a slow network, then waits for the
+ * screens themselves and nothing more.
+ *
+ * `load` is an arrow that imports the part's first module by its path, and
+ * nothing else (see view-home.js and app.js): served from src/, it is a module like any other; in the published app,
+ * tools/bundle.js makes each part a file of its own beside the app
+ * (dist/holo.js, dist/arcade.js) and turns that line into fetching it. In the
+ * single-file build everything is inside, and the part is there at once.
+ */
+
+const parts = new Map();
+
+/**
+ * The part named `name`: `{ module, coming }` — `module` once it is here,
+ * else null, and `coming`, the promise of it. One that failed (offline on a
+ * first visit) is forgotten, so the next call tries again.
+ */
+function laterPart(name, load) {
+  let part = parts.get(name);
+  if (!part) {
+    part = { module: null, coming: null };
+    part.coming = load().then(
+      (module) => (part.module = module),
+      (error) => {
+        parts.delete(name);
+        throw error;
+      },
+    );
+    parts.set(name, part);
+  }
+  return part;
+}
+
+  // ---- src/arcade-games.js ---------------------------------------------
+/**
+ * Which games the arcade has, and how hard each can be: what the Games tab
+ * lists, before any game is opened. The games themselves are in arcade.js,
+ * fetched only when one is (later.js), so this stays apart from it.
+ */
+
+/** The games of the arcade, in the order shown. */
+const ARCADE_GAMES = [{ id: 'glouton' }, { id: 'snake' }];
+
+/** How hard a game is, chosen before it starts; each keeps its own record. */
+const ARCADE_MODES = ['easy', 'normal', 'hard'];
+
+function arcadeMode(mode) {
+  return ARCADE_MODES.includes(mode) ? mode : 'normal';
+}
+
+  // ---- src/games.js ----------------------------------------------------
+/**
+ * Game presets.
+ *
+ * Every game is described with the same handful of knobs so the scoring engine
+ * stays generic. Adding a game means adding an entry here — no UI changes.
+ *
+ *   direction   'low'  lowest total wins (penalty games: Papayoo, Hearts…)
+ *               'high' highest total wins (Belote, Uno…)
+ *   endMode     'threshold' the game ends as soon as someone reaches `target`
+ *               'rounds'    the game ends after a fixed number of rounds
+ *               'manual'    it ends when the players say so
+ *   roundSum    expected sum of a round's scores, or null when it is free.
+ *               Checked as a warning only: most games have variants that break it.
+ *   entrantLabel what we are scoring: 'player' or 'team'.
+ *   meta        one optional per-round field (e.g. which suit was the Papayoo).
+ *   helper      an optional card counter for the round form; see src/helpers.js.
+ *   group       how the game is filed in the picker: cards, tiles, dice,
+ *               outdoor, other.
+ *   labelKey    for a preset whose name is a category rather than a game, the
+ *               translation key to show instead of `name`.
+ *   calculator  a dedicated entry screen instead of plain score boxes.
+ */
+
+/** Skyjo's deck runs from -2 to 12. */
+const SKYJO_VALUES = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+/** The twenty Payoos, each worth its face value. */
+const PAYOOS = Array.from({ length: 20 }, (_, index) => index + 1);
+
+/** Suits used by Papayoo's per-round special card. */
+const SUITS = [
+  { value: 'hearts', label: '♥' },
+  { value: 'diamonds', label: '♦' },
+  { value: 'spades', label: '♠' },
+  { value: 'clubs', label: '♣' },
+];
+
+const PRESETS = [
+  {
+    id: 'papayoo',
+    name: 'Papayoo',
+    players: [3, 8],
+    direction: 'low',
+    endMode: 'threshold',
+    target: 250,
+    rounds: null,
+    roundSum: 250,
+    allowNegative: false,
+    entrantLabel: 'player',
+    meta: { key: 'papayooSuit', labelKey: 'meta.papayooSuit', options: SUITS },
+    helper: {
+      mode: 'toggle',
+      values: PAYOOS,
+      hintKey: 'helper.papayoo.hint',
+      toggles: [{ key: 'papayoo', labelKey: 'helper.papayoo.card', add: 40 }],
+    },
+    group: 'cards',
+    notesKey: 'notes.papayoo',
+  },
+  {
+    id: 'hearts',
+    name: 'Hearts / Cœurs',
+    players: [3, 6],
+    direction: 'low',
+    endMode: 'threshold',
+    target: 100,
+    rounds: null,
+    roundSum: 26,
+    allowNegative: false,
+    entrantLabel: 'player',
+    meta: null,
+    helper: {
+      mode: 'count',
+      values: [1],
+      labels: { 1: '♥' },
+      hintKey: 'helper.hearts.hint',
+      toggles: [{ key: 'queen', labelKey: 'helper.hearts.queen', add: 13 }],
+    },
+    group: 'cards',
+    notesKey: 'notes.hearts',
+  },
+  {
+    id: 'belote',
+    name: 'Belote / Coinche',
+    players: [2, 2],
+    direction: 'high',
+    endMode: 'threshold',
+    target: 1000,
+    rounds: null,
+    roundSum: 162,
+    allowNegative: false,
+    entrantLabel: 'team',
+    meta: null,
+    group: 'cards',
+    notesKey: 'notes.belote',
+  },
+  {
+    id: 'tarot',
+    name: 'Tarot',
+    players: [3, 5],
+    direction: 'high',
+    endMode: 'rounds',
+    target: null,
+    rounds: 5,
+    roundSum: 0,
+    allowNegative: true,
+    entrantLabel: 'player',
+    meta: null,
+    calculator: 'tarot',
+    group: 'cards',
+    notesKey: 'notes.tarot',
+  },
+  {
+    id: 'skyjo',
+    name: 'Skyjo',
+    players: [2, 8],
+    direction: 'low',
+    endMode: 'threshold',
+    target: 100,
+    rounds: null,
+    roundSum: null,
+    allowNegative: true,
+    entrantLabel: 'player',
+    meta: null,
+    helper: {
+      mode: 'count',
+      values: SKYJO_VALUES,
+      hintKey: 'helper.skyjo.hint',
+      toggles: [{ key: 'doubled', labelKey: 'helper.skyjo.doubled', multiply: 2 }],
+    },
+    group: 'cards',
+    notesKey: 'notes.skyjo',
+  },
+  {
+    id: 'sixquiprend',
+    name: '6 qui prend !',
+    players: [2, 10],
+    direction: 'low',
+    endMode: 'threshold',
+    target: 66,
+    rounds: null,
+    roundSum: null,
+    allowNegative: false,
+    entrantLabel: 'player',
+    meta: null,
+    helper: {
+      mode: 'count',
+      values: [1, 2, 3, 5, 7],
+      hintKey: 'helper.sixquiprend.hint',
+      toggles: [],
+    },
+    group: 'cards',
+    notesKey: 'notes.sixquiprend',
+  },
+  {
+    id: 'uno',
+    name: 'Uno',
+    players: [2, 10],
+    direction: 'high',
+    endMode: 'threshold',
+    target: 500,
+    rounds: null,
+    roundSum: null,
+    allowNegative: false,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'cards',
+    notesKey: 'notes.uno',
+  },
+  {
+    id: 'rummy',
+    name: 'Rami / Rummy',
+    players: [2, 6],
+    direction: 'high',
+    endMode: 'threshold',
+    target: 500,
+    rounds: null,
+    roundSum: null,
+    allowNegative: true,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'cards',
+    notesKey: 'notes.rummy',
+  },
+  {
+    id: 'yams',
+    name: 'Yams / Yahtzee',
+    players: [1, 8],
+    direction: 'high',
+    endMode: 'manual',
+    target: null,
+    rounds: null,
+    roundSum: null,
+    allowNegative: false,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'dice',
+    notesKey: 'notes.yams',
+  },
+  {
+    id: 'millebornes',
+    name: 'Mille Bornes',
+    players: [2, 6],
+    direction: 'high',
+    endMode: 'threshold',
+    target: 5000,
+    rounds: null,
+    roundSum: null,
+    allowNegative: false,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'cards',
+    notesKey: 'notes.millebornes',
+  },
+  {
+    id: 'skullking',
+    name: 'Skull King',
+    players: [2, 8],
+    direction: 'high',
+    endMode: 'rounds',
+    target: null,
+    rounds: 10,
+    roundSum: null,
+    allowNegative: true,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'cards',
+    notesKey: 'notes.skullking',
+  },
+  {
+    id: 'wizard',
+    name: 'Wizard',
+    players: [3, 6],
+    direction: 'high',
+    endMode: 'rounds',
+    target: null,
+    rounds: 15,
+    roundSum: null,
+    allowNegative: true,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'cards',
+    notesKey: 'notes.wizard',
+  },
+  {
+    id: 'canasta',
+    name: 'Canasta',
+    players: [2, 6],
+    direction: 'high',
+    endMode: 'threshold',
+    target: 5000,
+    rounds: null,
+    roundSum: null,
+    allowNegative: true,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'cards',
+    notesKey: 'notes.canasta',
+  },
+  {
+    id: 'scopa',
+    name: 'Scopa',
+    players: [2, 4],
+    direction: 'high',
+    endMode: 'threshold',
+    target: 11,
+    rounds: null,
+    roundSum: null,
+    allowNegative: false,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'cards',
+    notesKey: 'notes.scopa',
+  },
+  {
+    id: 'cabo',
+    name: 'Cabo / Dutch',
+    players: [2, 6],
+    direction: 'low',
+    endMode: 'threshold',
+    target: 100,
+    rounds: null,
+    roundSum: null,
+    allowNegative: true,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'cards',
+    notesKey: 'notes.cabo',
+  },
+  {
+    id: 'rummikub',
+    name: 'Rummikub',
+    players: [2, 4],
+    direction: 'high',
+    endMode: 'manual',
+    target: null,
+    rounds: null,
+    roundSum: 0,
+    allowNegative: true,
+    entrantLabel: 'player',
+    meta: null,
+    helper: {
+      mode: 'count',
+      values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 30],
+      labels: { 30: 'Joker' },
+      hintKey: 'helper.rummikub.hint',
+      toggles: [],
+    },
+    group: 'tiles',
+    notesKey: 'notes.rummikub',
+  },
+  {
+    id: 'dominos',
+    name: 'Dominos',
+    players: [2, 4],
+    direction: 'high',
+    endMode: 'threshold',
+    target: 100,
+    rounds: null,
+    roundSum: null,
+    allowNegative: false,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'tiles',
+    notesKey: 'notes.dominos',
+  },
+  {
+    id: 'scrabble',
+    name: 'Scrabble',
+    players: [2, 4],
+    direction: 'high',
+    endMode: 'manual',
+    target: null,
+    rounds: null,
+    roundSum: null,
+    allowNegative: true,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'tiles',
+    notesKey: 'notes.scrabble',
+  },
+  {
+    id: 'petanque',
+    name: 'Pétanque',
+    players: [2, 2],
+    direction: 'high',
+    endMode: 'threshold',
+    target: 13,
+    rounds: null,
+    roundSum: null,
+    allowNegative: false,
+    entrantLabel: 'team',
+    meta: null,
+    group: 'outdoor',
+    notesKey: 'notes.petanque',
+  },
+  {
+    id: 'molkky',
+    name: 'Mölkky',
+    players: [2, 8],
+    direction: 'high',
+    endMode: 'threshold',
+    target: 50,
+    rounds: null,
+    roundSum: null,
+    allowNegative: true,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'outdoor',
+    notesKey: 'notes.molkky',
+  },
+  {
+    id: 'president',
+    name: 'Président',
+    players: [3, 8],
+    direction: 'high',
+    endMode: 'threshold',
+    target: 10,
+    rounds: null,
+    roundSum: null,
+    allowNegative: true,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'cards',
+    notesKey: 'notes.president',
+  },
+  {
+    id: 'plateau',
+    name: 'plateau',
+    labelKey: 'new.boardLabel',
+    players: [1, 12],
+    direction: 'high',
+    endMode: 'manual',
+    target: null,
+    rounds: null,
+    roundSum: null,
+    allowNegative: true,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'other',
+    notesKey: 'notes.plateau',
+  },
+  {
+    id: 'custom',
+    name: 'custom',
+    labelKey: 'new.customLabel',
+    players: [1, 12],
+    direction: 'low',
+    endMode: 'manual',
+    target: null,
+    rounds: null,
+    roundSum: null,
+    allowNegative: true,
+    entrantLabel: 'player',
+    meta: null,
+    group: 'other',
+    notesKey: 'notes.custom',
+  },
+];
+
+function getPreset(id) {
+  return PRESETS.find((p) => p.id === id) || null;
+}
+
+/** The part of a preset a game copies into its own config (and may then edit). */
+function presetConfig(preset) {
+  return {
+    direction: preset.direction,
+    endMode: preset.endMode,
+    target: preset.target,
+    rounds: preset.rounds,
+    roundSum: preset.roundSum,
+    allowNegative: preset.allowNegative,
+    entrantLabel: preset.entrantLabel,
+  };
+}
+
+/** The order the picker files games in. */
+const PRESET_GROUPS = ['cards', 'tiles', 'dice', 'outdoor', 'other'];
+
+  // ---- src/model.js ----------------------------------------------------
+/** Creating and mutating game objects. Pure: every mutator returns a new game. */
+
+
+/**
+ * An identifier. A game's id is also what a share link carries, so it has to
+ * be unguessable: whoever knows it can open the game. randomUUID is used where
+ * the browser offers it (it needs a secure context), with a weaker but still
+ * random fallback elsewhere.
+ *
+ * Exported because a set of games shared together is named the same way, and
+ * for the same reason.
+ */
+function uid(prefix = 'id') {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  if (uuid) return `${prefix}_${uuid}`;
+  const random = () => Math.random().toString(36).slice(2, 10);
+  return `${prefix}_${Date.now().toString(36)}_${random()}${random()}`;
+}
+
+/**
+ * Build a new game.
+ * `names` is a list of player (or team) names, `overrides` patches the config.
+ */
+function createGame({ presetId, names, overrides = {}, name = '', shared = false, groupId = null }) {
+  const preset = getPreset(presetId);
+  if (!preset) throw new Error(`Unknown preset: ${presetId}`);
+
+  const players = names
+    .map((raw, index) => (raw || '').trim() || `#${index + 1}`)
+    .map((playerName) => ({ id: uid('p'), name: playerName }));
+
+  const now = Date.now();
+  return {
+    id: uid('g'),
+    presetId,
+    name: name.trim(),
+    createdAt: now,
+    updatedAt: now,
+    finishedAt: null,
+    // A game is only sent to the shared database once it is shared — either
+    // deliberately, or because this device sends everything by choice. The
+    // group it was shared in says whose key may change or remove it later.
+    shared: Boolean(shared),
+    groupId: groupId || null,
+    archivedAt: null,
+    players,
+    config: { ...presetConfig(preset), ...overrides },
+    rounds: [],
+  };
+}
+
+/** Normalise a { playerId: value } map into finite numbers, dropping blanks to 0. */
+function normaliseScores(game, scores) {
+  const clean = {};
+  for (const player of game.players) {
+    const value = scores?.[player.id];
+    clean[player.id] = Number.isFinite(value) ? value : 0;
+  }
+  return clean;
+}
+
+function addRound(game, { scores, meta = null, note = '' }) {
+  const round = {
+    id: uid('r'),
+    scores: normaliseScores(game, scores),
+    meta,
+    note,
+  };
+  return { ...game, rounds: [...game.rounds, round], updatedAt: Date.now() };
+}
+
+function updateRound(game, roundId, { scores, meta, note }) {
+  const rounds = game.rounds.map((round) => {
+    if (round.id !== roundId) return round;
+    return {
+      ...round,
+      scores: scores ? normaliseScores(game, scores) : round.scores,
+      meta: meta === undefined ? round.meta : meta,
+      note: note === undefined ? round.note : note,
+    };
+  });
+  return { ...game, rounds, updatedAt: Date.now() };
+}
+
+function removeRound(game, roundId) {
+  return {
+    ...game,
+    rounds: game.rounds.filter((round) => round.id !== roundId),
+    updatedAt: Date.now(),
+  };
+}
+
+
+/** Fix a name that was typed wrong, without disturbing the scores. */
+function renamePlayer(game, playerId, name) {
+  const cleaned = String(name || '').trim();
+  if (!cleaned) return game;
+  const players = game.players.map((player) =>
+    player.id === playerId ? { ...player, name: cleaned } : player,
+  );
+  return { ...game, players, updatedAt: Date.now() };
+}
+
+/** Mark a game as one the shared database holds. */
+function setShared(game, shared = true) {
+  if (Boolean(game.shared) === Boolean(shared)) return game;
+  return { ...game, shared: Boolean(shared), updatedAt: Date.now() };
+}
+
+function setFinished(game, finished) {
+  return { ...game, finishedAt: finished ? Date.now() : null, updatedAt: Date.now() };
+}
+
+/**
+ * Put an evening away, or bring it back. A finished game is still on the tab —
+ * that is how a table checks last month's scores — until someone says it has
+ * been looked at enough.
+ */
+function archiveGame(game, yes = true) {
+  const at = yes ? Date.now() : null;
+  if (at === (game.archivedAt || null)) return game;
+  return { ...game, archivedAt: at, updatedAt: Date.now() };
+}
+
+
+/**
+ * Merge two copies of the same game — the one here and the one the database
+ * holds. The newer copy sets the names, the settings and the title, but the
+ * rounds are unioned by id rather than replaced: two people scoring the same
+ * evening on two phones would otherwise silently lose whichever round was
+ * written second. A round deleted on one device and kept on the other comes
+ * back, which is visible and undoable — unlike a round that vanishes.
+ */
+function mergeGames(a, b) {
+  if (!isValidGame(a)) return b;
+  if (!isValidGame(b)) return a;
+  if (a.id !== b.id) return a;
+
+  const [newer, older] = (a.updatedAt || 0) >= (b.updatedAt || 0) ? [a, b] : [b, a];
+  const byId = new Map();
+  for (const round of [...older.rounds, ...newer.rounds]) {
+    if (round && typeof round.id === 'string') byId.set(round.id, round);
+  }
+
+  // Keep the newer copy's order, then anything only the older one knew about.
+  const ordered = [
+    ...newer.rounds.filter((round) => byId.has(round.id)).map((round) => byId.get(round.id)),
+    ...older.rounds.filter((round) => !newer.rounds.some((other) => other.id === round.id)),
+  ];
+
+  if (ordered.length === newer.rounds.length) return newer;
+  return { ...newer, rounds: ordered, updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0) };
+}
+
+/** Start a fresh game with the same people and the same rules. */
+function replayGame(game) {
+  return createGame({
+    presetId: game.presetId,
+    names: game.players.map((player) => player.name),
+    overrides: { ...game.config },
+    name: game.name,
+    shared: Boolean(game.shared),
+    groupId: game.groupId,
+  });
+}
+
+/** Whoever deals this round — the deal goes round the table. */
+function dealerFor(game, roundNumber) {
+  if (!game.players.length) return null;
+  return game.players[roundNumber % game.players.length];
+}
+
+/** The people most recently played with, for the new-game form to offer. */
+function recentNames(games, limit = 12) {
+  const seen = [];
+  for (const game of [...games].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))) {
+    for (const player of game.players) {
+      if (!seen.includes(player.name)) seen.push(player.name);
+      if (seen.length >= limit) return seen;
+    }
+  }
+  return seen;
+}
+
+/** Defensive read of anything coming back from storage or an import file. */
+function isValidGame(value) {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      typeof value.id === 'string' &&
+      Array.isArray(value.players) &&
+      value.players.every((p) => p && typeof p.id === 'string' && typeof p.name === 'string') &&
+      Array.isArray(value.rounds) &&
+      value.config &&
+      typeof value.config === 'object',
+  );
+}
+
+  // ---- src/scoring.js --------------------------------------------------
+/**
+ * Scoring engine. Pure functions over a game object — no DOM, no storage.
+ *
+ * A game looks like this:
+ * {
+ *   id, presetId, name, createdAt, updatedAt, finishedAt: null | number,
+ *   players: [{ id, name }],
+ *   config: { direction, endMode, target, rounds, roundSum, allowNegative, entrantLabel },
+ *   rounds: [{ id, scores: { [playerId]: number }, meta: string|null, note: string }]
+ * }
+ */
+
+/** Score a single player recorded for one round (missing entries count as 0). */
+function roundScore(round, playerId) {
+  const value = round.scores?.[playerId];
+  return Number.isFinite(value) ? value : 0;
+}
+
+/** Sum of every score recorded in a round. */
+function roundSum(round) {
+  return Object.values(round.scores || {}).reduce(
+    (sum, value) => sum + (Number.isFinite(value) ? value : 0),
+    0,
+  );
+}
+
+/** Totals keyed by player id, over the first `upTo` rounds (all of them by default). */
+function totals(game, upTo = Infinity) {
+  const result = {};
+  for (const player of game.players) result[player.id] = 0;
+  game.rounds.slice(0, upTo).forEach((round) => {
+    for (const player of game.players) {
+      result[player.id] += roundScore(round, player.id);
+    }
+  });
+  return result;
+}
+
+/**
+ * Players ordered from best to worst, with ranks (ties share a rank).
+ * Each entry: { id, name, total, rank, gap } where `gap` is the distance to the leader.
+ */
+function standings(game) {
+  const totalsById = totals(game);
+  const sign = game.config.direction === 'low' ? 1 : -1;
+  const rows = game.players
+    .map((player) => ({
+      id: player.id,
+      name: player.name,
+      total: totalsById[player.id],
+    }))
+    .sort((a, b) => sign * (a.total - b.total));
+
+  const best = rows.length ? rows[0].total : 0;
+  let rank = 0;
+  let previous = null;
+  rows.forEach((row, index) => {
+    if (previous === null || row.total !== previous) rank = index + 1;
+    previous = row.total;
+    row.rank = rank;
+    row.gap = Math.abs(row.total - best);
+  });
+  return rows;
+}
+
+/**
+ * Where the game stands.
+ * { finished, reason, winners: [row], leaders: [row], standings, remaining }
+ * `reason` is 'manual' (ended by hand), 'threshold', 'rounds' or null.
+ * `remaining` is how much is left before the game ends, when that is knowable.
+ */
+function gameStatus(game) {
+  const rows = standings(game);
+  const { endMode, target, rounds } = game.config;
+  const leaders = rows.filter((row) => rows.length && row.total === rows[0].total);
+
+  let finished = false;
+  let reason = null;
+  let remaining = null;
+
+  if (game.finishedAt) {
+    finished = true;
+    reason = 'manual';
+  } else if (endMode === 'threshold' && Number.isFinite(target)) {
+    // Either way it is the highest total that trips the target: in a penalty
+    // game the player who gets there ends it and the lowest total still wins,
+    // in a race the player who gets there wins.
+    const highest = rows.length ? Math.max(...rows.map((r) => r.total)) : 0;
+    finished = rows.length > 0 && highest >= target;
+    if (finished) reason = 'threshold';
+    remaining = Math.max(0, target - highest);
+  } else if (endMode === 'rounds' && Number.isFinite(rounds)) {
+    finished = game.rounds.length >= rounds;
+    if (finished) reason = 'rounds';
+    remaining = Math.max(0, rounds - game.rounds.length);
+  }
+
+  return {
+    finished,
+    reason,
+    standings: rows,
+    leaders,
+    winners: finished ? leaders : [],
+    remaining,
+  };
+}
+
+/**
+ * Check a round before it is recorded.
+ * `scores` is { [playerId]: number | null } — null/undefined means "not filled in".
+ * Returns { ok, errors: [{code, ...}], warnings: [{code, ...}] }.
+ * Errors block saving; warnings are shown but can be accepted (house rules vary).
+ */
+function validateRound(game, scores) {
+  const errors = [];
+  const warnings = [];
+  const missing = [];
+
+  for (const player of game.players) {
+    const value = scores?.[player.id];
+    if (value === null || value === undefined || value === '') {
+      missing.push(player.name);
+      continue;
+    }
+    if (!Number.isFinite(value)) {
+      errors.push({ code: 'notANumber', player: player.name });
+      continue;
+    }
+    if (!Number.isInteger(value)) {
+      errors.push({ code: 'notAnInteger', player: player.name });
+      continue;
+    }
+    if (value < 0 && !game.config.allowNegative) {
+      errors.push({ code: 'negative', player: player.name });
+    }
+  }
+
+  if (missing.length) warnings.push({ code: 'missing', players: missing });
+
+  const expected = game.config.roundSum;
+  if (Number.isFinite(expected) && !missing.length) {
+    const sum = Object.values(scores).reduce(
+      (acc, value) => acc + (Number.isFinite(value) ? value : 0),
+      0,
+    );
+    if (sum !== expected) warnings.push({ code: 'sum', sum, expected });
+  }
+
+  return { ok: errors.length === 0, errors, warnings };
+}
+
+/**
+ * The value that completes a round to its expected sum, or null when the game
+ * has no fixed round sum or more than one score is still missing.
+ */
+function completingScore(game, scores) {
+  const expected = game.config.roundSum;
+  if (!Number.isFinite(expected)) return null;
+  const missing = game.players.filter((player) => {
+    const value = scores?.[player.id];
+    return value === null || value === undefined || value === '';
+  });
+  if (missing.length !== 1) return null;
+  const sum = Object.values(scores).reduce(
+    (acc, value) => acc + (Number.isFinite(value) ? value : 0),
+    0,
+  );
+  const rest = expected - sum;
+  if (rest < 0 && !game.config.allowNegative) return null;
+  return { playerId: missing[0].id, value: rest };
+}
+
+  // ---- src/helpers.js --------------------------------------------------
+/**
+ * Card counters.
+ *
+ * Several games ask you to add up the cards in front of you at the end of a
+ * round — exactly the sum a phone should be doing. A preset can therefore
+ * carry a `helper` spec, and the round form offers a counter built from it:
+ *
+ *   mode     'count'  the same value can be tapped several times (Skyjo)
+ *            'toggle' each value exists once and is picked or not (Papayoo)
+ *   values   the tappable values, in the order they are shown
+ *   labels   optional display text for a value, keyed by value
+ *   toggles  extra switches, each adding a fixed amount (the queen of spades)
+ *            or multiplying the total (Skyjo's doubling penalty)
+ *
+ * An entry is what someone has tapped: { cards: [value, …], toggles: {} }.
+ * Nothing here touches the DOM, so the arithmetic can be tested on its own.
+ */
+
+function emptyHelperEntry() {
+  return { cards: [], toggles: {} };
+}
+
+/** Tap a value: 'toggle' mode picks or unpicks it, 'count' mode adds one more. */
+function tapCard(helper, entry, value) {
+  if (helper.mode === 'toggle') {
+    const cards = entry.cards.includes(value)
+      ? entry.cards.filter((card) => card !== value)
+      : [...entry.cards, value];
+    return { ...entry, cards };
+  }
+  return { ...entry, cards: [...entry.cards, value] };
+}
+
+/** Undo the last tap — the way a mis-tap is actually corrected. */
+function undoCard(entry) {
+  return { ...entry, cards: entry.cards.slice(0, -1) };
+}
+
+function toggleSwitch(entry, key) {
+  return { ...entry, toggles: { ...entry.toggles, [key]: !entry.toggles[key] } };
+}
+
+/** How many times a value has been tapped. */
+function cardCount(entry, value) {
+  return entry.cards.filter((card) => card === value).length;
+}
+
+/**
+ * The score an entry adds up to: the cards, plus every switch that adds,
+ * then multiplied by every switch that multiplies.
+ */
+function helperTotal(helper, entry) {
+  let total = entry.cards.reduce((sum, value) => sum + value, 0);
+
+  for (const item of helper.toggles || []) {
+    if (entry.toggles?.[item.key] && Number.isFinite(item.add)) total += item.add;
+  }
+  for (const item of helper.toggles || []) {
+    if (entry.toggles?.[item.key] && Number.isFinite(item.multiply)) total *= item.multiply;
+  }
+  return total;
+}
+
+/** True when nothing has been tapped at all — used to keep "Apply" honest. */
+function isEmptyEntry(entry) {
+  return entry.cards.length === 0 && !Object.values(entry.toggles || {}).some(Boolean);
+}
+
+/**
+ * Whether a page is running inside an app's own browser — Messenger, Instagram,
+ * Facebook, and their like — rather than in a real one.
+ *
+ * It matters here for one reason: those browsers keep their own files and their
+ * own storage. A group joined inside Messenger's browser is joined *there*, and
+ * Safari next door knows nothing about it — the person then believes they were
+ * let in and finds nothing. Worse, they cannot add an app to the home screen
+ * from there at all, so the only way forward is Safari anyway.
+ *
+ * This is user-agent sniffing, which is a heuristic and nothing more: it names
+ * the common ones, and a browser it does not know is taken for a real one. The
+ * cost of a wrong guess is one line of advice too many, which is why it only
+ * ever advises.
+ */
+const IN_APP_BROWSERS = [
+  // Order matters, and twice over. Messenger announces itself inside Facebook's
+  // own marker — "FBAN/MessengerForiOS" — so it is looked for first, or everyone
+  // reading in Messenger would be told about Facebook. And "MicroMessenger" is
+  // WeChat, which contains the word Messenger.
+  ['MessengerForiOS', 'Messenger'],
+  ['MESSENGER', 'Messenger'],
+  ['MicroMessenger', 'WeChat'],
+  ['FBAN', 'Facebook'],
+  ['FBAV', 'Facebook'],
+  ['FB_IAB', 'Facebook'],
+  ['Messenger', 'Messenger'],
+  ['Instagram', 'Instagram'],
+  ['LinkedInApp', 'LinkedIn'],
+  ['Twitter', 'X'],
+  ['Line/', 'LINE'],
+  ['Snapchat', 'Snapchat'],
+  ['TikTok', 'TikTok'],
+  ['BytedanceWebview', 'TikTok'],
+  ['Pinterest', 'Pinterest'],
+  ['WhatsApp', 'WhatsApp'],
+];
+
+/** The name of the app whose browser this is, or null for a real browser. */
+function inAppBrowser(userAgent) {
+  const text = String(userAgent || '');
+  if (!text) return null;
+  for (const [needle, name] of IN_APP_BROWSERS) {
+    if (text.includes(needle)) return name;
+  }
+  return null;
+}
+
+/**
+ * Which phone this is, as far as installing goes: 'ios' (an iPad reports
+ * itself as a Mac, but has a touch screen), 'android', or null — a computer,
+ * where nothing needs to be installed first.
+ */
+function phoneKind(userAgent, touchPoints = 0) {
+  const text = String(userAgent || '');
+  if (/iPhone|iPad|iPod/.test(text)) return 'ios';
+  if (/Macintosh/.test(text) && touchPoints > 1) return 'ios';
+  if (/Android/.test(text)) return 'android';
+  return null;
+}
+
+  // ---- src/tarot.js ----------------------------------------------------
+/**
+ * French Tarot scoring.
+ *
+ * The one game here whose score is not counted but computed, from the
+ * contract, the oudlers held and the points taken. The arithmetic is
+ * mechanical, which is exactly why it belongs in the app rather than in
+ * someone's head at eleven at night.
+ *
+ * The formula, as the French federation states it:
+ *
+ *     (25 + |écart| + petit au bout) × multiplicateur  + poignée + chelem
+ *
+ * where the écart is the taker's points minus what the contract required, the
+ * petit au bout is worth 10 to whichever side won the last trick with it, and
+ * the poignée and chelem bonuses are added afterwards, unmultiplied, to the
+ * side that won the deal.
+ *
+ * The result is zero-sum: what the taker's side gains, the defence loses.
+ *
+ * Every step is returned in `breakdown` so the players can check the sum at
+ * the table — a calculator that cannot be checked is worse than none.
+ */
+
+/** What the taker must make, by number of oudlers held (Petit, 21, Excuse). */
+const THRESHOLDS = { 0: 56, 1: 51, 2: 41, 3: 36 };
+
+/** The deck holds 91 points in all. */
+const TOTAL_POINTS = 91;
+
+const CONTRACTS = [
+  { id: 'petite', multiplier: 1 },
+  { id: 'garde', multiplier: 2 },
+  { id: 'gardeSans', multiplier: 4 },
+  { id: 'gardeContre', multiplier: 6 },
+];
+
+/** Handfuls of trumps, shown and rewarded to whoever wins the deal. */
+const POIGNEES = [
+  { id: 'none', value: 0 },
+  { id: 'simple', value: 20 },
+  { id: 'double', value: 30 },
+  { id: 'triple', value: 40 },
+];
+
+const CHELEMS = [
+  { id: 'none', value: 0 },
+  { id: 'announcedMade', value: 400 },
+  { id: 'announcedFailed', value: -200 },
+  { id: 'unannouncedMade', value: 200 },
+];
+
+function contractMultiplier(id) {
+  return CONTRACTS.find((contract) => contract.id === id)?.multiplier ?? 1;
+}
+
+function valueOf(list, id) {
+  return list.find((item) => item.id === id)?.value ?? 0;
+}
+
+/**
+ * Score one deal.
+ *
+ * deal = {
+ *   takerId, partnerId (5 players, null when the taker called themselves),
+ *   contract: 'petite' | 'garde' | 'gardeSans' | 'gardeContre',
+ *   oudlers: 0 | 1 | 2 | 3,
+ *   points: what the taker took, 0 to 91,
+ *   petitAuBout: 'none' | 'taker' | 'defence',
+ *   poignee: 'none' | 'simple' | 'double' | 'triple',
+ *   chelem: 'none' | 'announcedMade' | 'announcedFailed' | 'unannouncedMade',
+ * }
+ *
+ * Returns { threshold, gap, won, amount, scores, breakdown }, where `scores`
+ * is keyed by player id and always adds up to zero.
+ */
+function scoreDeal(players, deal) {
+  const threshold = THRESHOLDS[deal.oudlers] ?? THRESHOLDS[0];
+  const gap = deal.points - threshold;
+  const won = gap >= 0;
+  const multiplier = contractMultiplier(deal.contract);
+
+  // The petit au bout is worth 10 to the side that took it; seen from the
+  // taker, that reduces a loss just as it increases a win.
+  const petit = deal.petitAuBout === 'taker' ? 10 : deal.petitAuBout === 'defence' ? -10 : 0;
+  const inner = 25 + Math.abs(gap) + (won ? petit : -petit);
+
+  const poignee = valueOf(POIGNEES, deal.poignee);
+  const chelem = valueOf(CHELEMS, deal.chelem);
+
+  // Bonuses land outside the multiplication, on the winning side.
+  const amount = (won ? 1 : -1) * inner * multiplier + (won ? poignee : -poignee) + chelem;
+
+  const scores = {};
+  const partnered = deal.partnerId && deal.partnerId !== deal.takerId;
+  for (const player of players) {
+    if (player.id === deal.takerId) {
+      scores[player.id] = partnered ? 2 * amount : (players.length - 1) * amount;
+    } else if (partnered && player.id === deal.partnerId) {
+      scores[player.id] = amount;
+    } else {
+      scores[player.id] = -amount;
+    }
+  }
+
+  return {
+    threshold,
+    gap,
+    won,
+    multiplier,
+    amount,
+    scores,
+    breakdown: {
+      threshold,
+      points: deal.points,
+      gap,
+      base: 25,
+      petit,
+      inner,
+      multiplier,
+      poignee: won ? poignee : -poignee,
+      chelem,
+      amount,
+    },
+  };
+}
+
+/** True when the deal can be scored — every field present and sane. */
+function isCompleteDeal(players, deal) {
+  if (!deal?.takerId || !players.some((player) => player.id === deal.takerId)) return false;
+  if (!CONTRACTS.some((contract) => contract.id === deal.contract)) return false;
+  if (![0, 1, 2, 3].includes(deal.oudlers)) return false;
+  return Number.isFinite(deal.points) && deal.points >= 0 && deal.points <= TOTAL_POINTS;
+}
+
+  // ---- src/qr.js -------------------------------------------------------
+/**
+ * A QR code, computed here rather than fetched from a service — the app has
+ * no dependencies and must work with no network.
+ *
+ * Only what a link needs is implemented: byte mode, error correction level M,
+ * and whichever version (size) fits. That covers URLs up to a few hundred
+ * characters, which is every link this app hands out.
+ *
+ * Returns a square matrix of booleans; drawing it is the caller's business.
+ */
+
+/* --- Galois field arithmetic, for the error-correction codewords ---------- */
+
+const EXP = new Uint8Array(512);
+const LOG = new Uint8Array(256);
+(() => {
+  let x = 1;
+  for (let i = 0; i < 255; i += 1) {
+    EXP[i] = x;
+    LOG[x] = i;
+    x <<= 1;
+    if (x & 0x100) x ^= 0x11d;
+  }
+  for (let i = 255; i < 512; i += 1) EXP[i] = EXP[i - 255];
+})();
+
+const mul = (a, b) => (a === 0 || b === 0 ? 0 : EXP[LOG[a] + LOG[b]]);
+
+function generatorPoly(degree) {
+  let poly = [1];
+  for (let i = 0; i < degree; i += 1) {
+    const next = new Array(poly.length + 1).fill(0);
+    for (let j = 0; j < poly.length; j += 1) {
+      next[j] ^= poly[j];
+      next[j + 1] ^= mul(poly[j], EXP[i]);
+    }
+    poly = next;
+  }
+  return poly;
+}
+
+function errorCorrection(data, count) {
+  const poly = generatorPoly(count);
+  const result = new Array(count).fill(0);
+  for (const byte of data) {
+    const factor = byte ^ result[0];
+    result.shift();
+    result.push(0);
+    for (let i = 0; i < count; i += 1) result[i] ^= mul(poly[i + 1], factor);
+  }
+  return result;
+}
+
+/* --- Per-version parameters, error correction level M --------------------- */
+
+/**
+ * [ total codewords, ec codewords per block, blocks in group 1, blocks in group 2 ]
+ *
+ * Stops at version 6, which holds 106 bytes — more than any link this app
+ * hands out. Every one of these was checked module for module against a
+ * reference encoder, for all eight masks; the block tables beyond version 6
+ * were not, so they are not here. Longer text returns null and the caller
+ * shows the plain link.
+ */
+const VERSIONS = {
+  1: [26, 10, 1, 0], 2: [44, 16, 1, 0], 3: [70, 26, 1, 0],
+  4: [100, 18, 2, 0], 5: [134, 24, 2, 0], 6: [172, 16, 4, 0],
+};
+
+const ALIGNMENT = {
+  1: [], 2: [6, 18], 3: [6, 22], 4: [6, 26], 5: [6, 30], 6: [6, 34],
+};
+
+/** Data codewords available, total minus error correction. */
+function dataCapacity(version) {
+  const [total, ecPerBlock, group1, group2] = VERSIONS[version];
+  return total - ecPerBlock * (group1 + group2);
+}
+
+function chooseVersion(byteLength) {
+  for (const version of Object.keys(VERSIONS).map(Number)) {
+    // 4 bits of mode, 8 of length (versions 1 to 9), then the data itself.
+    if (dataCapacity(version) * 8 >= 4 + 8 + byteLength * 8) return version;
+  }
+  return null;
+}
+
+/** The longest text this encoder will take, in bytes. */
+const MAX_BYTES = (() => {
+  let max = 0;
+  for (const version of Object.keys(VERSIONS).map(Number)) {
+    max = Math.max(max, Math.floor((dataCapacity(version) * 8 - 12) / 8));
+  }
+  return max;
+})();
+
+/* --- Bit assembly --------------------------------------------------------- */
+
+function encodeData(bytes, version) {
+  const bits = [];
+  const push = (value, length) => {
+    for (let i = length - 1; i >= 0; i -= 1) bits.push((value >> i) & 1);
+  };
+
+  push(0b0100, 4); // byte mode
+  push(bytes.length, 8);
+  for (const byte of bytes) push(byte, 8);
+
+  const capacity = dataCapacity(version) * 8;
+  push(0, Math.min(4, capacity - bits.length)); // terminator
+  while (bits.length % 8) bits.push(0);
+
+  const codewords = [];
+  for (let i = 0; i < bits.length; i += 8) {
+    codewords.push(bits.slice(i, i + 8).reduce((value, bit) => (value << 1) | bit, 0));
+  }
+  const padding = [0xec, 0x11];
+  let index = 0;
+  while (codewords.length < dataCapacity(version)) {
+    codewords.push(padding[index++ % 2]);
+  }
+  return codewords;
+}
+
+/** Split into blocks, add error correction, then interleave as the spec says. */
+function finalCodewords(dataCodewords, version) {
+  const [, ecPerBlock, group1, group2] = VERSIONS[version];
+  const blocks = group1 + group2;
+  const shortLength = Math.floor(dataCodewords.length / blocks);
+
+  const dataBlocks = [];
+  const ecBlocks = [];
+  let at = 0;
+  for (let i = 0; i < blocks; i += 1) {
+    const length = i < group1 ? shortLength : shortLength + 1;
+    const block = dataCodewords.slice(at, at + length);
+    at += length;
+    dataBlocks.push(block);
+    ecBlocks.push(errorCorrection(block, ecPerBlock));
+  }
+
+  const out = [];
+  const longest = Math.max(...dataBlocks.map((block) => block.length));
+  for (let i = 0; i < longest; i += 1) {
+    for (const block of dataBlocks) if (i < block.length) out.push(block[i]);
+  }
+  for (let i = 0; i < ecPerBlock; i += 1) {
+    for (const block of ecBlocks) out.push(block[i]);
+  }
+  return out;
+}
+
+/* --- The matrix ----------------------------------------------------------- */
+
+function emptyMatrix(size) {
+  return {
+    modules: Array.from({ length: size }, () => new Array(size).fill(null)),
+    reserved: Array.from({ length: size }, () => new Array(size).fill(false)),
+    size,
+  };
+}
+
+function placeFinder(matrix, row, col) {
+  for (let r = -1; r <= 7; r += 1) {
+    for (let c = -1; c <= 7; c += 1) {
+      const y = row + r;
+      const x = col + c;
+      if (y < 0 || y >= matrix.size || x < 0 || x >= matrix.size) continue;
+      const inRing = (r >= 0 && r <= 6 && (c === 0 || c === 6)) || (c >= 0 && c <= 6 && (r === 0 || r === 6));
+      const inCore = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+      matrix.modules[y][x] = inRing || inCore;
+      matrix.reserved[y][x] = true;
+    }
+  }
+}
+
+function placePatterns(matrix, version) {
+  const size = matrix.size;
+  placeFinder(matrix, 0, 0);
+  placeFinder(matrix, 0, size - 7);
+  placeFinder(matrix, size - 7, 0);
+
+  for (let i = 8; i < size - 8; i += 1) {
+    const dark = i % 2 === 0;
+    matrix.modules[6][i] = dark;
+    matrix.reserved[6][i] = true;
+    matrix.modules[i][6] = dark;
+    matrix.reserved[i][6] = true;
+  }
+
+  for (const row of ALIGNMENT[version]) {
+    for (const col of ALIGNMENT[version]) {
+      if (matrix.reserved[row][col]) continue;
+      for (let r = -2; r <= 2; r += 1) {
+        for (let c = -2; c <= 2; c += 1) {
+          matrix.modules[row + r][col + c] = Math.max(Math.abs(r), Math.abs(c)) !== 1;
+          matrix.reserved[row + r][col + c] = true;
+        }
+      }
+    }
+  }
+
+  // The dark module, and the space the format information will occupy.
+  matrix.modules[size - 8][8] = true;
+  matrix.reserved[size - 8][8] = true;
+  for (let i = 0; i < 9; i += 1) {
+    if (!matrix.reserved[8][i]) { matrix.modules[8][i] = false; matrix.reserved[8][i] = true; }
+    if (!matrix.reserved[i][8]) { matrix.modules[i][8] = false; matrix.reserved[i][8] = true; }
+  }
+  for (let i = size - 8; i < size; i += 1) {
+    if (!matrix.reserved[8][i]) { matrix.modules[8][i] = false; matrix.reserved[8][i] = true; }
+    if (!matrix.reserved[i][8]) { matrix.modules[i][8] = false; matrix.reserved[i][8] = true; }
+  }
+}
+
+function placeData(matrix, codewords) {
+  const size = matrix.size;
+  const bits = [];
+  for (const codeword of codewords) {
+    for (let i = 7; i >= 0; i -= 1) bits.push((codeword >> i) & 1);
+  }
+
+  let bit = 0;
+  for (let right = size - 1; right >= 1; right -= 2) {
+    if (right === 6) right -= 1; // the vertical timing pattern is skipped
+    // Which way this pair of columns runs follows from its position, not from
+    // a flag: the skipped column would put a toggle out of step.
+    const upward = ((right + 1) & 2) === 0;
+    for (let step = 0; step < size; step += 1) {
+      const row = upward ? size - 1 - step : step;
+      for (const col of [right, right - 1]) {
+        if (matrix.reserved[row][col]) continue;
+        matrix.modules[row][col] = bit < bits.length ? bits[bit] === 1 : false;
+        bit += 1;
+      }
+    }
+  }
+}
+
+const MASKS = [
+  (r, c) => (r + c) % 2 === 0,
+  (r) => r % 2 === 0,
+  (r, c) => c % 3 === 0,
+  (r, c) => (r + c) % 3 === 0,
+  (r, c) => (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0,
+  (r, c) => ((r * c) % 2) + ((r * c) % 3) === 0,
+  (r, c) => (((r * c) % 2) + ((r * c) % 3)) % 2 === 0,
+  (r, c) => (((r + c) % 2) + ((r * c) % 3)) % 2 === 0,
+];
+
+/** Format information: error correction level M with the chosen mask. */
+function placeFormat(matrix, mask) {
+  const data = (0b00 << 3) | mask; // 00 = level M
+  let bits = data << 10;
+  for (let i = 4; i >= 0; i -= 1) {
+    if (bits & (1 << (i + 10))) bits ^= 0b10100110111 << i;
+  }
+  const format = ((data << 10) | bits) ^ 0b101010000010010;
+
+  const size = matrix.size;
+  // The specification names these positions as (x, y); everything here is
+  // addressed [row][col], so each one is written the other way round.
+  for (let i = 0; i < 15; i += 1) {
+    const dark = ((format >> i) & 1) === 1;
+
+    // First copy, wrapped around the top-left finder
+    if (i < 6) matrix.modules[i][8] = dark;
+    else if (i === 6) matrix.modules[7][8] = dark;
+    else if (i === 7) matrix.modules[8][8] = dark;
+    else if (i === 8) matrix.modules[8][7] = dark;
+    else matrix.modules[8][14 - i] = dark;
+
+    // Second copy, split between the other two finders
+    if (i < 8) matrix.modules[8][size - 1 - i] = dark;
+    else matrix.modules[size - 15 + i][8] = dark;
+  }
+}
+
+function penalty(modules) {
+  const size = modules.length;
+  let score = 0;
+
+  const run = (get) => {
+    for (let a = 0; a < size; a += 1) {
+      let last = null;
+      let length = 0;
+      for (let b = 0; b < size; b += 1) {
+        const value = get(a, b);
+        if (value === last) length += 1;
+        else { last = value; length = 1; }
+        if (length === 5) score += 3;
+        else if (length > 5) score += 1;
+      }
+    }
+  };
+  run((r, c) => modules[r][c]);
+  run((c, r) => modules[r][c]);
+
+  for (let r = 0; r < size - 1; r += 1) {
+    for (let c = 0; c < size - 1; c += 1) {
+      const v = modules[r][c];
+      if (v === modules[r][c + 1] && v === modules[r + 1][c] && v === modules[r + 1][c + 1]) score += 3;
+    }
+  }
+
+  let dark = 0;
+  for (const row of modules) for (const value of row) if (value) dark += 1;
+  const ratio = (dark * 100) / (size * size);
+  score += Math.floor(Math.abs(ratio - 50) / 5) * 10;
+  return score;
+}
+
+/**
+ * The matrix for `text`, or null when it is too long for what is implemented.
+ * `mask` forces one of the eight patterns instead of picking the best; it
+ * exists so the result can be compared against a reference encoder.
+ */
+function qrMatrix(text, { mask: forced = null } = {}) {
+  const bytes = Array.from(new TextEncoder().encode(text));
+  const version = chooseVersion(bytes.length);
+  if (!version) return null;
+
+  const codewords = finalCodewords(encodeData(bytes, version), version);
+  const size = 17 + version * 4;
+
+  let best = null;
+  const masks = forced === null ? [0, 1, 2, 3, 4, 5, 6, 7] : [forced];
+  for (const mask of masks) {
+    const matrix = emptyMatrix(size);
+    placePatterns(matrix, version);
+    placeData(matrix, codewords);
+    for (let r = 0; r < size; r += 1) {
+      for (let c = 0; c < size; c += 1) {
+        if (!matrix.reserved[r][c] && MASKS[mask](r, c)) matrix.modules[r][c] = !matrix.modules[r][c];
+      }
+    }
+    placeFormat(matrix, mask);
+    const score = penalty(matrix.modules);
+    if (!best || score < best.score) best = { score, modules: matrix.modules };
+  }
+  return best.modules;
+}
+
+/** The matrix as an SVG, with the quiet zone every reader expects. */
+function qrSvg(text, { size = 220, quiet = 4 } = {}) {
+  const modules = qrMatrix(text);
+  if (!modules) return null;
+  const count = modules.length + quiet * 2;
+  const rects = [];
+  modules.forEach((row, r) => {
+    row.forEach((dark, c) => {
+      if (dark) rects.push(`<rect x="${c + quiet}" y="${r + quiet}" width="1" height="1"/>`);
+    });
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${count} ${count}" width="${size}" height="${size}" role="img"><rect width="${count}" height="${count}" fill="#fff"/><g fill="#000">${rects.join('')}</g></svg>`;
+}
+
+  // ---- src/stamp.js ----------------------------------------------------
+/**
+ * Clocks and tombstones, for the documents several people edit at once.
+ *
+ * Lists and polls are merged the same way and for the same reason — two phones
+ * touching the same thing within a second of each other — so the two rules
+ * that make those merges work live here, once.
+ */
+
+/**
+ * The next stamp for something that has just changed: now, or one more than it
+ * carried, whichever is later. Never returning the same value twice is what
+ * lets a merge tell "someone changed this" from "nobody touched it", even when
+ * both happen inside the same millisecond.
+ */
+function later(previous) {
+  return Math.max(Date.now(), (previous || 0) + 1);
+}
+
+/** A changed document, stamped. */
+function touch(document_, patch) {
+  return { ...document_, ...patch, updatedAt: later(document_.updatedAt) };
+}
+
+/**
+ * How long a deletion is remembered. A line deleted here has to stay deleted
+ * when the other phone — which still holds it — syncs again; a month is longer
+ * than any phone stays away, and short enough that the traces never pile up.
+ */
+const FORGET_AFTER = 30 * 24 * 60 * 60 * 1000;
+
+function prune(removed, now = Date.now()) {
+  const kept = {};
+  for (const [id, at] of Object.entries(removed || {})) {
+    if (now - at < FORGET_AFTER) kept[id] = at;
+  }
+  return kept;
+}
+
+  // ---- src/people.js ---------------------------------------------------
+/**
+ * The people a shared document concerns — a list's, a poll's.
+ *
+ * They behave the same everywhere: added by name, renamed without losing what
+ * hangs off them, and removed together with whatever the document held about
+ * them. What differs is only that last part, so each document says how to
+ * forget someone and the rest is written once, here.
+ *
+ * They also carry their own clock, `peopleAt`. A merge needs it: without it,
+ * "Alice was just removed" and "this copy has never heard of Alice" look
+ * exactly alike, and removing someone gets undone by the next sync.
+ */
+
+
+
+
+/**
+ * The names a new document starts with: trimmed, and each person once —
+ * « gui » written after « Gui » is the same person, not a second one.
+ */
+function distinctNames(names) {
+  const seen = new Set();
+  return (names || [])
+    .map((raw) => String(raw || '').trim())
+    .filter((name) => {
+      const key = sameName(name) || name;
+      if (!name || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+/** Whether someone of that name is already among the document's people. */
+function hasPerson(document_, name, exceptId = null) {
+  const key = sameName(name);
+  return Boolean(key) && document_.people.some((person) => person.id !== exceptId && sameName(person.name) === key);
+}
+
+function addPerson(document_, name) {
+  const clean = String(name || '').trim();
+  // Already there, however it is written: one person, not two.
+  if (!clean || hasPerson(document_, clean)) return document_;
+  return touch(document_, {
+    people: [...document_.people, { id: uid('w'), name: clean }],
+    peopleAt: later(document_.peopleAt),
+  });
+}
+
+function renamePerson(document_, personId, name) {
+  const clean = String(name || '').trim();
+  // Never onto someone else's name: the document would have that person twice.
+  if (!clean || hasPerson(document_, clean, personId)) return document_;
+  return touch(document_, {
+    people: document_.people.map((person) =>
+      (person.id === personId ? { ...person, name: clean } : person)),
+    peopleAt: later(document_.peopleAt),
+  });
+}
+
+/**
+ * Remove someone. `forget` returns whatever else the document must change —
+ * the lines that were theirs, the answers they gave — as a patch.
+ */
+function removePerson(document_, personId, forget = () => ({})) {
+  return touch(document_, {
+    people: document_.people.filter((person) => person.id !== personId),
+    peopleAt: later(document_.peopleAt),
+    ...forget(document_, personId),
+  });
+}
+
+/** The names already used, most recent first, to offer when starting another. */
+function recentPeople(documents, limit = 12) {
+  const seen = [];
+  for (const document_ of [...documents].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))) {
+    for (const person of document_.people || []) {
+      if (!seen.includes(person.name)) seen.push(person.name);
+      if (seen.length >= limit) return seen;
+    }
+  }
+  return seen;
+}
+
+/**
+ * Me first, in a form nothing has been typed into yet — because whoever fills
+ * in a list is nearly always on it.
+ *
+ * Only ever called on a form that has just been emptied, never on every
+ * redraw: a name put back after someone deleted it would put them on a list
+ * they had just taken themselves off.
+ */
+function withMeFirst(names, me) {
+  const clean = String(me || '').trim();
+  if (!clean) return names;
+  if (names.some((name) => String(name || '').trim().toLowerCase() === clean.toLowerCase())) return names;
+  if (names.some((name) => String(name || '').trim())) return names;
+  return [clean, ...names.slice(1)];
+}
+
+/** The other way round: take my name back out of a form nobody has typed in. */
+function withoutMe(names, me) {
+  const clean = String(me || '').trim().toLowerCase();
+  if (!clean) return names;
+  const index = names.findIndex((name) => String(name || '').trim().toLowerCase() === clean);
+  if (index < 0) return names;
+  const kept = [...names];
+  kept[index] = '';
+  return kept;
+}
+
+  // ---- src/reacts.js ---------------------------------------------------
+/**
+ * Reactions and a few words: 👍 or « J'apporte le fromage » on an idea, a
+ * poll's choice, an event or one of its activities. Kept in the document
+ * itself, beside what they are about, in two sets of cells merged one by one
+ * — the latest of each kept, as votes are: two people reacting at once both
+ * stay, and taking a reaction back, or one's words, is a cell too.
+ *
+ *   reacts:   { '<target>|<who>': { e: '👍' or '', n: 'Alice', at } }
+ *   comments: { '<id>': { on: '<target>', n: 'Alice', t: 'Les mots' or '', made, at } }
+ *
+ * The target is what is reacted to: an idea's card, a poll's choice — or ''
+ * for the document itself, an event or an activity. Who reacts is a first
+ * name, as everywhere else: a name is not an account.
+ */
+
+
+
+
+/** What one may react with: one each per thing, tapped again to take it back. */
+const REACTIONS = ['👍', '❤️', '😂', '😮', '🎉'];
+
+/** A few words, not a letter. */
+const WORDS_MOST = 280;
+
+const cellsIn = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
+const stampOf = (cell) => (typeof cell?.at === 'number' ? cell.at : 0);
+
+/** Two copies' cells, each the latest of the two — the second copy's on a tie, as the database does. */
+function mergeCells(first, second) {
+  const out = { ...cellsIn(first) };
+  for (const [key, cell] of Object.entries(cellsIn(second))) {
+    const held = out[key];
+    if (!held || stampOf(cell) >= stampOf(held)) out[key] = cell;
+  }
+  return out;
+}
+
+/** Whether two sets of cells are the same, cell for cell. */
+function sameCells(a, b) {
+  const one = cellsIn(a);
+  const two = cellsIn(b);
+  const keys = Object.keys(one);
+  return keys.length === Object.keys(two).length && keys.every((key) => one[key] === two[key]);
+}
+
+/** A document's cells after a merge, with nothing said when there is nothing. */
+function mergedTalk(older, newer) {
+  const reacts = mergeCells(older?.reacts, newer?.reacts);
+  const comments = mergeCells(older?.comments, newer?.comments);
+  return {
+    ...(Object.keys(reacts).length ? { reacts } : {}),
+    ...(Object.keys(comments).length ? { comments } : {}),
+  };
+}
+
+/** Whether a merge learnt nothing about the reactions and words of `newer`. */
+function sameTalk(newer, merged) {
+  return sameCells(newer?.reacts, merged.reacts) && sameCells(newer?.comments, merged.comments);
+}
+
+/**
+ * React to a target as `name`. The same reaction again takes it back;
+ * another one replaces it.
+ */
+function react(document_, target, name, emoji) {
+  const who = sameName(name);
+  if (!who || !REACTIONS.includes(emoji)) return document_;
+  const key = `${target}|${who}`;
+  const held = cellsIn(document_.reacts)[key];
+  const cell = { e: held?.e === emoji ? '' : emoji, n: String(name).trim(), at: later(stampOf(held)) };
+  return touch(document_, { reacts: { ...cellsIn(document_.reacts), [key]: cell } });
+}
+
+/**
+ * The reactions to a target, in the palette's order: each with who reacted
+ * so, and whether `name` is among them.
+ */
+function reactionsTo(document_, target, name = '') {
+  const me = sameName(name);
+  const found = new Map();
+  for (const [key, cell] of Object.entries(cellsIn(document_.reacts))) {
+    const cut = key.indexOf('|');
+    if (cut < 0 || key.slice(0, cut) !== target || !REACTIONS.includes(cell?.e)) continue;
+    const who = key.slice(cut + 1);
+    const row = found.get(cell.e) || { emoji: cell.e, names: [], mine: false };
+    row.names.push(typeof cell.n === 'string' && cell.n.trim() ? cell.n.trim() : who);
+    if (who === me) row.mine = true;
+    found.set(cell.e, row);
+  }
+  return REACTIONS.filter((emoji) => found.has(emoji)).map((emoji) => found.get(emoji));
+}
+
+/** The reaction `name` gave a target, or ''. */
+function myReaction(document_, target, name) {
+  const cell = cellsIn(document_.reacts)[`${target}|${sameName(name)}`];
+  return REACTIONS.includes(cell?.e) ? cell.e : '';
+}
+
+/** Leave a few words on a target, as `name`. Without words, or without a name, nothing. */
+function addWords(document_, target, name, text) {
+  const words = String(text || '').trim().slice(0, WORDS_MOST);
+  const who = String(name || '').trim();
+  if (!words || !who) return document_;
+  const held = cellsIn(document_.comments);
+  // After every word already there, even within the same millisecond.
+  const now = later(Math.max(0, ...Object.values(held).map((cell) => (typeof cell?.made === 'number' ? cell.made : 0))));
+  return touch(document_, { comments: { ...held, [uid('m')]: { on: target, n: who, t: words, made: now, at: now } } });
+}
+
+/** Take words back: the cell stays, emptied, so that the other copies learn it too. */
+function removeWords(document_, id) {
+  const held = cellsIn(document_.comments)[id];
+  if (!held || typeof held.t !== 'string' || !held.t) return document_;
+  return touch(document_, { comments: { ...cellsIn(document_.comments), [id]: { ...held, t: '', at: later(stampOf(held)) } } });
+}
+
+/** The words left on a target, the oldest first: { id, name, text, at, mine }. */
+function wordsOn(document_, target, name = '') {
+  const me = sameName(name);
+  return Object.entries(cellsIn(document_.comments))
+    .filter(([, cell]) => cell?.on === target && typeof cell.t === 'string' && cell.t.trim())
+    .map(([id, cell]) => ({
+      id,
+      name: typeof cell.n === 'string' ? cell.n : '',
+      text: cell.t.trim(),
+      at: typeof cell.made === 'number' ? cell.made : stampOf(cell),
+      mine: Boolean(me) && sameName(cell.n) === me,
+    }))
+    .sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1));
+}
+
+/**
+ * What is said of a whole document, for its card: each reaction with how many
+ * gave it, the most given first, and how many words were left — on any of
+ * its things, the document itself included.
+ */
+function talkTotals(document_) {
+  const counts = new Map();
+  for (const cell of Object.values(cellsIn(document_?.reacts))) {
+    if (REACTIONS.includes(cell?.e)) counts.set(cell.e, (counts.get(cell.e) || 0) + 1);
+  }
+  const reactions = REACTIONS.filter((emoji) => counts.has(emoji))
+    .map((emoji) => ({ emoji, count: counts.get(emoji) }))
+    .sort((a, b) => b.count - a.count);
+  const words = Object.values(cellsIn(document_?.comments))
+    .filter((cell) => typeof cell?.t === 'string' && cell.t.trim()).length;
+  return { reactions, words };
+}
+
+/** When the newest words of a document were left, or 0: what is told to the notifier once. */
+function latestWords(document_) {
+  return Object.values(cellsIn(document_?.comments))
+    .filter((cell) => typeof cell?.t === 'string' && cell.t.trim() && typeof cell.made === 'number')
+    .reduce((latest, cell) => Math.max(latest, cell.made), 0);
+}
+
+  // ---- src/lists.js ----------------------------------------------------
+/**
+ * Lists: a title, the people it concerns, and lines to hand out.
+ *
+ * Deliberately thin. A line is free text — "2 baguettes", "réserver le
+ * camion", "rendre la perceuse à Paul" — because a title plus a sentence says
+ * more than any set of fields would: actions, objects, or both in the same
+ * list, and no form to fill in before writing the first line.
+ *
+ * What a line carries beyond its text is what a shared list actually needs:
+ * who it is for, and whether it is done. Everything else — categories, due
+ * dates, recurrence, effort — is left out until the use asks for it.
+ *
+ * Pure, like the game model: every mutator returns a new list.
+ */
+
+
+
+
+/** A new list. `names` are the people it is shared between; it can be nobody. */
+function createList({ name = '', names = [], shared = false, groupId = null } = {}) {
+  const now = Date.now();
+  return {
+    id: uid('l'),
+    // Says what this document is, for a database that holds games and lists
+    // side by side, and for an import that has to tell them apart.
+    kind: 'list',
+    name: String(name).trim(),
+    createdAt: now,
+    updatedAt: now,
+    // People change rarely and separately from the lines, so they carry their
+    // own clock: a merge can then tell "someone was just removed" from "this
+    // copy simply has not heard of them yet".
+    peopleAt: now,
+    shared: Boolean(shared),
+    groupId: groupId || null,
+    // Put away once it has served, or kept as the model the next one is cut
+    // from. Both are document-wide, so a merge takes them from the newer copy,
+    // exactly as it does the name.
+    archivedAt: null,
+    template: false,
+    // The lines deleted here, and when — without this a deletion is undone by
+    // the next copy that still holds the line.
+    removed: {},
+    people: distinctNames(names).map((personName) => ({ id: uid('w'), name: personName })),
+    items: [],
+  };
+}
+
+
+/**
+ * Add a line. Several lines at once when a whole list is pasted in — which is
+ * how a list arrives from a message more often than it is typed.
+ */
+function linesOf(text) {
+  return String(text || '')
+    .split('\n')
+    // A bullet, or a number *used as* a bullet — "1." or "2)". A bare number
+    // is a quantity, and "2 baguettes" must stay two baguettes.
+    .map((line) => line.replace(/^\s*(?:[-*•–—]+|\d+\s*[.)])\s+/, '').trim())
+    .filter(Boolean);
+}
+
+const sameLine = (text) => String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+/**
+ * Split what was typed into the lines a list does not have yet and those it
+ * already has, still to do — « pain » when « Pain » is on it, unticked. Two
+ * people filling the same list for a picnic would otherwise both write the
+ * bread. A line already ticked can come back: it is wanted again.
+ */
+function newLines(list, text) {
+  const open = new Set(list.items.filter((item) => !item.done).map((item) => sameLine(item.text)));
+  const typed = new Set();
+  const fresh = [];
+  const known = [];
+  for (const line of linesOf(text)) {
+    const key = sameLine(line);
+    if (open.has(key)) known.push(line);
+    else if (!typed.has(key)) fresh.push(line);
+    typed.add(key);
+  }
+  return { fresh: fresh.join('\n'), known };
+}
+
+function addItems(list, text) {
+  const now = Date.now();
+  const fresh = linesOf(text)
+    .map((line) => ({
+      id: uid('i'),
+      text: line,
+      who: null,
+      done: false,
+      // A day, never an instant: "réserver le camion" is due on Tuesday, not
+      // at 14:32 — and a bare day needs no time zone to mean the same thing
+      // on two phones.
+      due: null,
+      createdAt: now,
+      updatedAt: now,
+    }));
+  return fresh.length ? touch(list, { items: [...list.items, ...fresh] }) : list;
+}
+
+function patchItem(list, itemId, patch) {
+  let changed = false;
+  const items = list.items.map((item) => {
+    if (item.id !== itemId) return item;
+    changed = true;
+    return { ...item, ...patch, updatedAt: later(item.updatedAt) };
+  });
+  return changed ? touch(list, { items }) : list;
+}
+
+function renameItem(list, itemId, text) {
+  const clean = String(text || '').trim();
+  return clean ? patchItem(list, itemId, { text: clean }) : list;
+}
+
+/** Hand a line to someone, or to nobody when `who` is null. */
+function assignItem(list, itemId, who) {
+  const known = who === null || list.people.some((person) => person.id === who);
+  return known ? patchItem(list, itemId, { who }) : list;
+}
+
+/**
+ * Put a day on a line, or take it off with null. Kept as `AAAA-MM-JJ`: a day
+ * written that way sorts as text, travels through JSON unharmed, and says the
+ * same thing in every time zone.
+ */
+function setItemDue(list, itemId, due) {
+  const clean = /^\d{4}-\d{2}-\d{2}$/.test(String(due || '')) ? String(due) : null;
+  return patchItem(list, itemId, { due: clean });
+}
+
+function toggleItem(list, itemId) {
+  const item = list.items.find((entry) => entry.id === itemId);
+  return item ? patchItem(list, itemId, { done: !item.done }) : list;
+}
+
+/**
+ * Drop a line, and remember having dropped it. Without that trace the other
+ * phone, which still holds the line, hands it straight back at the next sync —
+ * and "clear what is done" undoes itself while you watch.
+ */
+function removeItem(list, itemId) {
+  const items = list.items.filter((item) => item.id !== itemId);
+  if (items.length === list.items.length) return list;
+  return touch(list, { items, removed: { ...list.removed, [itemId]: Date.now() } });
+}
+
+
+/**
+ * Put a finished list away, or bring it back.
+ *
+ * Nothing is deleted: a year of shopping lists is a year of evidence about
+ * what the house actually eats. They only stop crowding the tab.
+ */
+function archiveList(list, yes = true) {
+  const at = yes ? Date.now() : null;
+  return at === (list.archivedAt || null) ? list : touch(list, { archivedAt: at });
+}
+
+/**
+ * Keep this list as a model: the weekly shopping, the suitcase. A model is not
+ * a list in progress — it is what the next one is cut from — so it is counted
+ * nowhere and waits in its own place.
+ */
+function makeTemplate(list, yes = true) {
+  return Boolean(list.template) === Boolean(yes) ? list : touch(list, { template: Boolean(yes) });
+}
+
+/** Take the ticks off, keep the lines: the suitcase, the weekly shopping. */
+function reuseList(list, name = list.name) {
+  const now = Date.now();
+  return {
+    ...createList({ name, shared: list.shared, groupId: list.groupId }),
+    people: list.people,
+    peopleAt: list.peopleAt || now,
+    // Neither archived nor a model: what comes out of one is an ordinary list.
+    // The days go, though — they were the days of the last time, and a list
+    // that arrives already late is worse than one with no days at all.
+    items: list.items.map((item) => ({ ...item, id: uid('i'), done: false, due: null, updatedAt: now })),
+  };
+}
+
+/**
+ * The people this list concerns. Named for the list so that a bundle holding
+ * every document type in one scope has no two functions fighting over a name.
+ */
+const addListPerson = addPerson;
+const renameListPerson = renamePerson;
+
+/** Remove someone: what was theirs goes back to nobody, rather than vanishing. */
+function removeListPerson(list, personId) {
+  return removePerson(list, personId, (current) => ({
+    items: current.items.map((item) => (item.who === personId ? { ...item, who: null } : item)),
+  }));
+}
+
+/**
+ * Share out what nobody has taken, as evenly as the count allows, starting
+ * with whoever is carrying the least. What is already assigned is left alone:
+ * the button is there to break a deadlock, not to undo people's choices.
+ */
+function shareOut(list) {
+  if (!list.people.length) return list;
+  if (!list.items.some((item) => !item.who && !item.done)) return list;
+  const load = new Map(list.people.map((person) => [person.id, 0]));
+  for (const item of list.items) {
+    if (item.who && !item.done && load.has(item.who)) load.set(item.who, load.get(item.who) + 1);
+  }
+
+  const now = Date.now();
+  const items = list.items.map((item) => {
+    if (item.who || item.done) return item;
+    let lightest = list.people[0].id;
+    for (const person of list.people) {
+      if (load.get(person.id) < load.get(lightest)) lightest = person.id;
+    }
+    load.set(lightest, load.get(lightest) + 1);
+    return { ...item, who: lightest, updatedAt: now };
+  });
+  return touch(list, { items });
+}
+
+/** How far along: { done, total, left } — and per person where asked. */
+function progress(list, personId = undefined) {
+  const items = personId === undefined ? list.items : list.items.filter((item) => item.who === personId);
+  const done = items.filter((item) => item.done).length;
+  return { done, total: items.length, left: items.length - done };
+}
+
+/**
+ * Merge two copies of the same list — this browser's and the database's.
+ *
+ * Line by line, keeping whichever version of a line changed last: two people
+ * ticking different lines at the same moment both get their way, which is the
+ * whole point of a shared shopping list. A line added on one side and never
+ * seen on the other is kept, for the same reason a round is.
+ *
+ * A line someone changed always beats the same line nobody touched, whatever
+ * the clock's resolution, because a change never leaves a stamp where it found
+ * it. What stays undecidable is the same line changed on *both* sides at the
+ * same moment: nothing in the two copies says which came first, so the newer
+ * list's version is taken. Clocks on two phones do not agree closely enough
+ * for more machinery than this to be worth it.
+ */
+function mergeLists(a, b) {
+  if (!isValidList(a)) return b;
+  if (!isValidList(b)) return a;
+  if (a.id !== b.id) return a;
+
+  const [newer, older] = (a.updatedAt || 0) >= (b.updatedAt || 0) ? [a, b] : [b, a];
+
+  // A line deleted anywhere stays deleted, whichever copy still holds it.
+  const removed = prune({ ...older.removed, ...newer.removed });
+
+  const byId = new Map();
+  for (const item of [...older.items, ...newer.items]) {
+    if (removed[item.id]) continue;
+    const held = byId.get(item.id);
+    if (!held || (item.updatedAt || 0) >= (held.updatedAt || 0)) byId.set(item.id, item);
+  }
+
+  // The newer copy's order first, then the lines only the older one knew.
+  const ordered = [
+    ...newer.items.filter((item) => byId.has(item.id)).map((item) => byId.get(item.id)),
+    ...older.items.filter(
+      (item) => byId.has(item.id) && !newer.items.some((other) => other.id === item.id),
+    ),
+  ];
+
+  // Whoever touched the people last is right about them — including about
+  // someone they removed, which a union of the two sides could never see.
+  const people = (newer.peopleAt || 0) >= (older.peopleAt || 0) ? newer.people : older.people;
+  const peopleAt = Math.max(newer.peopleAt || 0, older.peopleAt || 0);
+
+  const sameItems =
+    ordered.length === newer.items.length &&
+    ordered.every((item, index) => item === newer.items[index]);
+  const samePeople = people === newer.people && Object.keys(removed).length === Object.keys(newer.removed || {}).length;
+  if (sameItems && samePeople) return newer;
+
+  return {
+    ...newer,
+    people,
+    peopleAt,
+    removed,
+    items: ordered,
+    updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0),
+  };
+}
+
+/** Defensive read of anything coming back from storage, a link, or a file. */
+function isValidList(value) {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      value.kind === 'list' &&
+      typeof value.id === 'string' &&
+      Array.isArray(value.people) &&
+      Array.isArray(value.items) &&
+      value.items.every((item) => item && typeof item.id === 'string' && typeof item.text === 'string'),
+  );
+}
+
+  // ---- src/polls.js ----------------------------------------------------
+/**
+ * Polls: a question, the choices it offers, and who is up for what.
+ *
+ * The shape everyone actually needs is the "which evening suits you?" one, so
+ * a vote is not a single pick but a value per person and per choice — yes,
+ * maybe, no. Picking one option out of several is that same grid with a single
+ * yes in it, so there is no second kind of poll to build, and no setting to
+ * choose before asking the question.
+ *
+ * Like games and lists: pure, merged cell by cell, and it travels as one
+ * document through the same database.
+ */
+
+
+
+
+
+const VALUES = ['yes', 'maybe', 'no'];
+
+/** The key a single answer is stored under: one person, one choice. */
+const answerKey = (personId, optionId) => `${personId}|${optionId}`;
+
+function createPoll({ question = '', names = [], shared = false, groupId = null } = {}) {
+  const now = Date.now();
+  return {
+    id: uid('v'),
+    kind: 'poll',
+    question: String(question).trim(),
+    createdAt: now,
+    updatedAt: now,
+    peopleAt: now,
+    closedAt: null,
+    archivedAt: null,
+    // What the question settled on, once it has: a day, and an hour when one
+    // was agreed. Kept on the poll rather than in a document of its own —
+    // "quel soir ?" and "jeudi 20 h" are one thing, asked and answered.
+    date: null,
+    at: null,
+    // What the event will be called in a calendar. Empty until someone writes
+    // one: eventName() proposes one from the question until they do.
+    title: null,
+    shared: Boolean(shared),
+    groupId: groupId || null,
+    removed: {},
+    people: distinctNames(names).map((name) => ({ id: uid('w'), name })),
+    options: [],
+    // { "personId|optionId": { v: 'yes' | 'maybe' | 'no', at } }
+    votes: {},
+  };
+}
+
+/**
+ * Keep the day the question settled on — and the hour, when there is one,
+ * and the last day, when it runs over several (a weekend, a holiday).
+ *
+ * A day alone, like a line's, needs no time zone; an hour is written as the
+ * reader's own clock. Any of them can be dropped by passing nothing; a last
+ * day that is not after the first means a single day.
+ */
+function setPollDate(poll, date, at = null, until = null) {
+  const isDay = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+  const day = isDay(date) ? String(date) : null;
+  const hour = day && /^\d{2}:\d{2}$/.test(String(at || '')) ? String(at) : null;
+  const last = day && isDay(until) && String(until) > day ? String(until) : null;
+  if (day === (poll.date || null) && hour === (poll.at || null) && last === (poll.until || null)) return poll;
+  return touch(poll, { date: day, at: hour, until: last });
+}
+
+/** The last day an event takes up: its own, or the one it runs until. */
+function lastDay(poll) {
+  return poll?.until || poll?.date || null;
+}
+
+/**
+ * An event whose day is already known: nothing to vote on, so it is made as a
+ * poll that has already settled — its day kept, its answers closed, and no
+ * choices. Everything a settled poll already does (the group, the link, the
+ * group's calendar, the organiser) then works for it unchanged; `fixed` is
+ * only there so the screens can leave out the voting.
+ */
+function createEvent({ name = '', names = [], date = null, at = null, until = null } = {}) {
+  const made = createPoll({ question: name, names });
+  const dated = setPollDate(made, date, at, until);
+  return { ...dated, fixed: true, title: made.question || null, closedAt: dated.createdAt };
+}
+
+/** A poll made as an event, with no vote to hold. */
+function isEvent(poll) {
+  return Boolean(poll?.fixed);
+}
+
+/**
+ * Whether a question is looking for a day — "which evening for the raclette?"
+ * — rather than for anything else — "which present for Léa?". Such a poll
+ * belongs in the agenda while it is being decided, next to the days already
+ * settled: a question asking when, or choices that are days — picked on a
+ * calendar, or, written before choices had days, read as days (a weekday, a
+ * month, 12/10).
+ */
+const WHEN_ASKED = /\b(quand|quel(le)?s? (jour|soir|date|week-?end|midi|matin|après-midi|semaine)|when|which (day|evening|night|date|weekend)|what (day|date|evening))\b/i;
+const READS_AS_DAY = new RegExp([
+  '\\b(lun|mar|mer|jeu|ven|sam|dim)(\\.|di|redi|credi|udi|dredi|edi|anche)?\\b',
+  '\\b(mon|tue|wed|thu|fri|sat|sun)(day|s|\\.)?\\b',
+  '\\b(janv|févr|fevr|mars|avr|mai|juin|juil|août|aout|sept|oct|nov|déc|dec|jan|feb|apr|jun|jul|aug|sep)[a-zéû]*\\b',
+  '\\b\\d{1,2}[/.]\\d{1,2}\\b',
+  '\\b\\d{4}-\\d{2}-\\d{2}\\b',
+  '\\b(demain|ce soir|tomorrow|tonight|week-?end)\\b',
+].join('|'), 'i');
+
+function seeksDay(poll) {
+  if (!poll || isEvent(poll)) return false;
+  if (WHEN_ASKED.test(poll.question || '')) return true;
+  const options = poll.options || [];
+  if (!options.length) return false;
+  const days = options.filter((option) => (optionDay(option) ? isDayChoice(option) : READS_AS_DAY.test(option.text || '')));
+  return days.length * 2 >= options.length;
+}
+
+/**
+ * Name the event this poll became.
+ *
+ * Emptying the field does not leave a blank line in anyone's calendar: with no
+ * name of its own the event falls back on the one eventName() proposes from
+ * the question.
+ */
+function setEventName(poll, name) {
+  const kept = String(name || '').trim() || null;
+  return kept === (poll.title || null) ? poll : touch(poll, { title: kept });
+}
+
+/**
+ * Put a settled question away, or bring it back. Closing freezes the answers;
+ * archiving only clears the tab — the two are not the same gesture, and a poll
+ * can be closed for weeks before anyone wants it out of the way.
+ */
+function archivePoll(poll, yes = true) {
+  const at = yes ? Date.now() : null;
+  return at === (poll.archivedAt || null) ? poll : touch(poll, { archivedAt: at });
+}
+
+/**
+ * Add choices, one per line — a poll is usually pasted, not typed. `day`
+ * pins them all to one day of the event the poll is part of: « Kayak » on the
+ * Saturday, « Rando » on the Sunday — and `at`, to an hour of it.
+ */
+function addOptions(poll, text, { day = null, at = null } = {}) {
+  const now = Date.now();
+  const pinned = pinOf(day, at);
+  const fresh = String(text || '')
+    .split('\n')
+    .map((line) => line.replace(/^\s*(?:[-*•–—]+|\d+\s*[.)])\s+/, '').trim())
+    .filter(Boolean)
+    .map((line) => ({ id: uid('o'), text: line, ...pinned, createdAt: now, updatedAt: now }));
+  return fresh.length ? touch(poll, { options: [...poll.options, ...fresh] }) : poll;
+}
+
+/**
+ * Add one choice made of a day, an hour and a few words — each optional, but
+ * not all three. A day with no words is a day to vote on, « Samedi 13 octobre
+ * · 20:00 »; a day with words is something done that day, « Kayak ». A day
+ * already offered on its own is not offered twice.
+ */
+function addChoice(poll, { text = '', day = null, at = null } = {}) {
+  const words = String(text || '').replace(/\s+/g, ' ').trim();
+  const pinned = pinOf(day, at);
+  if (!words && !pinned.day) return poll;
+  if (!words && poll.options.some((option) => !option.text.trim() && option.day === pinned.day && (option.at || null) === (pinned.at || null))) {
+    return poll;
+  }
+  const now = Date.now();
+  return touch(poll, { options: [...poll.options, { id: uid('o'), text: words, ...pinned, createdAt: now, updatedAt: now }] });
+}
+
+/** Days to vote on, as choices of their own — at one hour, when given. */
+function addDays(poll, days, at = null) {
+  return [...days].sort().reduce((current, day) => addChoice(current, { day, at }), poll);
+}
+
+const isDayText = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+const isHourText = (value) => /^\d{2}:\d{2}$/.test(String(value || ''));
+/** The day and hour fields a choice carries: an hour only with a day. */
+const pinOf = (day, at) => (isDayText(day) ? { day: String(day), ...(isHourText(at) ? { at: String(at) } : {}) } : {});
+
+/** The day a choice is pinned to, or null: a choice open to any day. */
+function optionDay(option) {
+  return isDayText(option?.day) ? option.day : null;
+}
+
+/**
+ * The day and hour a choice stands for, or null: its own, or — for a choice
+ * written before choices had days, « Vendredi 12 · 20h » — the one its words
+ * name, read from the day it was written.
+ */
+function choiceWhen(option, from = Date.now()) {
+  const day = optionDay(option);
+  if (day) return { date: day, at: isHourText(option.at) ? option.at : null };
+  return dayOfChoice(option?.text, new Date(option?.createdAt || from));
+}
+
+/**
+ * Whether a choice is a day to vote on — « Samedi 13 octobre », with no other
+ * words, or words that only name that day — rather than something done on a
+ * day: « Kayak », pinned to the Saturday.
+ */
+function isDayChoice(option, from = Date.now()) {
+  const when = choiceWhen(option, from);
+  if (!when) return false;
+  const words = String(option.text || '').trim();
+  return !words || dayOfChoice(words, new Date(option.createdAt || from))?.date === when.date;
+}
+
+/** Something done on a given day: words, pinned to a day they do not name. */
+const onItsDay = (option) => Boolean(optionDay(option)) && !isDayChoice(option);
+
+/**
+ * What a choice says, wherever it is read: its words, or its day — and hour —
+ * when it is a day and nothing else.
+ */
+function choiceText(option, language = 'fr') {
+  const words = String(option?.text || '').trim();
+  if (words) return words;
+  const day = optionDay(option);
+  if (!day) return '';
+  return [choiceOfDay(day, language), isHourText(option.at) ? option.at : null].filter(Boolean).join(' · ');
+}
+
+/** Whether any choice of the poll is something done on a day. */
+function hasOptionDays(poll) {
+  return (poll?.options || []).some(onItsDay);
+}
+
+/**
+ * Pin a choice to a day — and an hour of it —, or unpin it with null. `at`
+ * left out keeps the hour the choice had, as long as its day stays.
+ */
+function setOptionDay(poll, optionId, day, at) {
+  const kept = isDayText(day) ? String(day) : null;
+  let changed = false;
+  const options = poll.options.map((option) => {
+    if (option.id !== optionId) return option;
+    const hour = kept ? (at === undefined ? (kept === optionDay(option) ? option.at : null) : at) : null;
+    const pinned = pinOf(kept, hour);
+    if (optionDay(option) === (pinned.day || null) && (isHourText(option.at) ? option.at : null) === (pinned.at || null)) return option;
+    changed = true;
+    const { day: _day, at: _at, ...rest } = option;
+    return { ...rest, ...pinned, updatedAt: later(option.updatedAt) };
+  });
+  return changed ? touch(poll, { options }) : poll;
+}
+
+/**
+ * The day of its event a poll is about — « Raclette ou pizza ? » for the
+ * Saturday —, or null: about the whole event. Its new choices take that day.
+ */
+function pollDay(poll) {
+  return isDayText(poll?.onDay) ? poll.onDay : null;
+}
+
+/**
+ * Set the day a poll is about, or null for the whole event. The choices on the
+ * day it was about move with it, without their hour once dayless; one pinned
+ * to another day by hand stays there, and so does a day to vote on.
+ */
+function setPollDay(poll, day) {
+  const kept = isDayText(day) ? String(day) : null;
+  const was = pollDay(poll);
+  if (kept === was) return poll;
+  const follows = (option) => Boolean(String(option.text || '').trim()) && !isDayChoice(option) && optionDay(option) === was;
+  const options = poll.options.map((option) => {
+    if (!follows(option)) return option;
+    const { day: _day, at: _at, ...rest } = option;
+    return { ...rest, ...pinOf(kept, option.at), updatedAt: later(option.updatedAt) };
+  });
+  return touch(poll, { onDay: kept, options });
+}
+
+/**
+ * The choices grouped by the day they are done on, days in order and the rest
+ * last — days to vote on among them: they are what that group decides. One
+ * group of everything when no choice is done on a day.
+ */
+function optionsByDay(poll) {
+  const groups = new Map();
+  for (const option of poll.options) {
+    const day = onItsDay(option) ? optionDay(option) : '';
+    if (!groups.has(day)) groups.set(day, []);
+    groups.get(day).push(option);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => (a === b ? 0 : !a ? 1 : !b ? -1 : a < b ? -1 : 1))
+    .map(([day, options]) => ({ day: day || null, options }));
+}
+
+function renameOption(poll, optionId, text) {
+  const clean = String(text || '').trim();
+  let changed = false;
+  const options = poll.options.map((option) => {
+    // A choice keeps words, or a day: never neither.
+    if (option.id !== optionId || option.text === clean || (!clean && !optionDay(option))) return option;
+    changed = true;
+    return { ...option, text: clean, updatedAt: later(option.updatedAt) };
+  });
+  return changed ? touch(poll, { options }) : poll;
+}
+
+/** Drop a choice, and the answers that went with it. */
+function removeOption(poll, optionId) {
+  const options = poll.options.filter((option) => option.id !== optionId);
+  if (options.length === poll.options.length) return poll;
+
+  const votes = {};
+  for (const [key, vote] of Object.entries(poll.votes)) {
+    if (!key.endsWith(`|${optionId}`)) votes[key] = vote;
+  }
+  return touch(poll, { options, votes, removed: { ...poll.removed, [optionId]: Date.now() } });
+}
+
+/**
+ * Answer for someone, on one choice. `value` is one of yes / maybe / no, or
+ * null to take the answer back — an answered "no" and no answer at all are
+ * not the same thing to whoever reads the result.
+ */
+function setVote(poll, personId, optionId, value) {
+  if (poll.closedAt) return poll;
+  if (!poll.people.some((person) => person.id === personId)) return poll;
+  if (!poll.options.some((option) => option.id === optionId)) return poll;
+  if (value !== null && !VALUES.includes(value)) return poll;
+
+  const key = answerKey(personId, optionId);
+  const held = poll.votes[key];
+  if (!held && value === null) return poll;
+  if (held?.v === value) return poll;
+
+  const votes = { ...poll.votes };
+  if (value === null) votes[key] = { v: null, at: later(held?.at) };
+  else votes[key] = { v: value, at: later(held?.at) };
+  return touch(poll, { votes });
+}
+
+/** What someone answered on one choice: 'yes' | 'maybe' | 'no' | null. */
+function voteOf(poll, personId, optionId) {
+  return poll.votes[answerKey(personId, optionId)]?.v ?? null;
+}
+
+/** The next answer when the same cell is tapped again. */
+function nextValue(value) {
+  // Available, or not said: a tap ticks, a second tap unticks. "Maybe" and
+  // "no" asked people to grade their evenings when all anyone wanted to know
+  // was which ones they can make. They are still read — polls answered before
+  // keep their answers — but a tap on one of them simply makes it a yes.
+  return value === 'yes' ? null : 'yes';
+}
+
+/** The people being asked — named for the poll, so no two modules clash. */
+const addPollPerson = addPerson;
+const renamePollPerson = renamePerson;
+
+/** Remove someone, and everything they answered. */
+function removePollPerson(poll, personId) {
+  return removePerson(poll, personId, (current) => {
+    const votes = {};
+    for (const [key, vote] of Object.entries(current.votes)) {
+      if (!key.startsWith(`${personId}|`)) votes[key] = vote;
+    }
+    return { votes };
+  });
+}
+
+function setClosed(poll, closed) {
+  const closedAt = closed ? Date.now() : null;
+  return poll.closedAt === closedAt ? poll : touch(poll, { closedAt });
+}
+
+/**
+ * The count, choice by choice.
+ *
+ * `rows` keeps the poll's own order — the order the choices were written in.
+ * That matters more than it sounds: the grid is drawn from it, and a grid that
+ * re-sorts itself as people vote moves the row out from under the finger that
+ * just tapped it. Answering three questions in a row then means chasing them
+ * around the screen.
+ *
+ * `ranked` is the same rows, best first, for whoever wants to know what is
+ * winning — by how many people can make it, and nothing else. A "maybe" or a
+ * "no" left over from before is not a yes, and is not counted as one: the
+ * grid shows neither any more, and the count must never disagree with what
+ * is on screen.
+ */
+function tally(poll) {
+  const rows = poll.options.map((option) => {
+    const counts = { yes: 0, maybe: 0, no: 0, missing: 0 };
+    for (const person of poll.people) {
+      const value = voteOf(poll, person.id, option.id);
+      if (value) counts[value] += 1;
+      else counts.missing += 1;
+    }
+    return { option, ...counts, score: counts.yes };
+  });
+
+  // Level on the count, the order the choices were written in decides: a
+  // stable sort keeps it, so the gauge does not shuffle equal evenings.
+  const ranked = [...rows].sort((a, b) => b.yes - a.yes);
+  // Nobody leads a poll nobody is available for. Choices pinned to days lead
+  // day by day: the Saturday's kayak does not compete with the Sunday's hike.
+  const leaders = [];
+  for (const { options } of optionsByDay(poll)) {
+    const ids = new Set(options.map((option) => option.id));
+    const group = rows.filter((row) => ids.has(row.option.id));
+    const best = Math.max(0, ...group.map((row) => row.yes));
+    if (best > 0) leaders.push(...group.filter((row) => row.yes === best).map((row) => row.option.id));
+  }
+  return {
+    rows,
+    ranked,
+    leaders,
+    answered: poll.people.filter((person) =>
+      poll.options.some((option) => voteOf(poll, person.id, option.id)),
+    ).length,
+  };
+}
+
+/**
+ * Who is coming, once the question has settled: the people available on the
+ * one choice that leads. With no clear winner — a tie, or nobody available —
+ * the grid does not say who comes, so everyone the poll names does, and the
+ * list of people stays one tap away from being trimmed.
+ */
+function goers(poll) {
+  const { leaders } = tally(poll);
+  if (leaders.length !== 1) return poll.people.map((person) => person.name);
+  return poll.people
+    .filter((person) => voteOf(poll, person.id, leaders[0]) === 'yes')
+    .map((person) => person.name);
+}
+
+/**
+ * Merge two copies of the same poll: choices by id with their tombstones,
+ * answers cell by cell keeping whichever was given last, and the people from
+ * whichever copy touched them last.
+ */
+function mergePolls(a, b) {
+  if (!isValidPoll(a)) return b;
+  if (!isValidPoll(b)) return a;
+  if (a.id !== b.id) return a;
+
+  const [newer, older] = (a.updatedAt || 0) >= (b.updatedAt || 0) ? [a, b] : [b, a];
+  const removed = prune({ ...older.removed, ...newer.removed });
+
+  const byId = new Map();
+  for (const option of [...older.options, ...newer.options]) {
+    if (removed[option.id]) continue;
+    const held = byId.get(option.id);
+    if (!held || (option.updatedAt || 0) >= (held.updatedAt || 0)) byId.set(option.id, option);
+  }
+  const options = [
+    ...newer.options.filter((option) => byId.has(option.id)).map((option) => byId.get(option.id)),
+    ...older.options.filter(
+      (option) => byId.has(option.id) && !newer.options.some((other) => other.id === option.id),
+    ),
+  ];
+
+  const votes = { ...older.votes };
+  for (const [key, vote] of Object.entries(newer.votes)) {
+    const held = votes[key];
+    if (!held || (vote.at || 0) >= (held.at || 0)) votes[key] = vote;
+  }
+  // An answer to a choice nobody offers any more is not an answer.
+  const live = new Set(options.map((option) => option.id));
+  for (const key of Object.keys(votes)) {
+    if (!live.has(key.split('|')[1])) delete votes[key];
+  }
+
+  const people = (newer.peopleAt || 0) >= (older.peopleAt || 0) ? newer.people : older.people;
+
+  // Nothing to learn: hand back the very same object, so a caller can tell an
+  // answer arrived from a poll that simply came back unchanged — five seconds
+  // at a time, all evening.
+  const sameOptions =
+    options.length === newer.options.length &&
+    options.every((option, index) => option === newer.options[index]);
+  const sameVotes =
+    Object.keys(votes).length === Object.keys(newer.votes).length &&
+    Object.entries(votes).every(([key, vote]) => newer.votes[key] === vote);
+  const sameRemoved = Object.keys(removed).length === Object.keys(newer.removed || {}).length;
+  // Reactions and words, cell by cell like the answers (reacts.js).
+  const talk = mergedTalk(older, newer);
+  if (sameOptions && sameVotes && sameRemoved && people === newer.people && sameTalk(newer, talk)) return newer;
+
+  return {
+    ...newer,
+    people,
+    peopleAt: Math.max(newer.peopleAt || 0, older.peopleAt || 0),
+    closedAt: newer.closedAt,
+    removed,
+    options,
+    votes,
+    ...talk,
+    updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0),
+  };
+}
+
+function isValidPoll(value) {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      value.kind === 'poll' &&
+      typeof value.id === 'string' &&
+      Array.isArray(value.people) &&
+      Array.isArray(value.options) &&
+      value.options.every((option) => option && typeof option.id === 'string' && typeof option.text === 'string') &&
+      value.votes &&
+      typeof value.votes === 'object',
+  );
+}
+
+/* ------------------------------------------------ the day a choice names --- */
+
+const CHOICE_MONTHS = [
+  ['janv', 'jan'], ['févr', 'fevr', 'fév', 'fev', 'feb'], ['mars', 'march'], ['avr', 'apr'], ['mai', 'may'],
+  ['juin', 'june', 'jun'], ['juil', 'july', 'jul'], ['août', 'aout', 'aug'], ['sept', 'sep'], ['oct'], ['nov'], ['déc', 'dec'],
+];
+// Weekdays are whole words (« mar. », « mardi », "Tue"), so that « mars »
+// stays a month.
+const CHOICE_WEEKDAYS = [
+  ['dim', 'dimanche', 'sun', 'sunday'], ['lun', 'lundi', 'mon', 'monday'], ['mar', 'mardi', 'tue', 'tues', 'tuesday'],
+  ['mer', 'mercredi', 'wed', 'wednesday'], ['jeu', 'jeudi', 'thu', 'thur', 'thurs', 'thursday'],
+  ['ven', 'vendredi', 'fri', 'friday'], ['sam', 'samedi', 'sat', 'saturday'],
+];
+
+const monthOfWord = (word) => CHOICE_MONTHS.findIndex((names) => names.some((name) => word.startsWith(name)));
+const weekdayOfWord = (word) => CHOICE_WEEKDAYS.findIndex((names) => names.includes(word));
+const isoDay = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const realDay = (year, month, day) => {
+  const date = new Date(year, month, day);
+  return date.getMonth() === month && date.getDate() === day ? date : null;
+};
+
+/**
+ * The day a choice names, if it names one: « Vendredi 12 », « sam. 13 oct. »,
+ * « 13/10 », « 2026-10-13 », "Saturday, October 13", with an hour when one is
+ * written (« 20h », « 20:30 »). Returns { date, at } or null.
+ *
+ * The year is rarely written: the day is the first one that fits on or after
+ * `from` — the day the poll was asked, not the day it is read, so a poll
+ * settled a month later still means the evening everyone voted for. A weekday
+ * with a number and no month (« Vendredi 12 ») is the next month in which the
+ * 12th is a Friday, within three months. A bare number means nothing: « 2 pizzas » is not a day.
+ */
+function dayOfChoice(text, from = new Date()) {
+  const source = String(text || '').toLowerCase();
+  const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const fits = (date) => date && date >= start;
+
+  let at = null;
+  const hour = source.match(/\b(\d{1,2})\s*(?:h|:)\s*(\d{2})?\b/);
+  if (hour && Number(hour[1]) < 24 && Number(hour[2] || 0) < 60) {
+    at = `${hour[1].padStart(2, '0')}:${hour[2] || '00'}`;
+  }
+  const rest = hour ? source.replace(hour[0], ' ') : source;
+
+  const iso = rest.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  if (iso) {
+    const date = realDay(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+    return date ? { date: isoDay(date), at } : null;
+  }
+
+  // A year written in full is taken as it is; otherwise this year, or the next.
+  const pick = (month, day, year) => {
+    if (year) {
+      const date = realDay(year, month, day);
+      return date ? { date: isoDay(date), at } : null;
+    }
+    for (const candidate of [start.getFullYear(), start.getFullYear() + 1]) {
+      const date = realDay(candidate, month, day);
+      if (fits(date)) return { date: isoDay(date), at };
+    }
+    return null;
+  };
+
+  const slashed = rest.match(/\b(\d{1,2})[/.](\d{1,2})(?:[/.](\d{2}|\d{4}))?\b/);
+  if (slashed) {
+    let [day, month] = [Number(slashed[1]), Number(slashed[2])];
+    if (month > 12 && day <= 12) [day, month] = [month, day];
+    const year = slashed[3] ? Number(slashed[3].length === 2 ? `20${slashed[3]}` : slashed[3]) : null;
+    return pick(month - 1, day, year);
+  }
+
+  const words = rest.split(/[^\p{L}\d]+/u).filter(Boolean);
+  const year = Number(words.find((word) => /^\d{4}$/.test(word))) || null;
+  const weekday = words.map(weekdayOfWord).find((index) => index >= 0) ?? -1;
+  for (let i = 0; i < words.length; i += 1) {
+    // « 1er novembre », "October 1st".
+    const number = words[i].match(/^(\d{1,2})(?:er|st|nd|rd|th)?$/);
+    if (!number) continue;
+    const day = Number(number[1]);
+    if (day < 1 || day > 31) continue;
+    // « 13 octobre » in French, "October 13" in English. A word that is also
+    // a weekday (« mar. 12 ») is a weekday, not March.
+    const after = words[i + 1] ? monthOfWord(words[i + 1]) : -1;
+    const beforeWord = words[i - 1] || '';
+    const before = beforeWord && weekdayOfWord(beforeWord) < 0 ? monthOfWord(beforeWord) : -1;
+    const month = after >= 0 ? after : before;
+    if (month >= 0) return pick(month, day, year);
+    if (weekday >= 0) {
+      // Near enough to be meant: three months ahead at most.
+      for (let ahead = 0; ahead < 4; ahead += 1) {
+        const first = new Date(start.getFullYear(), start.getMonth() + ahead, 1);
+        const date = realDay(first.getFullYear(), first.getMonth(), day);
+        if (fits(date) && date.getDay() === weekday) return { date: isoDay(date), at };
+      }
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * The line a picked day becomes among the choices: « Samedi 13 octobre » —
+ * with the year only when it is not this one — so that anyone reads it, and
+ * dayOfChoice() reads it back.
+ */
+function choiceOfDay(day, language = 'fr', now = new Date()) {
+  const [year, month, date] = String(day || '').split('-').map(Number);
+  if (!year || !month || !date) return '';
+  const options = { weekday: 'long', day: 'numeric', month: 'long' };
+  if (year !== now.getFullYear()) options.year = 'numeric';
+  const text = new Date(year, month - 1, date).toLocaleDateString(language, options);
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+  // ---- src/spends.js ---------------------------------------------------
+/**
+ * Les dépenses : qui a payé quoi, et qui doit combien à qui.
+ *
+ * Un compte — « Vacances », « Coloc », « Week-end à Lyon » — tient des
+ * personnes et des lignes. Une ligne dit ce qui a été payé, combien, par qui,
+ * et pour qui : le partage est égal entre les personnes concernées, parce que
+ * c'est ainsi que ça se passe neuf fois sur dix, et que des parts à régler
+ * avant de noter une baguette ferait abandonner l'app avant la fin des
+ * vacances.
+ *
+ * L'argent est compté **en centimes, en entiers**. Un dixième d'euro n'existe
+ * pas en binaire : 0,1 + 0,2 ne fait pas 0,3, et trois personnes qui se
+ * partagent dix euros finiraient par ne pas tomber d'accord sur un centime —
+ * entre deux téléphones, ce centime se verrait.
+ *
+ * Fusionné comme une liste : ligne par ligne, chacune avec son horloge, et des
+ * pierres tombales pour les suppressions.
+ */
+
+
+
+
+/** Un compte neuf. `names` sont les personnes qu'il concerne. */
+function createSpend({ name = '', names = [], shared = false, groupId = null, currency = 'EUR' } = {}) {
+  const now = Date.now();
+  return {
+    id: uid('d'),
+    kind: 'spend',
+    name: String(name).trim(),
+    // One currency per account: a holiday abroad is counted in the money
+    // spent there. Accounts from before it have none, and are in euros.
+    currency: CURRENCIES.includes(currency) ? currency : 'EUR',
+    createdAt: now,
+    updatedAt: now,
+    peopleAt: now,
+    shared: Boolean(shared),
+    groupId: groupId || null,
+    archivedAt: null,
+    removed: {},
+    people: distinctNames(names).map((personName) => ({ id: uid('w'), name: personName })),
+    lines: [],
+  };
+}
+
+/** The currencies an account can be kept in. */
+const CURRENCIES = ['EUR', 'CHF', 'GBP', 'USD', 'CAD'];
+
+/** The currency an account is kept in: euros, unless it says otherwise. */
+function spendCurrency(spend) {
+  return CURRENCIES.includes(spend?.currency) ? spend.currency : 'EUR';
+}
+
+/**
+ * The currencies an expense can be paid in — those of the places a holiday
+ * goes. Paid in another than the account's, it is written down converted, at
+ * a rate said the way banks and the ECB quote it (« 1 € = 0,86 £ »), and
+ * keeps what was paid beside it (`paidIn`). The account itself, its shares
+ * and who pays back whom stay in its own currency.
+ */
+const PAID_IN = [
+  'EUR', 'CHF', 'GBP', 'USD', 'CAD', 'AUD', 'NZD', 'JPY', 'CNY', 'HKD', 'SGD', 'THB', 'VND', 'IDR', 'INR', 'KRW',
+  'SEK', 'NOK', 'DKK', 'ISK', 'PLN', 'CZK', 'HUF', 'RON', 'TRY', 'MAD', 'TND', 'EGP', 'ZAR', 'XOF', 'XPF', 'MXN',
+  'BRL', 'ILS', 'AED',
+];
+
+/**
+ * A rate as typed — « 0,86 », « 161 » —: how much of the other currency one
+ * unit of the account's buys. Six decimals at most; null when it is not one.
+ */
+function readRate(raw) {
+  if (typeof raw === 'number') return Number.isFinite(raw) && raw > 0 && raw <= 1e6 ? Math.round(raw * 1e6) / 1e6 : null;
+  const clean = String(raw ?? '').replace(/\s/g, '').replace(',', '.');
+  if (!/^\d+(\.\d{1,6})?$/.test(clean)) return null;
+  return readRate(Number(clean));
+}
+
+/** An amount paid in another currency, in the account's: `rate` of it for one unit of the account's. */
+function convertPaid(cents, rate) {
+  const value = Math.round(cents / rate);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+/** What an expense was paid in, when not in the account's currency — or null. */
+function paidInOf(spend, line) {
+  const paid = line?.paidIn;
+  if (!paid || typeof paid !== 'object' || isRepayment(line)) return null;
+  if (!PAID_IN.includes(paid.currency) || paid.currency === spendCurrency(spend)) return null;
+  return Number.isInteger(paid.amount) && paid.amount > 0 && readRate(paid.rate) ? paid : null;
+}
+
+/**
+ * The rate last written for a currency: in this account first — the
+ * holiday's own —, then in the others kept in the same currency, the most
+ * recent first. Null when there is none: the form then asks for it.
+ */
+function lastRate(spend, currency, others = []) {
+  const latest = (account) => account.lines
+    .map((line) => ({ line, paid: paidInOf(account, line) }))
+    .filter(({ paid }) => paid?.currency === currency)
+    .sort((a, b) => (b.line.updatedAt || 0) - (a.line.updatedAt || 0))[0]?.paid.rate ?? null;
+  const candidates = [spend, ...others
+    .filter((other) => other.id !== spend.id && spendCurrency(other) === spendCurrency(spend))
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))];
+  for (const account of candidates) {
+    const rate = latest(account);
+    if (rate) return rate;
+  }
+  return null;
+}
+
+/**
+ * An amount as typed, in `currency`: in the account's own, the line's amount
+ * as it is; in another, converted at `rate`, what was paid kept beside it.
+ * Null when it is not an amount, or the rate is missing.
+ */
+function paidFields(spend, amount, currency, rate) {
+  const cents = Number.isInteger(amount) ? amount : readAmount(amount);
+  if (!cents || cents < 0) return null;
+  if (!currency || currency === spendCurrency(spend)) return { amount: cents, paidIn: undefined };
+  const kept = PAID_IN.includes(currency) ? readRate(rate) : null;
+  const converted = kept ? convertPaid(cents, kept) : null;
+  return converted ? { amount: converted, paidIn: { currency, amount: cents, rate: kept } } : null;
+}
+
+/**
+ * Lire un montant tel qu'il se tape : « 12,50 », « 12.5 », « 12 », « 3 € »,
+ * « 1 234,56 », « 1.234,56 », « 1'234.50 ».
+ * Rend des centimes, ou null quand ce n'est pas un montant.
+ */
+function readAmount(raw) {
+  let clean = String(raw ?? '').replace(/[\s\u00a0\u202f€$£'’]|chf/gi, '');
+  // Both marks, « 1.234,56 » or « 1,234.56 »: the last one is the decimal
+  // point, the other only groups thousands.
+  if (clean.includes(',') && clean.includes('.')) {
+    const point = Math.max(clean.lastIndexOf(','), clean.lastIndexOf('.'));
+    const whole = clean.slice(0, point);
+    if (!/^\d{1,3}([.,]\d{3})*$/.test(whole)) return null;
+    clean = `${whole.replace(/[.,]/g, '')}.${clean.slice(point + 1)}`;
+  }
+  clean = clean.replace(',', '.');
+  if (!/^\d+(\.\d{0,2})?$/.test(clean)) return null;
+  const value = Math.round(Number(clean) * 100);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** Des centimes, écrits comme le lecteur écrit l'argent. */
+function showAmount(cents, language = 'fr', currency = 'EUR') {
+  const value = (Number(cents) || 0) / 100;
+  try {
+    return new Intl.NumberFormat(language, { style: 'currency', currency }).format(value);
+  } catch {
+    return `${value.toFixed(2)} ${currency === 'EUR' ? '€' : currency}`;
+  }
+}
+
+// A number then a currency, or a currency then a number. A word after the
+// currency does not count: « 12 eurovision » is not money.
+const PRICE = /(?:\b(\d+(?:[.,]\d{1,2})?)\s?(?:€|eur(?:os?)?\b|chf\b|£|\$)|(?:€|£|\$|\bchf)\s?(\d+(?:[.,]\d{1,2})?)\b)/gi;
+
+/**
+ * A price written into a text — « Fromage 25 € », « Vin (12,50€) » —, in
+ * cents, or null. Only an amount that says it is money counts: « 2 baguettes »
+ * is two baguettes, not two euros. The last one wins, as in « 2 × 8 € = 16 € ».
+ */
+function priceIn(text) {
+  const found = [...String(text || '').matchAll(PRICE)];
+  if (!found.length) return null;
+  const last = found[found.length - 1];
+  return readAmount(last[1] || last[2]);
+}
+
+/** The currency a text's price is written in — « 30 CHF » —, or null. */
+function priceCurrency(text) {
+  const found = [...String(text || '').matchAll(PRICE)];
+  if (!found.length) return null;
+  const sign = found[found.length - 1][0].toLowerCase();
+  if (sign.includes('chf')) return 'CHF';
+  if (sign.includes('£')) return 'GBP';
+  if (sign.includes('$')) return 'USD';
+  return 'EUR';
+}
+
+/** The text without its price: what an expense made of the line is called. */
+function withoutPrice(text) {
+  const clean = String(text || '').replace(PRICE, ' ').replace(/\(\s*\)/g, ' ')
+    .replace(/\s+([,.;:])/g, '$1').replace(/[\s:=—–-]+$/, '').replace(/\s{2,}/g, ' ').trim();
+  return clean || String(text || '').trim();
+}
+
+/* ------------------------------------------------------------- les parts --- */
+
+/**
+ * How many parts someone counts for. A couple counts for two, a family for
+ * four, a child for half: the account then shares by parts without anyone
+ * having to think about it again. Halves only, up to MOST_PARTS — nights in a
+ * holiday house are counted the same way.
+ */
+const MOST_PARTS = 99;
+
+/** A number of parts as typed or stored, or null when it is not one. */
+function readParts(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(String(value).replace(',', '.'));
+  if (!Number.isFinite(number)) return null;
+  const halves = number * 2;
+  return Number.isInteger(halves) && halves >= 1 && halves <= MOST_PARTS * 2 ? halves / 2 : null;
+}
+
+/** What someone counts for in this account when nothing else is said: one part. */
+function weightOf(person) {
+  return readParts(person?.weight) ?? 1;
+}
+
+/** One step up or down: ½, 1, 2, 3… — below one part, only a half. */
+function stepParts(value, step) {
+  const now = readParts(value) ?? 1;
+  if (step > 0) return now < 1 ? 1 : Math.min(MOST_PARTS, Math.floor(now) + 1);
+  return now <= 1 ? 0.5 : Math.max(1, Math.ceil(now) - 1);
+}
+
+/**
+ * Someone counts for that many parts from now on, in every expense that does
+ * not say otherwise — those already noted included: « les Martin sont
+ * quatre » is true of the whole holiday, not only of what comes next.
+ */
+function setSpendWeight(spend, personId, weight) {
+  const parts = readParts(weight) ?? 1;
+  return patchPerson(spend, personId, (person) => {
+    if (weightOf(person) === parts) return person;
+    const next = { ...person, weight: parts };
+    if (parts === 1) delete next.weight;
+    return next;
+  });
+}
+
+/** How someone wants to be paid back, as they wrote it: an IBAN, a number, a link. */
+function payOf(person) {
+  return typeof person?.pay === 'string' ? person.pay.trim() : '';
+}
+
+/** Write down how someone wants to be paid back, or forget it with ''. */
+function setSpendPay(spend, personId, text) {
+  const clean = String(text || '').trim().slice(0, 300);
+  return patchPerson(spend, personId, (person) => {
+    if (payOf(person) === clean) return person;
+    const next = { ...person, pay: clean };
+    if (!clean) delete next.pay;
+    return next;
+  });
+}
+
+/** Change one person, on the people's own clock — they merge as a whole. */
+function patchPerson(spend, personId, change) {
+  let changed = false;
+  const people = spend.people.map((person) => {
+    if (person.id !== personId) return person;
+    const next = change(person);
+    if (next !== person) changed = true;
+    return next;
+  });
+  return changed ? touch(spend, { people, peopleAt: later(spend.peopleAt) }) : spend;
+}
+
+/** The people an expense is for: those ticked, or everyone when none is. */
+function concernedBy(spend, forWhom) {
+  const known = spend.people.map((person) => person.id);
+  return forWhom?.length ? forWhom.filter((id) => known.includes(id)) : known;
+}
+
+/** Parts given for this expense alone, for those concerned, unlike their usual. */
+function cleanParts(spend, parts, concerned) {
+  const kept = {};
+  for (const id of concerned) {
+    const value = readParts(parts?.[id]);
+    if (value !== null && value !== weightOf(spend.people.find((person) => person.id === id))) kept[id] = value;
+  }
+  return kept;
+}
+
+/** Amounts set apart for some of those concerned: whole cents, more than none. */
+function cleanFixed(fixed, concerned) {
+  const kept = {};
+  for (const id of concerned) {
+    const cents = fixed?.[id];
+    if (Number.isInteger(cents) && cents > 0) kept[id] = cents;
+  }
+  return kept;
+}
+
+const centsIn = (amounts) => Object.values(amounts).reduce((sum, cents) => sum + cents, 0);
+
+/**
+ * What is wrong with a way of sharing an expense, or null: more set apart
+ * than was paid (`over`), or something left over and nobody left to share it
+ * (`left`) — everyone concerned has an amount of their own, and they do not
+ * add up. Said before writing, so the form can say how much is out.
+ */
+function splitProblem(spend, { amount, forWhom = [], fixed = null } = {}) {
+  const concerned = concernedBy(spend, forWhom);
+  const apart = cleanFixed(fixed, concerned);
+  const total = centsIn(apart);
+  if (total > amount) return 'over';
+  if (total < amount && concerned.length && concerned.every((id) => id in apart)) return 'left';
+  return null;
+}
+
+/** The way an expense is shared, as a line keeps it: only what is not the usual. */
+function splitFields(spend, { amount, forWhom, parts, fixed }) {
+  if (splitProblem(spend, { amount, forWhom, fixed })) return null;
+  const concerned = concernedBy(spend, forWhom);
+  const ownParts = cleanParts(spend, parts, concerned);
+  const apart = cleanFixed(fixed, concerned);
+  return {
+    parts: Object.keys(ownParts).length ? ownParts : undefined,
+    fixed: Object.keys(apart).length ? apart : undefined,
+  };
+}
+
+/** A line without the fields left undefined: what is not said is not stored. */
+function tidy(line) {
+  for (const key of Object.keys(line)) if (line[key] === undefined) delete line[key];
+  return line;
+}
+
+/**
+ * Ajouter une dépense. `forWhom` vide veut dire « pour tout le monde » : c'est
+ * le cas courant, et l'écrire à chaque fois serait une corvée.
+ *
+ * `parts` donne, pour cette dépense seulement, des parts autres que celles de
+ * chacun (deux nuits pour l'une, cinq pour l'autre) ; `fixed`, un montant à
+ * part pour certains (la pizza d'Alice), le reste se partageant entre les
+ * autres — en monnaie du compte.
+ *
+ * `currency` dit en quoi `amount` a été payé, quand ce n'est pas la monnaie
+ * du compte : il est alors converti au taux `rate` (« 1 € = 0,86 £ »).
+ */
+function addSpend(spend, { text = '', amount = 0, currency = null, rate = null, by = null, forWhom = [], day = null, parts = null, fixed = null } = {}) {
+  const paid = paidFields(spend, amount, currency, rate);
+  if (!paid) return spend;
+  const cents = paid.amount;
+
+  const known = new Set(spend.people.map((person) => person.id));
+  // Rangé dans l'ordre des personnes du compte : deux téléphones qui cochent
+  // les mêmes personnes dans un ordre différent écrivent la même ligne.
+  const whom = spend.people.filter((person) => forWhom.includes(person.id)).map((person) => person.id);
+  const shared = splitFields(spend, { amount: cents, forWhom: whom, parts, fixed });
+  if (!shared) return spend;
+  const line = tidy({
+    id: uid('s'),
+    text: String(text || '').trim(),
+    amount: cents,
+    paidIn: paid.paidIn,
+    by: known.has(by) ? by : null,
+    forWhom: whom,
+    ...shared,
+    day: /^\d{4}-\d{2}-\d{2}$/.test(String(day || '')) ? String(day) : null,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+  return touch(spend, { lines: [...spend.lines, line] });
+}
+
+/**
+ * Noter un remboursement : `from` a rendu `amount` à `to`.
+ *
+ * C'est une ligne comme les autres — payée par `from`, pour `to` seul —, ce qui
+ * suffit à remettre les soldes d'aplomb : `from` a mis de l'argent, `to` en a
+ * reçu. Marquée `repay` pour qu'elle ne compte pas dans ce que le compte a
+ * coûté, ni dans ce que chacun a avancé.
+ */
+function addRepayment(spend, { from = null, to = null, amount = 0, day = null } = {}) {
+  const cents = Number.isInteger(amount) ? amount : readAmount(amount);
+  const known = new Set(spend.people.map((person) => person.id));
+  if (!cents || !known.has(from) || !known.has(to) || from === to) return spend;
+  const added = addSpend(spend, { amount: cents, by: from, forWhom: [to], day });
+  const line = added.lines.at(-1);
+  return { ...added, lines: [...added.lines.slice(0, -1), { ...line, repay: true }] };
+}
+
+/** Une ligne qui rend de l'argent plutôt qu'elle n'en dépense. */
+function isRepayment(line) {
+  return Boolean(line?.repay);
+}
+
+function patchLine(spend, lineId, patch) {
+  let changed = false;
+  const lines = spend.lines.map((line) => {
+    if (line.id !== lineId) return line;
+    changed = true;
+    return tidy({ ...line, ...patch, updatedAt: later(line.updatedAt) });
+  });
+  return changed ? touch(spend, { lines }) : spend;
+}
+
+/**
+ * Correct an expense. Its parts and amounts apart follow whoever it is for
+ * now — someone no longer concerned keeps neither — and a correction that
+ * would set apart more than was paid is not made: splitProblem() says why.
+ *
+ * A new `amount` is in `currency` at `rate`, as for addSpend(); without a
+ * currency it is in the account's, and what was paid elsewhere goes.
+ */
+function editSpend(spend, lineId, { text, amount, currency, rate, by, forWhom, day, parts, fixed } = {}) {
+  const line = spend.lines.find((entry) => entry.id === lineId);
+  if (!line) return spend;
+  const patch = {};
+  if (text !== undefined) patch.text = String(text || '').trim();
+  if (amount !== undefined && !isRepayment(line)) {
+    const paid = paidFields(spend, amount, currency, rate);
+    if (paid) Object.assign(patch, paid);
+  } else if (amount !== undefined) {
+    const cents = Number.isInteger(amount) ? amount : readAmount(amount);
+    if (cents) patch.amount = cents;
+  }
+  if (by !== undefined) {
+    patch.by = spend.people.some((person) => person.id === by) ? by : null;
+  }
+  if (forWhom !== undefined) {
+    patch.forWhom = spend.people.filter((person) => forWhom.includes(person.id)).map((person) => person.id);
+  }
+  if (day !== undefined) {
+    patch.day = /^\d{4}-\d{2}-\d{2}$/.test(String(day || '')) ? String(day) : null;
+  }
+  if (!isRepayment(line) && (forWhom !== undefined || parts !== undefined || fixed !== undefined || patch.amount)) {
+    const shared = splitFields(spend, {
+      amount: patch.amount || line.amount,
+      forWhom: patch.forWhom || line.forWhom,
+      parts: parts !== undefined ? parts : line.parts,
+      fixed: fixed !== undefined ? fixed : line.fixed,
+    });
+    if (!shared) return spend;
+    Object.assign(patch, shared);
+  }
+  return Object.keys(patch).length ? patchLine(spend, lineId, patch) : spend;
+}
+
+/** Retirer une ligne, et se souvenir de l'avoir retirée. */
+function removeSpend(spend, lineId) {
+  const lines = spend.lines.filter((line) => line.id !== lineId);
+  if (lines.length === spend.lines.length) return spend;
+  return touch(spend, { lines, removed: { ...spend.removed, [lineId]: Date.now() } });
+}
+
+/** Ranger un compte soldé, ou le ressortir. */
+function archiveSpend(spend, yes = true) {
+  const at = yes ? Date.now() : null;
+  return at === (spend.archivedAt || null) ? spend : touch(spend, { archivedAt: at });
+}
+
+const addSpendPerson = addPerson;
+const renameSpendPerson = renamePerson;
+
+/** Whether an account has expenses for everyone, that whoever joins would share. */
+function sharedWithEveryone(spend) {
+  return spend.lines.some((line) => !isRepayment(line) && !line.forWhom.length);
+}
+
+/**
+ * Someone who joins on the way — on Wednesday, for a holiday begun on
+ * Saturday. « Pour tout le monde » means whoever is in the account, so the
+ * expenses already noted for everyone first say who they were for, name by
+ * name: the newcomer shares only what comes next.
+ */
+function addLatecomer(spend, name) {
+  const now = spend.people.map((person) => person.id);
+  let changed = false;
+  const lines = spend.lines.map((line) => {
+    if (isRepayment(line) || line.forWhom.length) return line;
+    changed = true;
+    return { ...line, forWhom: now, updatedAt: later(line.updatedAt) };
+  });
+  return addPerson(changed ? touch(spend, { lines }) : spend, name);
+}
+
+/**
+ * Est-ce que ce compte tient encore debout sans cette personne ?
+ *
+ * Non si elle a avancé de l'argent : la somme des soldes ne ferait plus zéro,
+ * et le remboursement calculé serait faux sans que rien ne le dise. Non non
+ * plus si une ligne ne concerne qu'elle : « pour personne » se lit « pour tout
+ * le monde », et le taxi qu'elle a pris seule deviendrait l'affaire de tous.
+ *
+ * Non plus, enfin, si une dépense lui met un montant à part : la pizza qu'elle
+ * a prise retomberait sur les autres.
+ *
+ * Dans tous les cas, ses lignes se corrigent ou se retirent d'abord — un geste
+ * de plus, mais un compte juste.
+ */
+function canRemovePerson(spend, personId) {
+  if (spend.lines.some((line) => line.by === personId)) return 'paid';
+  if (spend.lines.some((line) => line.forWhom.length === 1 && line.forWhom[0] === personId)) return 'alone';
+  if (spend.lines.some((line) => !isRepayment(line) && Number.isInteger(line.fixed?.[personId]))) return 'apart';
+  return 'ok';
+}
+
+/**
+ * Retirer quelqu'un du compte. Sans effet quand ses lignes l'en empêchent :
+ * `canRemovePerson` dit pourquoi, et l'app le répète. Ses parts sur une
+ * dépense partent avec lui.
+ */
+function removeSpendPerson(spend, personId) {
+  if (canRemovePerson(spend, personId) !== 'ok') return spend;
+  const without = (parts) => {
+    const kept = { ...parts };
+    delete kept[personId];
+    return Object.keys(kept).length ? kept : undefined;
+  };
+  return removePerson(spend, personId, (current) => ({
+    lines: current.lines.map((line) =>
+      (line.forWhom.includes(personId) || line.parts?.[personId] !== undefined
+        ? tidy({
+          ...line,
+          forWhom: line.forWhom.filter((id) => id !== personId),
+          parts: line.parts ? without(line.parts) : undefined,
+          updatedAt: later(line.updatedAt),
+        })
+        : line)),
+  }));
+}
+
+/**
+ * Répartir un montant en centimes entre n personnes, sans perdre de centime.
+ *
+ * Dix euros entre trois font 3,34 / 3,33 / 3,33 : le reste va aux premiers,
+ * dans l'ordre des personnes du compte. Le calcul ne dépend que de la ligne,
+ * donc deux téléphones tombent sur les mêmes parts.
+ */
+function split(amount, count) {
+  if (count <= 0) return [];
+  const each = Math.floor(amount / count);
+  const extra = amount - each * count;
+  return Array.from({ length: count }, (_, index) => each + (index < extra ? 1 : 0));
+}
+
+/**
+ * Répartir un montant selon des parts (des entiers), sans perdre de centime.
+ *
+ * Chacun reçoit sa part arrondie au centime du dessous ; les centimes qui
+ * restent vont à ceux qui en étaient le plus près, et entre égaux au premier.
+ * À parts égales, c'est exactement split() : les comptes d'avant les parts
+ * tombent sur les mêmes centimes.
+ */
+function splitBy(amount, parts) {
+  const total = parts.reduce((sum, part) => sum + part, 0);
+  if (total <= 0) return parts.map(() => 0);
+  // In integers all along: a quotient in floating point can land a hair
+  // under a whole number, and a cent would go astray.
+  const shares = parts.map((part) => (amount * part - ((amount * part) % total)) / total);
+  let left = amount - shares.reduce((sum, share) => sum + share, 0);
+  const order = parts
+    .map((part, index) => ({ index, rest: (amount * part) % total }))
+    .sort((a, b) => b.rest - a.rest || a.index - b.index);
+  for (const { index } of order) {
+    if (left <= 0) break;
+    shares[index] += 1;
+    left -= 1;
+  }
+  return shares;
+}
+
+/**
+ * Ce que chacun doit pour une dépense : id → centimes, pour ceux qu'elle
+ * concerne.
+ *
+ * Les montants mis à part d'abord — la pizza d'Alice —, puis le reste entre
+ * les autres, selon leurs parts : celles de la dépense, sinon celles de
+ * chacun dans le compte. Si tout le monde a son montant à part, ce qui
+ * resterait se partage entre tous, selon leurs parts : la somme fait toujours
+ * le montant, au centime.
+ */
+function lineShares(spend, line) {
+  const concerned = concernedBy(spend, line.forWhom);
+  const owed = new Map(concerned.map((id) => [id, 0]));
+  if (!concerned.length) return owed;
+  let apart = cleanFixed(line.fixed, concerned);
+  // Set apart beyond what was paid cannot be right: then nothing is apart.
+  if (centsIn(apart) > line.amount) apart = {};
+  for (const [id, cents] of Object.entries(apart)) owed.set(id, cents);
+  const free = concerned.filter((id) => !(id in apart));
+  const pool = free.length ? free : concerned;
+  const halves = pool.map((id) => {
+    const own = readParts(line.parts?.[id]);
+    return (own ?? weightOf(spend.people.find((person) => person.id === id))) * 2;
+  });
+  const shares = splitBy(line.amount - centsIn(apart), halves);
+  pool.forEach((id, index) => owed.set(id, owed.get(id) + shares[index]));
+  return owed;
+}
+
+/**
+ * Ce que chacun a payé, ce qu'il devait, ce qu'il a rendu ou reçu, et la
+ * différence.
+ *
+ * Positif : on lui doit. Négatif : il doit. La somme des soldes fait zéro, au
+ * centime — c'est ce qui rend le remboursement calculable. Un remboursement
+ * ne change ni `paid` ni `owed` (ce n'est pas une dépense) : il passe par
+ * `sent` et `received`, et le solde en tient compte.
+ */
+function balances(spend) {
+  const paid = new Map(spend.people.map((person) => [person.id, 0]));
+  const owed = new Map(spend.people.map((person) => [person.id, 0]));
+  const sent = new Map(spend.people.map((person) => [person.id, 0]));
+  const received = new Map(spend.people.map((person) => [person.id, 0]));
+
+  for (const line of spend.lines) {
+    if (isRepayment(line)) {
+      const to = line.forWhom[0];
+      // Sans l'une des deux personnes, il n'y a rien à rendre à personne.
+      if (!sent.has(line.by) || !received.has(to) || line.by === to) continue;
+      sent.set(line.by, sent.get(line.by) + line.amount);
+      received.set(to, received.get(to) + line.amount);
+      continue;
+    }
+    if (line.by && paid.has(line.by)) paid.set(line.by, paid.get(line.by) + line.amount);
+    for (const [id, cents] of lineShares(spend, line)) owed.set(id, owed.get(id) + cents);
+  }
+
+  return spend.people.map((person) => ({
+    id: person.id,
+    name: person.name,
+    paid: paid.get(person.id) || 0,
+    owed: owed.get(person.id) || 0,
+    sent: sent.get(person.id) || 0,
+    received: received.get(person.id) || 0,
+    balance: (paid.get(person.id) || 0) - (owed.get(person.id) || 0)
+      + (sent.get(person.id) || 0) - (received.get(person.id) || 0),
+  }));
+}
+
+/** Ce que le compte a coûté en tout — les remboursements n'y ajoutent rien. */
+function spendTotal(spend) {
+  return spend.lines.reduce((sum, line) => sum + (isRepayment(line) ? 0 : line.amount), 0);
+}
+
+/**
+ * Qui rembourse qui, en aussi peu de virements que possible.
+ *
+ * Le plus gros débiteur paie le plus gros créancier, et on recommence : ça ne
+ * donne pas toujours le minimum théorique — le problème est NP-difficile — mais
+ * ça donne au plus n−1 virements, ce qui est déjà bien moins que « chacun
+ * rembourse chacun », et surtout ça se lit.
+ */
+function settle(spend) {
+  const owing = balances(spend)
+    .filter((row) => row.balance !== 0)
+    .map((row) => ({ ...row }));
+
+  const debtors = owing.filter((row) => row.balance < 0).sort((a, b) => a.balance - b.balance);
+  const creditors = owing.filter((row) => row.balance > 0).sort((a, b) => b.balance - a.balance);
+
+  const moves = [];
+  let d = 0;
+  let c = 0;
+  while (d < debtors.length && c < creditors.length) {
+    const amount = Math.min(-debtors[d].balance, creditors[c].balance);
+    if (amount > 0) {
+      moves.push({ from: debtors[d].name, fromId: debtors[d].id, to: creditors[c].name, toId: creditors[c].id, amount });
+      debtors[d].balance += amount;
+      creditors[c].balance -= amount;
+    }
+    if (debtors[d].balance === 0) d += 1;
+    if (creditors[c].balance === 0) c += 1;
+  }
+  return moves;
+}
+
+/** Fusionner deux copies du même compte : ligne à ligne, comme une liste. */
+function mergeSpends(a, b) {
+  if (!isValidSpend(a)) return b;
+  if (!isValidSpend(b)) return a;
+  if (a.id !== b.id) return a;
+
+  const [newer, older] = (a.updatedAt || 0) >= (b.updatedAt || 0) ? [a, b] : [b, a];
+  const removed = prune({ ...older.removed, ...newer.removed });
+
+  const byId = new Map();
+  for (const line of [...older.lines, ...newer.lines]) {
+    if (removed[line.id]) continue;
+    const held = byId.get(line.id);
+    if (!held || (line.updatedAt || 0) >= (held.updatedAt || 0)) byId.set(line.id, line);
+  }
+
+  const lines = [
+    ...newer.lines.filter((line) => byId.has(line.id)).map((line) => byId.get(line.id)),
+    ...older.lines.filter(
+      (line) => byId.has(line.id) && !newer.lines.some((other) => other.id === line.id),
+    ),
+  ];
+
+  const people = (newer.peopleAt || 0) >= (older.peopleAt || 0) ? newer.people : older.people;
+
+  const sameLines =
+    lines.length === newer.lines.length && lines.every((line, index) => line === newer.lines[index]);
+  const sameRemoved = Object.keys(removed).length === Object.keys(newer.removed || {}).length;
+  if (sameLines && sameRemoved && people === newer.people) return newer;
+
+  return {
+    ...newer,
+    people,
+    peopleAt: Math.max(newer.peopleAt || 0, older.peopleAt || 0),
+    removed,
+    lines,
+    updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0),
+  };
+}
+
+/** Lecture défensive de ce qui revient du stockage, d'un lien ou d'un fichier. */
+function isValidSpend(value) {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      value.kind === 'spend' &&
+      typeof value.id === 'string' &&
+      Array.isArray(value.people) &&
+      Array.isArray(value.lines) &&
+      value.lines.every(
+        (line) =>
+          line &&
+          typeof line.id === 'string' &&
+          // Des centimes entiers, et rien d'autre. Un montant fractionnaire
+          // entré par un import ou par la base ferait des parts fractionnaires,
+          // des soldes qui ne font plus zéro et un remboursement d'un
+          // demi-centime — tout ce que compter en entiers sert à éviter.
+          Number.isInteger(line.amount) &&
+          line.amount > 0 &&
+          Array.isArray(line.forWhom),
+      ),
+  );
+}
+
+  // ---- src/ideas.js ----------------------------------------------------
+/**
+ * Ideas: a board of cards, before anything is decided.
+ *
+ * A board — "Holidays in Corsica", "Léa's present" — holds cards. A card is a
+ * note (a title's worth of text, or a paragraph) or a sketch drawn with a
+ * finger. Cards and not one big page, because two people writing in the same
+ * page at the same moment would lose one of the two; two cards never collide.
+ *
+ * A sketch is kept as strokes, not as a picture: each stroke is a colour, a
+ * width and a row of points in a fixed 1000 × 750 frame. That is small enough
+ * for the shared database, draws the same on every screen, and merges stroke
+ * by stroke — two people drawing on the same sketch keep both drawings.
+ *
+ * Pure, like the lists: every mutator returns a new board.
+ */
+
+
+
+
+/** The frame every sketch is drawn in, whatever the screen. */
+const SKETCH_WIDTH = 1000;
+const SKETCH_HEIGHT = 750;
+
+/** The inks a stroke can take. 'ink' follows the theme: dark on light, light on dark. */
+const INKS = ['ink', 'red', 'blue', 'green', 'orange'];
+/** The pen sizes, in frame units. */
+const PENS = [4, 10, 24];
+
+/** How far the eraser reaches, in the frame's units: fine, medium, broad. */
+const ERASERS = [8, 20, 45];
+
+/**
+ * How much a board may weigh, as JSON. The database refuses a document past
+ * 200 000 bytes; this leaves room, so a board that is nearly full says so
+ * before a write fails.
+ */
+const BOARD_LIMIT = 150000;
+
+/** A new board. */
+function createBoard({ name = '', shared = false, groupId = null } = {}) {
+  const now = Date.now();
+  return {
+    id: uid('b'),
+    kind: 'board',
+    name: String(name).trim(),
+    createdAt: now,
+    updatedAt: now,
+    shared: Boolean(shared),
+    groupId: groupId || null,
+    archivedAt: null,
+    // Cards and strokes deleted here, and when: without it, a deletion is
+    // undone by the next copy that still holds what was deleted.
+    removed: {},
+    cards: [],
+  };
+}
+
+/** Add a card — a note or a sketch — and say which, so the page can open it. */
+function addCard(board, type = 'note', text = '') {
+  const now = Date.now();
+  const card = {
+    id: uid('c'),
+    type: type === 'sketch' ? 'sketch' : 'note',
+    text: String(text || '').trim(),
+    textAt: now,
+    strokes: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+  return { board: touch(board, { cards: [...board.cards, card] }), cardId: card.id };
+}
+
+function patchCard(board, cardId, change) {
+  let changed = false;
+  const cards = board.cards.map((card) => {
+    if (card.id !== cardId) return card;
+    const next = change(card);
+    if (next === card) return card;
+    changed = true;
+    return { ...next, updatedAt: later(card.updatedAt) };
+  });
+  return changed ? touch(board, { cards }) : board;
+}
+
+/** What a card says: the note's text, or a sketch's caption. */
+function editCardText(board, cardId, text) {
+  const clean = String(text || '').trim();
+  return patchCard(board, cardId, (card) =>
+    card.text === clean ? card : { ...card, text: clean, textAt: later(card.textAt) },
+  );
+}
+
+/**
+ * Add strokes to a sketch. Each keeps its own identity, so strokes drawn on two
+ * phones at once are both there after the merge.
+ */
+function addStrokes(board, cardId, strokes) {
+  const fresh = (strokes || []).map(cleanStroke).filter(Boolean);
+  if (!fresh.length) return board;
+  return patchCard(board, cardId, (card) => ({ ...card, strokes: [...card.strokes, ...fresh] }));
+}
+
+/** Rub strokes out, and remember having done so. */
+function eraseStrokes(board, cardId, strokeIds) {
+  const gone = new Set(strokeIds || []);
+  const card = board.cards.find((entry) => entry.id === cardId);
+  if (!card || !card.strokes.some((stroke) => gone.has(stroke.id))) return board;
+  const now = Date.now();
+  const removed = { ...board.removed };
+  for (const id of gone) removed[id] = now;
+  const next = patchCard(board, cardId, (current) => ({
+    ...current,
+    strokes: current.strokes.filter((stroke) => !gone.has(stroke.id)),
+  }));
+  return { ...next, removed };
+}
+
+/** Drop a card, and remember having dropped it. */
+function removeCard(board, cardId) {
+  const cards = board.cards.filter((card) => card.id !== cardId);
+  if (cards.length === board.cards.length) return board;
+  return touch(board, { cards, removed: { ...board.removed, [cardId]: Date.now() } });
+}
+
+/** Put a board away, or bring it back. Nothing is deleted. */
+function archiveBoard(board, yes = true) {
+  // Put away twice is put away once: the board keeps the day it was put away.
+  if (Boolean(yes) === Boolean(board.archivedAt)) return board;
+  return touch(board, { archivedAt: yes ? Date.now() : null });
+}
+
+/**
+ * A stroke's points as numbers, `[x0, y0, x1, y1, …]`, whether it is kept (as
+ * text) or still being drawn (as numbers).
+ */
+function pointsOf(stroke) {
+  const { points } = stroke || {};
+  if (Array.isArray(points)) return points;
+  return typeof points === 'string' && points.trim() ? points.trim().split(/\s+/).map(Number) : [];
+}
+
+/**
+ * A stroke as it is kept: an id, an ink, a pen, and the points as whole
+ * numbers inside the frame, written as text — `"x0 y0 x1 y1 …"`. Text and not
+ * an array of numbers: the database weighs a document in its own format, where
+ * each number of an array costs about twice what it does written out, and a
+ * sketch is almost nothing but numbers. Anything else is dropped rather than
+ * stored.
+ */
+function cleanStroke(stroke) {
+  if (!stroke) return null;
+  const raw = pointsOf(stroke);
+  const points = [];
+  for (let index = 0; index + 1 < raw.length; index += 2) {
+    const x = Number(raw[index]);
+    const y = Number(raw[index + 1]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    points.push(
+      Math.round(Math.min(SKETCH_WIDTH, Math.max(0, x))),
+      Math.round(Math.min(SKETCH_HEIGHT, Math.max(0, y))),
+    );
+  }
+  if (!points.length) return null;
+  return {
+    id: typeof stroke.id === 'string' && stroke.id ? stroke.id : uid('s'),
+    ink: INKS.includes(stroke.ink) ? stroke.ink : 'ink',
+    pen: PENS.includes(stroke.pen) ? stroke.pen : PENS[0],
+    points: points.join(' '),
+  };
+}
+
+/**
+ * Fewer points for the same line (Ramer–Douglas–Peucker). A finger sends a
+ * point every few milliseconds; most of them add nothing a reader could see,
+ * and every one of them would travel to the database and back.
+ */
+function simplifyPoints(points, tolerance = 2) {
+  const count = Math.floor((points?.length || 0) / 2);
+  if (count <= 2) return (points || []).slice(0, count * 2);
+  const keep = new Array(count).fill(false);
+  keep[0] = true;
+  keep[count - 1] = true;
+  const stack = [[0, count - 1]];
+  while (stack.length) {
+    const [first, last] = stack.pop();
+    let farthest = -1;
+    let distance = tolerance;
+    for (let index = first + 1; index < last; index += 1) {
+      const d = segmentDistance(
+        points[index * 2], points[index * 2 + 1],
+        points[first * 2], points[first * 2 + 1],
+        points[last * 2], points[last * 2 + 1],
+      );
+      if (d > distance) {
+        distance = d;
+        farthest = index;
+      }
+    }
+    if (farthest >= 0) {
+      keep[farthest] = true;
+      stack.push([first, farthest], [farthest, last]);
+    }
+  }
+  const kept = [];
+  for (let index = 0; index < count; index += 1) {
+    if (keep[index]) kept.push(points[index * 2], points[index * 2 + 1]);
+  }
+  return kept;
+}
+
+/** How far a point is from a segment. */
+function segmentDistance(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const length = dx * dx + dy * dy;
+  const along = length ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / length)) : 0;
+  return Math.hypot(px - (ax + along * dx), py - (ay + along * dy));
+}
+
+/** Whether a stroke passes within `reach` of a point — what the eraser touches. */
+function strokeNear(stroke, x, y, reach = 16) {
+  const points = pointsOf(stroke);
+  const margin = reach + (stroke.pen || 0) / 2;
+  if (points.length === 2) return Math.hypot(points[0] - x, points[1] - y) <= margin;
+  for (let index = 0; index + 3 < points.length; index += 2) {
+    if (segmentDistance(x, y, points[index], points[index + 1], points[index + 2], points[index + 3]) <= margin) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Rub out only the part of a stroke under the eraser: what is left on either
+ * side becomes strokes of their own, with new ids — the old one is erased and
+ * the pieces added, which is how any two copies of a board already merge.
+ * Null when the eraser does not touch the stroke.
+ */
+function rubOut(stroke, x, y, reach = ERASERS[0]) {
+  const points = pointsOf(stroke);
+  if (!points.length) return null;
+  const margin = reach + (stroke.pen || 0) / 2;
+  // The kept points can be far apart along a straight line: fill in, so the
+  // eraser cuts where it is and not at the nearest corner.
+  const step = Math.max(2, reach / 3);
+  const dense = [points[0], points[1]];
+  for (let index = 2; index + 1 < points.length; index += 2) {
+    const [ax, ay, bx, by] = [points[index - 2], points[index - 1], points[index], points[index + 1]];
+    const parts = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / step));
+    for (let part = 1; part <= parts; part += 1) {
+      dense.push(ax + ((bx - ax) * part) / parts, ay + ((by - ay) * part) / parts);
+    }
+  }
+  const pieces = [];
+  let run = [];
+  let touched = false;
+  for (let index = 0; index + 1 < dense.length; index += 2) {
+    if (Math.hypot(dense[index] - x, dense[index + 1] - y) <= margin) {
+      touched = true;
+      if (run.length) pieces.push(run);
+      run = [];
+    } else {
+      run.push(dense[index], dense[index + 1]);
+    }
+  }
+  if (!touched) return null;
+  if (run.length) pieces.push(run);
+  return pieces
+    .map((piece) => cleanStroke({ id: uid('s'), ink: stroke.ink, pen: stroke.pen, points: simplifyPoints(piece.map(Math.round)) }))
+    .filter(Boolean);
+}
+
+/** The SVG path of a stroke: a dot for a single point, a line otherwise. */
+function strokePath(stroke) {
+  const points = pointsOf(stroke);
+  if (points.length === 2) return `M${points[0]} ${points[1]}h0`;
+  let path = `M${points[0]} ${points[1]}`;
+  for (let index = 2; index + 1 < points.length; index += 2) path += `L${points[index]} ${points[index + 1]}`;
+  return path;
+}
+
+/** How much the board weighs as it travels. */
+function boardSize(board) {
+  return JSON.stringify(board).length;
+}
+
+/** The cards, newest first — what was just added is what one looks for. */
+function cardsInOrder(board) {
+  return [...board.cards].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0) || (a.id < b.id ? -1 : 1));
+}
+
+/**
+ * Merge two copies of the same board — this browser's and the database's.
+ *
+ * Card by card. A card's text follows whichever copy changed it last (its own
+ * clock, `textAt`, so that a stroke drawn meanwhile does not count as a change
+ * of text); its strokes are the union of both sides, less those rubbed out on
+ * either. A card or a stroke deleted anywhere stays deleted.
+ */
+function mergeBoards(a, b) {
+  if (!isValidBoard(a)) return b;
+  if (!isValidBoard(b)) return a;
+  if (a.id !== b.id) return a;
+
+  const [newer, older] = (a.updatedAt || 0) >= (b.updatedAt || 0) ? [a, b] : [b, a];
+  const removed = prune({ ...older.removed, ...newer.removed });
+
+  const byId = new Map();
+  for (const card of [...older.cards, ...newer.cards]) {
+    if (removed[card.id]) continue;
+    const held = byId.get(card.id);
+    byId.set(card.id, held ? mergeCards(held, card, removed) : liveStrokes(card, removed));
+  }
+  const cards = [...byId.values()].sort((x, y) => (x.createdAt || 0) - (y.createdAt || 0) || (x.id < y.id ? -1 : 1));
+
+  const merged = { ...newer, removed, cards, ...mergedTalk(older, newer), updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0) };
+  // Nothing new on either side: hand back the very same object, which is how
+  // the page knows there is nothing to redraw.
+  const sameAs = (board) =>
+    JSON.stringify(board.cards) === JSON.stringify(merged.cards) &&
+    Object.keys(board.removed || {}).length === Object.keys(removed).length &&
+    sameTalk(board, merged) &&
+    (board.updatedAt || 0) === merged.updatedAt;
+  if (sameAs(newer)) return newer;
+  return merged;
+}
+
+function liveStrokes(card, removed) {
+  return card.strokes.some((stroke) => removed[stroke.id])
+    ? { ...card, strokes: card.strokes.filter((stroke) => !removed[stroke.id]) }
+    : card;
+}
+
+/** `second` is the newer board's copy: it wins what cannot be told apart. */
+function mergeCards(first, second, removed) {
+  const text = (first.textAt || 0) > (second.textAt || 0) ? first : second;
+  const seen = new Set();
+  const strokes = [];
+  for (const stroke of [...first.strokes, ...second.strokes]) {
+    if (seen.has(stroke.id) || removed[stroke.id]) continue;
+    seen.add(stroke.id);
+    strokes.push(stroke);
+  }
+  return {
+    ...second,
+    text: text.text,
+    textAt: Math.max(first.textAt || 0, second.textAt || 0),
+    strokes,
+    updatedAt: Math.max(first.updatedAt || 0, second.updatedAt || 0),
+  };
+}
+
+/** Defensive read of anything coming back from storage, a link, or a file. */
+function isValidBoard(value) {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      value.kind === 'board' &&
+      typeof value.id === 'string' &&
+      Array.isArray(value.cards) &&
+      value.cards.every(
+        (card) =>
+          card &&
+          typeof card.id === 'string' &&
+          typeof card.text === 'string' &&
+          Array.isArray(card.strokes) &&
+          card.strokes.every((stroke) => stroke && typeof stroke.id === 'string' && typeof stroke.points === 'string'),
+      ),
+  );
+}
+
+  // ---- src/stats.js ----------------------------------------------------
+/**
+ * What the accumulated games say about the people who played them.
+ *
+ * Players are matched by name, since each game mints its own ids: across an
+ * evening and across months, "Alice" is Alice. Totals only mean something
+ * within one game — 250 is a rout at Papayoo and nothing at Mille Bornes — so
+ * everything here is computed per preset.
+ *
+ * Matched by name means matched *forgivingly*: one person typing their own name
+ * on two phones, or the same phone six months apart, writes "Alice", "alice" and
+ * "  Alice" — and two lines in the table for one person would be wrong, not
+ * pedantic. Case, accents and surrounding blanks are ignored; the spelling shown
+ * is the one most recently played, because that is the one they chose last.
+ * "Alex" and "Alexandre" stay two people: they are two names, and only whoever
+ * played can say otherwise — by renaming the player.
+ */
+
+
+/** The key two spellings of one name share. */
+function sameName(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '');
+}
+
+/** The presets actually played, most played first. */
+function presetsPlayed(games) {
+  const counts = new Map();
+  for (const game of games) {
+    if (!game.rounds.length) continue;
+    counts.set(game.presetId, (counts.get(game.presetId) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))
+    .map(([presetId, played]) => ({ presetId, played }));
+}
+
+/**
+ * One row per player for a given game: how many played, how many won, their
+ * average and their best. Only games with rounds count, and only finished
+ * games can be won — a game in progress has a leader, not a winner.
+ */
+function statsFor(games, presetId) {
+  const rows = new Map();
+  const played = games.filter((game) => game.presetId === presetId && game.rounds.length);
+
+  // Oldest first, so the last spelling written is the one the table shows.
+  const inOrder = [...played].sort((a, b) => (a.updatedAt || 0) - (b.updatedAt || 0));
+  for (const game of inOrder) {
+    const status = gameStatus(game);
+    const winners = new Set(status.winners.map((row) => sameName(row.name)));
+
+    for (const row of standings(game)) {
+      const key = sameName(row.name);
+      const stat = rows.get(key) || {
+        name: row.name,
+        played: 0,
+        won: 0,
+        totals: [],
+      };
+      stat.name = row.name;
+      stat.played += 1;
+      if (winners.has(key)) stat.won += 1;
+      stat.totals.push(row.total);
+      rows.set(key, stat);
+    }
+  }
+
+  const direction = played[0]?.config.direction || 'low';
+  const best = (totals) => (direction === 'low' ? Math.min(...totals) : Math.max(...totals));
+
+  return [...rows.values()]
+    .map((stat) => ({
+      name: stat.name,
+      played: stat.played,
+      won: stat.won,
+      average: Math.round(stat.totals.reduce((sum, value) => sum + value, 0) / stat.totals.length),
+      best: best(stat.totals),
+    }))
+    .sort((a, b) => b.won - a.won || b.played - a.played || a.name.localeCompare(b.name));
+}
+
+  // ---- src/dashboard.js ------------------------------------------------
+/**
+ * What the app already holds, read two other ways: by group, and by person.
+ *
+ * Nothing new is stored for either. A group's numbers are its own documents
+ * counted; a person's file is every list, poll and game that names them.
+ *
+ * Names are matched the way the tables match them — case, accents and blanks
+ * ignored — so one person who wrote "Alice" on one phone and "alice" on
+ * another is one person here too, under the spelling written most recently.
+ *
+ * Pure, like the models: documents in, numbers out.
+ */
+
+
+
+
+
+
+/**
+ * Whether a document is in the chosen group. No group chosen means all of them.
+ *
+ * A link-only document carries a group — the one whose key created it, and so
+ * the one that may delete it — without belonging to it: the group never sees
+ * it. Counting it under that group here would say the opposite of what the
+ * database does.
+ */
+function inGroup(document_, groupId) {
+  if (!groupId) return true;
+  return document_?.groupId === groupId && !document_?.linkOnly;
+}
+
+/**
+ * Today, as a line writes it: `AAAA-MM-JJ`, in the reader's own time zone.
+ *
+ * Built by hand rather than with toISOString(), which answers in UTC — and in
+ * Paris that turns the first hours of a day into the day before.
+ */
+function dayNow(at = Date.now()) {
+  const date = new Date(at);
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/**
+ * A line nobody has ticked whose day has passed. Today is not late: a line due
+ * today is a line for today.
+ */
+function isLate(item, today = dayNow()) {
+  return Boolean(item && item.due && !item.done && item.due < today);
+}
+
+/**
+ * What still counts. Archiving says "stop showing me this", so an archived
+ * document is nowhere in the numbers — and a model is not a list in progress,
+ * it is what the next one is cut from.
+ *
+ * History is another matter: the statistics and someone's past evenings still
+ * hold their archived games. Archiving clears the tab, it does not rewrite
+ * what happened.
+ */
+function isLive(document_) {
+  return Boolean(document_) && !document_.archivedAt && !document_.template;
+}
+
+/**
+ * Everyone these documents name, in alphabetical order.
+ *
+ * Each under the spelling written most recently, because that is the one they
+ * chose last — the rule the statistics table already follows.
+ */
+function peopleIn({ lists = [], polls = [], games = [], spends = [] } = {}) {
+  const seen = new Map();
+  const note = (raw, when) => {
+    const name = String(raw || '').trim();
+    const key = sameName(name);
+    if (!key) return;
+    const held = seen.get(key);
+    if (!held || (when || 0) >= held.at) seen.set(key, { name, at: when || 0 });
+  };
+
+  for (const list of lists) for (const person of list.people || []) note(person.name, list.updatedAt);
+  for (const poll of polls) for (const person of poll.people || []) note(person.name, poll.updatedAt);
+  for (const game of games) for (const player of game.players || []) note(player.name, game.updatedAt);
+  for (const spend of spends) for (const person of spend.people || []) note(person.name, spend.updatedAt);
+
+  return [...seen.values()].map((row) => row.name).sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * What one group has going on — or the whole device, when no group is given.
+ *
+ * The three numbers are the ones the tabs show, counted the same way: a list
+ * with lines left, an open poll, an unfinished game. `left` is the lines still
+ * to tick, `at` when anything here last moved (0 when there is nothing).
+ */
+function groupCounts({ lists = [], polls = [], games = [], spends = [], boards = [] } = {}, groupId = '', today = dayNow()) {
+  const mine = (documents) => documents.filter((document_) => inGroup(document_, groupId));
+  const held = { lists: mine(lists), polls: mine(polls), games: mine(games), spends: mine(spends) };
+  const ideas = mine(boards);
+  const everything = [...held.lists, ...held.polls, ...held.games, ...held.spends, ...ideas];
+  // Whatever belongs to an event that is over is not going on any more.
+  const all = [...lists, ...polls, ...games, ...spends, ...boards];
+  const current = (document_) => isLive(document_) && !isOver(document_, all, today);
+  const live = {
+    lists: held.lists.filter(current),
+    polls: held.polls.filter(current),
+    games: held.games.filter(current),
+    spends: held.spends.filter(current),
+  };
+
+  return {
+    lists: live.lists.filter((list) => progress(list).left > 0).length,
+    polls: live.polls.filter((poll) => !poll.closedAt).length,
+    games: live.games.filter((game) => !gameStatus(game).finished).length,
+    // Un compte compte tant que quelqu'un y doit quelque chose : un compte
+    // soldé n'est pas en cours, il est fini.
+    spends: live.spends.filter((spend) => balances(spend).some((row) => row.balance !== 0)).length,
+    // A board has nothing to finish: it counts for as long as it is out.
+    boards: ideas.filter(current).length,
+    left: live.lists.reduce((sum, list) => sum + progress(list).left, 0),
+    late: live.lists.reduce((sum, list) => sum + list.items.filter((item) => isLate(item, today)).length, 0),
+    people: peopleIn(held).length,
+    at: Math.max(0, ...everything.map((document_) => document_.updatedAt || 0)),
+  };
+}
+
+/**
+ * One person, across everything: the lines they were given, the polls they
+ * were asked, the games they played — newest first in each.
+ *
+ * `known` says whether that name appears at all; `counts.left` and
+ * `counts.votes` are what is still waiting on them, which is what the app puts
+ * beside their name. A game with no rounds is left out of the games: nobody
+ * played it, so it says nothing about anyone.
+ */
+function personFile({ lists = [], polls = [], games = [], spends = [] } = {}, who, today = dayNow()) {
+  const key = sameName(who);
+  const byDate = (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0);
+  const groupIds = new Set();
+
+  let name = String(who || '').trim();
+  let at = -1;
+  const spelling = (raw, when) => {
+    if ((when || 0) < at) return;
+    at = when || 0;
+    name = String(raw || '').trim() || name;
+  };
+
+  // Archived and model lists are skipped: what waits on someone has to be
+  // something they can still do. Their games are another matter — see below.
+  const lines = [];
+  for (const list of [...lists].sort(byDate)) {
+    const person = (list.people || []).find((one) => sameName(one.name) === key);
+    if (!person) continue;
+    spelling(person.name, list.updatedAt);
+    if (list.groupId) groupIds.add(list.groupId);
+    if (!isLive(list)) continue;
+    const own = progress(list, person.id);
+    if (!own.total) continue;
+    const late = list.items.filter((item) => item.who === person.id && isLate(item, today)).length;
+    const next = list.items
+      .filter((item) => item.who === person.id && item.due && !item.done)
+      .map((item) => item.due)
+      .sort()[0] || null;
+    lines.push({ list, done: own.done, total: own.total, left: own.left, late, next });
+  }
+
+  const votes = [];
+  for (const poll of [...polls].sort(byDate)) {
+    const person = (poll.people || []).find((one) => sameName(one.name) === key);
+    if (!person) continue;
+    spelling(person.name, poll.updatedAt);
+    if (poll.groupId) groupIds.add(poll.groupId);
+    if (!isLive(poll)) continue;
+    votes.push({
+      poll,
+      answered: (poll.options || []).some((option) => voteOf(poll, person.id, option.id)),
+      closed: Boolean(poll.closedAt),
+    });
+  }
+
+  const played = [];
+  for (const game of [...games].sort(byDate)) {
+    const rows = standings(game);
+    const row = rows.find((one) => sameName(one.name) === key);
+    if (!row) continue;
+    spelling(row.name, game.updatedAt);
+    if (game.groupId) groupIds.add(game.groupId);
+    if (!game.rounds.length) continue;
+    const status = gameStatus(game);
+    played.push({
+      game,
+      rank: row.rank,
+      of: rows.length,
+      total: row.total,
+      won: status.finished && status.winners.some((one) => sameName(one.name) === key),
+    });
+  }
+
+  // Les comptes où cette personne figure, et ce qu'elle y doit ou qu'on lui y
+  // doit. Positif : on lui doit.
+  const accounts = [];
+  for (const spend of [...spends].sort(byDate)) {
+    const person = (spend.people || []).find((one) => sameName(one.name) === key);
+    if (!person) continue;
+    spelling(person.name, spend.updatedAt);
+    if (spend.groupId) groupIds.add(spend.groupId);
+    if (!isLive(spend)) continue;
+    const row = balances(spend).find((one) => one.id === person.id);
+    accounts.push({ spend, paid: row?.paid || 0, balance: row?.balance || 0 });
+  }
+
+  return {
+    name,
+    known: at >= 0,
+    groupIds: [...groupIds],
+    lines,
+    votes,
+    played,
+    accounts,
+    counts: {
+      games: played.length,
+      wins: played.filter((row) => row.won).length,
+      left: lines.reduce((sum, row) => sum + row.left, 0),
+      late: lines.reduce((sum, row) => sum + row.late, 0),
+      votes: votes.filter((row) => !row.closed && !row.answered).length,
+      owes: accounts.reduce((sum, row) => sum + (row.balance < 0 ? -row.balance : 0), 0),
+      owed: accounts.reduce((sum, row) => sum + (row.balance > 0 ? row.balance : 0), 0),
+    },
+  };
+}
+
+/* ------------------------------------------------------------- the chain --- */
+
+/**
+ * Anything can be attached to anything else — a list to an event, a poll to
+ * that list — and the chain goes up to an event, the one thing that sits above
+ * all others and is never attached itself. A document says what it hangs from,
+ * and nothing else is stored: the parent finds its children by that.
+ *
+ * `parent` is the id of what it hangs from, null once detached. Documents made
+ * before the chain say `event` instead, which reads the same until they are
+ * attached or detached again.
+ */
+function parentId(document_) {
+  if (!document_) return null;
+  return Object.prototype.hasOwnProperty.call(document_, 'parent') ? document_.parent || null : document_.event || null;
+}
+
+/** An event: a poll that has settled on its day, or made with its day known. */
+function isEventDoc(document_) {
+  return document_?.kind === 'poll' && Boolean(document_.date || document_.fixed);
+}
+
+/** The kind of a document, games included, which predate the field. */
+function kindOf(document_) {
+  if (document_?.kind) return document_.kind;
+  return document_?.presetId ? 'game' : null;
+}
+
+/** Everything held, of every kind, in one array. */
+function allDocuments({ lists = [], polls = [], games = [], spends = [], boards = [] } = {}) {
+  return [...lists, ...polls, ...games, ...spends, ...boards];
+}
+
+/** What a document hangs from, up to the top: the farthest first. */
+function ancestorsOf(document_, all) {
+  const byId = new Map(all.map((one) => [one.id, one]));
+  const chain = [];
+  const seen = new Set([document_.id]);
+  let above = byId.get(parentId(document_));
+  while (above && !seen.has(above.id)) {
+    chain.unshift(above);
+    seen.add(above.id);
+    above = byId.get(parentId(above));
+  }
+  return chain;
+}
+
+/** The event a document is for, however far up the chain: the nearest one. */
+function eventOf(document_, all) {
+  return [...ancestorsOf(document_, all)].reverse().find(isEventDoc) || null;
+}
+
+/** What hangs directly from a document. */
+function childrenOf(document_, all) {
+  return all.filter((one) => one.id !== document_.id && parentId(one) === document_.id);
+}
+
+/** Everything below a document, however deep, each once. */
+function descendantsOf(document_, all) {
+  const found = [];
+  const seen = new Set([document_.id]);
+  const queue = [document_];
+  while (queue.length) {
+    const current = queue.shift();
+    for (const child of childrenOf(current, all)) {
+      if (seen.has(child.id)) continue;
+      seen.add(child.id);
+      found.push(child);
+      queue.push(child);
+    }
+  }
+  return found;
+}
+
+/**
+ * The whole chain a document belongs to, as a tree: from the top of its chain
+ * — its event, most of the time — down to everything attached below, each
+ * node `{ document, children }`. What is put away is left out, except the
+ * document itself. Children come in the order their links set — what must be
+ * done first, first (see stepOf) — then in the order of the tabs, by title.
+ */
+function chainTree(document_, all) {
+  const top = ancestorsOf(document_, all)[0] || document_;
+  const order = ['poll', 'list', 'game', 'spend', 'board'];
+  const rank = (one) => (isEventDoc(one) ? -1 : order.indexOf(kindOf(one)));
+  const title = (one) => String(one.title || one.name || one.question || '');
+  // Activities in the order they happen, as on the programme; those to
+  // schedule after.
+  const when = (one) => (isEventDoc(one) ? (one.date ? `${one.date} ${one.at || ''}` : '~') : '');
+  const byWhen = (a, b) => (when(a) < when(b) ? -1 : when(a) > when(b) ? 1 : 0);
+  const seen = new Set();
+  const grow = (node) => {
+    seen.add(node.id);
+    const children = childrenOf(node, all)
+      .filter((one) => !seen.has(one.id) && (isLive(one) || one.id === document_.id))
+      .sort((a, b) => stepOf(a, all) - stepOf(b, all) || rank(a) - rank(b) || byWhen(a, b) || title(a).localeCompare(title(b)));
+    return { document: node, children: children.map((child) => (seen.has(child.id) ? null : grow(child))).filter(Boolean) };
+  };
+  return grow(top);
+}
+
+/** How many documents a tree holds, its top included. */
+function treeSize(tree) {
+  return 1 + tree.children.reduce((sum, child) => sum + treeSize(child), 0);
+}
+
+/**
+ * What a document may be attached to: anything live in the same group — or
+ * kept to oneself like it — except itself and what already hangs below it,
+ * which would close the chain on itself.
+ *
+ * An event goes only under another event, and becomes one of its activities:
+ * the rando of the weekend, the karaoke of the raclette. One level only — an
+ * activity holds no activity, and an event with activities of its own stays
+ * on top.
+ */
+function attachTargets(document_, all) {
+  const below = new Set(descendantsOf(document_, all).map((one) => one.id));
+  const group = document_.groupId || null;
+  const fits = (one) => one.id !== document_.id && !below.has(one.id) && isLive(one) && (one.groupId || null) === group;
+  if (isEventDoc(document_)) {
+    if (childrenOf(document_, all).some(isEventDoc)) return [];
+    return all.filter((one) => fits(one) && isEventDoc(one) && !isActivity(one, all));
+  }
+  return all.filter(fits);
+}
+
+/* ------------------------------------------------------------ activities --- */
+
+/** An activity: an event attached to another event. */
+function isActivity(document_, all) {
+  if (!isEventDoc(document_)) return false;
+  const above = all.find((one) => one.id === parentId(document_));
+  return Boolean(above && isEventDoc(above));
+}
+
+/** The event a document belongs to, above its activity if it is in one. */
+function topEventOf(document_, all) {
+  const event = isEventDoc(document_) ? document_ : eventOf(document_, all);
+  if (!event) return null;
+  return isActivity(event, all) ? all.find((one) => one.id === parentId(event)) || event : event;
+}
+
+/**
+ * Whether a document's day has gone: a poll whose day is behind us, or
+ * anything that belongs to an event that is over. What is over is no longer
+ * « going on », even if a line was left unticked or a debt unsettled.
+ */
+function isOver(document_, all, today = dayNow()) {
+  const own = document_?.date ? lastDay(document_) : null;
+  if (own && own < today) return true;
+  const event = topEventOf(document_, all);
+  const ends = event ? lastDay(event) : null;
+  return Boolean(ends && ends < today);
+}
+
+/** The days an event takes up, first to last — two weeks at most. */
+function eventDays(event) {
+  if (!event?.date) return [];
+  const days = [];
+  const [year, month, day] = event.date.split('-').map(Number);
+  const last = lastDay(event);
+  for (let i = 0; i < 14; i += 1) {
+    const date = new Date(year, month - 1, day + i);
+    const text = dayNow(date.getTime());
+    if (text > last) break;
+    days.push(text);
+  }
+  return days;
+}
+
+/**
+ * An event's activities, in the order they happen: by day and hour, those
+ * with no day yet last — « à caler ».
+ */
+function programmeOf(event, all) {
+  // Compared as plain text, not by locale: a collation puts « ~ » before digits.
+  const key = (one) => (one.date ? `${one.date} ${one.at || ''}` : `~${String(one.createdAt || 0).padStart(15, '0')}`);
+  return childrenOf(event, all)
+    .filter((one) => isEventDoc(one) && isLive(one))
+    .sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
+}
+
+/** Whether an activity's day falls outside its event's. */
+function outsideEvent(activity, event) {
+  if (!activity?.date || !event?.date) return false;
+  return activity.date < event.date || activity.date > lastDay(event);
+}
+
+/**
+ * Attach a document to another, or detach it with null. Last write wins, as
+ * for a title: the stamp makes this copy the newer one.
+ */
+function attach(document_, targetId) {
+  const { event: _legacy, ...rest } = document_;
+  return { ...rest, parent: targetId || null, updatedAt: Math.max(Date.now(), (document_.updatedAt || 0) + 1) };
+}
+
+/**
+ * Everything made for an event, however deep in its chain, by kind, newest
+ * first in each. `list` and `spend` are the first of each — the list of what
+ * to bring and the account of what was spent, when there is one.
+ */
+function eventParts(poll, state = {}) {
+  const all = allDocuments(state);
+  const below = descendantsOf(poll, all);
+  const recent = (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0);
+  const of = (kind) => below.filter((one) => kindOf(one) === kind && !isEventDoc(one)).sort(recent);
+  const parts = {
+    lists: of('list'), spends: of('spend'), polls: of('poll'), boards: of('board'), games: of('game'),
+    activities: programmeOf(poll, all),
+  };
+  return { ...parts, list: parts.lists[0] || null, spend: parts.spends[0] || null };
+}
+
+/** How many documents hang off an event, all kinds together. */
+function partsCount(parts) {
+  return parts.lists.length + parts.spends.length + parts.polls.length + parts.boards.length + parts.games.length
+    + (parts.activities || []).length;
+}
+
+/**
+ * The events still to come — or under way: a weekend is not past on its
+ * Saturday — soonest first.
+ */
+function upcomingEvents(polls = [], today = dayNow()) {
+  // An activity shows inside its event, not as one more event beside it.
+  return polls
+    .filter((poll) => isLive(poll) && poll.date && lastDay(poll) >= today && !isActivity(poll, polls))
+    .sort((a, b) => a.date.localeCompare(b.date) || String(a.at || '').localeCompare(String(b.at || '')));
+}
+
+/**
+ * Make a fresh list or account part of a poll's event: tied to the poll, in
+ * the poll's group, and between the people who are coming. `make` is
+ * createList or createSpend.
+ */
+function forEvent(poll, make, name) {
+  const made = make({ name, names: goers(poll) });
+  return {
+    ...made,
+    parent: poll.id,
+    shared: Boolean(poll.shared),
+    groupId: poll.groupId || null,
+    ...(poll.linkOnly ? { linkOnly: true } : {}),
+  };
+}
+
+/* ------------------------------------------------------------- the links --- */
+
+/**
+ * The chain says what belongs to what; it is a tree, one parent each. Links
+ * say the rest, across it: this list goes with that account, this poll must
+ * be closed before the list can be drawn up, that game comes after the
+ * raclette. Any two things of a group may be linked, in one of three ways:
+ *
+ * - `with`: they go together, nothing more;
+ * - `after`: this one waits for the other — it comes after it;
+ * - `before`: this one comes first — the other waits for it.
+ *
+ * One side holds the link, in `links` (`{ id, kind }`), and the other finds it
+ * by that, as a parent finds its children: one document written, never two.
+ * Last write wins, as for a title.
+ */
+const LINK_KINDS = ['with', 'after', 'before'];
+
+/** The links a document holds itself, cleaned up. */
+function linksOf(document_) {
+  const seen = new Set();
+  return (Array.isArray(document_?.links) ? document_.links : [])
+    .filter((one) => one && typeof one.id === 'string' && LINK_KINDS.includes(one.kind))
+    .filter((one) => (seen.has(one.id) ? false : seen.add(one.id)));
+}
+
+/**
+ * Every link that touches a document, whichever side holds it, as it reads
+ * from here: `with`, `waits` (for the other) or `unblocks` (the other).
+ * `holder` is the id of the document that holds it — the one to write to
+ * undo it. What is put away or gone is left out.
+ */
+function relationsOf(document_, all) {
+  const byId = new Map(all.map((one) => [one.id, one]));
+  const found = new Map();
+  const note = (other, kind, holder) => {
+    if (!other || other.id === document_.id || found.has(other.id) || !isLive(other)) return;
+    found.set(other.id, { document: other, kind, holder });
+  };
+  for (const link of linksOf(document_)) {
+    note(byId.get(link.id), { with: 'with', after: 'waits', before: 'unblocks' }[link.kind], document_.id);
+  }
+  for (const other of all) {
+    const link = linksOf(other).find((one) => one.id === document_.id);
+    if (link) note(other, { with: 'with', after: 'unblocks', before: 'waits' }[link.kind], other.id);
+  }
+  const order = { waits: 0, unblocks: 1, with: 2 };
+  return [...found.values()].sort((a, b) => order[a.kind] - order[b.kind]);
+}
+
+/**
+ * Whether what a document is for is done: a poll closed or settled on its
+ * day, an event past, a list all ticked, an account settled, a game over.
+ * A board has nothing to finish: null.
+ */
+function isDone(document_, today = dayNow()) {
+  const kind = kindOf(document_);
+  if (kind === 'poll') return isEventDoc(document_) && document_.date ? lastDay(document_) < today : Boolean(document_.closedAt);
+  if (kind === 'list') {
+    const { total, left } = progress(document_);
+    return total > 0 && left === 0;
+  }
+  if (kind === 'spend') return (document_.lines || []).length > 0 && balances(document_).every((row) => row.balance === 0);
+  if (kind === 'game') return gameStatus(document_).finished;
+  return null;
+}
+
+/** What a document still waits for: the things it comes after, not done yet. */
+function waitingOn(document_, all, today = dayNow()) {
+  return relationsOf(document_, all)
+    .filter((one) => one.kind === 'waits' && isDone(one.document, today) === false)
+    .map((one) => one.document);
+}
+
+/** Whether `from` must come before `to`, however many steps between them. */
+function comesBefore(fromId, toId, all) {
+  const next = new Map();
+  const edge = (a, b) => next.set(a, [...(next.get(a) || []), b]);
+  for (const one of all) {
+    for (const link of linksOf(one)) {
+      if (link.kind === 'after') edge(link.id, one.id);
+      if (link.kind === 'before') edge(one.id, link.id);
+    }
+  }
+  const seen = new Set([fromId]);
+  const queue = [fromId];
+  while (queue.length) {
+    for (const id of next.get(queue.shift()) || []) {
+      if (id === toId) return true;
+      if (!seen.has(id)) {
+        seen.add(id);
+        queue.push(id);
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * What a document may be linked to, in a given way: anything live in its
+ * group, except itself and what it is linked to already. An order never goes
+ * round in a circle: nothing waits, however indirectly, for what waits for it.
+ */
+function linkTargets(document_, all, kind = 'with') {
+  const linked = new Set(relationsOf(document_, all).map((one) => one.document.id));
+  const group = document_.groupId || null;
+  return all.filter((one) => {
+    if (one.id === document_.id || linked.has(one.id) || !isLive(one) || (one.groupId || null) !== group) return false;
+    if (kind === 'after') return !comesBefore(document_.id, one.id, all);
+    if (kind === 'before') return !comesBefore(one.id, document_.id, all);
+    return true;
+  });
+}
+
+/** Link a document to another, in one of the three ways. */
+function linkTo(document_, targetId, kind = 'with') {
+  const links = [...linksOf(document_).filter((one) => one.id !== targetId), { id: targetId, kind }];
+  return { ...document_, links, updatedAt: Math.max(Date.now(), (document_.updatedAt || 0) + 1) };
+}
+
+/** Undo a link this document holds. */
+function unlinkFrom(document_, targetId) {
+  const links = linksOf(document_).filter((one) => one.id !== targetId);
+  return { ...document_, links, updatedAt: Math.max(Date.now(), (document_.updatedAt || 0) + 1) };
+}
+
+/**
+ * How far down its order a document stands: 0 when it waits for nothing,
+ * else one more than the farthest of what it waits for. Siblings in a tree
+ * are drawn in this order, so the chain reads from what comes first.
+ */
+function stepOf(document_, all, seen = new Set()) {
+  if (seen.has(document_.id)) return 0;
+  const before = relationsOf(document_, all).filter((one) => one.kind === 'waits');
+  if (!before.length) return 0;
+  const path = new Set([...seen, document_.id]);
+  return 1 + Math.max(...before.map((one) => stepOf(one.document, all, path)));
+}
+
+  // ---- src/search.js ---------------------------------------------------
+/**
+ * Search: words found in everything this device holds — titles, list lines,
+ * choices, notes and captions, expenses — without minding accents or
+ * capitals: « creme » finds « Crème brûlée ». Every word must be somewhere in
+ * a document for it to be found; the parts that hold one are shown, the words
+ * marked where they are written.
+ *
+ * Pure: the screen is view-search.js.
+ */
+
+
+/** Words beyond these are not looked for: a query is a few words, not a text. */
+const MOST_WORDS = 8;
+
+/** A part's text, folded letter by letter, each letter knowing where it was written. */
+function foldMapped(text) {
+  const source = String(text || '');
+  let folded = '';
+  const starts = [];
+  const ends = [];
+  for (let index = 0; index < source.length;) {
+    const char = String.fromCodePoint(source.codePointAt(index));
+    const plain = char.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+    for (let unit = 0; unit < plain.length; unit += 1) {
+      starts.push(index);
+      ends.push(index + char.length);
+    }
+    folded += plain;
+    index += char.length;
+  }
+  return { folded, starts, ends };
+}
+
+/** The words of a query, folded: « Crème  brûlée » → ['creme', 'brulee']. */
+function searchWords(query) {
+  return [...new Set(foldMapped(query).folded.split(/\s+/).filter(Boolean))].slice(0, MOST_WORDS);
+}
+
+/** Where the words are in a text, as written: [start, end) pairs, in order, never overlapping. */
+function foundAt(text, words) {
+  const { folded, starts, ends } = foldMapped(text);
+  const ranges = [];
+  for (const word of words) {
+    for (let at = folded.indexOf(word); at !== -1; at = folded.indexOf(word, at + 1)) {
+      ranges.push([starts[at], ends[at + word.length - 1]]);
+    }
+  }
+  ranges.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const merged = [];
+  for (const range of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && range[0] <= last[1]) last[1] = Math.max(last[1], range[1]);
+    else merged.push([...range]);
+  }
+  return merged;
+}
+
+/** What can be found in a document besides its title: its lines, choices, notes, expenses. */
+function searchableParts(document_) {
+  const texts = (things, field = 'text') => (Array.isArray(things) ? things : []).map((one) => one?.[field]);
+  switch (kindOf(document_)) {
+    case 'list': return texts(document_.items);
+    case 'poll': return [document_.title && document_.question !== document_.title ? document_.question : '', ...texts(document_.options)];
+    case 'board': return texts(document_.cards);
+    case 'spend': return texts((document_.lines || []).filter((line) => !line.repay));
+    default: return [];
+  }
+}
+
+/**
+ * The documents the words are found in, the best first: those whose title
+ * holds every word, then those holding the most parts that match, then the
+ * most recently changed. Each comes with its title and the parts where a word
+ * is, marked: { document, title, marks, parts: [{ text, marks }], more }.
+ * `titleOf` names a document as the screens do.
+ */
+function searchDocuments(all, query, { titleOf = (one) => one?.name || '', parts = 3 } = {}) {
+  const words = searchWords(query);
+  if (!words.length) return [];
+  const found = [];
+  for (const document_ of all) {
+    const title = String(titleOf(document_) || '');
+    const texts = searchableParts(document_).map((text) => String(text || '').trim()).filter(Boolean);
+    const whole = foldMapped([title, ...texts].join('\n')).folded;
+    if (!words.every((word) => whole.includes(word))) continue;
+    const hits = texts.map((text) => ({ text, marks: foundAt(text, words) })).filter((hit) => hit.marks.length);
+    const titleMarks = foundAt(title, words);
+    const titleHolds = words.every((word) => foldMapped(title).folded.includes(word));
+    found.push({
+      document: document_, title, marks: titleMarks, parts: hits.slice(0, parts), more: Math.max(0, hits.length - parts),
+      rank: [titleHolds ? 1 : 0, hits.length, document_.updatedAt || 0],
+    });
+  }
+  return found
+    .sort((a, b) => b.rank[0] - a.rank[0] || b.rank[1] - a.rank[1] || b.rank[2] - a.rank[2])
+    .map(({ rank, ...hit }) => hit);
+}
+
+  // ---- src/sky.js ------------------------------------------------------
+/**
+ * The sky the backgrounds draw: which season it is, and what the moon looks
+ * like tonight. Pure — a date in, an answer out; view-look.js writes them on
+ * the page, styles.css draws them.
+ *
+ * Both are the northern half of the Earth's, where the app is used: there,
+ * spring starts at the March equinox and the moon is lit from the right while
+ * it waxes.
+ */
+
+/** The seasons, in the year's order. */
+const SKY_SEASONS = ['spring', 'summer', 'autumn', 'winter'];
+
+/**
+ * The season on a day: from the equinoxes and solstices, which fall within a
+ * day of 20 March, 21 June, 22 September and 21 December. index.html says the
+ * same before the first paint (tests/sky.test.js checks the two agree).
+ */
+function skySeason(date = new Date()) {
+  const day = (date.getMonth() + 1) * 100 + date.getDate();
+  if (day >= 1221 || day < 320) return 'winter';
+  if (day < 621) return 'spring';
+  if (day < 922) return 'summer';
+  return 'autumn';
+}
+
+/** A new moon: 6 January 2000, 18:14 UTC. */
+const SKY_NEW_MOON = Date.UTC(2000, 0, 6, 18, 14);
+
+/** One lunation, new moon to new moon, in days, as it is on average. */
+const SKY_LUNATION = 29.530588853;
+
+/**
+ * Where the moon is in its round, from 0 (new) through 0.5 (full) to 1: right
+ * within a day, the length of a lunation wandering a little round its mean.
+ */
+function skyMoonPhase(time = Date.now()) {
+  const days = (time - SKY_NEW_MOON) / 86400000;
+  return (((days / SKY_LUNATION) % 1) + 1) % 1;
+}
+
+/**
+ * The moon in a phase, on a disc of radius 20 in a box of 48: the edge of its
+ * shadow, from its foot to its top — an ellipse bulging towards the light for
+ * a crescent, away from it once past the quarter —, and its lit side, a half
+ * disc that this edge closes.
+ */
+function skyMoonShape(phase) {
+  const cos = Math.cos(phase * 2 * Math.PI);
+  const waxing = phase < 0.5;
+  const crescent = cos > 0;
+  const edge = `A${Math.round(Math.abs(cos) * 2000) / 100} 20 0 0 ${waxing === crescent ? 0 : 1} 24 4`;
+  return { edge, lit: `M24 4A20 20 0 0 ${waxing ? 1 : 0} 24 44${edge}Z` };
+}
+
+const skyMask = (inner) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'>${inner}</svg>`)}")`;
+
+/** The moon as a CSS mask: its lit part whole, the rest faint, the way earthshine shows it. */
+function skyMoonMask(phase) {
+  return skyMask(`<circle cx='24' cy='24' r='20' fill-opacity='.2'/><path d='${skyMoonShape(phase).lit}'/>`);
+}
+
+/** The moon of a star chart: its outline and the edge of its shadow, as lines. */
+function skyMoonLine(phase) {
+  return skyMask(`<g fill='none' stroke='black' stroke-width='1.6'><circle cx='24' cy='24' r='20'/><path d='M24 44${skyMoonShape(phase).edge}'/></g>`);
+}
+
+  // ---- src/flows.js ----------------------------------------------------
+/**
+ * What linked things do for each other. A link says two things belong
+ * together; these are the ways one feeds the other, each a tap:
+ *
+ * - a board's ideas become lines of the list it goes with;
+ * - a board's ideas become the choices of a poll, to vote on them;
+ * - what a closed poll chose becomes a line of the list it goes with;
+ * - lines ticked become an expense of the account they go with — or of any
+ *   account in their chain: a list and an account of the same event need no
+ *   link for that. One line, or the whole receipt of what was bought
+ *   together; the price written in a line says what to expect, and the list
+ *   then says who paid what;
+ * - an event's activities say who an expense is for: the kayak, for those
+ *   who went;
+ * - whoever joins an event comes into its lists and accounts.
+ *
+ * What came from where is written on what it made — `from: { doc, part }` on
+ * a line or an expense, `parts` too for a receipt — so nothing is offered
+ * twice. Nothing happens by itself: two phones doing it at once would do it
+ * twice.
+ *
+ * Pure, like the models.
+ */
+
+
+
+
+
+
+
+
+
+
+/** The things of one kind a document is linked to, whichever way. */
+function related(document_, all, kind) {
+  return relationsOf(document_, all)
+    .map((one) => one.document)
+    .filter((one) => kindOf(one) === kind && !isEventDoc(one));
+}
+
+/** A text on one line, as a line of a list or a choice of a poll holds it. */
+function oneLine(text) {
+  return String(text || '').split('\n').map((part) => part.trim()).filter(Boolean).join(' — ');
+}
+
+/** Whether something in `rows` came from that part of that document. */
+function cameFrom(rows, docId, partId) {
+  return (rows || []).some((row) => row.from?.doc === docId && row.from?.part === partId);
+}
+
+/** Put a mark on the last row a model added: where it came from. */
+function markLast(document_, field, from) {
+  const rows = document_[field];
+  const last = rows[rows.length - 1];
+  return touch(document_, { [field]: [...rows.slice(0, -1), { ...last, from }] });
+}
+
+/* ------------------------------------------------------ ideas → a list --- */
+
+/** A board's ideas, as a list may take them: those with words, and whether taken. */
+function ideasFor(list, board) {
+  return cardsInOrder(board)
+    .map((card) => ({ card, text: oneLine(card.text), added: cameFrom(list.items, board.id, card.id) }))
+    .filter((one) => one.text);
+}
+
+/** Make an idea a line of the list. */
+function addIdea(list, board, card) {
+  const text = oneLine(card.text);
+  if (!text || cameFrom(list.items, board.id, card.id)) return list;
+  const next = addItems(list, text);
+  return next === list ? list : markLast(next, 'items', { doc: board.id, part: card.id });
+}
+
+/* ------------------------------------------------------ ideas → a poll --- */
+
+/**
+ * A poll whose choices are a board's ideas, to vote on them. It comes after
+ * the board, in the same group and the same place in the chain.
+ */
+function pollFromIdeas(board, { question = '', names = [] } = {}) {
+  const texts = [...new Set(cardsInOrder(board).map((card) => oneLine(card.text)).filter(Boolean))];
+  const poll = addOptions(
+    createPoll({ question: question || board.name, names, shared: Boolean(board.shared), groupId: board.groupId || null }),
+    texts.join('\n'),
+  );
+  return {
+    ...poll,
+    parent: parentId(board),
+    links: [{ id: board.id, kind: 'after' }],
+    ...(board.linkOnly ? { linkOnly: true } : {}),
+  };
+}
+
+/* ------------------------------------------------- a poll's choice → a list --- */
+
+/** What a closed poll chose: the choices ahead, ties and all. Nothing while open. */
+function winnersOf(poll) {
+  if (!poll?.closedAt || isEventDoc(poll)) return [];
+  const { leaders } = tally(poll);
+  return poll.options.filter((option) => leaders.includes(option.id));
+}
+
+/** What a closed poll chose, as a list may take it, and whether taken. */
+function winnerOffers(poll, list) {
+  return winnersOf(poll).map((option) => ({ option, added: cameFrom(list.items, poll.id, option.id) }));
+}
+
+/** Make what the poll chose a line of the list. */
+function addWinner(list, poll, option, language = 'fr') {
+  const text = oneLine(choiceText(option, language));
+  if (!text || cameFrom(list.items, poll.id, option.id)) return list;
+  const next = addItems(list, text);
+  return next === list ? list : markLast(next, 'items', { doc: poll.id, part: option.id });
+}
+
+/* -------------------------------------------------- a line → an account --- */
+
+/**
+ * The accounts a list writes its ticked lines into: those it is linked to,
+ * then the accounts of its chain, however far down either hangs — being of
+ * the same event is enough. Of its own event and of those above it only: a
+ * weekend's shopping list is not for the account of one of its activities,
+ * but the activity's list is for the weekend's account.
+ */
+function accountsFor(list, all) {
+  const above = ancestorsOf(list, all);
+  const events = new Set(above.filter(isEventDoc).map((one) => one.id));
+  const top = above[0] || list;
+  const chain = [top, ...descendantsOf(top, all)].filter((one) => {
+    if (one.id === list.id || !isLive(one) || kindOf(one) !== 'spend') return false;
+    const event = eventOf(one, all);
+    return !event || events.has(event.id);
+  });
+  const linked = related(list, all, 'spend');
+  return [...linked, ...chain.filter((one) => !linked.some((other) => other.id === one.id))];
+}
+
+/** The lines of the list an expense came from: one, or a whole receipt's. */
+function partsOf(line) {
+  if (Array.isArray(line.from?.parts) && line.from.parts.length) return line.from.parts;
+  return line.from?.part ? [line.from.part] : [];
+}
+
+/** The lines of a list already written in an account. */
+function spentItems(spend, list) {
+  return new Set((spend.lines || []).filter((line) => line.from?.doc === list.id).flatMap(partsOf));
+}
+
+/**
+ * The lines of a list ticked and not yet written in that account — nor in
+ * any other of `all`, when given: a purchase is paid once. Without that, two
+ * accounts of the same event would both keep offering the cheese, and
+ * whoever opened the second would write it again.
+ */
+function unspentItems(list, spend, all = null) {
+  const spent = spentItems(spend, list);
+  const elsewhere = all ? paidLines(list, all) : new Map();
+  return list.items.filter((item) => item.done && !spent.has(item.id) && !elsewhere.has(item.id));
+}
+
+/**
+ * What waits to go into an account, by whoever the lines were given to: what
+ * one person bought is one receipt, nine times out of ten — and what nobody
+ * had taken, last. Each with whoever had them — `whoId` and `who`, their
+ * name —, or '' for both. Lines written in another account of `all` are not
+ * waiting any more (see unspentItems).
+ */
+function ticketGroups(list, spend, all = null) {
+  const byWho = new Map();
+  for (const item of unspentItems(list, spend, all)) {
+    const who = list.people.some((person) => person.id === item.who) ? item.who : '';
+    byWho.set(who, [...(byWho.get(who) || []), item]);
+  }
+  return [...list.people.map((person) => person.id), '']
+    .filter((who) => byWho.has(who))
+    .map((who) => ({ whoId: who, who: list.people.find((person) => person.id === who)?.name || '', items: byWho.get(who) }));
+}
+
+/** What an expense made of lines is called: the line, or the list and its lines. */
+function ticketText(list, items) {
+  const words = items.map((item) => withoutPrice(oneLine(item.text))).filter(Boolean);
+  if (words.length === 1) return words[0];
+  const text = list.name ? `${String(list.name).trim()} : ${words.join(', ')}` : words.join(', ');
+  return text.length > 120 ? `${text.slice(0, 119).trimEnd()}…` : text;
+}
+
+/** What the lines are expected to cost, from the prices written in them; null if none says. */
+function estimateOf(items) {
+  const prices = items.map((item) => priceIn(item.text)).filter((cents) => cents);
+  return prices.length ? prices.reduce((sum, cents) => sum + cents, 0) : null;
+}
+
+/**
+ * Write lines of a list as one expense — the receipt of what was bought
+ * together, or a single line: the amount given, paid by `byName` — or by
+ * whoever all the lines were for —, found by name and brought into the
+ * account if it does not have them; shared as `share` says (`forWhom`,
+ * `parts`, `fixed`, as addSpend takes them), by everyone otherwise. Lines
+ * already written are left out; none left, nothing is written.
+ */
+function spendFromLines(spend, list, items, amount, { byName = null, text = '', forWhom = [], parts = null, fixed = null } = {}) {
+  const spent = spentItems(spend, list);
+  const fresh = items.filter((item) => item && !spent.has(item.id));
+  if (!fresh.length) return spend;
+  const holders = [...new Set(fresh.map((item) => item.who))];
+  const holder = holders.length === 1 ? list.people.find((person) => person.id === holders[0])?.name : '';
+  const name = String(byName || holder || '').trim();
+  let next = spend;
+  let payer = name ? next.people.find((person) => sameName(person.name) === sameName(name)) : null;
+  if (name && !payer) {
+    next = addPerson(next, name);
+    payer = next.people[next.people.length - 1];
+  }
+  const added = addSpend(next, {
+    text: String(text || '').trim() || ticketText(list, fresh), amount, by: payer?.id || null, forWhom, parts, fixed,
+  });
+  if (added === next) return spend;
+  const ids = fresh.map((item) => item.id);
+  // `part` stays the first line's, so that an app from before receipts still
+  // sees that one as written.
+  return markLast(added, 'lines', ids.length === 1 ? { doc: list.id, part: ids[0] } : { doc: list.id, part: ids[0], parts: ids });
+}
+
+/** One line of a list as an expense: see spendFromLines(). */
+function spendFromLine(spend, list, item, amount, byName = null) {
+  return spendFromLines(spend, list, [item], amount, { byName });
+}
+
+/**
+ * What someone bought and nobody has written down yet: on each list whose
+ * lines go to an account, the lines given to them, ticked, and in no
+ * account. Each with the account they would go to first.
+ */
+function purchasesToWrite(name, lists, all) {
+  const key = sameName(name);
+  if (!key) return [];
+  return lists.flatMap((list) => {
+    if (kindOf(list) !== 'list' || !isLive(list)) return [];
+    const mine = new Set(list.people.filter((person) => sameName(person.name) === key).map((person) => person.id));
+    if (!mine.size) return [];
+    const account = accountsFor(list, all)[0];
+    const items = account ? unspentItems(list, account, all).filter((item) => mine.has(item.who)) : [];
+    return items.length ? [{ list, account, items }] : [];
+  });
+}
+
+/** The lists whose ticked lines go to this account: the other way round from accountsFor(). */
+function listsFeeding(spend, all) {
+  return all.filter((one) => kindOf(one) === 'list' && isLive(one) && accountsFor(one, all).some((other) => other.id === spend.id));
+}
+
+/**
+ * Which lines of a list were paid, and how: line id → the account, the
+ * expense, and how many lines that expense paid for together.
+ */
+function paidLines(list, all) {
+  const paid = new Map();
+  for (const spend of all) {
+    if (kindOf(spend) !== 'spend') continue;
+    for (const line of spend.lines || []) {
+      if (line.from?.doc !== list.id || isRepayment(line)) continue;
+      const parts = partsOf(line);
+      for (const part of parts) paid.set(part, { spend, line, count: parts.length });
+    }
+  }
+  return paid;
+}
+
+/**
+ * Who an expense from this list is for, unless told otherwise: everyone in
+ * the account — but a list of an activity, written in the account of the
+ * event above it, is for those doing the activity. Ids of the account's
+ * people; [] for everyone.
+ */
+function defaultForWhom(list, spend, all) {
+  const event = eventOf(list, all);
+  if (!event || !isActivity(event, all) || eventOf(spend, all)?.id === event.id) return [];
+  const names = goers(event);
+  const ids = spend.people.filter((person) => names.some((name) => sameName(name) === sameName(person.name))).map((person) => person.id);
+  return ids.length < spend.people.length ? ids : [];
+}
+
+/**
+ * The quick « for whom » of an account of an event: each activity of it,
+ * with those of the account doing it — the kayak, for the four who went.
+ * Only those that are some of the account, not all or none.
+ */
+function forWhomGroups(spend, all) {
+  const event = topEventOf(spend, all);
+  if (!event) return [];
+  return programmeOf(event, all)
+    .map((activity) => {
+      const names = goers(activity);
+      return {
+        id: activity.id,
+        name: eventName(activity),
+        ids: spend.people.filter((person) => names.some((name) => sameName(name) === sameName(person.name))).map((person) => person.id),
+      };
+    })
+    .filter((group) => group.ids.length && group.ids.length < spend.people.length);
+}
+
+/* ------------------------------------------------------- what is freed --- */
+
+/**
+ * What has just been unblocked: things not done yet, that waited for others
+ * which are now all done — the last of them lately (`days`). Each with what
+ * freed it, newest first.
+ */
+function unblockedNow(all, { today = dayNow(), now = Date.now(), days = 7 } = {}) {
+  const since = now - days * 864e5;
+  const found = [];
+  for (const document_ of all) {
+    if (!isLive(document_) || isDone(document_, today) === true) continue;
+    const waited = relationsOf(document_, all).filter((one) => one.kind === 'waits').map((one) => one.document);
+    const done = waited.filter((one) => isDone(one, today) !== null);
+    if (!done.length || done.some((one) => !isDone(one, today))) continue;
+    const at = Math.max(...done.map((one) => one.closedAt || one.updatedAt || 0));
+    if (at >= since) found.push({ document: document_, by: done, at });
+  }
+  return found.sort((a, b) => b.at - a.at);
+}
+
+/* ------------------------------------------------ an event's people → all --- */
+
+/** The lists and accounts under an event that miss some of who is coming. */
+function missingGoers(event, all) {
+  const coming = goers(event).map((name) => String(name || '').trim()).filter(Boolean);
+  return descendantsOf(event, all)
+    .filter((one) => isLive(one) && ['list', 'spend'].includes(kindOf(one)))
+    .map((one) => ({
+      document: one,
+      names: coming.filter((name) => !(one.people || []).some((person) => sameName(person.name) === sameName(name))),
+    }))
+    .filter((one) => one.names.length);
+}
+
+/** Bring people into a list or an account. Nobody is taken out. */
+function addGoers(document_, names) {
+  return names.reduce((next, name) => (
+    next.people.some((person) => sameName(person.name) === sameName(name)) ? next : addPerson(next, name)
+  ), document_);
+}
+
+/* ----------------------------------------------------------- activities --- */
+
+/**
+ * A new activity of an event: an event of its own, under it, in its group,
+ * between the people coming to it unless told otherwise. No day means « à
+ * caler ».
+ */
+function activityFor(event, { name = '', date = null, at = null, names = null, from = null } = {}) {
+  const made = createEvent({ name, names: names || goers(event), date, at });
+  return {
+    ...made,
+    parent: event.id,
+    shared: Boolean(event.shared),
+    groupId: event.groupId || null,
+    ...(event.linkOnly ? { linkOnly: true } : {}),
+    ...(from ? { from } : {}),
+  };
+}
+
+/** Whether an event already has an activity made from that part of that document. */
+function madeFrom(event, all, docId, partId) {
+  return programmeOf(event, all).some((one) => one.from?.doc === docId && one.from?.part === partId);
+}
+
+/**
+ * A board's ideas, as activities of the event it is part of: those with
+ * words, and whether one was made already. Nothing when it is part of none.
+ */
+function ideaActivities(board, all) {
+  const event = topEventOf(board, all);
+  if (!event) return { event: null, ideas: [] };
+  return {
+    event,
+    ideas: cardsInOrder(board)
+      .map((card) => ({ card, text: oneLine(card.text), made: madeFrom(event, all, board.id, card.id) }))
+      .filter((one) => one.text),
+  };
+}
+
+/**
+ * What a closed poll chose, as activities of the event it is part of — « Quelle
+ * activité ? » settled on karaoke: organise it. Only a poll marked as choosing
+ * an activity (`forActivity`); never one that asks when.
+ */
+function choiceActivities(poll, all) {
+  const event = topEventOf(poll, all);
+  if (!event || !poll.forActivity || poll.whenFor || isEventDoc(poll)) return { event: null, choices: [] };
+  return {
+    event,
+    choices: winnersOf(poll).map((option) => ({ option, made: madeFrom(event, all, poll.id, option.id) })),
+  };
+}
+
+/**
+ * A poll asking when an activity takes place, whose choices are the days of
+ * its event and nothing else. Settled, it gives the activity its day, not
+ * itself (`whenFor`).
+ */
+function whenPoll(activity, event, { question = '' } = {}) {
+  const poll = addDays(
+    createPoll({
+      question: question || activity.title || activity.question || '',
+      names: (activity.people || []).map((person) => person.name),
+      shared: Boolean(activity.shared),
+      groupId: activity.groupId || null,
+    }),
+    eventDays(event),
+  );
+  return { ...poll, parent: activity.id, whenFor: activity.id, ...(activity.linkOnly ? { linkOnly: true } : {}) };
+}
+
+/** Mark a poll as choosing an activity, or not. */
+function markForActivity(poll, yes = true) {
+  return touch(poll, { forActivity: Boolean(yes) });
+}
+
+/**
+ * The activity a choice becomes: named after it, between those who wanted it
+ * — or everyone coming, when nobody said so.
+ */
+function activityFromChoice(event, poll, option) {
+  const keen = (poll.people || []).filter((person) => voteOf(poll, person.id, option.id) === 'yes').map((person) => person.name);
+  return activityFor(event, {
+    name: oneLine(choiceText(option)), date: optionDay(option), at: option.at || null, names: keen.length ? keen : null, from: { doc: poll.id, part: option.id },
+  });
+}
+
+/**
+ * What closing a poll marked for an activity makes at once: its one clear
+ * winner — one per day, when its choices are pinned to days —, unless the
+ * event already has an activity from it. A tie makes nothing for that day —
+ * the choices stay offered, for someone to pick.
+ */
+function activitiesOnClose(poll, all) {
+  const { event, choices } = choiceActivities(poll, all);
+  if (!event) return [];
+  const byDay = new Map();
+  for (const choice of choices) {
+    const day = optionDay(choice.option) || '';
+    byDay.set(day, [...(byDay.get(day) || []), choice]);
+  }
+  return [...byDay.values()]
+    .filter((group) => group.length === 1 && !group[0].made)
+    .map(([choice]) => activityFromChoice(event, poll, choice.option));
+}
+
+/**
+ * A poll under an event settling on a day: the activity is an element of its
+ * own, named after what was chosen — « Raclette », not « Raclette ou pizza
+ * samedi soir ? » —, and the poll stays a poll, closed, where it was.
+ *
+ * What was chosen is `option` when given, else the poll's one favourite. The
+ * name is `name` when given; else that choice's words, unless the choice is
+ * only a day — it says when, not what; else the question's (« Quand le
+ * karaoké ? » → Karaoké).
+ *
+ * Returns `{ activity, poll }`, or null when the poll is under no event, asks
+ * when an activity is (it dates that activity instead), or already made it.
+ */
+function settleAsActivity(poll, all, { option = null, date, at = null, until = null, name = '' } = {}) {
+  if (!poll || isEvent(poll) || poll.whenFor || !date) return null;
+  const undated = setPollDate(poll, null);
+  const event = topEventOf(undated, all);
+  if (!event || event.id === poll.id) return null;
+  const { leaders } = tally(poll);
+  const chosen = option || (leaders.length === 1 ? poll.options.find((one) => one.id === leaders[0]) || null : null);
+  if (madeFrom(event, all, poll.id, chosen?.id || null)) return null;
+  const words = chosen && !isDayChoice(chosen, poll.createdAt) ? oneLine(chosen.text) : '';
+  const keen = chosen
+    ? (poll.people || []).filter((person) => voteOf(poll, person.id, chosen.id) === 'yes').map((person) => person.name)
+    : [];
+  const made = activityFor(event, {
+    name: oneLine(name) || words || eventName(poll),
+    date,
+    at,
+    names: keen.length ? keen : goers(poll),
+    from: { doc: poll.id, part: chosen?.id || null },
+  });
+  const activity = until ? setPollDate(made, made.date, made.at, until) : made;
+  return { activity, poll: undated.closedAt ? undated : setClosed(undated, true) };
+}
+
+/**
+ * A poll that became an activity itself, before activities were elements of
+ * their own: dated, under an event. Splitting it makes the activity and
+ * leaves the poll a closed poll, as settleAsActivity() does. Null for
+ * anything else.
+ */
+function splitPollActivity(poll, all) {
+  if (!isActivity(poll, all) || isEvent(poll) || poll.whenFor) return null;
+  return settleAsActivity(poll, all, { date: poll.date, at: poll.at || null, until: poll.until || null });
+}
+
+/** The polls of an event still choosing an activity: open, marked. */
+function activityVotes(event, all) {
+  return descendantsOf(event, all).filter(
+    (one) => kindOf(one) === 'poll' && one.forActivity && !one.closedAt && !isEventDoc(one) && isLive(one),
+  );
+}
+
+  // ---- src/ics.js ------------------------------------------------------
+/**
+ * The calendar file: what the app has settled, in the one format every
+ * calendar on earth already reads.
+ *
+ * iCalendar (RFC 5545) is written by hand here, like the .docx and the .pdf,
+ * for the same reason: it is a text format with a handful of rules, and a
+ * dependency would weigh more than the rules do.
+ *
+ * Two kinds of thing end up in it — a poll that has settled on a day, and a
+ * line that is due on one. Both are days rather than instants, so both are
+ * all-day events unless an hour was given; a day carries no time zone, which
+ * is exactly why a family calendar can be read from anywhere without anything
+ * moving.
+ *
+ * Pure: documents in, one string out.
+ */
+
+/** The characters iCalendar reserves inside a value. */
+function icsEscape(text) {
+  return String(text ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r\n|\r|\n/g, '\\n');
+}
+
+/** A day as the app writes one, `AAAA-MM-JJ`, and an hour, `HH:MM`. */
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const HOUR = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * Lines are folded at 75 octets — octets, not characters: an accented letter
+ * weighs two, and a fold counted in characters splits one of them in half and
+ * hands the calendar a broken file. The continuation starts with one space.
+ */
+function foldLine(line) {
+  const bytes = new TextEncoder().encode(String(line));
+  if (bytes.length <= 75) return String(line);
+
+  const parts = [];
+  let start = 0;
+  let limit = 75;
+  while (start < bytes.length) {
+    let end = Math.min(start + limit, bytes.length);
+    // Never cut inside a character: continuation bytes are 10xxxxxx.
+    while (end > start && end < bytes.length && (bytes[end] & 0b1100_0000) === 0b1000_0000) end -= 1;
+    parts.push(new TextDecoder().decode(bytes.slice(start, end)));
+    start = end;
+    // Every line after the first carries a leading space of its own.
+    limit = 74;
+  }
+  return parts.join('\r\n ');
+}
+
+/** `AAAA-MM-JJ` as iCalendar writes a day: `AAAAMMJJ`. */
+function stampDay(day) {
+  return String(day || '').replace(/-/g, '');
+}
+
+/** The day after, which is where an all-day event ends: DTEND is exclusive. */
+function dayAfter(day) {
+  const [year, month, date] = String(day).split('-').map(Number);
+  const next = new Date(Date.UTC(year, month - 1, date + 1));
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${next.getUTCFullYear()}${pad(next.getUTCMonth() + 1)}${pad(next.getUTCDate())}`;
+}
+
+/**
+ * An hour later, as iCalendar writes a local instant: `AAAAMMJJTHHMM00`. Past
+ * eleven at night it is the next day — iCalendar has no hour 24.
+ */
+function hourLater(day, at) {
+  const [year, month, date] = String(day).split('-').map(Number);
+  const [hour, minute] = String(at).split(':').map(Number);
+  const end = new Date(Date.UTC(year, month - 1, date, hour + 1, minute));
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${end.getUTCFullYear()}${pad(end.getUTCMonth() + 1)}${pad(end.getUTCDate())}`
+    + `T${pad(end.getUTCHours())}${pad(end.getUTCMinutes())}00`;
+}
+
+/** An instant, in the UTC form iCalendar uses for DTSTAMP. */
+function stampNow(at) {
+  return new Date(at).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+
+/**
+ * One event.
+ *
+ * With an hour, the time is written without a zone — "floating" local time,
+ * which every calendar reads as the reader's own clock. A dinner at eight is
+ * at eight; carrying a time zone would only be right until someone travels.
+ */
+function vevent({ uid, day, at = null, until = null, summary, description = '', stamp = Date.now() }) {
+  // Whatever the documents hold goes into the file: a day or an hour that is
+  // not one would break the line it lands on, or the whole feed.
+  if (!DAY.test(String(day ?? ''))) return [];
+  if (!HOUR.test(String(at ?? ''))) at = null;
+  if (!DAY.test(String(until ?? ''))) until = null;
+  const lines = [
+    'BEGIN:VEVENT',
+    `UID:${icsEscape(uid)}`,
+    `DTSTAMP:${stampNow(stamp)}`,
+  ];
+
+  // Over several days: all of each day, from the first to the last —
+  // or, with an hour, from that hour on the first day to the end of the last.
+  const last = until && until > day ? until : null;
+  if (last && at) {
+    const [hour, minute] = String(at).split(':');
+    lines.push(`DTSTART:${stampDay(day)}T${hour}${minute}00`);
+    lines.push(`DTEND:${dayAfter(last)}T000000`);
+  } else if (last) {
+    lines.push(`DTSTART;VALUE=DATE:${stampDay(day)}`);
+    lines.push(`DTEND;VALUE=DATE:${dayAfter(last)}`);
+  } else if (at) {
+    const [hour, minute] = String(at).split(':');
+    lines.push(`DTSTART:${stampDay(day)}T${hour}${minute}00`);
+    lines.push(`DTEND:${hourLater(day, at)}`);
+  } else {
+    lines.push(`DTSTART;VALUE=DATE:${stampDay(day)}`);
+    lines.push(`DTEND;VALUE=DATE:${dayAfter(day)}`);
+  }
+
+  lines.push(`SUMMARY:${icsEscape(summary)}`);
+  if (description) lines.push(`DESCRIPTION:${icsEscape(description)}`);
+  lines.push('END:VEVENT');
+  return lines;
+}
+
+/**
+ * A whole calendar. CRLF between lines, and a trailing one: readers are
+ * forgiving about it, and the specification is not.
+ */
+function icsFor(events, { name = 'Together' } = {}) {
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Together//Calendrier//FR',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${icsEscape(name)}`,
+    ...events.flatMap((event) => vevent(event)),
+    'END:VCALENDAR',
+  ];
+  return `${lines.map(foldLine).join('\r\n')}\r\n`;
+}
+
+/**
+ * What the event is called in a calendar.
+ *
+ * The question makes a poor calendar entry: "Quel soir pour la raclette ?" asks
+ * something, and once the day is settled there is nothing left to ask — there
+ * is a raclette, and it is on Friday. A name written by hand always wins; the
+ * rest is only so that, most of the time, there is nothing to write.
+ */
+function eventName(poll) {
+  if (!poll) return '';
+  const own = String(poll.title || '').trim();
+  return own || nameFromQuestion(poll.question || '');
+}
+
+/**
+ * The turns of phrase a date gets asked in, and the thing left over once the
+ * date is known.
+ *
+ * Deliberately timid: each one only fires when what follows is a thing — an
+ * article and then a noun. "Quand est-ce qu'on mange ?" leaves a verb behind,
+ * and "Mange" is a worse entry than the question itself, so it is left alone.
+ * Whatever is not recognised comes back whole, and the field sits in plain
+ * sight to be corrected.
+ */
+const THING = "(?:la|le|les|l['’]|une|un|des|du)\\s+\\S";
+const ASKINGS = [
+  // "Quel soir pour la raclette ?", "Quelle date pour l'anniversaire de Léa ?"
+  /^quel(?:le)?s?\s+\S+\s+pour\s+(.+)$/i,
+  // "Quand fait-on la raclette ?", "Quand est-ce qu'on fait la crémaillère ?"
+  new RegExp(`^quand\\s+(?:est-ce\\s+qu['’]on|fait-on|faisons-nous|on)\\s+(?:\\S+\\s+)?(${THING}.*)$`, 'i'),
+  // "On fait la raclette quand ?"
+  new RegExp(`^on\\s+(?:\\S+\\s+){1,2}?(${THING}.*?)\\s+(?:quand|quel(?:le)?s?\\s+\\S+)$`, 'i'),
+  // "When for the barbecue?", "What day for the picnic?"
+  /^(?:when|what\s+\S+|which\s+\S+)\s+for\s+(.+)$/i,
+];
+
+/**
+ * The articles one does not put at the head of a calendar entry. Longest
+ * first: an alternation takes the first branch that fits, so "le" before
+ * "les" would leave an "s" behind.
+ */
+const ARTICLE = /^(?:de\s+la|de\s+l['’]|des|du|de|les|la|le|l['’]|une|un|the|an|a)\s*/i;
+
+function nameFromQuestion(question) {
+  const asked = String(question || '')
+    .trim()
+    .replace(/\s*[?？]+\s*$/, '')
+    .trim();
+  if (!asked) return '';
+
+  const matched = ASKINGS.map((pattern) => pattern.exec(asked)).find(Boolean);
+  const kept = (matched ? matched[1] : asked).trim().replace(ARTICLE, '').trim();
+
+  // Nothing recognisable under the turn of phrase: the whole question beats an
+  // empty name.
+  if (!kept) return asked;
+  return kept.charAt(0).toUpperCase() + kept.slice(1);
+}
+
+/**
+ * What a poll has settled, as an event — or nothing, while it has settled
+ * nothing. A poll with no day is a question, not an appointment.
+ */
+function pollEvent(poll, { stamp } = {}) {
+  if (!poll || !poll.date) return null;
+  return {
+    uid: `${poll.id}@together`,
+    // Not written into the file — carried so that whatever shows the agenda can
+    // send someone back to the thing the day came from.
+    kind: 'poll',
+    docId: poll.id,
+    day: poll.date,
+    at: poll.at || null,
+    until: poll.until && poll.until > poll.date ? poll.until : null,
+    summary: eventName(poll) || 'Sondage',
+    description: poll.people?.length ? poll.people.map((person) => person.name).join(', ') : '',
+    stamp: stamp ?? poll.updatedAt ?? Date.now(),
+  };
+}
+
+/** Every line of a list that is due on a day, each on its day. */
+function listEvents(list, { stamp } = {}) {
+  if (!list || !Array.isArray(list.items)) return [];
+  return list.items
+    .filter((item) => item.due && !item.done)
+    .map((item) => ({
+      uid: `${item.id}@together`,
+      kind: 'list',
+      docId: list.id,
+      day: item.due,
+      at: null,
+      summary: String(item.text ?? ''),
+      description: [list.name, list.people?.find((person) => person.id === item.who)?.name]
+        .filter(Boolean)
+        .join(' · '),
+      stamp: stamp ?? item.updatedAt ?? Date.now(),
+    }));
+}
+
+/**
+ * Everything one group has put on a day: its settled polls, then the lines
+ * still to do. Archived documents and models are left out — the calendar is
+ * for what is still coming, not for what has been put away.
+ */
+function agendaFor({ lists = [], polls = [] } = {}, groupId = '') {
+  const mine = (document_) => (groupId ? document_.groupId === groupId : true);
+  const live = (document_) => !document_.archivedAt && !document_.template;
+
+  const events = [
+    ...polls.filter((poll) => mine(poll) && live(poll)).map((poll) => pollEvent(poll)).filter(Boolean),
+    ...lists.filter((list) => mine(list) && live(list)).flatMap((list) => listEvents(list)),
+  ].filter((event) => DAY.test(String(event.day ?? '')));
+  return events.sort((a, b) => a.day.localeCompare(b.day) || a.summary.localeCompare(b.summary));
+}
+
+  // ---- src/recap.js ----------------------------------------------------
+/**
+ * A game as a few lines of text — to paste into the conversation where the
+ * people who were not there are waiting for the result.
+ *
+ * `t` is the app's translate function, passed in so this stays testable
+ * without a browser or a language loaded.
+ */
+
+
+function recapText(game, t, { title, withRounds = false } = {}) {
+  const status = gameStatus(game);
+  const rows = status.standings;
+  const lines = [];
+
+  lines.push(`${title} — ${t('home.rounds', { count: game.rounds.length })}`);
+
+  if (status.finished && status.winners.length) {
+    lines.push(
+      t(status.winners.length > 1 ? 'home.winners' : 'home.winner', {
+        name: status.winners.map((row) => row.name).join(', '),
+      }),
+    );
+  }
+
+  lines.push('');
+  rows.forEach((row) => {
+    lines.push(`${row.rank}. ${row.name} — ${row.total}`);
+  });
+
+  if (withRounds && game.rounds.length) {
+    lines.push('');
+    lines.push(t('game.perRound'));
+    game.rounds.forEach((round, index) => {
+      const scores = game.players.map((player) => `${player.name} ${roundScore(round, player.id)}`);
+      lines.push(`${index + 1}. ${scores.join(' · ')}`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
+  // ---- src/export-docx.js ----------------------------------------------
+/**
+ * A Word document, written by hand.
+ *
+ * A .docx is a ZIP holding a few XML parts. The app carries no dependencies,
+ * so both the ZIP and the XML are produced here — the ZIP with stored (that
+ * is, uncompressed) entries, which a reader accepts just as well and which
+ * needs no deflate implementation.
+ *
+ * Everything is bytes in, bytes out: no DOM, so it can be checked outside a
+ * browser by opening the result with a real Word reader.
+ */
+
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n += 1) {
+    let c = n;
+    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(bytes) {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i += 1) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+const encoder = new TextEncoder();
+
+/** Build a ZIP from { name, text } entries, stored without compression. */
+function zip(entries) {
+  const files = entries.map(({ name, text }) => ({
+    name: encoder.encode(name),
+    data: encoder.encode(text),
+  }));
+
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+
+  const u16 = (n) => [n & 0xff, (n >>> 8) & 0xff];
+  const u32 = (n) => [n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff];
+
+  for (const file of files) {
+    const sum = crc32(file.data);
+    const header = [
+      ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0),
+      ...u16(0), ...u16(0x21), // a fixed date: the document's content is what matters
+      ...u32(sum), ...u32(file.data.length), ...u32(file.data.length),
+      ...u16(file.name.length), ...u16(0),
+    ];
+    chunks.push(Uint8Array.from(header), file.name, file.data);
+
+    central.push([
+      ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0),
+      ...u16(0), ...u16(0x21),
+      ...u32(sum), ...u32(file.data.length), ...u32(file.data.length),
+      ...u16(file.name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(0), ...u32(offset),
+    ]);
+    offset += header.length + file.name.length + file.data.length;
+  }
+
+  const directory = [];
+  let directorySize = 0;
+  central.forEach((entry, index) => {
+    directory.push(Uint8Array.from(entry), files[index].name);
+    directorySize += entry.length + files[index].name.length;
+  });
+
+  const end = [
+    ...u32(0x06054b50), ...u16(0), ...u16(0),
+    ...u16(files.length), ...u16(files.length),
+    ...u32(directorySize), ...u32(offset), ...u16(0),
+  ];
+
+  const parts = [...chunks, ...directory, Uint8Array.from(end)];
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const part of parts) {
+    out.set(part, at);
+    at += part.length;
+  }
+  return out;
+}
+
+function escapeXml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[char]),
+  );
+}
+
+const paragraph = (text, { bold = false, size = 22, spacing = 120 } = {}) =>
+  `<w:p><w:pPr><w:spacing w:after="${spacing}"/></w:pPr><w:r><w:rPr>${bold ? '<w:b/>' : ''}<w:sz w:val="${size}"/></w:rPr><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r></w:p>`;
+
+const cell = (text, bold) =>
+  `<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>${paragraph(text, { bold, spacing: 0 })}</w:tc>`;
+
+
+const row = (cells, bold) => `<w:tr>${cells.map((value) => cell(value, bold)).join('')}</w:tr>`;
+
+/** A4 minus the margins declared below, in twentieths of a point. */
+const USABLE_WIDTH = 9638;
+
+const table = (header, rows) => {
+  // w:tblGrid is required: without it a reader rejects the table outright.
+  const width = Math.floor(USABLE_WIDTH / Math.max(header.length, 1));
+  const grid = `<w:tblGrid>${header.map(() => `<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>`;
+
+  return `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="${USABLE_WIDTH}" w:type="dxa"/>` +
+    `<w:tblBorders>${['top', 'left', 'bottom', 'right', 'insideH', 'insideV']
+      .map((side) => `<w:${side} w:val="single" w:sz="4" w:color="BFBFBF"/>`)
+      .join('')}</w:tblBorders></w:tblPr>${grid}` +
+    row(header, true) +
+    rows.map((cells) => row(cells, false)).join('') +
+    `</w:tbl>`;
+};
+
+/**
+ * `report` is what the app knows about the game, already translated:
+ * { title, subtitle, winner, standings: [[rank, name, total]],
+ *   roundsHeader: [...], rounds: [[...]] }
+ */
+function buildDocx(report) {
+  const body = [
+    paragraph(report.title, { bold: true, size: 36 }),
+    report.subtitle ? paragraph(report.subtitle, { size: 20 }) : '',
+    report.winner ? paragraph(report.winner, { bold: true, size: 24 }) : '',
+    paragraph(report.standingsTitle, { bold: true, size: 26 }),
+    table(report.standingsHeader, report.standings),
+    paragraph('', { spacing: 200 }),
+    report.rounds.length ? paragraph(report.roundsTitle, { bold: true, size: 26 }) : '',
+    report.rounds.length ? table(report.roundsHeader, report.rounds) : '',
+    paragraph('', { spacing: 0 }),
+  ].join('');
+
+  return zip([
+    {
+      name: '[Content_Types].xml',
+      text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`,
+    },
+    {
+      name: '_rels/.rels',
+      text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`,
+    },
+    {
+      name: 'word/document.xml',
+      text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr></w:body></w:document>`,
+    },
+  ]);
+}
+
+  // ---- src/export-pdf.js -----------------------------------------------
+/**
+ * A PDF, written by hand.
+ *
+ * A PDF is a small set of numbered objects followed by a table saying where
+ * each one starts. Text is drawn at coordinates with one of the fonts every
+ * reader carries, so nothing has to be embedded and the file stays a few
+ * kilobytes.
+ *
+ * Only what a results sheet needs is implemented: a title, lines of text, and
+ * simple rules. Pages break when the bottom is reached.
+ */
+
+const PAGE = { width: 595, height: 842, margin: 56 }; // A4, in points
+
+/**
+ * The file is written byte per character, not as UTF-8: the standard fonts
+ * declare WinAnsi, so an "é" encoded as two UTF-8 bytes would come back out
+ * as "Ã©". Everything drawn goes through toLatin1 first, so every character
+ * here fits in one byte — which also makes a string's length its byte length,
+ * and that is what the cross-reference table needs.
+ */
+function latin1Bytes(text) {
+  const out = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i += 1) out[i] = text.charCodeAt(i) & 0xff;
+  return out;
+}
+
+/** Escape what a PDF string literal cannot hold raw. */
+function pdfString(value) {
+  return String(value ?? '').replace(/[\\()]/g, (char) => `\\${char}`);
+}
+
+/**
+ * PDF's standard fonts are Latin-1: anything outside it would be mangled, so
+ * the few characters a score sheet is likely to meet are folded to their
+ * nearest plain form rather than shown as rubbish.
+ */
+function toLatin1(value) {
+  const replacements = { '—': '-', '–': '-', '’': "'", '‘': "'", '“': '"', '”': '"', '…': '...', '·': '-', '×': 'x', '♥': 'C', '♦': 'K', '♠': 'P', '♣': 'T' };
+  return String(value ?? '')
+    .replace(/[—–’‘“”…·×♥♦♠♣]/g, (char) => replacements[char])
+    .replace(/[^\x00-\xFF]/g, '?');
+}
+
+function buildPdf(report) {
+  const lines = [];
+  let y = PAGE.height - PAGE.margin;
+  const pages = [];
+  let current = [];
+
+  const breakPage = () => {
+    pages.push(current.join('\n'));
+    current = [];
+    y = PAGE.height - PAGE.margin;
+  };
+
+  const write = (text, { size = 11, bold = false, gap = 16 } = {}) => {
+    if (y - gap < PAGE.margin) breakPage();
+    current.push(
+      `BT /${bold ? 'F2' : 'F1'} ${size} Tf 1 0 0 1 ${PAGE.margin} ${y} Tm (${pdfString(toLatin1(text))}) Tj ET`,
+    );
+    y -= gap;
+  };
+
+  const rule = () => {
+    if (y - 8 < PAGE.margin) breakPage();
+    current.push(`0.75 w 0.75 0.75 0.75 RG ${PAGE.margin} ${y + 4} m ${PAGE.width - PAGE.margin} ${y + 4} l S`);
+    y -= 8;
+  };
+
+  /** One row of a table: each column at its own x. */
+  const columns = (cells, widths, { bold = false, size = 11, gap = 15 } = {}) => {
+    if (y - gap < PAGE.margin) breakPage();
+    let x = PAGE.margin;
+    cells.forEach((cell, index) => {
+      current.push(
+        `BT /${bold ? 'F2' : 'F1'} ${size} Tf 1 0 0 1 ${x} ${y} Tm (${pdfString(toLatin1(cell))}) Tj ET`,
+      );
+      x += widths[index];
+    });
+    y -= gap;
+  };
+
+  write(report.title, { size: 20, bold: true, gap: 26 });
+  if (report.subtitle) write(report.subtitle, { size: 10, gap: 20 });
+  if (report.winner) write(report.winner, { size: 13, bold: true, gap: 24 });
+
+  write(report.standingsTitle, { size: 13, bold: true, gap: 18 });
+  rule();
+  const usable = PAGE.width - 2 * PAGE.margin;
+  const standingWidths = [50, usable - 150, 100];
+  columns(report.standingsHeader, standingWidths, { bold: true, size: 10 });
+  rule();
+  report.standings.forEach((cells) => columns(cells, standingWidths));
+
+  if (report.rounds.length) {
+    y -= 14;
+    write(report.roundsTitle, { size: 13, bold: true, gap: 18 });
+    rule();
+    const width = usable / report.roundsHeader.length;
+    const roundWidths = report.roundsHeader.map(() => width);
+    columns(report.roundsHeader, roundWidths, { bold: true, size: 10 });
+    rule();
+    report.rounds.forEach((cells) => columns(cells, roundWidths, { size: 10 }));
+  }
+
+  pages.push(current.join('\n'));
+
+  // --- assemble the objects
+  const objects = [];
+  const pageCount = pages.length;
+  const pageIds = pages.map((_, index) => 4 + index * 2);
+
+  objects[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+  objects[2] = `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(' ')}] /Count ${pageCount} >>`;
+  objects[3] = '<< /Font << /F1 100 0 R /F2 101 0 R >> >>';
+  pages.forEach((content, index) => {
+    const id = pageIds[index];
+    objects[id] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE.width} ${PAGE.height}] /Resources 3 0 R /Contents ${id + 1} 0 R >>`;
+    objects[id + 1] = `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
+  });
+  objects[100] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+  objects[101] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
+
+  const used = objects.map((value, index) => (value === undefined ? null : index)).filter((index) => index !== null);
+  const maxId = Math.max(...used);
+
+  let body = '%PDF-1.4\n';
+  const offsets = {};
+  for (const id of used) {
+    offsets[id] = body.length;
+    body += `${id} 0 obj\n${objects[id]}\nendobj\n`;
+  }
+
+  const xrefAt = body.length;
+  let xref = `xref\n0 ${maxId + 1}\n0000000000 65535 f \n`;
+  for (let id = 1; id <= maxId; id += 1) {
+    xref += offsets[id] === undefined
+      ? '0000000000 65535 f \n'
+      : `${String(offsets[id]).padStart(10, '0')} 00000 n \n`;
+  }
+
+  const trailer = `trailer\n<< /Size ${maxId + 1} /Root 1 0 R >>\nstartxref\n${xrefAt}\n%%EOF\n`;
+  return latin1Bytes(body + xref + trailer);
+}
+
+  // ---- src/storage.js --------------------------------------------------
+/**
+ * Persistence. localStorage can be absent, full, or throw (private windows,
+ * blocked site data), so every access is guarded and the app keeps working
+ * from memory when it fails.
+ */
+
+
+
+
+
+
+// The keys keep the old name on purpose: renaming them would lose every game
+// and every list already on people's phones, to no one's benefit.
+const GAMES_KEY = 'marque-points:games:v1';
+const LISTS_KEY = 'marque-points:lists:v1';
+const POLLS_KEY = 'marque-points:polls:v1';
+const SPENDS_KEY = 'marque-points:spends:v1';
+const BOARDS_KEY = 'marque-points:boards:v1';
+const PREFS_KEY = 'marque-points:prefs:v1';
+
+function read(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+function write(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function loadGames() {
+  const value = read(GAMES_KEY, []);
+  return Array.isArray(value) ? value.filter(isValidGame) : [];
+}
+
+function saveGames(games) {
+  return write(GAMES_KEY, games);
+}
+
+function loadLists() {
+  const value = read(LISTS_KEY, []);
+  return Array.isArray(value) ? value.filter(isValidList) : [];
+}
+
+function saveLists(lists) {
+  return write(LISTS_KEY, lists);
+}
+
+function loadPolls() {
+  const value = read(POLLS_KEY, []);
+  return Array.isArray(value) ? value.filter(isValidPoll) : [];
+}
+
+function savePolls(polls) {
+  return write(POLLS_KEY, polls);
+}
+
+function loadSpends() {
+  const value = read(SPENDS_KEY, []);
+  return Array.isArray(value) ? value.filter(isValidSpend) : [];
+}
+
+function saveSpends(spends) {
+  return write(SPENDS_KEY, spends);
+}
+
+function loadBoards() {
+  const value = read(BOARDS_KEY, []);
+  return Array.isArray(value) ? value.filter(isValidBoard) : [];
+}
+
+function saveBoards(boards) {
+  return write(BOARDS_KEY, boards);
+}
+
+function loadPrefs() {
+  const value = read(PREFS_KEY, {});
+  return value && typeof value === 'object' ? value : {};
+}
+
+/**
+ * Preferences are written key by key over what is already stored, not as a
+ * wholesale replacement.
+ *
+ * Each tab holds its own copy in memory, so a tab that has been open a while
+ * and then writes one setting would otherwise throw away everything the others
+ * have written since — the groups with their keys, and a ticket handed over
+ * once and stored nowhere else. Merging makes the last writer win over the
+ * setting it touched, and nothing else.
+ */
+function savePrefs(prefs) {
+  const stored = loadPrefs();
+  return write(PREFS_KEY, { ...stored, ...prefs });
+}
+
+/**
+ * The signed-in account's session, apart from the preferences: nothing that
+ * copies or exports those should ever carry it.
+ */
+const ACCOUNT_KEY = 'marque-points:account:v1';
+
+function loadAccount() {
+  const value = read(ACCOUNT_KEY, null);
+  return value && typeof value === 'object' && value.refresh ? value : null;
+}
+
+function saveAccount(session) {
+  if (session) return write(ACCOUNT_KEY, session);
+  try {
+    localStorage.removeItem(ACCOUNT_KEY);
+  } catch {
+    // Nothing to forget where nothing could be kept.
+  }
+  return true;
+}
+
+  // ---- src/config.js ---------------------------------------------------
+/**
+ * Where the shared games live, for a copy of the app that has one.
+ *
+ * Fill these in to turn on sharing (see docs/DEPLOIEMENT.md). Left empty, the
+ * app works exactly as before: games stay in the browser, and nothing is sent
+ * anywhere. The key below is a *public* key — it is meant to be readable by
+ * everyone who opens the page, and the database is protected by exposing a few
+ * functions rather than the table itself — and, for the links that carry
+ * several games at once, by a sharing key this file never holds (see
+ * docs/DEPLOIEMENT.md, étape 2 bis).
+ */
+const REMOTE = {
+  url: 'https://ikndckzjhhdlnwtvfkvx.supabase.co/rest/v1/',
+  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrbmRja3pqaGhkbG53dHZma3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4NDMzMDEsImV4cCI6MjEwNTQxOTMwMX0.k1LVHl9LrJAVkN99YnIVDQ4493ol0fSZr12qrFglEiM',
+};
+
+/**
+ * Who to write to about one's data — an e-mail address, shown on the privacy
+ * page (#/confidentialite). Empty, the page sends people to their group's
+ * organiser instead.
+ */
+const CONTACT = '';
+
+/**
+ * A copy of the app served from somewhere else — a file on a phone, say — can
+ * be pointed at the same database without being rebuilt.
+ */
+function remoteConfig() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('marque-points:remote:v1') || 'null');
+    if (stored && stored.url && stored.key) return stored;
+  } catch {
+    // No storage, or nothing stored: fall through to the built-in values.
+  }
+  return REMOTE.url && REMOTE.key ? REMOTE : null;
+}
+
+  // ---- src/lock.js -----------------------------------------------------
+/**
+ * The six-digit code that guards a lot of games, and the sealing of what the
+ * lot holds with it.
+ *
+ * Two different secrets protect a lot, because they answer two different
+ * questions:
+ *
+ *   * the sharing key, held only by whoever runs the database, answers "may
+ *     this person create a lot at all". It never leaves the device it was
+ *     typed into, and the database refuses to write a lot without it.
+ *   * this code, drawn afresh for every share, answers "may this person open
+ *     that lot". It is what the receiver types in.
+ *
+ * Six digits is a million possibilities — far too few to resist a machine
+ * trying them one after another, which is why the database counts the
+ * attempts and stops at ten. The sealing below adds the other half: the game
+ * identifiers are not in the stored lot at all, only their encrypted form, so
+ * a row read by some other means still says nothing about which games it
+ * designates.
+ *
+ * Sealing needs Web Crypto, which browsers only offer in a secure context
+ * (https, or localhost). Where it is missing the lot is stored as a plain list
+ * instead — still behind the key and the code — and the app says so rather
+ * than pretending.
+ */
+
+const DIGITS = 6;
+const ITERATIONS = 310000; // a few tenths of a second on a phone
+const VERSION = 1;
+
+/** Can this copy of the app seal a lot? */
+function canSeal() {
+  return Boolean(globalThis.crypto?.subtle);
+}
+
+/**
+ * A six-digit code, uniform over the million. Values above the last whole
+ * multiple of a million are thrown away: taking the remainder of everything
+ * would make the low codes very slightly likelier.
+ */
+function newCode() {
+  const range = 10 ** DIGITS;
+  const limit = Math.floor(0x100000000 / range) * range;
+  const buffer = new Uint32Array(1);
+  let drawn = limit;
+  while (drawn >= limit) {
+    globalThis.crypto.getRandomValues(buffer);
+    [drawn] = buffer;
+  }
+  return String(drawn % range).padStart(DIGITS, '0');
+}
+
+/** Is this a code, whatever the person typed around it? */
+function isCode(value) {
+  return /^[0-9]{6}$/.test(String(value ?? '').trim());
+}
+
+/** The digits inside whatever was typed — spaces and dashes are forgiven. */
+function readCode(value) {
+  const digits = String(value ?? '').replace(/[^0-9]/g, '');
+  return digits.length === DIGITS ? digits : null;
+}
+
+/**
+ * What can be pulled out of an invitation pasted whole.
+ *
+ * The message that travels carries the group's name, the six digits and the
+ * link. Asking someone to select exactly "Mifa" and exactly "123456" out of it,
+ * on a phone, with two taps of a magnifier, is asking for the paste to fail —
+ * so anything pasted into either field is read for both.
+ *
+ * Returns { name, code }, either of which may be null.
+ */
+function readInvite(text) {
+  const source = String(text ?? '');
+
+  // The link is the most reliable of the three, because the app wrote it.
+  const link = /#\/join\/(\d{6})(?:\/([^\s/?#]+))?/.exec(source);
+
+  const labelled = /(?:^|\n)\s*(?:code)\s*[:：]\s*(\d{6})\b/i.exec(source);
+  const bare = /^\s*(\d{6})\s*$/.exec(source);
+  const code = link?.[1] || labelled?.[1] || bare?.[1] || null;
+
+  let name = null;
+  if (link?.[2]) {
+    try {
+      name = decodeURIComponent(link[2]).trim() || null;
+    } catch {
+      name = link[2].trim() || null;
+    }
+  }
+  if (!name) {
+    const written = /(?:^|\n)\s*(?:nom|name|groupe|group)\s*[:：]\s*(.+)/i.exec(source);
+    name = written ? written[1].trim() || null : null;
+  }
+
+  return { name, code };
+}
+
+const toBase64 = (bytes) => btoa(String.fromCharCode(...bytes));
+const fromBase64 = (text) => Uint8Array.from(atob(String(text)), (char) => char.charCodeAt(0));
+
+async function keyFrom(code, salt) {
+  const material = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(code),
+    'PBKDF2',
+    false,
+    ['deriveKey'],
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: ITERATIONS },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+}
+
+/** Seal any small value with a code. The salt and the nonce travel with it. */
+async function seal(value, code) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await keyFrom(code, salt);
+  const sealed = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    new TextEncoder().encode(JSON.stringify(value)),
+  );
+  return {
+    v: VERSION,
+    salt: toBase64(salt),
+    iv: toBase64(iv),
+    data: toBase64(new Uint8Array(sealed)),
+  };
+}
+
+/**
+ * What was sealed, or null — a wrong code and a tampered-with document are
+ * both simply "null", because AES-GCM refuses to decrypt either.
+ */
+async function unseal(sealed, code) {
+  if (!sealed || sealed.v !== VERSION || !canSeal()) return null;
+  try {
+    const key = await keyFrom(code, fromBase64(sealed.salt));
+    const plain = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromBase64(sealed.iv) },
+      key,
+      fromBase64(sealed.data),
+    );
+    return JSON.parse(new TextDecoder().decode(plain));
+  } catch {
+    return null;
+  }
+}
+
+  // ---- src/remote.js ---------------------------------------------------
+/**
+ * The shared games database.
+ *
+ * A copy of the app that carries a configuration (src/config.js) keeps every
+ * game in a small hosted database as well as in the browser, so a link to a
+ * game opens that same game for someone else.
+ *
+ * It speaks plain HTTP to a handful of Postgres functions — no client library,
+ * so the app keeps its "no dependencies" property. The table itself is never
+ * exposed: the only things reachable are `read one game by id` and `write one
+ * game by id`, which means a game can only be found by someone who has its
+ * link.
+ *
+ * Sharing is held by groups. A group — the family, the Tuesday card players —
+ * is a circle of people; whoever is in it can start sharing there and sees
+ * everything shared in it. Contributing to something already shared needs
+ * nothing at all.
+ *
+ * A device does not let itself in. It knocks — with the group's name, six
+ * digits from an invitation, and the first name of whoever is asking — and
+ * someone in the group accepts or refuses. Accepted, the ticket it was given
+ * becomes its own key; refused, it never opened anything. Each device has its
+ * own key, so one can be cut off without disturbing the others, and only the
+ * keys marked as admitting can let anyone in.
+ *
+ * A lot — a link that hands over several things at once — goes through its own
+ * functions, because it is protected differently: writing one takes a group's
+ * key, and reading one takes the six-digit code drawn for that share, which
+ * the database allows ten attempts at.
+ *
+ * Every call is defensive. The network fails, the configuration may be wrong,
+ * the service may be down: none of that may stop someone keeping score, so a
+ * failure leaves the local copy in place and is reported, never thrown at the
+ * player.
+ */
+
+const PATH = '/rest/v1/rpc/';
+const TIMEOUT_MS = 8000;
+
+/** Make a client, or null when this copy of the app has no database. */
+/**
+ * The project's address, whichever of its forms was copied.
+ *
+ * The settings page shows both the project URL and the REST endpoint, which
+ * is that URL plus `/rest/v1` — and pasting the second one would otherwise
+ * build `/rest/v1/rest/v1/rpc/...` and fail on every call, with nothing to
+ * suggest why. Both forms are accepted, with or without a trailing slash.
+ */
+function normaliseUrl(url) {
+  return String(url || '')
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/\/rest\/v1$/, '')
+    .replace(/\/+$/, '');
+}
+
+function createRemote(config, fetchImpl = globalThis.fetch) {
+  if (!config?.url || !config?.key || typeof fetchImpl !== 'function') return null;
+  const base = normaliseUrl(config.url);
+
+  /**
+   * A call that carries the organiser's secret when there is one — and, on a
+   * database not yet updated, which has never heard of that parameter and
+   * answers that no such function exists, the same call without it. The poll
+   * is then shared with no organiser rather than not shared at all; running
+   * supabase/mise-a-jour.sql is what gives it one.
+   */
+  async function withOwner(fn, body, owner) {
+    if (!owner) return call(fn, body);
+    try {
+      return await call(fn, { ...body, p_owner: owner });
+    } catch (error) {
+      if (!unknownParameter(error)) throw error;
+      return call(fn, body);
+    }
+  }
+
+  /**
+   * `token` is a signed-in account's: the functions of accounts read who is
+   * calling from it. Every other call goes with the page's public key.
+   */
+  async function call(fn, body, token = null, path = `${PATH}${fn}`) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const response = await fetchImpl(`${base}${path}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json',
+          apikey: config.key,
+          authorization: `Bearer ${token || config.key}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        const error = new Error(`${fn} failed: ${response.status} ${detail.slice(0, 200)}`);
+        error.status = response.status;
+        error.detail = detail;
+        throw error;
+      }
+      // A function returning void answers 204 with an empty body.
+      if (response.status === 204) return null;
+      const text = await response.text();
+      return text ? JSON.parse(text) : null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  return {
+    /**
+     * The group a key opens — its id and its name — or null when the key
+     * opens nothing. Showing the name is what turns "key accepted" into
+     * "you are in Mifa".
+     */
+    async groupOf(key) {
+      const group = await call('marque_points_group_of', { p_key: key });
+      if (!group || typeof group !== 'object' || !group.id) return null;
+      return { ...group, admits: Boolean(group.admits) };
+    },
+
+    /**
+     * Invite: the database draws six digits, good for as long and for as many
+     * people as asked. Being in the group is what allows it.
+     * Returns { code, name, minutes, uses }.
+     */
+    async invite(key, minutes = 30, uses = 1) {
+      const answer = await call('marque_points_invite', {
+        p_key: key,
+        p_minutes: minutes,
+        p_uses: uses,
+      });
+      return answer && typeof answer.code === 'string' ? answer : null;
+    },
+
+    /**
+     * Knock: the group's name, the six digits, and the first name of whoever is
+     * asking. Nothing is opened by this — what comes back is a ticket this
+     * device keeps, and which becomes its key the day someone in the group
+     * accepts. Until then it sees nothing at all.
+     *
+     * Returns { status: 'waiting', ticket, id, name } | { status: 'unknown' }
+     *       | { status: 'busy' } | { status: 'who', people } — the group fixes
+     *       its first names and `who` is none of them: nothing was spent, the
+     *       names are there to choose from.
+     */
+    async ask(name, code, who = '', label = '') {
+      const answer = await call('marque_points_ask', {
+        p_name: name,
+        p_code: code,
+        p_who: who,
+        p_label: label,
+      });
+      const status = answer?.status;
+      if (status === 'waiting' && typeof answer.ticket === 'string') {
+        return { status, ticket: answer.ticket, id: answer.id, name: answer.name };
+      }
+      if (status === 'who' && Array.isArray(answer.people)) {
+        return { status, people: answer.people.filter((one) => typeof one === 'string' && one.trim()) };
+      }
+      return { status: status === 'busy' ? 'busy' : 'unknown' };
+    },
+
+    /**
+     * "Well? Am I in?" — asked with the ticket. Accepted, that ticket is this
+     * device's key from then on, so there is nothing to receive.
+     *
+     * Returns { status: 'ok', id, name } | { status: 'waiting', name }
+     *       | { status: 'refused' } | { status: 'unknown' }
+     */
+    async claim(ticket) {
+      const answer = await call('marque_points_claim', { p_ticket: ticket });
+      const status = answer?.status;
+      if (status === 'ok' && answer.id) return { status, id: answer.id, name: answer.name || '' };
+      if (status === 'waiting') return { status, name: answer.name || '' };
+      if (status === 'refused') return { status };
+      return { status: 'unknown' };
+    },
+
+    /**
+     * Who is knocking: the requests still waiting, for a key that admits. An
+     * ordinary key is refused by the database, which is how a device knows it
+     * is not the one who lets people in.
+     */
+    async requests(key) {
+      const rows = await call('marque_points_requests', { p_key: key });
+      return Array.isArray(rows) ? rows.filter((row) => row && typeof row.id === 'string') : [];
+    },
+
+    /** Accept, or refuse. Returns 'ok' | 'refused' | 'unknown'. */
+    async answer(key, id, accept) {
+      const answer = await call('marque_points_answer', {
+        p_key: key,
+        p_id: id,
+        p_accept: Boolean(accept),
+      });
+      const status = answer?.status;
+      return status === 'ok' || status === 'refused' ? status : 'unknown';
+    },
+
+    /** The devices in the group, one line each — for a key that admits. */
+    async groupKeys(key) {
+      const rows = await call('marque_points_group_keys', { p_key: key });
+      return Array.isArray(rows) ? rows.filter((row) => row && typeof row.id === 'string') : [];
+    },
+
+    /**
+     * This device's return link, drawn by itself: a token that brings its person
+     * back into the group from any browser, without anyone accepting again.
+     *
+     * It is minted here, shown once, and never known to whoever admits people —
+     * it belongs to the person, not to the gatekeeper. Drawing a new one kills
+     * the previous. Returns { status: 'ok', token, name } | { status: 'none' }
+     * for a key that belongs to no person (yours, or one from before).
+     */
+    async myLink(key) {
+      const answer = await call('marque_points_my_link', { p_key: key });
+      const status = answer?.status;
+      if (status === 'ok' && typeof answer.token === 'string') {
+        return { status, token: answer.token, name: answer.name || '' };
+      }
+      return { status: 'none' };
+    },
+
+    /**
+     * Come back with that link: a key of this device's own, tied to the same
+     * person, with nothing to ask of anyone.
+     *
+     * Returns { status: 'ok', key, who, id, name } | { status: 'unknown' }
+     *       | { status: 'busy' }
+     */
+    async returnWith(token, label = '') {
+      const answer = await call('marque_points_return', { p_token: token, p_label: label });
+      const status = answer?.status;
+      if (status === 'ok' && answer.key && answer.id) {
+        return { status, key: answer.key, who: answer.who || '', id: answer.id, name: answer.name || '' };
+      }
+      return { status: status === 'busy' ? 'busy' : 'unknown' };
+    },
+
+    /**
+     * The group's calendar address, made the first time it is asked for.
+     *
+     * One per group, and any key of the group may have it: the calendar is
+     * everyone's — except a key without an account, in a group that asks for
+     * one. Returns { status: 'ok', token, name } | { status: 'account' }
+     * | { status: 'unknown' }.
+     */
+    async calendar(key) {
+      const answer = await call('marque_points_calendar', { p_key: key });
+      if (answer?.status === 'ok' && typeof answer.token === 'string') {
+        return { status: 'ok', token: answer.token, name: answer.name || '' };
+      }
+      if (answer?.status === 'account') return { status: 'account' };
+      return { status: 'unknown' };
+    },
+
+    /** Cut the calendar address, for a key that admits: every subscribed calendar stops. 'ok' | 'unknown'. */
+    async forgetCalendar(key) {
+      const answer = await call('marque_points_forget_calendar', { p_key: key });
+      return answer?.status === 'ok' ? 'ok' : 'unknown';
+    },
+
+    /**
+     * Where that token is served. The function lives beside the database, at
+     * the project's own address — the same one the app already talks to, minus
+     * the REST path it was given with.
+     *
+     * Written as a path ending in `.ics`: several calendars refuse an address
+     * that does not look like a calendar file, or that carries a query string.
+     * The older `?c=` form is still served, so an existing subscription keeps
+     * working — this is what is *offered*, not the only thing accepted.
+     */
+    calendarUrl(token) {
+      return `${base}/functions/v1/agenda/${encodeURIComponent(token)}.ics`;
+    },
+
+    /** Cut a person's return link. Returns 'ok' | 'unknown'. */
+    async forgetLink(key, person) {
+      const answer = await call('marque_points_forget_link', { p_key: key, p_person: person });
+      return answer?.status === 'ok' ? 'ok' : 'unknown';
+    },
+
+    /**
+     * Let a device let people in, or stop it. Returns 'ok' | 'last' | 'unknown'
+     * — 'last' when it would leave the group with nobody to accept anyone.
+     */
+    async setAdmits(key, id, allow) {
+      const answer = await call('marque_points_set_admits', {
+        p_key: key,
+        p_id: id,
+        p_allow: Boolean(allow),
+      });
+      const status = answer?.status;
+      return status === 'ok' || status === 'last' ? status : 'unknown';
+    },
+
+    /**
+     * Cut one device off. Returns 'ok' | 'last' | 'unknown' — 'last' being the
+     * one key that lets people in, which the database refuses to remove.
+     */
+    async cutKey(key, id) {
+      const answer = await call('marque_points_cut_key', { p_key: key, p_id: id });
+      const status = answer?.status;
+      return status === 'ok' || status === 'last' ? status : 'unknown';
+    },
+
+    /**
+     * Everything shared in that group: ids and when each last changed, so a
+     * device that has just joined — or come back from a fortnight away — can
+     * fetch what it is missing and nothing else.
+     */
+    async groupDocs(key) {
+      const rows = await call('marque_points_group_docs', { p_key: key });
+      return Array.isArray(rows) ? rows.filter((row) => row && typeof row.id === 'string') : [];
+    },
+
+    /**
+     * Store a lot of games under one id, so a link can carry many games
+     * without carrying their identifiers.
+     *
+     * Two secrets are needed, and they are not interchangeable: the sharing
+     * key, without which the database refuses to write a lot at all, and the
+     * six-digit code the receiver will have to type. `contents` is either
+     * `{ sealed }` or, where this browser cannot seal, `{ ids }`.
+     */
+    async putSet(id, contents, code, key) {
+      await call('marque_points_put_set', {
+        p_id: id,
+        p_data: { kind: 'set', ...contents, createdAt: Date.now() },
+        p_code: code,
+        p_key: key,
+      });
+    },
+
+    /**
+     * Ask for a lot with a code. The database counts the wrong answers and
+     * stops at ten, which is what makes six digits enough; the answer says
+     * which case it is rather than throwing, because every one of them has
+     * something to tell the person waiting.
+     *
+     * Returns { status: 'ok', contents } | { status: 'wrong', left }
+     *       | { status: 'locked' } | { status: 'unknown' }
+     */
+    async openSet(id, code) {
+      const answer = await call('marque_points_open_set', { p_id: id, p_code: code });
+      const status = answer?.status;
+      if (status === 'ok') return { status, contents: answer.set || null };
+      if (status === 'wrong') return { status, left: Number(answer.left) || 0 };
+      if (status === 'locked') return { status };
+      return { status: 'unknown' };
+    },
+
+    /** Revoke a lot: the sharing key, so only whoever shared it can. */
+    async forgetSet(id, key) {
+      const answer = await call('marque_points_forget_set', { p_id: id, p_key: key });
+      return answer?.status === 'ok';
+    },
+
+    /** The stored game, or null when nobody has ever shared that id. */
+    async get(id) {
+      const data = await call('marque_points_get', { p_id: id });
+      return data && typeof data === 'object' ? data : null;
+    },
+
+    /**
+     * Store a document under its own id.
+     *
+     * Starting to share takes a group's key — that is what keeps sharing in
+     * the hands of the people who hold one. Contributing to something already
+     * shared takes none, which is what lets a link be sent to someone outside
+     * the group without giving them the run of it.
+     */
+    async put(document_, key = null, owner = null) {
+      // The organiser's secret travels only when this device holds one: sent
+      // by anyone else, the database keeps what the organiser set and takes
+      // their votes alone.
+      const body = { p_id: document_.id, p_data: document_, p_key: key };
+      await withOwner('marque_points_put', body, owner);
+    },
+
+    /** Unshare: the key of the group it belongs to, and nobody else's — and the organiser's, when there is one. */
+    async remove(id, key = null, owner = null) {
+      await withOwner('marque_points_delete', { p_id: id, p_key: key }, owner);
+    },
+
+    /* ------------------------------------------------------- accounts --- */
+
+    /**
+     * Send a sign-in code to an address: Supabase's own accounts, by e-mail,
+     * no password. A new address makes a new account.
+     */
+    async sendCode(email) {
+      await call('otp', { email: String(email || '').trim(), create_user: true }, null, '/auth/v1/otp');
+    },
+
+    /** The code from the e-mail, for a session: { access, refresh, expires, email, id }. */
+    async verifyCode(email, code) {
+      const answer = await call('verify', { type: 'email', email: String(email || '').trim(), token: String(code || '').trim() }, null, '/auth/v1/verify');
+      return sessionOf(answer);
+    },
+
+    /** A new session from the refresh token of an old one. */
+    async refreshSession(refresh) {
+      const answer = await call('token', { refresh_token: refresh }, null, '/auth/v1/token?grant_type=refresh_token');
+      return sessionOf(answer);
+    },
+
+    /**
+     * End a session at Supabase, so its refresh token no longer works —
+     * `everywhere`, every session of the account: a lost phone included.
+     */
+    async signOut(token, everywhere = false) {
+      await call('logout', {}, token, `/auth/v1/logout?scope=${everywhere ? 'global' : 'local'}`);
+    },
+
+    /** Mark this device's key of a group as the account's. */
+    async accountLink(token, key, name = '') {
+      return call('marque_points_account_link', { p_key: key, p_name: name }, token);
+    },
+
+    /** Keep a poll's organiser secret with the account. */
+    async accountOwner(token, id, secret) {
+      return call('marque_points_account_owner_put', { p_id: id, p_secret: secret }, token);
+    },
+
+    /** A fresh key for each of the account's groups not here yet, and its secrets. */
+    async accountRestore(token, have = [], label = '') {
+      return call('marque_points_account_restore', { p_have: have, p_label: label }, token);
+    },
+
+    /**
+     * Require an account in a group, or stop requiring it — an admitting key's
+     * call. Requiring takes being signed in, with that key the account's:
+     * 'account' says it is not, 'ok' that it is done.
+     */
+    async setAccounts(key, on, token = null) {
+      const answer = await call('marque_points_set_accounts', { p_key: key, p_on: Boolean(on) }, token);
+      return answer?.status || 'unknown';
+    },
+
+    /**
+     * Fix the group's first names, or stop fixing them (an empty list) — an
+     * admitting key's call. Returns the list as the database kept it, or null.
+     */
+    async setPeople(key, people) {
+      const answer = await call('marque_points_set_people', { p_key: key, p_people: people });
+      return answer?.status === 'ok' && Array.isArray(answer.people) ? answer.people : null;
+    },
+
+    /**
+     * A score of the app's games, for a group's ranking: kept if it beats
+     * that name's. Answers the group's top ten, or null when it was refused
+     * (a key the group no longer knows, a name not on its list).
+     */
+    async arcadeScore(key, game, mode, name, score) {
+      const answer = await call('marque_points_arcade_score', {
+        p_key: key, p_game: game, p_mode: mode, p_name: name, p_score: Math.round(score),
+      });
+      return answer?.status === 'ok' && Array.isArray(answer.top) ? answer.top : null;
+    },
+
+    /** A group's top ten for a game and a mode: [{ name, score, at }]. */
+    async arcadeTop(key, game, mode) {
+      const answer = await call('marque_points_arcade_top', { p_key: key, p_game: game, p_mode: mode });
+      return Array.isArray(answer) ? answer : [];
+    },
+
+    /** Delete the account: its address, its name, its secrets, its marks. */
+    async accountDelete(token) {
+      return call('marque_points_account_delete', {}, token);
+    },
+
+    /** Leave a group for good: the account is no longer in it, anywhere. */
+    async accountLeave(token, key) {
+      return call('marque_points_account_leave', { p_key: key }, token);
+    },
+
+    /* -------------------------------------------------- notifications --- */
+
+    /** Keep this browser's subscription for a group, with that group's key. */
+    async pushSubscribe(key, { endpoint, p256dh, auth }, lang = 'fr', app = '', tz = '') {
+      const body = { p_key: key, p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_lang: lang, p_app: app };
+      if (!tz) return call('marque_points_push_subscribe', body);
+      // The time zone the eve's reminder is told in. A database not yet
+      // updated has never heard of it: subscribed all the same, without.
+      try {
+        return await call('marque_points_push_subscribe', { ...body, p_tz: tz });
+      } catch (error) {
+        if (!unknownParameter(error)) throw error;
+        return call('marque_points_push_subscribe', body);
+      }
+    },
+
+    /** Forget this browser's subscription, in every group. */
+    async pushUnsubscribe(endpoint) {
+      await call('marque_points_push_unsubscribe', { p_endpoint: endpoint });
+    },
+
+    /** The notifier function: { action: 'key' | 'doc' | 'knock' | 'remind', … }. */
+    async notifier(body) {
+      return call('notifier', body, null, '/functions/v1/notifier');
+    },
+  };
+}
+
+/**
+ * Which of two copies of a game to keep: the one changed most recently.
+ * Returns 'local', 'remote', or 'same'.
+ */
+/**
+ * Whether the database refused a call because it knows no function taking
+ * those parameters — what PostgREST says (PGRST202, as a 404) when a newer app
+ * calls with a parameter an older schema never had.
+ */
+function unknownParameter(error) {
+  return error?.status === 404 && /PGRST202|Could not find the function/.test(error.detail || error.message || '');
+}
+
+/**
+ * Whether the database refused a write because the thing was deleted: it keeps
+ * a trace of what was, so a phone still holding a copy cannot bring it back —
+ * in its old group, or in another.
+ */
+/** A session, as the app keeps it, from what Supabase's accounts answer. */
+function sessionOf(answer, now = Date.now()) {
+  if (!answer?.access_token || !answer?.refresh_token) return null;
+  return {
+    access: answer.access_token,
+    refresh: answer.refresh_token,
+    expires: now + Math.max(60, Number(answer.expires_in) || 3600) * 1000,
+    email: answer.user?.email || '',
+    id: answer.user?.id || '',
+  };
+}
+
+function wasDeleted(error) {
+  return /document supprime/.test(error?.detail || error?.message || '');
+}
+
+function pickNewer(local, remote) {
+  if (!remote) return 'local';
+  if (!local) return 'remote';
+  const a = local.updatedAt || 0;
+  const b = remote.updatedAt || 0;
+  if (a === b) return 'same';
+  return a > b ? 'local' : 'remote';
+}
+
+/**
+ * The game id inside whatever was pasted — a full link, a link with other
+ * things around it, or the id on its own. Null when there is none.
+ */
+function gameIdFrom(pasted) {
+  const text = String(pasted || '').trim();
+  const inLink = text.match(/#\/game\/([A-Za-z0-9_.~:@+-]+)/);
+  if (inLink) return inLink[1];
+  // A bare id, as copied from the database's table editor.
+  return /^[A-Za-z0-9_.~:@+-]{8,128}$/.test(text) ? text : null;
+}
+
+/**
+ * The link that brings a person back into a group: their own token, and nothing
+ * else. It goes in the fragment, after the `#`, which browsers never send to a
+ * server — so neither the host nor a link preview ever sees it.
+ */
+function backLink(location, token) {
+  const { origin, pathname, search } = location;
+  return `${origin}${pathname}${search}#/back/${token}`;
+}
+
+/** The return token inside whatever was pasted, or null. */
+function backTokenFrom(pasted) {
+  const found = String(pasted || '').trim().match(/#\/back\/([0-9a-f]{32})(?![0-9a-f])/);
+  return found ? found[1] : null;
+}
+
+/**
+ * Where a sent link points. A messaging app draws a link's preview from the
+ * page the server sends, and what follows the `#` never leaves the phone: the
+ * app's own page could only ever be previewed as "Together". So a link to a
+ * poll goes through sondage.html, which carries its own title for the preview
+ * and hands over to the app at once, with the same `#…`. Those pages sit next
+ * to index.html; served from any other file (the single-file build), a link
+ * points at that file directly, as before.
+ */
+function doorway(location, page) {
+  const { origin, pathname, search } = location;
+  return /\/(index\.html)?$/.test(pathname)
+    ? `${origin}${pathname.replace(/index\.html$/, '')}${page}.html${search}`
+    : `${origin}${pathname}${search}`;
+}
+
+/** The link to give someone so they open this very game. */
+function shareLink(location, gameId) {
+  return `${doorway(location, 'partie')}#/game/${gameId}`;
+}
+
+/** The link to give someone so they open this very list. */
+function listLink(location, listId) {
+  return `${doorway(location, 'liste')}#/list/${listId}`;
+}
+
+/** The list id inside whatever was pasted, or null. */
+function listIdFrom(pasted) {
+  const found = String(pasted || '').trim().match(/#\/list\/([A-Za-z0-9_.~:@+-]+)/);
+  return found ? found[1] : null;
+}
+
+/** The link to give someone so they answer this very poll. */
+/**
+ * The address to send for a poll. It opens the poll alone — no tabs, nothing
+ * else of the app — because whoever receives it came to answer, not to look
+ * around. Addresses sent before, without `/solo`, still open it in full.
+ */
+function pollLink(location, pollId) {
+  return `${doorway(location, 'sondage')}#/poll/${pollId}/solo`;
+}
+
+/** The poll id inside whatever was pasted, or null. */
+function pollIdFrom(pasted) {
+  const found = String(pasted || '').trim().match(/#\/poll\/([A-Za-z0-9_.~:@+-]+)/);
+  return found ? found[1] : null;
+}
+
+/**
+ * The link that brings someone into a group: the six digits, and the group's
+ * name after them so that nothing has to be typed at all.
+ *
+ * The two travel together here, which the lot links deliberately avoid — and
+ * for the opposite reason: an invitation only grants the right to knock, and it
+ * expires, so what protects the group is that someone in it has to accept —
+ * not that the code is hard to find. The name and code can still be said out
+ * loud instead.
+ */
+function joinLink(location, name, code) {
+  return `${doorway(location, 'invitation')}#/join/${code}/${encodeURIComponent(name)}`;
+}
+
+/** The invitation inside whatever was pasted: { code, name }, or null. */
+function joinFrom(pasted) {
+  const found = String(pasted || '').trim().match(/#\/join\/(\d{6})(?!\d)\/([^\s/?#]+)/);
+  if (!found) return null;
+  let name = '';
+  try {
+    name = decodeURIComponent(found[2]);
+  } catch {
+    // A link mangled on its way through a message: the digits are still good.
+    name = found[2];
+  }
+  return unpunctuate(name) ? { code: found[1], name: unpunctuate(name) } : null;
+}
+
+/**
+ * The sentence a link was pasted in from ends somewhere, and its full stop
+ * sticks to the group's name: "…/#/join/123456/Mifa." would then be a
+ * group nobody has. Brackets are only dropped when they close nothing, since
+ * a group may well be called "Mifa (maison)".
+ */
+function unpunctuate(name) {
+  let clean = String(name || '').trim();
+  let last = '';
+  const count = (text, character) => text.split(character).length - 1;
+  while (clean && clean !== last) {
+    last = clean;
+    clean = clean.replace(/[.,;:!?\u2026\u00ab\u00bb"'\u2018\u2019\u201c\u201d]+$/, '').trim();
+    for (const [open, close] of [['(', ')'], ['[', ']'], ['{', '}']]) {
+      if (clean.endsWith(close) && count(clean, close) > count(clean, open)) {
+        clean = clean.slice(0, -1).trim();
+      }
+    }
+  }
+  return clean;
+}
+
+
+/** The link that hands over a set of games at once. */
+function setLink(location, setId) {
+  const { origin, pathname, search } = location;
+  return `${origin}${pathname}${search}#/set/${setId}`;
+}
+
+/** The set id inside whatever was pasted, or null. */
+function setIdFrom(pasted) {
+  const found = String(pasted || '').trim().match(/#\/set\/([A-Za-z0-9_.~:@+-]+)/);
+  return found ? found[1] : null;
+}
+
+  // ---- src/move.js -----------------------------------------------------
+/**
+ * Moving house. Together changed address, and a phone keeps what it knows of
+ * an app under the address it was opened at: at the new one, it starts with
+ * nothing — no group, no key, no document. The page left at the old address
+ * (relais/) hands over what this phone kept there, in the link that brings it
+ * here, after the `#` that never leaves the phone; takeMove() puts it in place
+ * before the app reads anything.
+ *
+ * Who may hand data over is the old address itself: a link of the same shape
+ * from anywhere else — someone's message, a page that sends here — is shown
+ * for what it is and asked about first, never taken in silence.
+ */
+
+/** The address Together had: the only one whose hand-over is taken without asking. */
+const MOVE_FROM = ['https://wjrnj9zy72-design.github.io/'];
+
+/** `#/move/<what was kept>/<where it was going>`. */
+const MOVE_ROUTE = /^#\/move\/([^/]*)(?:\/(.*))?$/;
+
+const MOVE_PREFIX = 'marque-points:';
+
+/**
+ * What never moves: the account's session (signing in again is one code
+ * away), a database other than the app's own (the app knows its own, and a
+ * link must not point it at another), and the old address's own note.
+ */
+const MOVE_LEFT = new Set(['marque-points:account:v1', 'marque-points:remote:v1', 'marque-points:moved']);
+
+/** What this phone kept of Together, as the old address sends it: everything but what never moves. */
+function moveKept(storage) {
+  const kept = {};
+  for (let index = 0; index < storage.length; index += 1) {
+    const name = storage.key(index);
+    if (name && name.startsWith(MOVE_PREFIX) && !MOVE_LEFT.has(name)) kept[name] = storage.getItem(name);
+  }
+  return kept;
+}
+
+/** Text fit for an address: the entries as JSON, in UTF-8, in URL-safe base64. */
+function moveEncode(entries) {
+  let binary = '';
+  for (const byte of new TextEncoder().encode(JSON.stringify(entries))) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** The entries back, or null for anything that is not a hand-over: only text values, under Together's keys. */
+function moveDecode(text) {
+  try {
+    const binary = atob(String(text).replace(/-/g, '+').replace(/_/g, '/'));
+    const parsed = JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0))));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const entries = Object.entries(parsed).filter(([name, value]) => name.startsWith(MOVE_PREFIX) && !MOVE_LEFT.has(name) && typeof value === 'string');
+    return Object.fromEntries(entries);
+  } catch {
+    return null;
+  }
+}
+
+const moveIsObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const moveWithIds = (value) => Array.isArray(value) && value.every((item) => moveIsObject(item) && typeof item.id === 'string');
+const moveOfText = (value) => Array.isArray(value) && value.every((item) => typeof item === 'string');
+
+/** Two values of one place: what is here stays, what came fills the gaps. */
+function moveFill(here, came) {
+  if (moveWithIds(here) && moveWithIds(came)) {
+    const known = new Set(here.map((item) => item.id));
+    return [...here, ...came.filter((item) => !known.has(item.id))];
+  }
+  if (moveOfText(here) && moveOfText(came)) return [...new Set([...here, ...came])];
+  if (moveIsObject(here) && moveIsObject(came)) {
+    const filled = { ...here };
+    for (const [name, value] of Object.entries(came)) {
+      if (!(name in here)) filled[name] = value;
+      else if (moveWithIds(here[name]) && moveWithIds(value)) filled[name] = moveFill(here[name], value);
+      else if (moveIsObject(here[name]) && moveIsObject(value)) filled[name] = { ...value, ...here[name] };
+    }
+    return filled;
+  }
+  return here;
+}
+
+/**
+ * What to write, given what is here and what came. Nothing here is lost or
+ * changed: a key not here is taken whole; the documents not here are added
+ * beside those that are; the preferences not set here — a name, groups and
+ * their keys, the right to organise a poll — are added to those that are.
+ */
+function moveMerge(here, came) {
+  const writes = {};
+  for (const [name, value] of Object.entries(came)) {
+    if (here[name] == null) {
+      writes[name] = value;
+      continue;
+    }
+    try {
+      const filled = JSON.stringify(moveFill(JSON.parse(here[name]), JSON.parse(value)));
+      if (filled !== here[name]) writes[name] = filled;
+    } catch {
+      // Not JSON on one side or the other: what is here stays.
+    }
+  }
+  return writes;
+}
+
+/** How much came: groups and documents, to say so — or to ask about it. */
+function moveCount(entries) {
+  const count = (name) => {
+    try {
+      const value = JSON.parse(entries[name] || 'null');
+      return Array.isArray(value) ? value.length : 0;
+    } catch {
+      return 0;
+    }
+  };
+  let groups = 0;
+  try {
+    groups = (JSON.parse(entries['marque-points:prefs:v1'] || 'null')?.groups || []).length;
+  } catch {
+    groups = 0;
+  }
+  const documents = ['games', 'lists', 'polls', 'spends', 'boards'].reduce((sum, kind) => sum + count(`marque-points:${kind}:v1`), 0);
+  return { groups, documents };
+}
+
+/** Write what came into what is here. */
+function moveInto(storage, came) {
+  const here = {};
+  for (let index = 0; index < storage.length; index += 1) {
+    const name = storage.key(index);
+    if (name) here[name] = storage.getItem(name);
+  }
+  for (const [name, value] of Object.entries(moveMerge(here, came))) storage.setItem(name, value);
+}
+
+/**
+ * On arriving, before the app reads anything: a hand-over in the address is
+ * taken in — at once when it comes from the old address, else kept aside for
+ * the app to ask about (`asking`) — and the address goes back to where the
+ * link was going. Returns what happened, or null when nothing was handed over.
+ */
+function takeMove({ location, history, storage, aside, referrer = '', from = MOVE_FROM }) {
+  const found = String(location.hash || '').match(MOVE_ROUTE);
+  if (!found) return null;
+  const came = moveDecode(found[1]);
+  let then = '';
+  try {
+    then = decodeURIComponent(found[2] || '');
+  } catch {
+    then = '';
+  }
+  // Where the link was going, and nothing of what it carried left in sight.
+  history.replaceState(null, '', `${location.pathname}${location.search}${/^#\//.test(then) ? then : ''}`);
+  if (!came || !Object.keys(came).length) return { status: 'empty' };
+  const counts = moveCount(came);
+  if (!from.some((origin) => String(referrer).startsWith(origin))) {
+    try {
+      aside.setItem('marque-points:arriving', JSON.stringify(came));
+    } catch {
+      return { status: 'empty' };
+    }
+    return { status: 'asking', ...counts };
+  }
+  try {
+    moveInto(storage, came);
+  } catch {
+    return { status: 'failed' };
+  }
+  return { status: 'moved', ...counts };
+}
+
+  // ---- src/prefill.js --------------------------------------------------
+/**
+ * A form filled in from its address: `#/lists/new?titre=Courses&lignes=Pain%0ALait`.
+ *
+ * Made for an assistant (Claude, say) that is asked « une liste de courses pour
+ * la raclette » and answers with a link: tapped, or pasted into « Ouvrir un
+ * lien », it opens the app on the form, already filled in. Nothing is created
+ * until the person has read it and pressed the button, so a link can only ever
+ * suggest — it cannot write anything on its own.
+ *
+ * The names are French, like the rest of the app's addresses, and short, since
+ * they are written by hand as often as not.
+ */
+
+/** The forms that can be filled in this way. */
+const PREFILL_FORMS = ['lists/new', 'polls/new', 'spends/new', 'agenda/new'];
+
+const PREFILL_TEXT = 200;
+const PREFILL_LINES = 100;
+const PREFILL_PEOPLE = 30;
+
+/**
+ * The form's address inside whatever was pasted — `#/lists/new?…` — or null.
+ * A message around it, or the whole https://… in front, is left out.
+ */
+function prefillLinkFrom(pasted) {
+  const found = String(pasted || '').match(/#\/((?:lists|polls|spends|agenda)\/new)\?([^\s#]*)/);
+  return found ? `#/${found[1]}?${found[2]}` : null;
+}
+
+/** The address without what fills the form: `#/lists/new`. */
+function withoutPrefill(address) {
+  return String(address || '').replace(/^(#\/?(?:lists|polls|spends|agenda)\/new)\?.*$/, '$1');
+}
+
+/**
+ * What the address fills in, cleaned: `{ title, lines, people, … }` with only
+ * what it gave, or null when it gives nothing (or is not one of the forms).
+ */
+function prefillOf(address) {
+  const found = String(address || '').match(/^#\/?((?:lists|polls|spends|agenda)\/new)\?(.*)$/);
+  if (!found || !PREFILL_FORMS.includes(found[1])) return null;
+  let params;
+  try {
+    params = new URLSearchParams(found[2]);
+  } catch {
+    return null;
+  }
+  const text = (key) => (params.get(key) || '').replace(/\s+/g, ' ').trim().slice(0, PREFILL_TEXT);
+  const lines = (key) =>
+    (params.get(key) || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim().slice(0, PREFILL_TEXT))
+      .filter(Boolean)
+      .slice(0, PREFILL_LINES);
+
+  const fill = {};
+  const title = text('titre');
+  if (title) fill.title = title;
+  const question = text('question');
+  if (question) fill.question = question;
+  for (const [key, name] of [['lignes', 'lines'], ['choix', 'choices']]) {
+    const value = lines(key);
+    if (value.length) fill[name] = value;
+  }
+  const people = [];
+  for (const name of (params.get('personnes') || '').split(',')) {
+    const clean = name.replace(/\s+/g, ' ').trim().slice(0, 60);
+    if (clean && !people.some((other) => other.toLowerCase() === clean.toLowerCase())) people.push(clean);
+  }
+  if (people.length) fill.people = people.slice(0, PREFILL_PEOPLE);
+  for (const [key, name] of [['jour', 'day'], ['fin', 'until']]) {
+    const value = text(key);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) fill[name] = value;
+  }
+  const hour = text('heure');
+  if (/^\d{1,2}:\d{2}$/.test(hour)) fill.hour = hour.padStart(5, '0');
+  const currency = text('monnaie').toUpperCase();
+  if (/^[A-Z]{3}$/.test(currency)) fill.currency = currency;
+  return Object.keys(fill).length ? fill : null;
+}
+
+  // ---- src/cloud.js ----------------------------------------------------
+/**
+ * Storing games outside the browser.
+ *
+ * The browser's own storage is fine until it is cleared, or until you pick up
+ * the other phone — so where the page is served by a host that offers a
+ * document store, the games live there instead and the browser keeps a copy.
+ *
+ * The page must work without it: the store is offered by the host, arrives
+ * late, and may never arrive at all (a file opened from the disk, a viewer
+ * that declines). So nothing here is on the critical path — the app renders
+ * from its local copy first and this lights up afterwards.
+ */
+
+
+/** Where a game is stored. Path grammar: an odd number of segments. */
+const COLLECTION = 'games';
+
+/**
+ * Merge what this browser holds with what the store holds.
+ * The newer `updatedAt` wins, and anything the store has not got yet — or
+ * holds an older copy of — comes back in `toPush`.
+ */
+function reconcile(local, remote) {
+  const byId = new Map();
+  for (const game of remote) if (isValidGame(game)) byId.set(game.id, game);
+
+  const toPush = [];
+  for (const game of local) {
+    if (!isValidGame(game)) continue;
+    const stored = byId.get(game.id);
+    if (!stored || (game.updatedAt || 0) > (stored.updatedAt || 0)) {
+      byId.set(game.id, game);
+      toPush.push(game);
+    }
+  }
+
+  const games = [...byId.values()].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  return { games, toPush };
+}
+
+/**
+ * Connect to the host's store, if there is one.
+ *
+ * Resolves a small writer — { save, remove, stop } — or null when the page
+ * runs anywhere else. `onGames` is called with the merged list on the first
+ * snapshot and on every later change, including ones made on another device.
+ */
+async function connectStore({ getLocalGames, onGames, onLost }) {
+  const host = globalThis.claude;
+  if (!host || typeof host.use !== 'function') return null;
+
+  let db = null;
+  try {
+    db = await host.use('db');
+  } catch {
+    return null;
+  }
+  if (!db) return null;
+
+  const collection = db.collection(COLLECTION);
+  let firstSnapshot = true;
+
+  const save = async (game) => {
+    if (!isValidGame(game)) return;
+    try {
+      await collection.doc(game.id).set(game);
+    } catch (error) {
+      // A refused or failed write leaves the local copy in place; the next
+      // reconcile pushes it again.
+      if (error?.code === 'revoked') onLost?.();
+    }
+  };
+
+  const remove = async (id) => {
+    try {
+      await collection.doc(id).delete();
+    } catch (error) {
+      if (error?.code === 'revoked') onLost?.();
+    }
+  };
+
+  // One subscription for the whole collection, registered once.
+  const stop = collection.onSnapshot(
+    (snapshot) => {
+      const remote = snapshot.docs.map((document) => document.data()).filter(isValidGame);
+      const { games, toPush } = reconcile(getLocalGames(), remote);
+      onGames(games);
+
+      if (firstSnapshot) {
+        firstSnapshot = false;
+        // Hand the store whatever this browser had and it did not, one write
+        // at a time, and only on this first pass.
+        void toPush.reduce((chain, game) => chain.then(() => save(game)), Promise.resolve());
+      }
+    },
+    () => onLost?.(),
+  );
+
+  return { save, remove, stop };
+}
+
+  // ---- src/live.js -----------------------------------------------------
+/**
+ * Hearing changes as they happen, instead of asking every few seconds.
+ *
+ * The database announces each write on Supabase Realtime: « something changed »
+ * on the channel of the document, and on the secret channel of its group. The
+ * announcement carries nothing — no id, no content — so hearing it gives away
+ * nothing either: the app then asks the database the usual way, with its key,
+ * and a key that was cut off gets nothing more than before.
+ *
+ * This is a small client of the Phoenix protocol Realtime speaks (JSON, version
+ * 1.0.0), with no library. Nothing here is needed for the app to work: when the
+ * socket is closed, refused or silent, `covers` says no and the app goes on
+ * asking every few seconds, as it always did.
+ */
+
+/** Realtime closes a socket that has said nothing for a minute. */
+const HEARTBEAT_EVERY = 25000;
+/**
+ * A socket the server has not answered for this long is taken for dead. A
+ * phone waking up can hold one that still says « open »: trusting it would
+ * make the app wait for announcements that never come.
+ */
+const SILENT_AFTER = 60000;
+/** A channel refused or closed by the server is asked again after this. */
+const REJOIN_AFTER = 30000;
+/** Waits before trying again, longer each time, up to a minute. */
+const RETRY_AFTER = [1000, 2000, 5000, 10000, 30000, 60000];
+
+/** The socket's address, from the REST address the app already has. */
+function liveUrl(config) {
+  if (!config || !config.url || !config.key) return '';
+  const origin = String(config.url).replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+  if (!/^https?:\/\//.test(origin)) return '';
+  return `${origin.replace(/^http/, 'ws')}/realtime/v1/websocket?apikey=${encodeURIComponent(config.key)}&vsn=1.0.0`;
+}
+
+/** The channel of one document, as the database names it. */
+function docTopic(id) {
+  return `doc-${id}`;
+}
+
+/** The channel of a group: its secret name, handed over only with a key. */
+function groupTopic(channel) {
+  return `group-${channel}`;
+}
+
+/** The message that joins a public channel, broadcast only. */
+function joinMessage(topic, ref, key) {
+  return {
+    topic: `realtime:${topic}`,
+    event: 'phx_join',
+    payload: {
+      config: {
+        broadcast: { ack: false, self: false },
+        presence: { key: '', enabled: false },
+        postgres_changes: [],
+        private: false,
+      },
+      access_token: key,
+    },
+    ref,
+    join_ref: ref,
+  };
+}
+
+/**
+ * What a message from the socket means for us: a channel joined or refused,
+ * a change announced, or nothing.
+ */
+function readMessage(raw) {
+  let message = null;
+  try {
+    message = typeof raw === 'string' ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+  if (!message || typeof message.topic !== 'string' || !message.topic.startsWith('realtime:')) return null;
+  const topic = message.topic.slice('realtime:'.length);
+  if (message.event === 'phx_reply') {
+    const ok = message.payload?.status === 'ok';
+    return { kind: ok ? 'joined' : 'refused', topic, ref: message.ref ?? null };
+  }
+  if (message.event === 'phx_error' || message.event === 'phx_close') return { kind: 'refused', topic, ref: null };
+  if (message.event === 'broadcast') return { kind: 'changed', topic };
+  return null;
+}
+
+/**
+ * The client. `onChange(topic)` is called for each announcement heard, on a
+ * channel asked for with `watch`. `WebSocketImpl` and the timers are there for
+ * the tests.
+ */
+function createLive({
+  url, key, onChange, WebSocketImpl = globalThis.WebSocket,
+  setTimer = setTimeout, clearTimer = clearTimeout, every = setInterval, stopEvery = clearInterval,
+  now = () => Date.now(),
+}) {
+  if (!url || typeof WebSocketImpl !== 'function') return null;
+
+  let socket = null;
+  let open = false;
+  let heartbeat = null;
+  let retry = null;
+  let failures = 0;
+  let counter = 0;
+  let wanted = new Set();
+  /** topic -> { ref, joined, refusedAt } for the channels asked on this socket. */
+  let channels = new Map();
+  /** When the server last said anything at all — a reply to the heartbeat counts. */
+  let lastHeard = 0;
+  /** Channels joined at least once, on this socket or an earlier one. */
+  const heardBefore = new Set();
+  /** topic -> when the app last asked the database itself, while covered. */
+  const asked = new Map();
+
+  const send = (message) => {
+    if (!open) return;
+    try {
+      socket.send(JSON.stringify(message));
+    } catch {
+      // A socket closing under our feet: the close handler takes it from here.
+    }
+  };
+  const nextRef = () => String(++counter);
+
+  const join = (topic) => {
+    const ref = nextRef();
+    channels.set(topic, { ref, joined: false, refusedAt: null });
+    send(joinMessage(topic, ref, key));
+  };
+  const silent = () => now() - lastHeard >= SILENT_AFTER;
+  /** Close a socket taken for dead, and schedule the next one (its own close handler no longer will). */
+  const abandon = () => {
+    const dead = socket;
+    socket = null;
+    drop();
+    try {
+      dead?.close();
+    } catch {
+      // Already gone.
+    }
+    schedule();
+  };
+  /** Every heartbeat: give up on a silent socket, ask again for refused channels. */
+  const tick = () => {
+    if (silent()) {
+      abandon();
+      return;
+    }
+    send({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: nextRef() });
+    for (const [topic, channel] of channels) {
+      if (!channel.joined && channel.refusedAt !== null && now() - channel.refusedAt >= REJOIN_AFTER && wanted.has(topic)) join(topic);
+    }
+  };
+  const leave = (topic) => {
+    const channel = channels.get(topic);
+    channels.delete(topic);
+    if (channel) send({ topic: `realtime:${topic}`, event: 'phx_leave', payload: {}, ref: nextRef(), join_ref: channel.ref });
+  };
+
+  const drop = () => {
+    open = false;
+    channels = new Map();
+    if (heartbeat) stopEvery(heartbeat);
+    heartbeat = null;
+  };
+
+  const schedule = () => {
+    if (retry || !wanted.size) return;
+    const wait = RETRY_AFTER[Math.min(failures, RETRY_AFTER.length - 1)];
+    failures += 1;
+    retry = setTimer(() => {
+      retry = null;
+      connect();
+    }, wait);
+  };
+
+  function connect() {
+    if (socket || !wanted.size) return;
+    let created = null;
+    try {
+      created = new WebSocketImpl(url);
+    } catch {
+      schedule();
+      return;
+    }
+    socket = created;
+    created.onopen = () => {
+      if (socket !== created) return;
+      open = true;
+      failures = 0;
+      lastHeard = now();
+      for (const topic of wanted) join(topic);
+      heartbeat = every(tick, HEARTBEAT_EVERY);
+    };
+    created.onmessage = (event) => {
+      if (socket !== created) return;
+      lastHeard = now();
+      const heard = readMessage(event?.data);
+      if (!heard) return;
+      const channel = channels.get(heard.topic);
+      if (!channel) return;
+      if (heard.kind === 'joined' && heard.ref === channel.ref) {
+        channel.joined = true;
+        // Joined again after the socket dropped: what was said meanwhile was
+        // not heard, so it counts as one announcement.
+        if (heardBefore.has(heard.topic)) onChange(heard.topic);
+        heardBefore.add(heard.topic);
+      }
+      else if (heard.kind === 'refused') {
+        channel.joined = false;
+        channel.refusedAt = now();
+      }
+      else if (heard.kind === 'changed' && channel.joined) onChange(heard.topic);
+    };
+    created.onclose = () => {
+      if (socket !== created) return;
+      socket = null;
+      drop();
+      schedule();
+    };
+    created.onerror = () => {
+      // The close event follows; nothing to do twice.
+    };
+  }
+
+  return {
+    /** Listen to exactly these channels from now on. */
+    watch(topics) {
+      const next = new Set(topics.filter(Boolean));
+      for (const topic of [...channels.keys()]) if (!next.has(topic)) leave(topic);
+      if (open) for (const topic of next) if (!channels.has(topic)) join(topic);
+      wanted = next;
+      if (!wanted.size) {
+        this.stop();
+        return;
+      }
+      connect();
+    },
+
+    /** Whether an announcement on this channel would be heard right now. */
+    covers(topic) {
+      return open && !silent() && Boolean(channels.get(topic)?.joined);
+    },
+
+    /**
+     * Whether the app may skip asking the database itself this time. While a
+     * channel is heard, asking once a minute is enough — in case an
+     * announcement was lost; otherwise, the app asks as it always did.
+     */
+    quiet(topic, every_ = 60000) {
+      if (!this.covers(topic)) return false;
+      const last = asked.get(topic);
+      if (last !== undefined && now() - last < every_) return true;
+      asked.set(topic, now());
+      return false;
+    },
+
+    /**
+     * Back in front: a socket the phone closed meanwhile is opened again now,
+     * and one that kept quiet while the phone slept is not trusted any more.
+     */
+    wake() {
+      if (open && now() - lastHeard >= HEARTBEAT_EVERY + 10000) abandon();
+      if (retry) {
+        clearTimer(retry);
+        retry = null;
+      }
+      failures = 0;
+      connect();
+    },
+
+    stop() {
+      wanted = new Set();
+      if (retry) clearTimer(retry);
+      retry = null;
+      const closing = socket;
+      socket = null;
+      drop();
+      try {
+        closing?.close();
+      } catch {
+        // Already closed.
+      }
+    },
+  };
+}
+
+  // ---- src/notify.js ---------------------------------------------------
+/**
+ * Notifications, the parts that need no browser: whether this one can receive
+ * them, what to tell the notifier, and what to remember having told it.
+ */
+
+
+/** The kinds of document whose arrival in a group is worth a notification. */
+const NEWS_KINDS = new Set(['poll', 'list', 'spend', 'board']);
+
+/**
+ * What this browser can do: 'ready' (ask away), 'install' (an iPhone in
+ * Safari: only the app on the home screen receives them), 'denied' (refused
+ * in the phone's settings), or 'unsupported'.
+ */
+function pushSupport({ worker, push, notification, permission, phone, standalone }) {
+  if (worker && push && notification) return permission === 'denied' ? 'denied' : 'ready';
+  if (phone === 'ios' && !standalone) return 'install';
+  return 'unsupported';
+}
+
+/**
+ * Whether a document just written with a group key may be news for the
+ * group: one of the kinds above, shared in the group rather than by link.
+ */
+function mayBeNews(document_) {
+  return Boolean(document_ && typeof document_.id === 'string' && NEWS_KINDS.has(document_.kind) && !document_.linkOnly);
+}
+
+/**
+ * What has been told about a document: its arrival, and the day it settled
+ * on. Told once each, so a list ticked twenty times costs one call.
+ */
+function toldKey(document_) {
+  return `${document_.id}|${document_.kind === 'poll' && document_.date ? document_.date : ''}`;
+}
+
+/**
+ * What has been told about the words left on a document: its newest words,
+ * or null when there are none from the last two days — the database tells
+ * each once anyway, this only spares asking it at every tick of a list.
+ */
+function wordsKey(document_, now = Date.now()) {
+  if (!['poll', 'board'].includes(document_?.kind)) return null;
+  const latest = latestWords(document_);
+  return latest > now - 2 * 86400000 ? `${document_.id}|words|${latest}` : null;
+}
+
+/** Remember a key told, the newest last, the oldest forgotten past `limit`. */
+function rememberTold(told, key, limit = 400) {
+  return [...told.filter((one) => one !== key), key].slice(-limit);
+}
+
+/**
+ * Whether this device, opened of an evening, asks for the eve's reminders —
+ * once an hour at most. They are asked every hour anyway, from GitHub
+ * (tools/rappels.js); this is for the hours that run is late or paused. The
+ * database sends each reminder once, whoever asks.
+ */
+function mayAskReminders(lastAsked, now = new Date()) {
+  const hour = now.getHours();
+  return hour >= 18 && hour <= 22 && !(Number(lastAsked) > now.getTime() - 3600000);
+}
+
+/** The fields the database keeps of a subscription, from its JSON form. */
+function subscriptionFields(json) {
+  const endpoint = typeof json?.endpoint === 'string' ? json.endpoint : '';
+  const p256dh = typeof json?.keys?.p256dh === 'string' ? json.keys.p256dh : '';
+  const auth = typeof json?.keys?.auth === 'string' ? json.keys.auth : '';
+  return endpoint && p256dh && auth ? { endpoint, p256dh, auth } : null;
+}
+
+/** A base64url key as the bytes `pushManager.subscribe` takes. */
+function keyBytes(text) {
+  const plain = String(text || '').replace(/-/g, '+').replace(/_/g, '/');
+  const padded = plain + '='.repeat((4 - (plain.length % 4)) % 4);
+  return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
+}
+
+/**
+ * Why turning notifications on failed, from the step that failed and what it
+ * met there — so the app can say what to do rather than « try again »:
+ *
+ *   'worker'    the app's service worker never got ready (reload the page)
+ *   'offline'   nothing answers, the database no more than the notifier
+ *   'function'  the notifier is not in place, or does not start. Supabase
+ *               answers for such a function without the headers a page needs
+ *               to read the answer, so the browser reports a failed fetch, not
+ *               a 404 — told apart from no network by `answers`: whether the
+ *               database itself still answers
+ *   'database'  the notifier answers, but cannot read the database (502: the
+ *               SQL of the notifications not run, most likely)
+ *   'denied'    the browser refused to subscribe despite the permission
+ *   'browser'   the browser's own push service (Microsoft for Edge, Google for
+ *               Chrome, Mozilla for Firefox) did not subscribe it
+ *   'account'   every group asks for an account, and this device has none
+ *   'refused'   the database kept the subscription for no group
+ *
+ * `met` is what was thrown, or for 'register' what each group answered.
+ */
+function activationProblem(step, met = null, answers = true) {
+  if (step === 'worker') return 'worker';
+  if (step === 'key') {
+    const status = Number(met?.status) || 0;
+    if (!status) return answers ? 'function' : 'offline';
+    return status === 502 ? 'database' : 'function';
+  }
+  if (step === 'subscribe') return met?.name === 'NotAllowedError' ? 'denied' : 'browser';
+  if (step === 'register') {
+    const said = Array.isArray(met) ? met : [];
+    if (said.length && said.every((one) => one?.status === 'account')) return 'account';
+    if (said.length && said.every((one) => one instanceof Error && !one.status)) return 'offline';
+    return 'refused';
+  }
+  return 'failed';
+}
+
+/** What the browser or the database said, short: for whoever asks why. */
+function problemDetail(error) {
+  if (!error) return '';
+  if (!(error instanceof Error) && typeof error.status === 'string') return error.status;
+  const name = error.name && error.name !== 'Error' ? `${error.name}: ` : '';
+  return `${name}${error.message || ''}`.replace(/\s+/g, ' ').trim().slice(0, 160);
+}
+
+  // ---- src/swipe.js ----------------------------------------------------
+/**
+ * Slide left to delete — the gesture a phone's own lists taught everyone.
+ *
+ * A card or a line slides left to uncover a red « Supprimer » behind it.
+ * Sliding only uncovers the button; it takes a tap on it to delete, so a swipe
+ * meant as a scroll deletes nothing. The same everywhere something can be
+ * deleted from a list of things: documents in their tab, the lines of a list,
+ * an account's expenses, the cards of a board.
+ */
+
+
+
+/** How far a row slides to uncover its button, in pixels. */
+const SWIPE_OPEN = 96;
+
+/**
+ * A row that slides. `kind` says which binder handles it; `tag` and `bodyClass`
+ * let a line of a list stay an `<li>` holding the line itself.
+ */
+function swipeHtml(id, inner, { kind, tag = 'div', bodyClass = '' } = {}) {
+  return `
+    <${tag} class="swipe" data-swipe="${escapeHtml(id)}" data-swipe-kind="${escapeHtml(kind)}">
+      <button type="button" class="swipe__delete" data-swipe-delete tabindex="-1" aria-hidden="true">
+        ${escapeHtml(t('action.delete'))}
+      </button>
+      <div class="swipe__body ${bodyClass}">${inner}</div>
+    </${tag}>`;
+}
+
+/**
+ * A card function made slideable, for the documents in their tab. `canDelete`
+ * leaves a card as it was where deleting is not this device's to do — a poll
+ * someone else organises.
+ */
+function swipeable(cardHtml, canDelete = () => true) {
+  return (document_) =>
+    canDelete(document_) ? swipeHtml(document_.id, cardHtml(document_), { kind: 'doc' }) : cardHtml(document_);
+}
+
+/**
+ * A line slid away is not gone at once: it leaves the screen, and a note at the
+ * foot offers to bring it back for a few seconds. Only then is it deleted —
+ * here and for the others — so an « Annuler » never has to undo what the
+ * database already threw away. Leaving the screen, or the app, settles it.
+ */
+const UNDO_KEPT = 5000;
+let pending = null;
+
+/** Delete for good what is waiting to be, if anything. */
+function commitPendingDelete() {
+  if (!pending) return;
+  const { onDelete, id, timer } = pending;
+  pending = null;
+  clearTimeout(timer);
+  document.getElementById('undo-toast')?.remove();
+  onDelete(id);
+}
+
+function hideRow(row) {
+  row.hidden = true;
+}
+
+function offerUndo(kind, id, onDelete, said, row) {
+  commitPendingDelete();
+  hideRow(row);
+  pending = { kind, id, onDelete, timer: setTimeout(commitPendingDelete, UNDO_KEPT) };
+  const toast = document.createElement('div');
+  toast.id = 'undo-toast';
+  toast.className = 'toast';
+  toast.setAttribute('role', 'status');
+  toast.innerHTML = `<span>${escapeHtml(said)}</span>
+    <button type="button" class="toast__action" data-undo>${escapeHtml(t('action.undoDelete'))}</button>`;
+  toast.querySelector('[data-undo]').addEventListener('click', () => {
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    pending = null;
+    toast.remove();
+    // The row may have been drawn again meanwhile: show whichever is there.
+    view.querySelectorAll(`[data-swipe-kind="${kind}"]`).forEach((other) => {
+      if (other.dataset.swipe === id) other.hidden = false;
+    });
+  });
+  document.body.append(toast);
+}
+
+// Closing the app or putting it away is leaving the screen too.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') commitPendingDelete();
+});
+
+/**
+ * Make every row of that kind on the page slide, and delete through
+ * `onDelete(id)`. With `undo` (what the note at the foot says), the delete
+ * waits a few seconds and can be taken back.
+ */
+function bindSwipes(kind, onDelete, { undo = '' } = {}) {
+  view.querySelectorAll(`[data-swipe-kind="${kind}"]`).forEach((row) => {
+    // Drawn again while waiting to be deleted: stays out of sight.
+    if (pending && pending.kind === kind && pending.id === row.dataset.swipe) hideRow(row);
+    const body = row.querySelector('.swipe__body');
+    const button = row.querySelector('[data-swipe-delete]');
+    let start = null;
+    let offset = 0;
+    let moved = false;
+    let open = false;
+
+    const place = (x, animate) => {
+      offset = x;
+      body.style.transition = animate ? 'transform 0.18s ease' : 'none';
+      body.style.transform = x ? `translateX(${x}px)` : '';
+    };
+    const settle = (wanted) => {
+      open = wanted;
+      place(open ? -SWIPE_OPEN : 0, true);
+      row.classList.toggle('swipe--open', open);
+      button.tabIndex = open ? 0 : -1;
+      button.setAttribute('aria-hidden', open ? 'false' : 'true');
+    };
+
+    body.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      start = { x: event.clientX, y: event.clientY, from: open ? -SWIPE_OPEN : 0 };
+      moved = false;
+    });
+    body.addEventListener('pointermove', (event) => {
+      if (!start) return;
+      const dx = event.clientX - start.x;
+      const dy = event.clientY - start.y;
+      if (!moved) {
+        if (Math.abs(dx) < 8) return;
+        // Mostly up or down: a scroll, not a swipe.
+        if (Math.abs(dy) > Math.abs(dx)) {
+          start = null;
+          return;
+        }
+        moved = true;
+        body.setPointerCapture?.(event.pointerId);
+      }
+      place(Math.min(0, Math.max(-row.clientWidth * 0.6, start.from + dx)), false);
+    });
+    const end = () => {
+      if (!start) return;
+      start = null;
+      if (moved) settle(offset < -SWIPE_OPEN / 2);
+    };
+    body.addEventListener('pointerup', end);
+    body.addEventListener('pointercancel', end);
+    // The click that ends a swipe is not a tap on what slid; nor is a tap on a
+    // row left open, which only closes it again.
+    body.addEventListener('click', (event) => {
+      if (!moved && !open) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!moved) settle(false);
+      moved = false;
+    }, true);
+
+    button.addEventListener('click', () => {
+      if (undo) offerUndo(kind, row.dataset.swipe, onDelete, undo, row);
+      else onDelete(row.dataset.swipe);
+    });
+  });
+}
+
+/* --------------------------------------------------------- pull to refresh --- */
+
+/** How far down a finger pulls, in pixels, before letting go fetches. */
+const PULL_FAR = 72;
+
+/**
+ * Pull the top of the page down to fetch what the others did — the gesture of
+ * every phone app, which a web app installed on the home screen does not get
+ * from the browser. The same as the round arrows at the top (#sync), so it is
+ * offered only where they are. In a browser tab, the browser's own pull
+ * (reload) is left alone.
+ */
+function bindPullToRefresh() {
+  const installed = () =>
+    matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  let start = null;
+  let pulled = 0;
+  let mark = null;
+
+  const show = (distance) => {
+    if (!mark) {
+      mark = document.createElement('div');
+      mark.className = 'pull';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.innerHTML = '<span class="pull__arrow">↻</span>';
+      document.body.append(mark);
+    }
+    const shown = Math.min(distance, PULL_FAR * 1.4);
+    mark.style.transform = `translate(-50%, ${shown * 0.8}px) rotate(${shown * 4}deg)`;
+    mark.style.opacity = String(Math.min(1, shown / PULL_FAR));
+    mark.classList.toggle('pull--ready', distance >= PULL_FAR);
+  };
+  const hide = () => {
+    mark?.remove();
+    mark = null;
+  };
+
+  document.addEventListener('touchstart', (event) => {
+    start = null;
+    pulled = 0;
+    if (!installed() || event.touches.length !== 1 || window.scrollY > 0) return;
+    const sync = document.getElementById('sync');
+    if (!sync || sync.hidden || sync.disabled || document.body.classList.contains('playing')) return;
+    // What answers a finger of its own: the 3D view, a sketch, a slide, a form.
+    if (event.target.closest('canvas, dialog, input, textarea, select, .swipe, [data-no-pull]')) return;
+    start = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (event) => {
+    if (!start) return;
+    const dx = event.touches[0].clientX - start.x;
+    const dy = event.touches[0].clientY - start.y;
+    if (window.scrollY > 0 || dy < 0 || (pulled === 0 && Math.abs(dx) > Math.abs(dy))) {
+      start = null;
+      hide();
+      return;
+    }
+    pulled = dy;
+    if (pulled > 12) show(pulled - 12);
+  }, { passive: true });
+
+  const end = () => {
+    if (!start) return;
+    start = null;
+    const far = pulled - 12 >= PULL_FAR;
+    hide();
+    if (far) document.getElementById('sync')?.click();
+  };
+  document.addEventListener('touchend', end);
+  document.addEventListener('touchcancel', () => {
+    start = null;
+    hide();
+  });
+}
+
+  // ---- src/view-polls.js -----------------------------------------------
+/**
+ * Polls and events on screen: the list, the form, the grid, the day kept,
+ * and what a document's page shares with the others (its share bar, its
+ * « Plus d’actions »).
+ *
+ * Split out of app.js, which it calls back into: only from inside functions,
+ * so the two may import each other.
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ------------------------------------------------------------------ polls --- */
+
+/**
+ * A poll is a question, the choices it offers, and a grid: one answer per
+ * person and per choice. The "which evening suits you" case is the one worth
+ * building, and picking one thing out of several is the same grid with a
+ * single yes in it.
+ */
+
+function pollTitle(poll) {
+  return poll.question || t('polls.untitled');
+}
+
+/** A cell says one thing: available. What was "maybe" or "no" before shows as nothing. */
+const VOTE_MARK = { yes: '✓' };
+
+/**
+ * A poll card's last line: what a poll still being answered offers — « 3 jours
+ * proposés » —, rather than when it was last touched; the day it settled on
+ * once it has; when it closed, otherwise.
+ */
+function cardWhenText(poll) {
+  if (poll.date) {
+    const settled = t(poll.until ? 'polls.settledRange' : 'polls.settledOn', { day: whenText(poll) });
+    return settled.charAt(0).toUpperCase() + settled.slice(1);
+  }
+  if (poll.closedAt) return formatDate(poll.closedAt);
+  const count = poll.options.length;
+  if (!count) return formatDate(poll.updatedAt);
+  const days = poll.options.filter((option) => isDayChoice(option, poll.createdAt)).length;
+  return t(days === count ? 'polls.daysOffered' : 'polls.choicesOffered', { count });
+}
+
+/**
+ * Who has answered, at a glance: a dot per person, filled once they have —
+ * beside the words, which say the same for whoever cannot see them. Past
+ * eight people the eight dots fill in proportion, so a big poll stays a
+ * small gauge.
+ */
+function answeredDotsHtml(answered, total) {
+  if (!total) return '';
+  const dots = Math.min(total, 8);
+  const filled = total <= 8 ? answered : Math.round((answered / total) * 8);
+  return `<span class="dots" aria-hidden="true">${Array.from({ length: dots }, (_, index) => `<i class="${index < filled ? 'dots__on' : ''}"></i>`).join('')}</span>`;
+}
+
+function pollCardHtml(poll) {
+  const { answered, leaders, ranked } = tally(poll);
+  const leading = ranked.find((row) => leaders.includes(row.option.id));
+  return `
+    <button type="button" class="game-card" data-goto="#/poll/${escapeHtml(poll.id)}">
+      <span class="game-card__title">
+        ${escapeHtml(pollTitle(poll))}
+        ${poll.forActivity ? `<span class="pill pill--activity">🎯 ${escapeHtml(t('activity.pollPill'))}</span>` : ''}
+        <span class="pill ${poll.closedAt ? 'pill--done' : ''}">
+          ${poll.closedAt ? '' : answeredDotsHtml(answered, poll.people.length)}
+          ${escapeHtml(poll.closedAt ? t('polls.closed') : t('polls.answered', { count: answered, total: poll.people.length }))}
+        </span>
+      </span>
+      ${
+        leading
+          ? `<span class="game-card__meta">${escapeHtml(
+              t('polls.leading', { option: choiceLabel(leading.option), count: leading.yes }),
+            )}</span>`
+          : `<span class="game-card__meta">${escapeHtml(t('polls.noAnswerYet'))}</span>`
+      }
+      <span class="game-card__meta">
+        ${escapeHtml(cardWhenText(poll))}
+      </span>
+      ${talkSumHtml(poll)}
+      ${eventTagHtml(poll)}
+    </button>`;
+}
+
+function pollsView() {
+  // An event made without a vote is not a question: it lives in the agenda.
+  const sorted = [...shownDocs(state.polls).filter((poll) => !isEvent(poll))].sort((a, b) => b.updatedAt - a.updatedAt);
+  const live = sorted.filter(isLive);
+  const open = live.filter((poll) => !poll.closedAt);
+  const closed = live.filter((poll) => poll.closedAt);
+
+  return `
+    ${flashHtml()}
+    ${kindsHtml('polls')}
+    ${newButtonHtml('#/polls/new', t('polls.new'), live.length > 0)}
+    ${groupChipsHtml()}
+
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('kinds.ongoing'))}</h2></div>
+      ${
+        open.length
+          ? `<div class="game-list">${open.map(swipeable(pollCardHtml, isOrganiser)).join('')}</div>`
+          : hintHtml('polls', t('polls.none'))
+      }
+      ${hiddenByGroupHtml(state.polls)}
+    </section>
+    ${open.length && live.length <= 2 ? hintHtml('polls', t('hint.polls')) : ''}
+
+    ${
+      closed.length
+        ? `<section class="section">
+             <div class="section__head"><h2>${escapeHtml(t('polls.done'))}</h2></div>
+             <div class="game-list">${closed.map(swipeable(pollCardHtml, isOrganiser)).join('')}</div>
+           </section>`
+        : ''
+    }
+
+    ${archivedHtml(sorted, swipeable(pollCardHtml, isOrganiser))}`;
+}
+
+function newPollView() {
+  const suggestions = [...new Set([myName(), ...recentPeople(state.polls), ...recentPeople(state.lists), ...recentNames(state.games)].filter(Boolean))].filter((name) => !writtenNames(state.newPollPeople).has(name.toLowerCase())).slice(0, 12);
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/polls')}
+      <h1>${escapeHtml(t('polls.new'))}</h1>
+    </div>
+
+    <form id="new-poll" class="card stack">
+      <label>
+        ${escapeHtml(t('polls.question'))}
+        <input type="text" id="poll-question" placeholder="${escapeHtml(t('polls.questionPlaceholder'))}"
+               value="${escapeHtml(state.newPollQuestion)}" required />
+      </label>
+
+      <label>
+        ${escapeHtml(t('polls.choices'))}
+        <textarea id="poll-choices" rows="5" placeholder="${escapeHtml(t('polls.choicesPlaceholder'))}">${escapeHtml(state.newPollChoices)}</textarea>
+      </label>
+      ${newPollDaysHtml()}
+
+      ${rosterPickHtml(state.newPollPeople, t('polls.peopleHint')) || `
+      <div class="stack stack--tight">
+        <span class="muted small">${escapeHtml(t('polls.peopleHint'))}</span>
+        ${state.newPollPeople
+          .map(
+            (name, index) => `
+              <input type="text" data-person-index="${index}" value="${escapeHtml(name)}"
+                     placeholder="${escapeHtml(t('lists.person', { n: index + 1 }))}"
+                     aria-label="${escapeHtml(t('lists.person', { n: index + 1 }))}" />`,
+          )
+          .join('')}
+        <div class="row">
+          <button type="button" class="button button--small" id="add-person">+ ${escapeHtml(t('lists.addPerson'))}</button>
+          ${
+            state.newPollPeople.length > 1
+              ? `<button type="button" class="button button--small button--ghost" id="drop-person">− ${escapeHtml(t('lists.dropPerson'))}</button>`
+              : ''
+          }
+        </div>
+        ${
+          suggestions.length
+            ? `<div class="row">${suggestions
+                .map((name) => `<button type="button" class="chip" data-suggest="${escapeHtml(name)}">${escapeHtml(name)}</button>`)
+                .join('')}</div>`
+            : ''
+        }
+      </div>`}
+
+      <label class="checkbox">
+        <input type="checkbox" id="poll-for-activity" ${state.newPollForActivity ? 'checked' : ''} />
+        <span>🎯 ${escapeHtml(t('activity.pollMark'))}</span>
+      </label>
+
+      ${willBeInHtml()}
+      <button type="submit" class="button button--primary button--block">${escapeHtml(t('polls.create'))}</button>
+    </form>`;
+}
+
+/** From how many people the gauge is worth its room above the grid. */
+const GAUGE_FROM = 4;
+
+/**
+ * Which evenings suit the most people, at a glance: one bar per choice, the
+ * longest first.
+ *
+ * The grid answers "who can make what"; this answers "so, which one?", which
+ * is the question everyone opens the poll to ask. A bar's full length is
+ * everyone asked — not the best score — so three out of twelve looks like
+ * three out of twelve, and not like a landslide. The exact count sits at the
+ * end of every bar, in plain text: the length is for the eye, the number is
+ * for certainty. Ranked, unlike the grid: nobody taps a bar, so nothing moves
+ * under anyone's finger when the order changes.
+ */
+function gaugeHtml(poll) {
+  const total = poll.people.length;
+  // Up to three people, the grid's « Oui » column says it all at a glance.
+  if (total < GAUGE_FROM) return '';
+  const { ranked, leaders } = tally(poll);
+  if (!total || !ranked.some((row) => row.yes > 0)) return '';
+  return `
+    <section class="gauge" aria-labelledby="gauge-title">
+      <h2 id="gauge-title" class="gauge__title">${escapeHtml(t('polls.gauge'))}</h2>
+      <ol class="gauge__rows">
+        ${ranked
+          .map((row) => {
+            const share = Math.round((row.yes / total) * 100);
+            const lead = leaders.includes(row.option.id);
+            const said = t('polls.countLine', { yes: row.yes, total });
+            return `
+              <li class="gauge__row ${lead ? 'gauge__row--lead' : ''}" title="${escapeHtml(`${choiceLabel(row.option)} — ${said}`)}">
+                <span class="gauge__label">${lead ? leadMark() : ''}${escapeHtml(choiceLabel(row.option))}</span>
+                <span class="gauge__track" aria-hidden="true">
+                  <span class="gauge__fill" style="width: ${share}%"></span>
+                </span>
+                <span class="gauge__count">
+                  <span aria-hidden="true">${row.yes}/${total}</span>
+                  <span class="visually-hidden">${escapeHtml(said)}</span>
+                </span>
+              </li>`;
+          })
+          .join('')}
+      </ol>
+    </section>`;
+}
+
+/**
+ * Who this device answers for in a poll: the name chosen under « Je suis »;
+ * or, none chosen yet, this device's own first name (Réglages → Moi) when the
+ * poll asks it. Whoever made a poll is in it, and their taps on its days
+ * ticked nothing until they had picked their own name.
+ */
+function voterOf(poll) {
+  const chosen = state.prefs.voter?.[poll.id];
+  if (poll.people.some((person) => person.id === chosen)) return chosen;
+  const mine = sameName(myNameFor(poll));
+  return (mine && poll.people.find((person) => sameName(person.name) === mine)?.id) || null;
+}
+
+function pollView(poll, { solo = false } = {}) {
+  const me = voterOf(poll);
+  // Solo: a visitor from a link, with the app's chrome gone too. Guest: anyone
+  // who is not the organiser — a visitor, or another member of the group — and
+  // who is therefore shown the voting and nothing else.
+  const guest = solo || !isOrganiser(poll);
+  const { rows, leaders, answered } = tally(poll);
+  const closed = Boolean(poll.closedAt);
+  // An event whose day was known from the start: no choices, no votes, only
+  // the day, who comes, and what hangs off it.
+  const fixed = isEvent(poll);
+
+  // Nobody ticks before saying who they are: until a name is chosen above,
+  // no cell votes — a thumb landing on the grid would otherwise tick for
+  // whoever's column it hit, and settle who this device is on the way. A tap
+  // there points at the names instead (see bindPoll), so it stays a button.
+  const locked = !me && !closed;
+
+  const cellHtml = (option, person) => {
+    const yes = voteOf(poll, person.id, option.id) === 'yes';
+    // Once this device has said who it answers for, the other columns are out
+    // of reach: a thumb that lands one column over would tick someone else's
+    // evening, and nothing on screen would say so. Switching name is still one
+    // tap on the chips above — a choice, rather than a slip.
+    const others = Boolean(me) && person.id !== me;
+    return `
+      <td class="${person.id === me ? 'votes__mine' : ''}">
+        <button type="button" class="vote ${yes ? 'vote--yes' : 'vote--none'} ${others ? 'vote--other' : ''} ${locked ? 'vote--locked' : ''}"
+                data-vote="${escapeHtml(person.id)}|${escapeHtml(option.id)}" ${closed || others ? 'disabled' : ''}
+                ${locked ? 'aria-disabled="true"' : ''}
+                aria-pressed="${yes ? 'true' : 'false'}"
+                aria-label="${escapeHtml(`${person.name} — ${choiceLabel(option)}`)}">
+          ${yes ? VOTE_MARK.yes : ''}
+        </button>
+      </td>`;
+  };
+
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${solo ? '' : backButtonHtml(pollHome(poll))}
+      <div>
+        <h1>${escapeHtml(pollTitle(poll))}</h1>
+        <p class="muted small">
+          ${
+            fixed
+              ? escapeHtml(poll.people.map((person) => person.name).join(' · ') || t('events.nobody'))
+              : `${escapeHtml(t('polls.answered', { count: answered, total: poll.people.length }))}
+                 ${closed ? ` · ${escapeHtml(t('polls.closed'))}` : ''}`
+          }
+          ${poll.shared && !guest ? ` · ${escapeHtml(t('lists.sharedMark'))}` : ''}
+        </p>
+        ${poll.date ? `<p class="event-when"><strong>${escapeHtml(whenText(poll, { long: true }))}</strong></p>` : ''}
+        ${signedByHtml(poll)}
+      </div>
+    </div>
+
+    ${isEventDoc(poll) ? talkHtml(poll, '', { title: pollTitle(poll), said: true }) : ''}
+
+    ${guest ? '' : eventLinkHtml(poll)}
+
+    ${solo ? '' : activityHeadHtml(poll)}
+
+    ${guest ? '' : pollFlowsHtml(poll)}
+
+    ${guest ? '' : pollActivitiesHtml(poll)}
+
+    ${guest ? '' : inGroupHtml(poll)}
+
+    ${guest ? '' : shareBarHtml(`
+      ${state.remote ? `<button type="button" class="button button--primary" id="poll-share">${escapeHtml(t(isActivity(poll, everything()) ? 'activity.share' : fixed || poll.date ? 'events.share' : 'polls.share'))}</button>` : ''}
+      ${state.remote && !fixed && !closed && answered < poll.people.length && poll.options.length
+        ? `<button type="button" class="button" id="poll-nudge">${escapeHtml(t('polls.nudge'))}</button>`
+        : ''}`)}
+
+    ${
+      poll.people.length && !fixed
+        ? `<div class="row iam ${locked ? 'iam--needed' : ''}" data-iam>
+             <span class="muted small">${escapeHtml(t('polls.iAm'))}</span>
+             ${poll.people
+               .map(
+                 (person) => `<button type="button" class="chip ${person.id === me ? 'chip--on' : ''}" data-me="${escapeHtml(person.id)}">${escapeHtml(person.name)}</button>`,
+               )
+               .join('')}
+           </div>`
+        : ''
+    }
+
+    ${guest && !closed ? soloJoinHtml(poll, solo) : ''}
+
+    ${
+      // An event: what is made for it first — it is what the page is for —
+      // then its date, to change.
+      solo ? '' : eventHtml(poll, { guest })
+    }
+
+    ${guest ? soloDateHtml(poll) : poll.date || fixed ? dateCardHtml(poll, fixed) : ''}
+
+    ${fixed ? '' : gaugeHtml(poll)}
+
+    ${guest || poll.date || fixed || hasOptionDays(poll) ? '' : retainHtml(poll)}
+
+    ${
+      fixed
+        ? ''
+        : poll.options.length && poll.people.length
+        ? `<div class="table-wrap table-wrap--flush" data-keep-scroll="poll-${escapeHtml(poll.id)}">
+             <table class="votes">
+               <thead>
+                 <tr>
+                   <th>${escapeHtml(t('polls.choice'))}</th>
+                   ${poll.people.map((person) => `<th class="${person.id === me ? 'votes__mine' : ''}">${escapeHtml(person.name)}</th>`).join('')}
+                   <th>${escapeHtml(t('polls.count'))}</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 ${gridRows(poll, rows)
+                   .map(
+                     (row) => row.day !== undefined ? `
+                       <tr class="votes__day">
+                         <th scope="rowgroup">${escapeHtml(row.day ? formatDayLong(row.day) : t('polls.anyDay'))}</th>
+                         <td colspan="${poll.people.length + 1}"></td>
+                       </tr>` : `
+                       <tr class="${leaders.includes(row.option.id) ? 'votes__leader' : ''}">
+                         <th scope="row">
+                           ${leaders.includes(row.option.id) ? leadMark() : ''}
+                           ${
+                             guest
+                               ? `${dayMark(poll, row.option)}${escapeHtml(rowLabel(poll, row.option))}${
+                                   ownsChoice(row.option) && !closed
+                                     ? ` <button type="button" class="button button--small button--ghost choice-drop"
+                                                 data-drop-option="${escapeHtml(row.option.id)}"
+                                                 aria-label="${escapeHtml(t('polls.dropMine', { choice: choiceLabel(row.option) }))}">✕</button>`
+                                     : ''
+                                 }`
+                               : `<button type="button" class="line__text" data-option="${escapeHtml(row.option.id)}">${dayMark(poll, row.option)}${escapeHtml(rowLabel(poll, row.option))}</button>`
+                           }
+                         </th>
+                         ${poll.people.map((person) => cellHtml(row.option, person)).join('')}
+                         <td class="votes__score">${row.yes}</td>
+                       </tr>`,
+                   )
+                   .join('')}
+               </tbody>
+             </table>
+           </div>
+           ${
+             locked
+               ? `<p class="small poll-ask">${escapeHtml(t('polls.pickFirst'))}</p>`
+               : `<p class="muted small">${escapeHtml(
+                 me && !closed
+                   ? t('polls.answeringAs', { name: poll.people.find((person) => person.id === me)?.name || '' })
+                   : t('polls.tapHint'),
+               )}</p>`
+           }`
+        : `<p class="muted small">${escapeHtml(poll.people.length ? t('polls.addChoices') : t('polls.addPeople'))}</p>`
+    }
+
+    ${isEventDoc(poll) ? '' : choicesTalkHtml(poll)}
+
+    ${
+      // A guest adds choices too — another evening, another place — as long
+      // as there is still something to choose: not once the day is set.
+      closed || (guest && (fixed || poll.date))
+        ? ''
+        : addChoiceHtml(poll)
+    }
+
+    ${
+      // No day to set by hand on a poll choosing what to do on the days of
+      // its event: its choices have days of their own.
+      guest || poll.date || fixed || poll.whenFor || hasOptionDays(poll) || pollDay(poll) ? '' : `<details class="details" id="poll-date-by-hand">
+      <summary>${escapeHtml(t('polls.dateByHand'))}</summary>
+      ${dateCardHtml(poll, fixed)}
+    </details>`}
+
+    ${poll.date ? '' : attachedHtml(poll)}
+
+    ${guest ? '' : actionsHtml(`
+        <button type="button" class="button button--small" id="poll-people">${escapeHtml(t('lists.people'))}</button>
+        <button type="button" class="button button--small" id="poll-text">${escapeHtml(t('action.recap'))}</button>
+        ${
+          fixed
+            ? ''
+            : `<button type="button" class="button button--small" id="poll-close">
+                 ${escapeHtml(closed ? t('polls.reopen') : t('polls.close'))}
+               </button>`
+        }
+`, `
+        <button type="button" class="button button--small button--ghost" id="poll-rename">${escapeHtml(t(fixed ? 'events.rename' : 'polls.rename'))}</button>
+        ${fixed || poll.whenFor ? '' : `<button type="button" class="button button--small button--ghost" id="poll-for-activity-toggle">🎯 ${escapeHtml(t(poll.forActivity ? 'activity.pollUnmark' : 'activity.pollMark'))}</button>`}
+        <button type="button" class="button button--small button--ghost" id="poll-sign">${escapeHtml(t('sign.edit'))}</button>
+        ${chainButtonsHtml(poll)}
+        <button type="button" class="button button--small button--ghost" id="poll-archive">
+          ${escapeHtml(poll.archivedAt ? t('archive.back') : t('archive.put'))}
+        </button>
+        <button type="button" class="button button--small button--ghost" id="poll-delete">${escapeHtml(t('action.delete'))}</button>`)}`;
+}
+
+/** What is said of each choice: its reactions and its words, a row each. */
+function choicesTalkHtml(poll) {
+  if (!poll.options.length) return '';
+  return `
+    <section class="section" aria-labelledby="talk-choices">
+      <div class="section__head"><h2 id="talk-choices">${escapeHtml(t('talk.choices'))}</h2></div>
+      <div class="talk-lines">
+        ${poll.options.map((option) => `
+          <div class="talk-line">
+            <span class="talk-line__what">${escapeHtml(choiceLabel(option))}</span>
+            ${talkHtml(poll, option.id, { title: choiceLabel(option) })}
+          </div>`).join('')}
+      </div>
+    </section>`;
+}
+
+/**
+ * Sharing is what a document is made for here, so it has a row of its own
+ * under the title, not a place among nine buttons at the bottom.
+ */
+function shareBarHtml(buttons) {
+  return buttons.trim() ? `<div class="row share-bar">${buttons}</div>` : '';
+}
+
+/**
+ * A document's other actions: the everyday ones in sight, the rare ones —
+ * archive, rename, sign, delete — folded under « Plus d’actions ».
+ */
+function actionsHtml(everyday, rare) {
+  return `
+    <section class="section actions">
+      <div class="row">${everyday}</div>
+      <details class="details actions__more">
+        <summary>${escapeHtml(t('actions.more'))}</summary>
+        <div class="row">${rare}</div>
+      </details>
+    </section>`;
+}
+
+/** The day an event is on, as its organiser sets it by hand. */
+function dateCardHtml(poll, fixed) {
+  return `<section class="card stack stack--tight">
+      <div class="section__head">
+        <h2>${escapeHtml(t(fixed ? 'events.date' : 'polls.date'))}</h2>
+        ${poll.date ? `<span class="pill">${escapeHtml(whenText(poll))}</span>` : ''}
+      </div>
+      <p class="muted small">${escapeHtml(t(fixed ? 'events.dateHint' : 'polls.dateHint'))}</p>
+      <div class="row">
+        <label class="visually-hidden" for="poll-day">${escapeHtml(t('polls.date'))}</label>
+        <input type="date" id="poll-day" value="${escapeHtml(poll.date || '')}" />
+        <label class="visually-hidden" for="poll-hour">${escapeHtml(t('polls.hour'))}</label>
+        <input type="time" id="poll-hour" value="${escapeHtml(poll.at || '')}" />
+      </div>
+      <label class="small">
+        ${escapeHtml(t('events.until'))}
+        <input type="date" id="poll-until" value="${escapeHtml(poll.until || '')}" />
+      </label>
+      <div class="row">
+        <label class="visually-hidden" for="poll-title">${escapeHtml(t('polls.eventName'))}</label>
+        <input type="text" id="poll-title" value="${escapeHtml(eventName(poll))}"
+               placeholder="${escapeHtml(t('polls.eventNamePlaceholder'))}" />
+        <button type="button" class="button" id="poll-date-save">${escapeHtml(t('action.save'))}</button>
+      </div>
+      ${
+        poll.date
+          ? `<div class="row">
+               <button type="button" class="button button--small" id="poll-ics">${escapeHtml(t('agenda.add'))}</button>
+             </div>`
+          : ''
+      }
+    </section>`;
+}
+
+/**
+ * The event of several days a poll is part of, whose days its choices may be
+ * pinned to — « Kayak » on the Saturday, « Rando » on the Sunday —, or null.
+ * Never for a poll that asks when: its choices are days already.
+ */
+function choiceDaysEvent(poll) {
+  if (isEvent(poll) || poll.whenFor) return null;
+  const event = topEventOf(poll, everything());
+  return event && eventDays(event).length > 1 ? event : null;
+}
+
+/**
+ * The day and hour picked for the next choice, per poll: the day kept while
+ * adding several things to do on it, both dropped once a day alone is added.
+ */
+const pickedDays = {};
+const pickedHours = {};
+
+/** A choice as read outside the grid: with its day, when it is done on one. */
+function choiceLabel(option) {
+  const words = choiceText(option, getLanguage());
+  const day = optionDay(option);
+  if (!day || isDayChoice(option)) return words;
+  return `${words} · ${[formatDayLong(day), option.at].filter(Boolean).join(' ')}`;
+}
+
+/** The choice most can make, crowned in the grid — and named for whoever cannot see the crown. */
+const leadMark = () => `<svg class="crown" viewBox="0 0 24 24" role="img" aria-label="${escapeHtml(t('polls.ahead'))}"><path d="M4 18 3 8l5 4 4-7 4 7 5-4-1 10z"/></svg>`;
+
+/**
+ * A day and an hour, as line icons in the hand of the tab bar's: the emoji
+ * 📅 🕗 they replace came out in colour, unlike anything around them.
+ */
+const DAY_ICON = '<svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></svg>';
+const HOUR_ICON = '<svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/></svg>';
+
+/** The day icon before a day to vote on, inside its label so the two wrap as one. */
+const dayMark = (poll, option) => (dayOfOption(poll, option) ? `<span class="choice-day" aria-hidden="true">${DAY_ICON}</span>` : '');
+
+/** A choice in the grid: under its day's heading when it is done on one. */
+function rowLabel(poll, option) {
+  if (hasOptionDays(poll) && optionDay(option) && !isDayChoice(option)) return [option.text, option.at].filter(Boolean).join(' · ');
+  return choiceText(option, getLanguage());
+}
+
+/**
+ * The grid's rows: as they are, or under the day each choice is done on, with
+ * a `{ day }` heading before each day.
+ */
+function gridRows(poll, rows) {
+  if (!hasOptionDays(poll)) return rows;
+  const byOption = new Map(rows.map((row) => [row.option.id, row]));
+  return optionsByDay(poll).flatMap(({ day, options }) => [{ day }, ...options.map((option) => byOption.get(option.id))]);
+}
+
+/**
+ * One way in for every choice: a few words, a day, an hour — any of them, so
+ * long as there are words or a day. A day alone is a day to vote on; words
+ * with a day are something done that day. In an event of several days the
+ * day is the poll's, set when it was made: not picked again for each choice,
+ * only its organiser changes it.
+ */
+function addChoiceHtml(poll) {
+  const event = choiceDaysEvent(poll);
+  const day = event ? pollDay(poll) || '' : pickedDays[poll.id] || '';
+  const hour = pickedHours[poll.id] || '';
+  return `
+    <form id="add-choice" class="card stack stack--tight">
+      <label class="visually-hidden" for="new-choice">${escapeHtml(t('polls.addChoice'))}</label>
+      <div class="row row--tight">
+        <input type="text" id="new-choice" placeholder="${escapeHtml(t(seeksDay(poll) ? 'polls.dayPlaceholder' : 'polls.otherPlaceholder'))}" autocomplete="off" />
+        <button type="submit" class="button button--primary" aria-label="${escapeHtml(t('polls.addChoice'))}">+</button>
+      </div>
+      ${
+        event
+          ? `<div class="row row--tight">
+               <span class="small" id="poll-on-day">${DAY_ICON}${escapeHtml(day ? t('polls.onDay', { day: formatDayLong(day) }) : t('polls.wholeEvent'))}</span>
+               ${isOrganiser(poll) ? `<button type="button" class="button button--small button--ghost" id="poll-change-day">${escapeHtml(t('polls.changeDay'))}</button>` : ''}
+             </div>`
+          : `<label class="small add-day">
+               <span>${DAY_ICON}${escapeHtml(t('polls.pickDay'))}</span>
+               <input type="date" id="new-choice-day" value="${escapeHtml(day)}" />
+             </label>`
+      }
+      ${
+        event && !day
+          ? ''
+          : `<label class="small add-day">
+               <span>${HOUR_ICON}${escapeHtml(t('polls.pickHour'))}</span>
+               <input type="time" id="new-choice-at" value="${escapeHtml(day ? hour : '')}" ${day ? '' : 'disabled'} />
+             </label>`
+      }
+    </form>`;
+}
+
+/** The day a choice stands for, when it is a day to vote on. */
+function dayOfOption(poll, option) {
+  return isDayChoice(option, poll.createdAt) ? choiceWhen(option, poll.createdAt) : null;
+}
+
+/**
+ * The poll has a favourite, and it is a day: its organiser keeps it
+ * in one tap — the day goes in the agendas and the poll closes — instead of
+ * writing again a date that is already on screen.
+ */
+function retainHtml(poll) {
+  const { rows, leaders } = tally(poll);
+  const kept = rows
+    .filter((row) => leaders.includes(row.option.id))
+    .map((row) => ({ row, day: dayOfOption(poll, row.option) }))
+    .filter(({ day }) => day);
+  if (!kept.length) return '';
+  const total = poll.people.length;
+  return `
+    <section class="card stack stack--tight retain">
+      <p class="small">${escapeHtml(
+        kept.length > 1 ? t('polls.retainTie') : t('polls.retainHint', { choice: choiceLabel(kept[0].row.option), yes: kept[0].row.yes, total }),
+      )}</p>
+      <div class="row">
+        ${kept
+          .map(
+            ({ row, day }) => `<button type="button" class="button button--primary" data-retain="${escapeHtml(row.option.id)}">
+                ${escapeHtml(t('polls.retain', { day: formatDayLong(day.date) }))}
+              </button>`,
+          )
+          .join('')}
+      </div>
+    </section>`;
+}
+
+/**
+ * Once a poll has settled on a day, it is an event, and the event is where
+ * everything made for it is found: what to bring, what it cost, the polls,
+ * the ideas, the games — each under its kind. The two things almost every
+ * event needs are one tap away; anything else is added from « Ajouter ».
+ * A guest sees what is there and nothing to press.
+ */
+function eventHtml(poll, { guest }) {
+  // An activity with no day yet is already an event of sorts: what it needs
+  // can be made for it before its day is known.
+  const activity = isActivity(poll, everything());
+  if (!poll.date && !activity) return '';
+  const parts = eventParts(poll, state);
+  const { list, spend } = parts;
+  if (guest && !partsCount(parts)) return '';
+  const day = formatDay(poll.date);
+  const kind = (label, documents, cardHtml) =>
+    documents.length
+      ? `<span class="muted small">${escapeHtml(label)}</span>
+         <div class="game-list">${documents.map(cardHtml).join('')}</div>`
+      : '';
+  return `
+    <section class="section stack stack--tight" id="event-parts">
+      <div class="section__head"><h2>${escapeHtml(t(activity ? 'activity.title' : 'event.title'))}</h2></div>
+      ${activity ? '' : programmeHtml(poll, { guest })}
+      ${kind(t('tab.lists'), parts.lists, listCardHtml)}
+      ${kind(t('tab.polls'), parts.polls, pollCardHtml)}
+      ${kind(t('tab.games'), parts.games, gameCardHtml)}
+      ${kind(t('tab.spends'), parts.spends, spendCardHtml)}
+      ${kind(t('tab.ideas'), parts.boards, boardCardHtml)}
+      ${guest ? '' : eventFlowsHtml(poll)}
+      ${
+        guest
+          ? ''
+          : `${list && spend ? '' : `<p class="muted small">${escapeHtml(t(isEvent(poll) || !poll.date ? 'event.hintFixed' : 'event.hint', { day }))}</p>`}
+             <div class="row">
+               ${list ? '' : `<button type="button" class="button button--small" id="event-list">${escapeHtml(t('event.addList'))}</button>`}
+               ${spend ? '' : `<button type="button" class="button button--small" id="event-spend">${escapeHtml(t('event.addSpend'))}</button>`}
+               <button type="button" class="button button--small" id="event-add">${escapeHtml(t('event.addMore'))}</button>
+               <button type="button" class="button button--small" data-gather-doc="${escapeHtml(poll.id)}">${escapeHtml(t('chain.gather'))}</button>
+             </div>`
+      }
+    </section>`;
+}
+
+/**
+ * On a card, what a document hangs from — « Pour Raclette · 1 oct. › Courses ».
+ * On the page of something in that chain, only what lies below it is said:
+ * the card already sits under the rest. And what it still waits for, when a
+ * link says it comes after something not done yet.
+ */
+function eventTagHtml(document_) {
+  let chain = chainOf(document_);
+  const here = chain.findIndex((one) => one.id === route().id);
+  if (here >= 0) chain = chain.slice(here + 1);
+  const waits = waitingOn(document_, everything());
+  const waiting = waits.length
+    ? `<span class="game-card__meta">${escapeHtml(t('relate.waiting', { name: waits.map(chainLabel).join(', ') }))}</span>`
+    : '';
+  if (!chain.length) return waiting;
+  return `<span class="game-card__meta game-card__event">${escapeHtml(
+    t('event.tagUndated', { name: chain.map(chainLabel).join(' › ') }),
+  )}</span>${waiting}`;
+}
+
+/**
+ * At the top of a document's page, the whole chain it belongs to, drawn as a
+ * tree: its event on top, everything attached below, this page marked. Every
+ * other node opens its page. Under it, the links across the chain: what goes
+ * with this page, what it waits for — done or not — and what it unblocks.
+ * Nothing is shown for a document on its own.
+ */
+function eventLinkHtml(document_) {
+  const all = everything();
+  const tree = chainTree(document_, all);
+  const relations = relationsOf(document_, all);
+  const hasTree = treeSize(tree) > 1;
+  if (!hasTree && !relations.length) return '';
+  const icon = (one) => (isEventDoc(one) ? '📅' : one.forActivity ? '🎯' : { list: '☑️', poll: '🗳️', spend: '💶', board: '💡', game: '🃏' }[kindOf(one)] || '•');
+  const kindTitle = (one) => t(isEventDoc(one) ? 'chain.kind.event' : `chain.kind.${kindOf(one) || 'game'}`);
+  const byRelation = new Map(relations.map((one) => [one.document.id, one]));
+  // How another one stands to this page, in one pill beside it, said of it:
+  // to do first — done or not —, coming after, or going with it.
+  const badge = (one) => {
+    const relation = byRelation.get(one.id);
+    if (!relation) return '';
+    if (relation.kind !== 'waits') {
+      return `<span class="pill chain-map__link">${escapeHtml(t(relation.kind === 'with' ? 'relate.with' : 'relate.comesAfter'))}</span>`;
+    }
+    const done = isDone(one);
+    if (done === null) return `<span class="pill chain-map__link">${escapeHtml(t('relate.comesFirst'))}</span>`;
+    return `<span class="pill ${done ? 'pill--done' : 'pill--late'}">${done ? '✓' : '⏳'} ${escapeHtml(t('relate.comesFirst'))}<span
+      class="visually-hidden"> (${escapeHtml(t(done ? 'relate.isDone' : 'relate.notDone'))})</span></span>`;
+  };
+  const label = (one) => {
+    const waits = waitingOn(one, all);
+    return `<span class="chain-map__icon" aria-hidden="true">${icon(one)}</span>
+      <span class="chain-map__title">${escapeHtml(chainLabel(one))}</span>
+      ${waits.length ? `<span class="chain-map__wait" title="${escapeHtml(t('relate.waiting', { name: waits.map(chainLabel).join(', ') }))}">⏳</span>` : ''}`;
+  };
+  const nodeHtml = (one) => (one.id === document_.id
+    ? `<span class="chain-map__node chain-map__node--here" aria-current="page" data-press="${escapeHtml(one.id)}">${label(one)}
+         <span class="pill">${escapeHtml(t('chain.youAreHere'))}</span></span>`
+    : `<button type="button" class="chain-map__node" data-goto="${escapeHtml(documentHref(one))}" title="${escapeHtml(kindTitle(one))}">${label(one)}</button>`);
+  const inTree = new Set();
+  const node = ({ document: one, children }) => {
+    inTree.add(one.id);
+    return `
+      <li>
+        <div class="chain-map__row">${nodeHtml(one)}${badge(one)}</div>
+        ${children.length ? `<ul>${children.map(node).join('')}</ul>` : ''}
+      </li>`;
+  };
+  const treeHtml = hasTree ? node(tree) : '';
+  // What the page is linked to outside its chain: the tree cannot show it.
+  const outside = relations.filter((one) => !inTree.has(one.document.id));
+  return `
+    <nav class="chain-map card" aria-label="${escapeHtml(t('chain.map'))}">
+      ${hasTree ? `<span class="muted small">${escapeHtml(t('chain.map'))}</span><ul class="chain-map__tree">${treeHtml}</ul>` : ''}
+      ${
+        outside.length
+          ? `<span class="muted small">${escapeHtml(t(hasTree ? 'relate.outside' : 'relate.map'))}</span>
+             <ul class="chain-map__links">${outside.map(({ document: one }) => `
+               <li><div class="chain-map__row">${nodeHtml(one)}${badge(one)}</div></li>`).join('')}</ul>`
+          : ''
+      }
+    </nav>`;
+}
+
+/**
+ * For a guest whose name the poll does not have yet: add it, and answer.
+ * Whoever sends a link to a chat does not know every name in it; without
+ * this, a guest could look but never tick.
+ */
+function soloJoinHtml(poll, solo) {
+  // A member of a group that fixes its names says which one they are, among
+  // those not asked yet; a visitor from a link writes theirs.
+  const roster = solo ? [] : rosterFor(poll);
+  if (roster.length) {
+    const free = roster.filter((name) => !poll.people.some((person) => sameName(person.name) === sameName(name)));
+    if (!free.length) return '';
+    return `
+      <div class="row row--chips" id="solo-me-listed">
+        <span class="muted small">${escapeHtml(t('roster.notAsked'))}</span>
+        ${free.map((name) => `<button type="button" class="chip" data-solo-as="${escapeHtml(name)}">+ ${escapeHtml(name)}</button>`).join('')}
+      </div>`;
+  }
+  return `
+    <form id="solo-me-form" class="row row--tight">
+      <label class="visually-hidden" for="solo-me">${escapeHtml(t('polls.soloMe'))}</label>
+      <input type="text" id="solo-me" autocomplete="given-name" maxlength="${NAME_KEPT}"
+             placeholder="${escapeHtml(t('polls.soloMe'))}" />
+      <button type="submit" class="button">${escapeHtml(t('polls.soloAdd'))}</button>
+    </form>`;
+}
+
+/** The day the poll settled on, to read — and to take away — but not to change. */
+function soloDateHtml(poll) {
+  if (!poll.date) return '';
+  const when = whenText(poll, { long: true });
+  return `
+    <section class="card stack stack--tight">
+      <p><strong>${escapeHtml(t('polls.soloSettled', { when }))}</strong></p>
+      <div class="row">
+        <button type="button" class="button button--small" id="poll-ics">${escapeHtml(t('agenda.add'))}</button>
+      </div>
+    </section>`;
+}
+
+/* ------------------------------------------------------ polls: behaviour --- */
+
+/**
+ * Whether a change that could not be written to this device survives anywhere
+ * else — and so whether its loss is worth a word.
+ *
+ * Holding a database is not enough: only a *shared* document is sent to one.
+ * A poll kept to oneself, on a device whose storage refuses, exists in the
+ * page and nowhere else, and is gone at the next reload. That used to pass in
+ * silence, because a database was configured. It no longer does.
+ */
+/**
+ * What this device is actually holding, all groups and filters aside.
+ *
+ * The filters are what make a screen look empty when nothing has been lost, so
+ * the one place that counts without filtering is worth having: it separates
+ * "it is not being shown" from "it is not there", which is the first question
+ * to answer when someone says their polls are gone.
+ */
+function heldCounts() {
+  const all = [...state.lists, ...state.polls, ...state.games, ...state.spends, ...state.boards];
+  return {
+    lists: state.lists.length,
+    polls: state.polls.length,
+    games: state.games.length,
+    spends: state.spends.length,
+    shared: all.filter((document_) => document_.shared).length,
+    archived: all.filter((document_) => document_.archivedAt).length,
+  };
+}
+
+function keptElsewhere(changed, { store = false } = {}) {
+  if (state.remote && changed?.shared) return true;
+  return Boolean(store && state.store && changed);
+}
+
+/**
+ * What to do when a write does not go through. Most often it is the network:
+ * the copy here stays, and goes up with the next change. But when the
+ * database answers that the thing was deleted, keeping it would only fail
+ * again at every change — so it leaves this device too, and the page says why.
+ */
+/**
+ * Send a list, an account of spends or a game — after taking in what the
+ * database already has. It keeps whatever it is sent, so a copy written
+ * straight away would erase the lines someone else added since this device
+ * last looked. `adopt` merges a stored copy in and says whether it brought
+ * anything; `find` hands back the merged one.
+ */
+async function pushMerged(changed, { valid, adopt, find }) {
+  let outgoing = changed;
+  try {
+    const stored = await state.remote.get(changed.id);
+    if (valid(stored) && adopt(stored)) {
+      outgoing = find(changed.id) || changed;
+      if (!isBusy()) render();
+    }
+  } catch {
+    // Unreadable just now: this copy goes up, and the next look merges.
+  }
+  await state.remote.put(outgoing, keyFor(outgoing), organiserSecret(outgoing.id));
+}
+
+function pushFailed(changed) {
+  return (error) => {
+    if (wasDeleted(error)) dropDeleted(changed.id);
+    else flash(t('share.pushFailed'), 'error');
+  };
+}
+
+/**
+ * The database has nothing under an id this device holds as shared. Reading
+ * cannot tell « deleted » from « never arrived » — only a write is answered
+ * « document supprimé ». So: a poll someone else organises came from the
+ * database and nowhere else, and gone from it, it is gone; anything else is
+ * sent again — refused as deleted, it leaves this device; accepted, it was a
+ * share that never arrived, and now has. True when it left.
+ */
+async function whenAbsent(id) {
+  const held = everything().find((one) => one.id === id);
+  if (!held?.shared || !state.remote) return false;
+  if (held.kind === 'poll' && !isOrganiser(held)) {
+    dropDeleted(id);
+    return true;
+  }
+  try {
+    await state.remote.put(held, keyFor(held), organiserSecret(id));
+    return false;
+  } catch (error) {
+    if (!wasDeleted(error)) return false;
+    dropDeleted(id);
+    return true;
+  }
+}
+
+function dropDeleted(id) {
+  const poll = getPoll(id);
+  const list = getList(id);
+  const spend = getSpend(id);
+  const board = getBoard(id);
+  const game = getGame(id);
+  if (poll) {
+    state.polls = state.polls.filter((item) => item.id !== id);
+    savePolls(state.polls);
+  } else if (list) {
+    state.lists = state.lists.filter((item) => item.id !== id);
+    saveLists(state.lists);
+  } else if (spend) {
+    state.spends = state.spends.filter((item) => item.id !== id);
+    saveSpends(state.spends);
+  } else if (board) {
+    state.boards = state.boards.filter((item) => item.id !== id);
+    saveBoards(state.boards);
+  } else if (game) {
+    state.games = state.games.filter((item) => item.id !== id);
+    saveGames(state.games);
+  } else {
+    return;
+  }
+  if (state.store) void state.store.remove(id);
+  const name = poll ? pollTitle(poll) : list ? listTitle(list) : spend ? spendTitle(spend) : board ? boardTitle(board) : gameTitle(game);
+  flash(t('share.deleted', { name }));
+  // On its page, the page finds it gone and says so as any missing thing does.
+  if (route().id === id) render();
+}
+
+function persistPoll(changed) {
+  const ok = savePolls(state.polls);
+  if (!ok && !keptElsewhere(changed)) flash(t('home.storageWarning'), 'error');
+  if (state.store && changed) void state.store.save(changed);
+  if (state.remote && changed?.shared) {
+    pushPoll(changed).catch(pushFailed(changed));
+  }
+  return ok;
+}
+
+/**
+ * Send a poll — after taking in what the database already has.
+ *
+ * Writing this device's copy straight away used to erase whatever had come
+ * in since it last looked: Paul ticks Saturday from a link, the organiser
+ * ticks Friday a moment later on a copy without Paul, and Paul was gone —
+ * his tick and his name. The copy stored is now merged in first, cell by
+ * cell, exactly as a poll arriving on screen is; and the database does the
+ * same on its side, for the moment between this read and that write, and
+ * for any app not yet up to date.
+ */
+async function pushPoll(changed) {
+  let outgoing = changed;
+  try {
+    const stored = await state.remote.get(changed.id);
+    if (isValidPoll(stored) && adoptPoll(stored)) {
+      outgoing = getPoll(changed.id) || changed;
+      if (!isBusy()) render();
+    }
+  } catch {
+    // Unreadable just now: the database merges on its side all the same.
+  }
+  // A guest taking back a choice of their own sends the secret that proves it
+  // was theirs; the database keeps it nowhere.
+  const unlock = isOrganiser(outgoing) ? {} : choiceUnlocks(outgoing);
+  if (Object.keys(unlock).length) outgoing = { ...outgoing, unlock };
+  await state.remote.put(outgoing, keyFor(outgoing), organiserSecret(outgoing.id));
+}
+
+function getPoll(id) {
+  return state.polls.find((poll) => poll.id === id) || null;
+}
+
+function persistSpend(changed) {
+  const ok = saveSpends(state.spends);
+  if (!ok && !keptElsewhere(changed)) flash(t('home.storageWarning'), 'error');
+  if (state.store && changed) void state.store.save(changed);
+  if (state.remote && changed?.shared) {
+    pushMerged(changed, { valid: isValidSpend, adopt: adoptSpend, find: getSpend }).catch(pushFailed(changed));
+  }
+  return ok;
+}
+
+function getSpend(id) {
+  return state.spends.find((spend) => spend.id === id) || null;
+}
+
+function replaceSpend(next, { redraw = true } = {}) {
+  state.spends = state.spends.map((spend) => (spend.id === next.id ? next : spend));
+  persistSpend(next);
+  if (redraw) render();
+}
+
+function replacePoll(next, { redraw = true } = {}) {
+  state.polls = state.polls.map((poll) => (poll.id === next.id ? next : poll));
+  persistPoll(next);
+  if (redraw) render();
+}
+
+/**
+ * The days of a new poll, apart from the typed choices: when its event runs
+ * over several, first the one day it is about — its choices go on it —, then
+ * those of the event to vote on, a tap each; any other on the calendar; and
+ * one hour for them all, when the evening has one.
+ */
+function newPollDaysHtml() {
+  const event = linkedEvent();
+  const eventDaysOf = event && eventDays(event).length > 1 ? eventDays(event) : [];
+  const picked = state.newPollDays;
+  const chip = (day) => `<button type="button" class="chip ${picked.includes(day) ? 'chip--on' : ''}" data-toggle-day="${escapeHtml(day)}"
+      aria-pressed="${picked.includes(day) ? 'true' : 'false'}">${escapeHtml(formatDayLong(day))}</button>`;
+  const others = picked.filter((day) => !eventDaysOf.includes(day));
+  return `
+      ${
+        eventDaysOf.length
+          ? `<span class="small">${escapeHtml(t('polls.forDay'))}</span>
+             ${dayChipsHtml(event, eventDaysOf.includes(state.newPollOnDay) ? state.newPollOnDay : '', { attr: 'data-new-poll-day', noneLabel: t('polls.wholeEvent') })}
+             <span class="small">${escapeHtml(t('polls.eventDays'))}</span>
+             <div class="row row--chips" role="group">${eventDaysOf.map(chip).join('')}</div>
+             <p class="muted small">${escapeHtml(t('polls.eventDaysHint'))}</p>`
+          : ''
+      }
+      <div class="row row--tight">
+        <label class="small add-day">
+          <span>${DAY_ICON}${escapeHtml(t(eventDaysOf.length ? 'polls.addOtherDay' : 'polls.addDay'))}</span>
+          <input type="date" id="poll-add-day" />
+        </label>
+        <label class="small add-day" id="poll-add-at-label" ${picked.length ? '' : 'hidden'}>
+          <span>${HOUR_ICON}${escapeHtml(t('polls.daysHour'))}</span>
+          <input type="time" id="poll-add-at" value="${escapeHtml(state.newPollAt || '')}" />
+        </label>
+      </div>
+      <div class="row" id="poll-days" ${others.length ? '' : 'hidden'}>${pickedDaysHtml(others)}</div>`;
+}
+
+/** The picked days that are not the event's, as chips a tap takes away. */
+function pickedDaysHtml(days) {
+  return days
+    .map(
+      (day) => `<button type="button" class="chip chip--on" data-drop-day="${escapeHtml(day)}"
+                        aria-label="${escapeHtml(t('polls.dropDay', { day: choiceOfDay(day, getLanguage()) }))}">
+                  ${escapeHtml(choiceOfDay(day, getLanguage()))} ×
+                </button>`,
+    )
+    .join('');
+}
+
+/**
+ * A plausible day from a date field. Typing the year on a keyboard goes
+ * through 0002, 0020 and 0202 before 2026, each a valid date to the browser.
+ */
+function typedDay(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value || '') && Number(value.slice(0, 4)) >= 1900 ? value : '';
+}
+
+/** The picked days shown again, the date field left alone. */
+function showNewPollDays() {
+  const picked = state.newPollDays;
+  view.querySelectorAll('[data-toggle-day]').forEach((chip) => {
+    const on = picked.includes(chip.dataset.toggleDay);
+    chip.classList.toggle('chip--on', on);
+    chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  const eventDaysOf = [...view.querySelectorAll('[data-toggle-day]')].map((chip) => chip.dataset.toggleDay);
+  const others = picked.filter((day) => !eventDaysOf.includes(day));
+  const hour = view.querySelector('#poll-add-at-label');
+  if (hour) hour.hidden = !picked.length;
+  const list = view.querySelector('#poll-days');
+  if (list) {
+    list.innerHTML = pickedDaysHtml(others);
+    list.hidden = !others.length;
+  }
+}
+
+function bindNewPoll() {
+  const form = view.querySelector('#new-poll');
+  if (!form) return;
+
+  const snapshot = () => {
+    state.newPollForActivity = Boolean(view.querySelector('#poll-for-activity')?.checked);
+    state.newPollQuestion = view.querySelector('#poll-question').value;
+    state.newPollChoices = view.querySelector('#poll-choices').value;
+    state.newPollAt = view.querySelector('#poll-add-at')?.value ?? state.newPollAt;
+    view.querySelectorAll('[data-person-index]').forEach((input) => {
+      state.newPollPeople[Number(input.dataset.personIndex)] = input.value;
+    });
+  };
+
+  // Where the group fixes its first names, the people are ticked, not typed.
+  bindRosterPick(view, () => state.newPollPeople, (names) => {
+    state.newPollPeople = names;
+  });
+  view.querySelector('form')?.addEventListener('rosterchange', () => {
+    snapshot();
+    render();
+  });
+
+  view.querySelectorAll('[data-new-group]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      state.newGroupChoice = { touched: true, id: chip.dataset.newGroup || null };
+      render();
+    });
+  });
+
+  view.querySelector('#add-person')?.addEventListener('click', () => {
+    snapshot();
+    state.newPollPeople = [...state.newPollPeople, ''];
+    render();
+    view.querySelector(`[data-person-index="${state.newPollPeople.length - 1}"]`)?.focus();
+  });
+
+  view.querySelector('#drop-person')?.addEventListener('click', () => {
+    snapshot();
+    state.newPollPeople = state.newPollPeople.slice(0, -1);
+    render();
+  });
+
+  view.querySelectorAll('[data-suggest]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      const { suggest } = chip.dataset;
+      if (state.newPollPeople.includes(suggest)) return;
+      const empty = state.newPollPeople.findIndex((name) => !name.trim());
+      if (empty >= 0) state.newPollPeople[empty] = suggest;
+      else state.newPollPeople = [...state.newPollPeople, suggest];
+      render();
+    });
+  });
+
+  // Picked days are kept apart from the typed choices, in date order, as chips
+  // a tap takes away; they become choices — days, not words about days — only
+  // when the poll is created.
+  // No redraw here: it would rebuild the date field under the finger, and
+  // iOS closes its calendar the moment its field goes. Only what the days
+  // change is touched.
+  view.querySelector('#poll-add-day')?.addEventListener('change', (event) => {
+    const day = typedDay(event.target.value);
+    if (!day) return;
+    snapshot();
+    if (!state.newPollDays.includes(day)) state.newPollDays = [...state.newPollDays, day].sort();
+    showNewPollDays();
+  });
+
+  view.querySelectorAll('[data-toggle-day]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      const day = chip.dataset.toggleDay;
+      state.newPollDays = state.newPollDays.includes(day)
+        ? state.newPollDays.filter((one) => one !== day)
+        : [...state.newPollDays, day].sort();
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-new-poll-day]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      state.newPollOnDay = chip.dataset.newPollDay;
+      render();
+    });
+  });
+
+  // Another event picked: its days are the ones to offer.
+  view.querySelectorAll('[data-new-event]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      chooseEvent(state.polls.find((one) => one.id === chip.dataset.newEvent) || null);
+      render();
+    });
+  });
+
+  view.querySelector('#poll-days')?.addEventListener('click', (event) => {
+    const chip = event.target.closest('[data-drop-day]');
+    if (!chip) return;
+    snapshot();
+    state.newPollDays = state.newPollDays.filter((day) => day !== chip.dataset.dropDay);
+    render();
+  });
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    snapshot();
+    let poll = signed(organise(landing(createPoll({ question: state.newPollQuestion, names: peopleForNew(state.newPollPeople) }))));
+    poll = addOptions(poll, state.newPollChoices);
+    // A day typed out already is not offered twice.
+    const typed = new Set(poll.options.map((option) => choiceWhen(option)?.date).filter(Boolean));
+    poll = addDays(poll, state.newPollDays.filter((day) => !typed.has(day)), state.newPollAt || null);
+    if (state.newPollForActivity) poll = markForActivity(poll, true);
+    const forEvent = linkedEvent();
+    if (forEvent && eventDays(forEvent).includes(state.newPollOnDay)) poll = setPollDay(poll, state.newPollOnDay);
+
+    state.polls = [...state.polls, poll];
+    persistPoll(poll);
+    resetGroupChoice();
+    state.newPollQuestion = '';
+    state.newPollChoices = '';
+    state.newPollDays = [];
+    state.newPollAt = '';
+    state.newPollOnDay = '';
+    state.newPollForActivity = false;
+    state.newPollPeople = withMeFirst(['', ''], myName());
+    navigate(`#/poll/${poll.id}`);
+  });
+}
+
+/**
+ * Bring one's own column into view in the poll grid, just right of the column
+ * of choices, which stays put. Does nothing when it is already in sight,
+ * unless asked to.
+ */
+function showMyColumn({ always = false } = {}) {
+  const box = view.querySelector('.table-wrap[data-keep-scroll]');
+  const mine = box?.querySelector('thead th.votes__mine');
+  const first = box?.querySelector('thead th');
+  if (!box || !mine || !first) return;
+  const start = mine.offsetLeft - first.offsetWidth;
+  const inSight = start >= box.scrollLeft && mine.offsetLeft + mine.offsetWidth <= box.scrollLeft + box.clientWidth;
+  if (inSight && !always) return;
+
+  // Opening the poll: a quiet jump, before anything has been looked at.
+  if (!always) {
+    box.scrollLeft = Math.max(0, start);
+    return;
+  }
+
+  // Asked for with a tap on a name: go there, visibly. The name chips sit at
+  // the top of the page and the grid well below them — below the fold on a
+  // phone — so lighting up a column nobody can see answered nothing. The page
+  // comes down to the grid, just under the bar that stays at the top, and the
+  // grid slides to the column; both move, so the eye follows where it went.
+  const still = matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  const behavior = still ? 'auto' : 'smooth';
+  const bar = document.querySelector('.app-bar');
+  const top = box.getBoundingClientRect().top + window.scrollY - (bar?.offsetHeight || 0) - 8;
+  window.scrollTo({ top: Math.max(0, top), behavior });
+  box.scrollTo({ left: Math.max(0, start), behavior });
+}
+
+/**
+ * A tap on the grid before any name is chosen: the names above light up, and
+ * come into sight if the page had scrolled them away.
+ */
+function askWhoFirst() {
+  const names = view.querySelector('[data-iam]');
+  if (!names) return;
+  names.classList.remove('iam--nudge');
+  // Read the layout between the two, so the same light plays again on a
+  // second tap rather than being merged into the first.
+  names.getBoundingClientRect();
+  names.classList.add('iam--nudge');
+  const still = matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  names.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+}
+
+function bindPoll(poll) {
+  bindTalk(view);
+  view.querySelectorAll('[data-vote]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const [personId, optionId] = button.dataset.vote.split('|');
+      const answeringAs = voterOf(poll);
+      // No name chosen yet: the tap asks for one rather than voting.
+      if (!answeringAs) {
+        askWhoFirst();
+        return;
+      }
+      // The screen already refuses; this refuses too, whatever the screen did.
+      if (answeringAs !== personId) return;
+      const next = setVote(poll, personId, optionId, nextValue(voteOf(poll, personId, optionId)));
+      if (next === poll) return;
+      markTouched(`[data-vote="${CSS.escape(button.dataset.vote)}"]`);
+      replacePoll(next);
+    });
+  });
+
+  view.querySelectorAll('[data-me]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      // A tap chooses, and never takes back: one's own name, already chosen
+      // for one, would otherwise go at the very tap meant to answer with it.
+      const chosen = chip.dataset.me;
+      state.prefs = { ...state.prefs, voter: { ...state.prefs.voter, [poll.id]: chosen } };
+      savePrefs(state.prefs);
+      render();
+      // Asked for by the tap itself: show that person's column, wherever the
+      // grid had been left.
+      showMyColumn({ always: true });
+    });
+  });
+
+  // A guest not on the list adds their own name, and is then who answers.
+  const joinAs = (name) => {
+    if (!name) return;
+    // Matched the way everywhere else matches names — case, accents and
+    // blanks aside — so "chloe" does not add a second Chloé.
+    const same = (person) => sameName(person.name) === sameName(name);
+    let next = poll;
+    let person = poll.people.find(same);
+    if (!person) {
+      next = addPollPerson(poll, name);
+      person = next.people.find(same);
+    }
+    state.prefs = { ...state.prefs, voter: { ...state.prefs.voter, [poll.id]: person.id } };
+    savePrefs(state.prefs);
+    if (next === poll) render();
+    else replacePoll(next);
+    showMyColumn({ always: true });
+  };
+  view.querySelector('#solo-me-form')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    joinAs(view.querySelector('#solo-me').value.trim());
+  });
+  view.querySelectorAll('[data-solo-as]').forEach((chip) => {
+    chip.addEventListener('click', () => joinAs(chip.dataset.soloAs));
+  });
+
+  // Opening the poll: straight to one's own column, so answering takes no
+  // scrolling at all. A redraw of the same poll keeps its place instead — see
+  // render(), which runs after this and puts the grid back where it was.
+  showMyColumn();
+
+  // A guest's own choices carry the fingerprint that lets them take them back.
+  const added = async (next) => (isOrganiser(poll) ? next : claimChoices(poll, next));
+
+  view.querySelector('#add-choice')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const field = view.querySelector('#new-choice');
+    const onEvent = Boolean(choiceDaysEvent(poll));
+    // In an event, a choice is words: the days to vote on were offered when
+    // the poll was made.
+    if (onEvent && !field.value.trim()) {
+      field.focus();
+      return;
+    }
+    const day = (onEvent ? pollDay(poll) : pickedDays[poll.id]) || null;
+    const at = day ? view.querySelector('#new-choice-at')?.value || null : null;
+    const next = addChoice(poll, { text: field.value, day, at });
+    if (next === poll) {
+      field.focus();
+      return;
+    }
+    // Something done on a day keeps the day for the next one; a day added on
+    // its own leaves the form empty for another.
+    // The hour goes either way: it was this one's.
+    delete pickedHours[poll.id];
+    if (!field.value.trim()) delete pickedDays[poll.id];
+    replacePoll(await added(next));
+    view.querySelector('#new-choice')?.focus();
+  });
+
+  view.querySelector('#poll-change-day')?.addEventListener('click', () => openPollDayDialog(poll));
+
+  view.querySelectorAll('[data-drop-option]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      if (!(await ask(t('polls.confirmRemoveChoice'), { confirmLabel: t('action.delete'), danger: true }))) return;
+      replacePoll(removeOption(poll, button.dataset.dropOption));
+    });
+  });
+
+  // Picking a day or an hour redraws the form — the hour waits for a day —
+  // and keeps whatever was being typed.
+  const pickDay = (day) => {
+    const typed = view.querySelector('#new-choice')?.value || '';
+    pickedDays[poll.id] = day;
+    if (!day) delete pickedHours[poll.id];
+    render();
+    const field = view.querySelector('#new-choice');
+    if (field) field.value = typed;
+    // No keyboard popping up over a day just picked, unless words go with it.
+    if (typed) field?.focus();
+  };
+  view.querySelectorAll('[data-choice-day]').forEach((button) => {
+    button.addEventListener('click', () => pickDay(button.dataset.choiceDay));
+  });
+  // The calendar is not redrawn under the finger: iOS closes it the moment
+  // its field is rebuilt. The day is kept, and the hour opened or closed.
+  view.querySelector('#new-choice-day')?.addEventListener('change', (event) => {
+    const day = typedDay(event.target.value);
+    if (event.target.value && !day) return;
+    if (day) pickedDays[poll.id] = day;
+    else {
+      delete pickedDays[poll.id];
+      delete pickedHours[poll.id];
+    }
+    const hour = view.querySelector('#new-choice-at');
+    if (!hour) return;
+    hour.disabled = !day;
+    if (!day) hour.value = '';
+  });
+  view.querySelector('#new-choice-at')?.addEventListener('change', (event) => {
+    pickedHours[poll.id] = event.target.value;
+  });
+
+  view.querySelectorAll('[data-option]').forEach((button) => {
+    button.addEventListener('click', () => openChoiceDialog(poll, button.dataset.option));
+  });
+
+  view.querySelector('#poll-people')?.addEventListener('click', () => openPollPeopleDialog(poll));
+
+  view.querySelector('#poll-text')?.addEventListener('click', () => {
+    showCopyDialog({ title: pollTitle(poll), hint: t('lists.textHint'), text: pollText(poll) });
+  });
+
+  view.querySelector('#poll-close')?.addEventListener('click', () => {
+    const next = setClosed(poll, !poll.closedAt);
+    // Closing a poll that chooses an activity puts its clear winner on the
+    // event's programme — here only, on the device that closes it, so that
+    // two phones never make it twice.
+    const activities = next.closedAt ? activitiesOnClose(next, everything().map((one) => (one.id === next.id ? next : one))) : [];
+    for (const activity of activities) {
+      const made = organise(signed(activity));
+      state.polls = [...state.polls, made];
+      persistPoll(made);
+      flash(t('activity.made', { name: pollTitle(made), event: chainLabelShort(getPoll(made.parent) || made) }));
+    }
+    replacePoll(next);
+  });
+  view.querySelector('#poll-for-activity-toggle')?.addEventListener('click', () => {
+    flash(t(poll.forActivity ? 'activity.pollUnmarked' : 'activity.pollMarked'));
+    replacePoll(markForActivity(poll, !poll.forActivity));
+  });
+
+  view.querySelectorAll('[data-retain]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const option = poll.options.find((one) => one.id === button.dataset.retain);
+      const day = option && dayOfOption(poll, option);
+      if (!day) return;
+      // A poll asking when an activity is gives the activity its day, and
+      // closes: it is not itself the event.
+      const activity = poll.whenFor && getPoll(poll.whenFor);
+      if (activity) {
+        flash(t('activity.dayKept', { day: formatDayLong(day.date) }));
+        replacePoll(setPollDate(activity, day.date, day.at || activity.at || null, null), { redraw: false });
+        replacePoll(setClosed(poll, true));
+        return;
+      }
+      // Under an event, what it settles on is an activity of its own.
+      if (settlePollActivity(poll, { option, date: day.date, at: day.at || null })) return;
+      const next = setClosed(setPollDate(poll, day.date, day.at), true);
+      flash(t('polls.dateKept', { day: whenText(next) }));
+      replacePoll(next);
+    });
+  });
+
+  keepUntilAfter(view.querySelector('#poll-day'), view.querySelector('#poll-until'));
+  view.querySelector('#poll-date-save')?.addEventListener('click', () => {
+    const day = view.querySelector('#poll-day').value;
+    const hour = view.querySelector('#poll-hour').value;
+    const until = view.querySelector('#poll-until')?.value || null;
+    const written = view.querySelector('#poll-title').value;
+    // Le nom proposé n'est pas un nom choisi : ne le garder que s'il a bougé.
+    const named = written.trim() === eventName(poll) ? poll : setEventName(poll, written);
+    if (day && settlePollActivity(poll, { date: day, at: hour || null, until, name: written.trim() === eventName(poll) ? '' : written })) return;
+    const next = setPollDate(named, day, hour, until);
+    flash(next.date ? t('polls.dateKept', { day: whenText(next) }) : t('polls.dateCleared'));
+    replacePoll(next);
+  });
+
+  view.querySelector('#event-add')?.addEventListener('click', () => openEventMenu(poll));
+
+  view.querySelector('#event-list')?.addEventListener('click', () => {
+    const list = signed(forEvent(poll, createList, eventName(poll) || pollTitle(poll)));
+    state.lists = [...state.lists, list];
+    persistList(list);
+    navigate(`#/list/${list.id}`);
+  });
+
+  view.querySelector('#event-spend')?.addEventListener('click', () => {
+    const spend = forEvent(poll, createSpend, eventName(poll) || pollTitle(poll));
+    state.spends = [...state.spends, spend];
+    persistSpend(spend);
+    navigate(`#/spend/${spend.id}`);
+  });
+
+  view.querySelector('#poll-ics')?.addEventListener('click', () => {
+    const event = pollEvent(poll);
+    if (!event) return;
+    const named = eventName(poll) || pollTitle(poll);
+    download(`${fileName(named)}.ics`, icsFor([event], { name: named }), 'text/calendar');
+  });
+
+  view.querySelector('#poll-archive')?.addEventListener('click', () => {
+    const next = archivePoll(poll, !poll.archivedAt);
+    flash(t(next.archivedAt ? 'archive.done' : 'archive.undone'));
+    replacePoll(next, { redraw: !next.archivedAt });
+    if (next.archivedAt) navigate(pollHome(next));
+  });
+
+  view.querySelector('#poll-rename')?.addEventListener('click', () => openPollNameDialog(poll));
+  view.querySelector('#poll-sign')?.addEventListener('click', () =>
+    openSignatureDialog(poll, (signedBy) => replacePoll({ ...poll, signedBy, updatedAt: Date.now() })));
+
+  view.querySelector('#poll-delete')?.addEventListener('click', async () => {
+    if (!(await ask(t('polls.confirmDelete'), { confirmLabel: t('action.delete'), danger: true }))) return;
+    if (!(await removeEverywhere(poll))) return;
+    state.polls = state.polls.filter((item) => item.id !== poll.id);
+    savePolls(state.polls);
+    if (state.store) void state.store.remove(poll.id);
+    navigate(pollHome(poll));
+  });
+
+  // Nobody is told a poll waits for them unless someone says so: the
+  // organiser sends a reminder naming who has not answered, with the link.
+  view.querySelector('#poll-nudge')?.addEventListener('click', async (event) => {
+    let current = poll;
+    if (!current.shared) {
+      event.currentTarget.disabled = true;
+      current = await startSharing(current);
+      if (!current) return;
+      replacePoll(current);
+    }
+    showCopyDialog({
+      title: t('polls.nudge'),
+      hint: t('polls.nudgeHint'),
+      text: nudgeText(current, pollLink(location, current.id)),
+      send: true,
+    });
+  });
+
+  view.querySelector('#poll-share')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    let current = poll;
+
+    if (!current.shared) {
+      button.disabled = true;
+      button.textContent = t('share.sending');
+      current = await startSharing(current);
+      if (!current) return;
+      replacePoll(current);
+    }
+
+    // A message, not a bare link: a link's preview can only say « a poll »,
+    // since what follows its `#` never leaves the phone — so the title goes
+    // in the message, above the link. The code carries the link alone.
+    const link = pollLink(location, current.id);
+    const dated = isEvent(current) || Boolean(current.date);
+    // An event says its day after its name: « Raclette — vendredi 12 … ».
+    const named = [eventName(current) || pollTitle(current), current.date ? whenText(current, { long: true }) : ''].filter(Boolean).join(' — ');
+    showCopyDialog({
+      title: t(isActivity(current, everything()) ? 'activity.share' : dated ? 'events.share' : 'polls.shareTitle'),
+      hint: t(dated ? 'events.shareHint' : 'polls.shareHint'),
+      text: t(dated ? 'events.shareText' : 'polls.shareText', { title: dated ? named : pollTitle(current), link }),
+      qr: true,
+      qrText: link,
+      send: true,
+    });
+  });
+}
+
+/**
+ * The organiser changes the day the poll is about — or makes it the whole
+ * event —; its choices on that day go with it.
+ */
+function openPollDayDialog(poll) {
+  const event = choiceDaysEvent(poll);
+  if (!event) return;
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('polls.forDay'))}</h2>
+      ${dayChipsHtml(event, pollDay(poll) || '', { attr: 'data-poll-day', noneLabel: t('polls.wholeEvent') })}
+      <p class="muted small">${escapeHtml(t('polls.changeDayHint'))}</p>
+      <div class="row">
+        <button type="button" class="button" id="poll-day-cancel">${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </div>`;
+  dialog.querySelectorAll('[data-poll-day]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      dialog.close();
+      replacePoll(setPollDay(poll, chip.dataset.pollDay || null));
+    });
+  });
+  dialog.querySelector('#poll-day-cancel').addEventListener('click', () => dialog.close());
+  dialog.showModal();
+}
+
+/**
+ * Correct a choice — its words, its day, its hour —, or drop it. The day is
+ * kept apart from the words: renaming « Samedi 13 octobre » « Samedi soir »
+ * leaves it the Saturday it was.
+ */
+function openChoiceDialog(poll, optionId) {
+  const option = poll.options.find((entry) => entry.id === optionId);
+  if (!option) return;
+  const event = choiceDaysEvent(poll);
+  const when = choiceWhen(option, poll.createdAt);
+  let day = when?.date || '';
+  let dayTouched = false;
+
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <form method="dialog" class="stack">
+      <h2>${escapeHtml(t('polls.choiceTitle'))}</h2>
+      <label class="visually-hidden" for="choice-text">${escapeHtml(t('polls.choiceTitle'))}</label>
+      <input type="text" id="choice-text" value="${escapeHtml(option.text)}"
+             placeholder="${escapeHtml(t('polls.otherPlaceholder'))}" />
+      ${
+        event
+          ? `<span class="small">${escapeHtml(t('polls.choiceDay'))}</span>
+             ${dayChipsHtml(event, day, { attr: 'data-choice-day', noneLabel: t('polls.anyDay') })}`
+          : `<label class="small add-day">
+               <span>${DAY_ICON}${escapeHtml(t('polls.pickDay'))}</span>
+               <input type="date" id="choice-day" value="${escapeHtml(day)}" />
+             </label>`
+      }
+      <label class="small add-day">
+        <span>${HOUR_ICON}${escapeHtml(t('polls.pickHour'))}</span>
+        <input type="time" id="choice-at" value="${escapeHtml(when?.at || '')}" />
+      </label>
+      <div class="row">
+        <button type="button" class="button button--primary" id="choice-save">${escapeHtml(t('action.save'))}</button>
+        <button type="button" class="button" id="choice-cancel">${escapeHtml(t('action.cancel'))}</button>
+        <button type="button" class="button button--danger" id="choice-delete">${escapeHtml(t('action.delete'))}</button>
+      </div>
+    </form>`;
+
+  const field = dialog.querySelector('#choice-text');
+  dialog.querySelectorAll('[data-choice-day]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      day = chip.dataset.choiceDay;
+      dayTouched = true;
+      dialog.querySelectorAll('[data-choice-day]').forEach((one) => {
+        const on = one.dataset.choiceDay === day;
+        one.classList.toggle('chip--on', on);
+        one.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    });
+  });
+  dialog.querySelector('#choice-day')?.addEventListener('change', (change) => {
+    day = change.target.value;
+    dayTouched = true;
+  });
+  const save = () => {
+    dialog.close();
+    const words = field.value.trim();
+    // Words rewritten to name another day, the day left as it was: the words
+    // say which day is meant.
+    const named = !dayTouched && words !== option.text ? dayOfChoice(words, new Date()) : null;
+    const kept = named?.date || day || null;
+    const at = kept ? named?.at || dialog.querySelector('#choice-at').value || null : null;
+    if (!words && !kept) return;
+    replacePoll(renameOption(setOptionDay(poll, optionId, kept, at), optionId, words));
+  };
+  dialog.querySelector('#choice-save').addEventListener('click', save);
+  field.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    save();
+  });
+  dialog.querySelector('#choice-cancel').addEventListener('click', () => dialog.close());
+  dialog.querySelector('#choice-delete').addEventListener('click', async () => {
+    if (!(await ask(t('polls.confirmRemoveChoice'), { confirmLabel: t('action.delete'), danger: true }))) return;
+    dialog.close();
+    replacePoll(removeOption(poll, optionId));
+  });
+
+  dialog.showModal();
+  field.focus();
+  field.select();
+}
+
+/** Who is being asked. */
+function openPollPeopleDialog(poll) {
+  const held = () => getPoll(poll.id) || poll;
+  openPeopleEditor({
+    roster: rosterFor(held()),
+    hint: t('polls.peopleHint'),
+    confirmRemove: t('polls.confirmRemovePerson'),
+    people: () => held().people,
+    add: (name) => replacePoll(addPollPerson(held(), name), { redraw: false }),
+    rename: (id, name) => replacePoll(renamePollPerson(held(), id, name), { redraw: false }),
+    remove: (id) => replacePoll(removePollPerson(held(), id), { redraw: false }),
+  });
+}
+
+function openPollNameDialog(poll) {
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <form method="dialog" class="stack">
+      <h2>${escapeHtml(t('polls.rename'))}</h2>
+      <label class="visually-hidden" for="poll-new-name">${escapeHtml(t('polls.question'))}</label>
+      <input type="text" id="poll-new-name" value="${escapeHtml(poll.question)}" />
+      <div class="row">
+        <button type="button" class="button button--primary" id="poll-name-save">${escapeHtml(t('action.save'))}</button>
+        <button type="button" class="button" id="poll-name-cancel">${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </form>`;
+
+  const field = dialog.querySelector('#poll-new-name');
+  const save = () => {
+    dialog.close();
+    replacePoll({ ...poll, question: field.value.trim(), updatedAt: Date.now() });
+  };
+  dialog.querySelector('#poll-name-save').addEventListener('click', save);
+  field.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    save();
+  });
+  dialog.querySelector('#poll-name-cancel').addEventListener('click', () => dialog.close());
+
+  dialog.showModal();
+  field.focus();
+  field.select();
+}
+
+/**
+ * "Proposé par …": a nickname under the title of a list or a poll, for the
+ * people who open it from a link and would otherwise not know who is asking.
+ *
+ * Per document, because the same person is "Gui" to the family and "le voisin
+ * du 3e" to the building. One nickname is remembered and put on whatever this
+ * device creates next; each list or poll can then carry another, or none, and
+ * change at any time. On a poll with an organiser it is the organiser's to
+ * set, like the rest of what frames the poll — the database keeps it so.
+ */
+function signedByHtml(document_) {
+  const name = String(document_?.signedBy || '').trim();
+  if (!name) return '';
+  return `<p class="signed small">${escapeHtml(t('sign.by', { name }))}</p>`;
+}
+
+/** A new list or poll takes the nickname this device signs with, if it has one. */
+function signed(document_) {
+  const name = String(state.prefs.signature || '').trim();
+  return name ? { ...document_, signedBy: name } : document_;
+}
+
+function openSignatureDialog(document_, save) {
+  const current = String(document_.signedBy || '').trim();
+  const remembered = String(state.prefs.signature || '').trim();
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <form method="dialog" class="stack">
+      <h2>${escapeHtml(t('sign.edit'))}</h2>
+      <p class="muted small">${escapeHtml(t('sign.hint'))}</p>
+      <label class="visually-hidden" for="sign-name">${escapeHtml(t('sign.placeholder'))}</label>
+      <input type="text" id="sign-name" maxlength="40" autocomplete="nickname"
+             value="${escapeHtml(current || remembered)}" placeholder="${escapeHtml(t('sign.placeholder'))}" />
+      <label class="checkbox">
+        <input type="checkbox" id="sign-remember" ${!remembered || remembered === (current || remembered) ? 'checked' : ''} />
+        ${escapeHtml(t('sign.remember'))}
+      </label>
+      <div class="row">
+        <button type="button" class="button button--primary" id="sign-save">${escapeHtml(t('action.save'))}</button>
+        <button type="button" class="button" id="sign-cancel">${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </form>`;
+
+  const field = dialog.querySelector('#sign-name');
+  const done = () => {
+    const name = field.value.trim().slice(0, 40) || null;
+    if (dialog.querySelector('#sign-remember').checked) {
+      state.prefs = { ...state.prefs, signature: name };
+      savePrefs(state.prefs);
+    }
+    dialog.close();
+    // Emptied: the signature comes off this one, and says so nowhere else.
+    if (name !== (current || null)) save(name);
+  };
+  dialog.querySelector('#sign-save').addEventListener('click', done);
+  field.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    done();
+  });
+  dialog.querySelector('#sign-cancel').addEventListener('click', () => dialog.close());
+  dialog.showModal();
+  field.focus();
+  field.select();
+}
+
+/** The poll as text, to paste into a message. */
+/** The reminder: the question, who has not answered yet, and the link. */
+function nudgeText(poll, link) {
+  const silent = poll.people
+    .filter((person) => !poll.options.some((option) => voteOf(poll, person.id, option.id)))
+    .map((person) => person.name);
+  return t('polls.nudgeText', { question: pollTitle(poll), names: silent.join(', '), count: silent.length, link });
+}
+
+function pollText(poll) {
+  const { rows } = tally(poll);
+  const line = (row) =>
+    `${choiceLabel(row.option)} — ${t('polls.countLine', { yes: row.yes, total: poll.people.length })}`;
+  return [pollTitle(poll), '', ...rows.map(line)].join('\n');
+}
+
+/**
+ * Fetch a poll from the shared database and take what it knows. False when
+ * there is nothing new, and null — falsy all the same — when the database
+ * could not be reached: "this poll no longer exists" would be untrue then.
+ */
+async function pullPoll(id) {
+  if (!state.remote) return false;
+  let stored = null;
+  try {
+    stored = await state.remote.get(id);
+  } catch {
+    return null;
+  }
+  if (stored === null) return whenAbsent(id);
+  return isValidPoll(stored) ? adoptPoll(stored) : false;
+}
+
+/** Answers arrive cell by cell, so nobody's answer is lost to someone else's. */
+function adoptPoll(stored) {
+  const local = getPoll(stored.id);
+  const merged = local ? mergePolls(local, stored) : stored;
+  if (local && merged === local) return false;
+
+  const adopted = { ...merged, shared: true };
+  state.polls = local
+    ? state.polls.map((poll) => (poll.id === stored.id ? adopted : poll))
+    : [...state.polls, adopted];
+  savePolls(state.polls);
+  return true;
+}
+
+/** While a shared poll is on screen, watch for the answers coming in. */
+function watchPoll(id) {
+  // Already watching this one: a redraw — a vote, a tick — must not restart
+  // the clock, or answers would only ever arrive to a screen left untouched.
+  if (state.pollWatched === id && state.poll) return;
+  stopWatching();
+  if (!state.remote) return;
+  state.pollWatched = id;
+  const look = async () => {
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
+    if (await pullPoll(id)) render();
+  };
+  // At once, and then every five seconds: opening a poll should show the
+  // answers that are already in, not the ones that were in last time.
+  void look();
+  state.poll = setInterval(look, 5000);
+}
+
+/** Le compte que la base détient, s'il est plus récent que celui d'ici. */
+async function pullSpend(id) {
+  if (!state.remote) return false;
+  let stored = null;
+  try {
+    stored = await state.remote.get(id);
+  } catch {
+    return false;
+  }
+  if (stored === null) return whenAbsent(id);
+  return isValidSpend(stored) ? adoptSpend(stored) : false;
+}
+
+/** Les dépenses arrivent ligne par ligne : celle de l'un ne chasse pas l'autre. */
+function adoptSpend(stored) {
+  const local = getSpend(stored.id);
+  const merged = local ? mergeSpends(local, stored) : stored;
+  if (local && merged === local) return false;
+
+  const adopted = { ...merged, shared: true };
+  state.spends = local
+    ? state.spends.map((spend) => (spend.id === stored.id ? adopted : spend))
+    : [...state.spends, adopted];
+  saveSpends(state.spends);
+  return true;
+}
+
+/** Tant qu'un compte partagé est à l'écran, guetter ce que les autres notent. */
+function watchSpend(id) {
+  stopWatching();
+  if (!state.remote) return;
+  state.poll = setInterval(async () => {
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
+    if (await pullSpend(id)) render();
+  }, 5000);
+}
+
+  // ---- src/view-lists.js -----------------------------------------------
+/**
+ * Lists on screen: the form, the lines, and what is done to them.
+ *
+ * Split out of app.js, which it calls back into: only from inside functions,
+ * so the two may import each other.
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ------------------------------------------------------------------ lists --- */
+
+/**
+ * A list is a title, the people it concerns, and lines to hand out. The views
+ * below are deliberately few: all the lines, or one person's — because what a
+ * shared list is asked in practice is "what do I still have to do".
+ */
+
+function listTitle(list) {
+  return list.name || t('lists.untitled');
+}
+
+function personName(list, who) {
+  return list.people.find((person) => person.id === who)?.name || '';
+}
+
+function listCardHtml(list) {
+  const { done, total } = progress(list);
+  const late = list.items.filter((item) => isLate(item)).length;
+  return `
+    <button type="button" class="game-card" data-goto="#/list/${escapeHtml(list.id)}">
+      <span class="game-card__title">
+        ${escapeHtml(listTitle(list))}
+        <span class="pill ${total && done === total ? 'pill--done' : ''}">
+          ${escapeHtml(total ? t('lists.progress', { done, total }) : t('lists.empty'))}
+        </span>
+      </span>
+      ${peopleHtml(list.people.map((person) => person.name))}
+      <span class="game-card__meta">
+        ${escapeHtml(formatDate(list.updatedAt))}${
+          late ? ` — <span class="late">${escapeHtml(t('lists.late', { count: late }))}</span>` : ''
+        }
+      </span>
+      ${eventTagHtml(list)}
+    </button>`;
+}
+
+function listsView() {
+  const sorted = [...shownDocs(state.lists)].sort((a, b) => b.updatedAt - a.updatedAt);
+  const live = sorted.filter(isLive);
+  const open = live.filter((list) => progress(list).left > 0 || !list.items.length);
+  const finished = live.filter((list) => list.items.length && progress(list).left === 0);
+  const templates = sorted.filter((list) => list.template && !list.archivedAt);
+
+  return `
+    ${flashHtml()}
+    ${kindsHtml('lists')}
+    ${newButtonHtml('#/lists/new', t('lists.new'), live.length > 0)}
+    ${groupChipsHtml()}
+
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('kinds.ongoing'))}</h2></div>
+      ${
+        open.length
+          ? `<div class="game-list">${open.map(swipeable(listCardHtml)).join('')}</div>`
+          : hintHtml('lists', t('lists.none'))
+      }
+      ${hiddenByGroupHtml(state.lists)}
+    </section>
+    ${open.length && live.length <= 2 ? hintHtml('lists', t('hint.lists')) : ''}
+
+    ${
+      finished.length
+        ? `<section class="section">
+             <div class="section__head"><h2>${escapeHtml(t('lists.done'))}</h2></div>
+             <div class="game-list">${finished.map(swipeable(listCardHtml)).join('')}</div>
+           </section>`
+        : ''
+    }
+
+    ${
+      templates.length
+        ? `<section class="section">
+             <div class="section__head">
+               <h2>${escapeHtml(t('lists.templates'))}</h2>
+               <span class="muted small">${escapeHtml(t('lists.templatesHint'))}</span>
+             </div>
+             <div class="game-list">${templates.map(swipeable(listCardHtml)).join('')}</div>
+           </section>`
+        : ''
+    }
+
+    ${archivedHtml(sorted, swipeable(listCardHtml))}`;
+}
+
+/**
+ * What has been put away, folded behind one line. Kept on the page rather than
+ * on a page of its own: a thing put away is still a thing you can go and find,
+ * and one more screen to go looking on is one more thing to remember.
+ */
+function archivedHtml(documents, cardHtml) {
+  const archived = documents.filter((document_) => document_.archivedAt);
+  if (!archived.length) return '';
+  return `
+    <details class="details">
+      <summary>${escapeHtml(t('archive.shown', { count: archived.length }))}</summary>
+      <div class="game-list">${archived.map(cardHtml).join('')}</div>
+    </details>`;
+}
+
+function newListView() {
+  const templates = state.lists.filter((list) => list.template && !list.archivedAt);
+  const suggestions = [...new Set([
+    myName(), ...recentPeople(state.lists), ...recentPeople(state.polls), ...recentNames(state.games),
+  ].filter(Boolean))].filter((name) => !writtenNames(state.newListPeople).has(name.toLowerCase())).slice(0, 12);
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/lists')}
+      <h1>${escapeHtml(t('lists.new'))}</h1>
+    </div>
+
+    ${
+      templates.length
+        ? `<section class="section">
+             <div class="section__head">
+               <h2>${escapeHtml(t('lists.fromTemplate'))}</h2>
+             </div>
+             <div class="row">
+               ${templates
+                 .map(
+                   (list) => `
+                     <button type="button" class="chip" data-from-template="${escapeHtml(list.id)}">
+                       ${escapeHtml(listTitle(list))}
+                     </button>`,
+                 )
+                 .join('')}
+             </div>
+           </section>`
+        : ''
+    }
+
+    <form id="new-list" class="card stack">
+      <label>
+        ${escapeHtml(t('lists.name'))}
+        <input type="text" id="list-name" placeholder="${escapeHtml(t('lists.namePlaceholder'))}"
+               value="${escapeHtml(state.newListName)}" required />
+      </label>
+
+      ${rosterPickHtml(state.newListPeople, t('lists.peopleHint')) || `
+      <div class="stack stack--tight">
+        <span class="muted small">${escapeHtml(t('lists.peopleHint'))}</span>
+        ${state.newListPeople
+          .map(
+            (name, index) => `
+              <input type="text" data-person-index="${index}" value="${escapeHtml(name)}"
+                     placeholder="${escapeHtml(t('lists.person', { n: index + 1 }))}"
+                     aria-label="${escapeHtml(t('lists.person', { n: index + 1 }))}" />`,
+          )
+          .join('')}
+        <div class="row">
+          <button type="button" class="button button--small" id="add-person">+ ${escapeHtml(t('lists.addPerson'))}</button>
+          ${
+            state.newListPeople.length > 1
+              ? `<button type="button" class="button button--small button--ghost" id="drop-person">− ${escapeHtml(t('lists.dropPerson'))}</button>`
+              : ''
+          }
+        </div>
+        ${
+          suggestions.length
+            ? `<div class="row">${suggestions
+                .map((name) => `<button type="button" class="chip" data-suggest="${escapeHtml(name)}">${escapeHtml(name)}</button>`)
+                .join('')}</div>`
+            : ''
+        }
+      </div>`}
+
+      <label>
+        ${escapeHtml(t('lists.firstLines'))}
+        <textarea id="list-lines" rows="5" placeholder="${escapeHtml(t('lists.firstLinesPlaceholder'))}">${escapeHtml(state.newListLines)}</textarea>
+      </label>
+
+      ${willBeInHtml()}
+      <button type="submit" class="button button--primary button--block">${escapeHtml(t('lists.create'))}</button>
+    </form>`;
+}
+
+/**
+ * What is left on top, what is done below its own heading: in a long shopping
+ * list, the eye goes straight to what is still to get. The order within each
+ * part is the list's own.
+ */
+function linesHtml(list, items, paid = new Map()) {
+  const left = items.filter((item) => !item.done);
+  const done = items.filter((item) => item.done);
+  const ul = (part) => `<ul class="lines">${part.map((item) => listItemHtml(list, item, paid.get(item.id))).join('')}</ul>`;
+  if (!done.length || !left.length) return ul(items);
+  return `${ul(left)}
+    <p class="muted small lines__done">${escapeHtml(t('lists.doneHeading', { count: done.length }))}</p>
+    ${ul(done)}`;
+}
+
+/**
+ * What a line of the list cost, once an account has it: who paid, and how
+ * much — or how much the whole receipt it was on came to.
+ */
+function paidText({ spend, line, count }) {
+  const name = spend.people.find((person) => person.id === line.by)?.name || '';
+  const amount = money(line.amount, spend);
+  if (count > 1) return name ? t('lists.paidTicket', { name, amount, count }) : t('lists.paidTicketNobody', { amount, count });
+  return name ? t('lists.paidOne', { name, amount }) : t('lists.paidNobody', { amount });
+}
+
+function listItemHtml(list, item, paid = null) {
+  const who = personName(list, item.who);
+  const late = isLate(item);
+  return swipeHtml(item.id, `
+      <label class="line__tick">
+        <input type="checkbox" data-tick="${escapeHtml(item.id)}" ${item.done ? 'checked' : ''}
+               aria-label="${escapeHtml(item.text)}" />
+      </label>
+      <button type="button" class="line__text" data-edit="${escapeHtml(item.id)}">
+        <span>${escapeHtml(item.text)}</span>
+        ${
+          // Only a line that has a day says one: the others would all carry an
+          // empty slot to say nothing.
+          item.due
+            ? `<span class="line__due ${late ? 'line__due--late' : ''}">${escapeHtml(
+                late ? t('lists.lateOn', { day: formatDay(item.due) }) : t('lists.dueOn', { day: formatDay(item.due) }),
+              )}</span>`
+            : ''
+        }
+        ${paid ? `<span class="line__due line__paid">💶 ${escapeHtml(paidText(paid))}</span>` : ''}
+      </button>
+      ${
+        // Who takes it, once someone does. Until then a small « + » — the
+        // same « À prendre » on every line said nothing and filled the list.
+        who
+          ? `<button type="button" class="line__who" data-assign="${escapeHtml(item.id)}">${escapeHtml(who)}</button>`
+          : `<button type="button" class="line__who line__who--nobody" data-assign="${escapeHtml(item.id)}"
+                     aria-label="${escapeHtml(t('lists.nobody'))}" title="${escapeHtml(t('lists.assignTitle'))}">
+               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg>
+             </button>`
+      }`,
+    { kind: 'item', tag: 'li', bodyClass: `line ${item.done ? 'line--done' : ''}` });
+}
+
+/**
+ * What a list says about money, under its title: what its lines said they
+ * would cost — « Fromage 25 € » —, and what the accounts were given for it.
+ * In the currency of the account it goes to, or the one its prices are
+ * written in. Empty when it says nothing of money, as most lists do.
+ */
+function moneyOfList(list, all, paid) {
+  const parts = [];
+  const estimate = estimateOf(list.items);
+  if (estimate) {
+    const account = accountsFor(list, all)[0];
+    const currency = account ? spendCurrency(account) : list.items.map((item) => priceCurrency(item.text)).find(Boolean) || 'EUR';
+    parts.push(t('lists.estimate', { amount: showAmount(estimate, getLanguage(), currency) }));
+  }
+  // Each expense once, however many lines it paid for; by currency.
+  const spent = new Map();
+  for (const { spend, line } of new Map([...paid.values()].map((one) => [one.line.id, one])).values()) {
+    const currency = spendCurrency(spend);
+    spent.set(currency, (spent.get(currency) || 0) + line.amount);
+  }
+  for (const [currency, cents] of spent) parts.push(t('lists.spent', { amount: showAmount(cents, getLanguage(), currency) }));
+  return parts.join(' · ');
+}
+
+function listView(list) {
+  const filter = state.listFilter;
+  const known = filter === null || filter === 'none' || list.people.some((person) => person.id === filter);
+  const shown = !known || filter === null
+    ? list.items
+    : list.items.filter((item) => (filter === 'none' ? !item.who : item.who === filter));
+  const { done, total } = progress(list);
+  const all = everything();
+  const paid = paidLines(list, all);
+  const moneyLine = moneyOfList(list, all, paid);
+
+  const chip = (value, label, count) => `
+    <button type="button" class="chip ${(!known ? null : filter) === value ? 'chip--on' : ''}" data-filter="${value === null ? '' : escapeHtml(value)}">
+      ${escapeHtml(label)}${count === undefined ? '' : ` <span class="muted">${count}</span>`}
+    </button>`;
+
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/lists')}
+      <div>
+        <h1>${escapeHtml(listTitle(list))}</h1>
+        <p class="muted small">
+          ${escapeHtml(total ? t('lists.progress', { done, total }) : t('lists.empty'))}
+          ${list.shared ? ` · ${escapeHtml(t('lists.sharedMark'))}` : ''}
+        </p>
+        ${moneyLine ? `<p class="muted small list-money">${escapeHtml(moneyLine)}</p>` : ''}
+        ${signedByHtml(list)}
+      </div>
+    </div>
+
+    ${eventLinkHtml(list)}
+
+    ${inGroupHtml(list)}
+
+    ${state.remote ? shareBarHtml(`<button type="button" class="button button--primary" id="list-share">${escapeHtml(t('lists.share'))}</button>`) : ''}
+
+    <form id="add-line" class="card stack stack--tight">
+      <label class="visually-hidden" for="new-line">${escapeHtml(t('lists.addLine'))}</label>
+      <div class="row row--tight">
+        <input type="text" id="new-line" placeholder="${escapeHtml(t('lists.addLine'))}" autocomplete="off" />
+        <button type="submit" class="button button--primary">+</button>
+      </div>
+    </form>
+
+    ${
+      list.people.length
+        ? `<div class="row">
+             ${chip(null, t('lists.everyone'), progress(list).left)}
+             ${list.people
+               .map((person) => chip(person.id, person.name, progress(list, person.id).left))
+               .join('')}
+             ${chip('none', t('lists.nobody'), progress(list, null).left)}
+           </div>`
+        : ''
+    }
+
+    ${
+      shown.length
+        ? linesHtml(list, shown, paid)
+        : `<p class="muted small">${escapeHtml(list.items.length ? t('lists.nothingHere') : t('lists.addFirst'))}</p>`
+    }
+    ${list.items.length <= 2 ? hintHtml('lists', t('hint.list')) : ''}
+
+    ${listFlowsHtml(list)}
+
+    ${attachedHtml(list)}
+
+    ${actionsHtml(`
+        <button type="button" class="button button--small" id="list-people">${escapeHtml(t('lists.people'))}</button>
+        <button type="button" class="button button--small" id="list-text">${escapeHtml(t('action.recap'))}</button>
+        ${
+          list.people.length
+            ? `<button type="button" class="button button--small" id="share-out">${escapeHtml(t('lists.shareOut'))}</button>`
+            : ''
+        }
+        ${
+          done
+            ? `<button type="button" class="button button--small" id="clear-done">${escapeHtml(t('lists.clearDone'))}</button>`
+            : ''
+        }
+        <button type="button" class="button button--small" id="list-reuse">${escapeHtml(t('lists.reuse'))}</button>`, `
+        <button type="button" class="button button--small button--ghost" id="list-rename">${escapeHtml(t('lists.rename'))}</button>
+        <button type="button" class="button button--small button--ghost" id="list-sign">${escapeHtml(t('sign.edit'))}</button>
+        ${chainButtonsHtml(list)}
+        <button type="button" class="button button--small button--ghost" id="list-template">
+          ${escapeHtml(list.template ? t('lists.unTemplate') : t('lists.makeTemplate'))}
+        </button>
+        <button type="button" class="button button--small button--ghost" id="list-archive">
+          ${escapeHtml(list.archivedAt ? t('archive.back') : t('archive.put'))}
+        </button>
+        <button type="button" class="button button--small button--ghost" id="list-delete">${escapeHtml(t('action.delete'))}</button>`)}`;
+}
+
+/**
+ * Keep the local copy, and hand the changed game to the store when there is
+ * one. Writing per game rather than per list keeps one write to one document,
+ * which is what the store asks for.
+ */
+function persist(changed) {
+  const ok = saveGames(state.games);
+  if (!ok && !keptElsewhere(changed, { store: true })) flash(t('home.storageWarning'), 'error');
+  if (state.store && changed) void state.store.save(changed);
+  // Only a game that has been shared travels: someone else's evening has no
+  // business landing in a database they never chose.
+  if (state.remote && changed?.shared) {
+    // A failure here must never cost the player their round: the local copy is
+    // already written, and the next change pushes again.
+    pushMerged(changed, { valid: isValidGame, adopt: adoptGame, find: getGame }).catch(pushFailed(changed));
+  }
+  return ok;
+}
+
+/** `game` is the one just removed from the list: it says which group it was in. */
+function forget(id, game = null) {
+  saveGames(state.games);
+  if (state.store) void state.store.remove(id);
+  if (state.remote) state.remote.remove(id, keyFor(game), organiserSecret(id)).catch(() => {});
+}
+
+function getGame(id) {
+  return state.games.find((game) => game.id === id) || null;
+}
+
+function replaceGame(next) {
+  state.games = state.games.map((game) => (game.id === next.id ? next : game));
+  persist(next);
+}
+
+/* ------------------------------------------------------- lists: behaviour --- */
+
+/** Keep the list where it lives, and send it on if it has been shared. */
+function persistList(changed) {
+  const ok = saveLists(state.lists);
+  if (!ok && !keptElsewhere(changed)) flash(t('home.storageWarning'), 'error');
+  if (state.store && changed) void state.store.save(changed);
+  if (state.remote && changed?.shared) {
+    pushMerged(changed, { valid: isValidList, adopt: adoptList, find: getList }).catch(pushFailed(changed));
+  }
+  return ok;
+}
+
+function getList(id) {
+  return state.lists.find((list) => list.id === id) || null;
+}
+
+/** Put a changed list back in place, write it down, and redraw. */
+function replaceList(next, { redraw = true } = {}) {
+  state.lists = state.lists.map((list) => (list.id === next.id ? next : list));
+  persistList(next);
+  if (redraw) render();
+}
+
+function bindNewList() {
+  // A model is picked, not filled in: the list it cuts is ready at once, with
+  // its people, its lines and their days — which is the whole point of having
+  // kept one.
+  view.querySelectorAll('[data-from-template]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const template = getList(button.dataset.fromTemplate);
+      if (!template) return;
+      const next = reuseList(template);
+      state.lists = [...state.lists, next];
+      persistList(next);
+      navigate(`#/list/${next.id}`);
+    });
+  });
+
+  const form = view.querySelector('#new-list');
+  if (!form) return;
+
+  const snapshot = () => {
+    state.newListName = view.querySelector('#list-name').value;
+    state.newListLines = view.querySelector('#list-lines').value;
+    view.querySelectorAll('[data-person-index]').forEach((input) => {
+      state.newListPeople[Number(input.dataset.personIndex)] = input.value;
+    });
+  };
+
+  view.querySelector('#add-person')?.addEventListener('click', () => {
+    snapshot();
+    state.newListPeople = [...state.newListPeople, ''];
+    render();
+    view.querySelector(`[data-person-index="${state.newListPeople.length - 1}"]`)?.focus();
+  });
+
+  view.querySelector('#drop-person')?.addEventListener('click', () => {
+    snapshot();
+    state.newListPeople = state.newListPeople.slice(0, -1);
+    render();
+  });
+
+  // Where the group fixes its first names, the people are ticked, not typed.
+  bindRosterPick(view, () => state.newListPeople, (names) => {
+    state.newListPeople = names;
+  });
+  view.querySelector('form')?.addEventListener('rosterchange', () => {
+    snapshot();
+    render();
+  });
+
+  view.querySelectorAll('[data-new-group]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      state.newGroupChoice = { touched: true, id: chip.dataset.newGroup || null };
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-suggest]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      const { suggest } = chip.dataset;
+      if (state.newListPeople.includes(suggest)) return;
+      const empty = state.newListPeople.findIndex((name) => !name.trim());
+      if (empty >= 0) state.newListPeople[empty] = suggest;
+      else state.newListPeople = [...state.newListPeople, suggest];
+      render();
+    });
+  });
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    snapshot();
+    let list = signed(landing(createList({ name: state.newListName, names: peopleForNew(state.newListPeople) })));
+    list = addItems(list, state.newListLines);
+
+    state.lists = [...state.lists, list];
+    persistList(list);
+    resetGroupChoice();
+    state.newListName = '';
+    state.newListPeople = withMeFirst(['', ''], myName());
+    state.newListLines = '';
+    navigate(`#/list/${list.id}`);
+  });
+}
+
+function bindList(list) {
+  // A line slides left to be deleted, as from its dialog.
+  bindSwipes('item', (itemId) => {
+    const current = getList(list.id);
+    if (!current) return;
+    replaceList(removeItem(current, itemId));
+  }, { undo: t('swipe.lineDeleted') });
+
+  view.querySelector('#add-line')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const field = view.querySelector('#new-line');
+    const { fresh, known } = newLines(list, field.value);
+    // Already there, still to do: said rather than written twice.
+    if (known.length) flash(known.length > 1 ? t('lists.alreadyMany', { count: known.length }) : t('lists.already', { line: known[0] }));
+    const next = addItems(list, fresh);
+    if (next === list) {
+      if (!known.length) return;
+      field.value = '';
+      render();
+      view.querySelector('#new-line')?.focus();
+      return;
+    }
+    replaceList(next);
+    // Straight back to the field: a list is written in one go, not one
+    // reopened dialog at a time.
+    const again = view.querySelector('#new-line');
+    again?.focus();
+  });
+
+  view.querySelectorAll('[data-tick]').forEach((box) => {
+    box.addEventListener('change', () => {
+      markTouched(`[data-tick="${CSS.escape(box.dataset.tick)}"]`);
+      replaceList(toggleItem(list, box.dataset.tick));
+    });
+  });
+
+  view.querySelectorAll('[data-assign]').forEach((button) => {
+    button.addEventListener('click', () => openAssignDialog(list, button.dataset.assign));
+  });
+
+  view.querySelectorAll('[data-edit]').forEach((button) => {
+    button.addEventListener('click', () => openLineDialog(list, button.dataset.edit));
+  });
+
+  view.querySelectorAll('[data-filter]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const { filter } = chip.dataset;
+      state.listFilter = filter === '' ? null : filter;
+      render();
+    });
+  });
+
+  view.querySelector('#share-out')?.addEventListener('click', () => {
+    const next = shareOut(list);
+    if (next === list) {
+      // Saying nothing here would read as a dead button.
+      flash(t('lists.nothingToShareOut'));
+      render();
+      return;
+    }
+    replaceList(next);
+  });
+
+  view.querySelector('#list-people')?.addEventListener('click', () => openPeopleDialog(list));
+
+  view.querySelector('#list-text')?.addEventListener('click', () => {
+    showCopyDialog({
+      title: listTitle(list),
+      hint: t('lists.textHint'),
+      text: listText(list),
+    });
+  });
+
+  view.querySelector('#clear-done')?.addEventListener('click', async () => {
+    if (!(await ask(t('lists.confirmClearDone'), { confirmLabel: t('lists.clearDone'), danger: true }))) return;
+    const next = list.items.filter((item) => item.done).reduce((carry, item) => removeItem(carry, item.id), list);
+    replaceList(next);
+  });
+
+  view.querySelector('#list-reuse')?.addEventListener('click', () => {
+    const next = reuseList(list);
+    state.lists = [...state.lists, next];
+    persistList(next);
+    navigate(`#/list/${next.id}`);
+  });
+
+  view.querySelector('#list-template')?.addEventListener('click', () => {
+    const next = makeTemplate(list, !list.template);
+    flash(t(next.template ? 'lists.nowTemplate' : 'lists.noLongerTemplate'));
+    replaceList(next);
+  });
+
+  view.querySelector('#list-archive')?.addEventListener('click', () => {
+    const next = archiveList(list, !list.archivedAt);
+    flash(t(next.archivedAt ? 'archive.done' : 'archive.undone'));
+    // Put away means out of the way: staying on its page would be the one
+    // place it is still in front of you.
+    replaceList(next, { redraw: !next.archivedAt });
+    if (next.archivedAt) navigate('#/lists');
+  });
+
+  view.querySelector('#list-rename')?.addEventListener('click', () => openListNameDialog(list));
+  view.querySelector('#list-sign')?.addEventListener('click', () =>
+    openSignatureDialog(list, (signedBy) => replaceList({ ...list, signedBy, updatedAt: Date.now() })));
+
+  view.querySelector('#list-delete')?.addEventListener('click', async () => {
+    if (!(await ask(t('lists.confirmDelete'), { confirmLabel: t('action.delete'), danger: true }))) return;
+    if (!(await removeEverywhere(list))) return;
+    state.lists = state.lists.filter((item) => item.id !== list.id);
+    saveLists(state.lists);
+    if (state.store) void state.store.remove(list.id);
+    navigate('#/lists');
+  });
+
+  view.querySelector('#list-share')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    let current = list;
+
+    if (!current.shared) {
+      button.disabled = true;
+      button.textContent = t('share.sending');
+      current = await startSharing(current);
+      if (!current) return;
+      replaceList(current);
+    }
+
+    showCopyDialog({
+      title: t('lists.shareTitle'),
+      hint: t('lists.shareHint'),
+      text: listLink(location, current.id),
+      qr: true,
+    });
+  });
+}
+
+/** Hand a line to someone, or take it back. */
+function openAssignDialog(list, itemId) {
+  const item = list.items.find((entry) => entry.id === itemId);
+  if (!item) return;
+
+  const dialog = makeDialog('dialog dialog--ask');
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('lists.assignTitle'))}</h2>
+      <p class="muted small">${escapeHtml(item.text)}</p>
+      <div class="stack stack--tight">
+        ${list.people
+          .map(
+            (person) => `
+              <button type="button" class="button button--block" data-who="${escapeHtml(person.id)}">
+                ${escapeHtml(person.name)}${item.who === person.id ? ' ✓' : ''}
+              </button>`,
+          )
+          .join('')}
+        <button type="button" class="button button--block" data-who="">
+          ${escapeHtml(t('lists.nobody'))}${item.who ? '' : ' ✓'}
+        </button>
+      </div>
+      <div class="row">
+        <button type="button" class="button" id="assign-cancel">${escapeHtml(t('action.cancel'))}</button>
+        <button type="button" class="button button--ghost" id="assign-people">${escapeHtml(t('lists.people'))}</button>
+      </div>
+    </div>`;
+
+  dialog.querySelector('#assign-cancel').addEventListener('click', () => dialog.close());
+  dialog.querySelector('#assign-people').addEventListener('click', () => {
+    dialog.close();
+    openPeopleDialog(list);
+  });
+  dialog.querySelectorAll('[data-who]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dialog.close();
+      replaceList(assignItem(list, itemId, button.dataset.who || null));
+    });
+  });
+
+  dialog.showModal();
+}
+
+/** Correct a line, or drop it. */
+function openLineDialog(list, itemId) {
+  const item = list.items.find((entry) => entry.id === itemId);
+  if (!item) return;
+
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <form method="dialog" class="stack">
+      <h2>${escapeHtml(t('lists.lineTitle'))}</h2>
+      <label class="visually-hidden" for="line-text">${escapeHtml(t('lists.lineTitle'))}</label>
+      <input type="text" id="line-text" value="${escapeHtml(item.text)}" />
+      <label>
+        ${escapeHtml(t('lists.due'))}
+        <input type="date" id="line-due" value="${escapeHtml(item.due || '')}" />
+      </label>
+      <p class="muted small">${escapeHtml(t('lists.dueHint'))}</p>
+      <div class="row">
+        <button type="button" class="button button--primary" id="line-save">${escapeHtml(t('action.save'))}</button>
+        <button type="button" class="button" id="line-cancel">${escapeHtml(t('action.cancel'))}</button>
+        <button type="button" class="button button--danger" id="line-delete">${escapeHtml(t('action.delete'))}</button>
+      </div>
+    </form>`;
+
+  const field = dialog.querySelector('#line-text');
+  const day = dialog.querySelector('#line-due');
+  const save = () => {
+    dialog.close();
+    // The words and the day are one edit: saving with the field emptied takes
+    // the day off, which is how a date is removed without a second button.
+    replaceList(setItemDue(renameItem(list, itemId, field.value), itemId, day.value));
+  };
+
+  dialog.querySelector('#line-save').addEventListener('click', save);
+  field.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    save();
+  });
+  dialog.querySelector('#line-cancel').addEventListener('click', () => dialog.close());
+  dialog.querySelector('#line-delete').addEventListener('click', () => {
+    dialog.close();
+    replaceList(removeItem(list, itemId));
+  });
+
+  dialog.showModal();
+  field.focus();
+  field.select();
+}
+
+/** Who this list concerns: add, rename, remove. */
+/**
+ * The people of a list, a poll or an account — one dialog for all three, so it
+ * works the same everywhere. Every change has its own button and happens at
+ * once, a removal after asking; nothing is left pending, so « Fermer » — or
+ * Escape — never saves a half-typed name behind one's back.
+ *
+ * `people()` reads the current people; `add`, `rename` and `remove` write.
+ * `blocked(id)` may say why someone cannot go — said before asking anything.
+ * `extra`, when given, adds to each person what only this kind of document
+ * knows of them — an account's parts —: `html(person)`, and `bind(dialog,
+ * redraw)` for its buttons, which write at once like the others.
+ */
+function openPeopleEditor({ hint = '', confirmRemove, people, add, rename, remove, blocked = () => null, extra = null, roster = [] }) {
+  const dialog = makeDialog();
+  // `roster`: the first names the document's group has fixed. People are then
+  // added by touching one, never typed; someone written otherwise is said to
+  // be one of them, in one touch.
+  const fixed = roster.length > 0;
+  const listed = (name) => roster.some((one) => sameName(one) === sameName(name));
+
+  const draw = () => {
+    const current = people();
+    const free = roster.filter((name) => !current.some((person) => sameName(person.name) === sameName(name)));
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(t('lists.people'))}</h2>
+        ${hint ? `<p class="muted small">${escapeHtml(hint)}</p>` : ''}
+        <div class="stack stack--tight">
+          ${current
+            .map(
+              (person) => `
+                <div class="knock">
+                  <strong>${escapeHtml(person.name)}</strong>
+                  ${extra ? extra.html(person) : ''}
+                  ${
+                    fixed && !listed(person.name)
+                      ? `<span class="late small">${escapeHtml(t('roster.notListed'))}</span>
+                         ${free.length
+                           ? `<div class="row row--chips">
+                                <span class="muted small">${escapeHtml(t('roster.isWho'))}</span>
+                                ${free.map((name) => `<button type="button" class="chip" data-person-is="${escapeHtml(person.id)}" data-name="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')}
+                              </div>`
+                           : ''}`
+                      : ''
+                  }
+                  <div class="row">
+                    ${
+                      fixed
+                        ? ''
+                        : `<button type="button" class="button button--small" data-rename="${escapeHtml(person.id)}">
+                             ${escapeHtml(t('action.rename'))}
+                           </button>`
+                    }
+                    <button type="button" class="button button--small button--ghost" data-remove="${escapeHtml(person.id)}">
+                      ${escapeHtml(t('lists.dropPerson'))}
+                    </button>
+                  </div>
+                </div>`,
+            )
+            .join('')}
+          ${current.length ? '' : `<p class="muted small">${escapeHtml(t('lists.nobodyYet'))}</p>`}
+        </div>
+        ${
+          fixed
+            ? `<div class="stack stack--tight">
+                 <span class="muted small">${escapeHtml(t(free.length ? 'roster.addFrom' : 'roster.allIn'))}</span>
+                 <div class="row row--chips">
+                   ${free.map((name) => `<button type="button" class="chip" data-add-listed="${escapeHtml(name)}">+ ${escapeHtml(name)}</button>`).join('')}
+                 </div>
+               </div>`
+            : `<div class="row row--tight">
+                 <input type="text" id="person-new" placeholder="${escapeHtml(t('lists.addPerson'))}"
+                        aria-label="${escapeHtml(t('lists.addPerson'))}" autocomplete="off" />
+                 <button type="button" class="button button--primary" id="person-add" aria-label="${escapeHtml(t('lists.addPerson'))}">+</button>
+               </div>
+               <p class="late small" id="person-problem" aria-live="polite" hidden></p>`
+        }
+        <div class="row">
+          <button type="button" class="button" id="people-close">${escapeHtml(t('action.close'))}</button>
+        </div>
+      </div>`;
+
+    const field = dialog.querySelector('#person-new');
+    // `add` may ask something first (an account: from now on, or all along?)
+    // and answer false when it was called off: the name typed stays.
+    const addOne = async () => {
+      if (!field.value.trim()) return;
+      // Already among them, however it is written: said, not added twice.
+      const twin = people().find((person) => sameName(person.name) === sameName(field.value));
+      if (twin) {
+        const problem = dialog.querySelector('#person-problem');
+        problem.textContent = t('people.already', { name: twin.name });
+        problem.hidden = false;
+        field.select();
+        return;
+      }
+      if ((await add(field.value)) === false) return;
+      draw();
+      dialog.querySelector('#person-new').focus();
+    };
+    dialog.querySelector('#person-add')?.addEventListener('click', addOne);
+    field?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      addOne();
+    });
+
+    dialog.querySelectorAll('[data-add-listed]').forEach((chip) => {
+      chip.addEventListener('click', async () => {
+        if ((await add(chip.dataset.addListed)) === false) return;
+        draw();
+      });
+    });
+    dialog.querySelectorAll('[data-person-is]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        rename(chip.dataset.personIs, chip.dataset.name);
+        draw();
+      });
+    });
+
+    dialog.querySelectorAll('[data-rename]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const person = people().find((one) => one.id === button.dataset.rename);
+        if (!person) return;
+        const name = await askForText({
+          title: t('action.rename'),
+          hint: t('people.renameHint'),
+          value: person.name,
+          confirmLabel: t('action.save'),
+        });
+        if (name === null || !name.trim()) return;
+        // Someone else's name already: the document would have them twice.
+        if (people().some((other) => other.id !== person.id && sameName(other.name) === sameName(name))) {
+          flash(t('people.already', { name: name.trim() }), 'error');
+          dialog.close();
+          return;
+        }
+        rename(person.id, name);
+        draw();
+      });
+    });
+
+    dialog.querySelectorAll('[data-remove]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const refused = blocked(button.dataset.remove);
+        if (refused) {
+          flash(refused, 'error');
+          dialog.close();
+          return;
+        }
+        if (!(await ask(confirmRemove, { confirmLabel: t('lists.dropPerson'), danger: true }))) return;
+        remove(button.dataset.remove);
+        draw();
+      });
+    });
+
+    dialog.querySelector('#people-close').addEventListener('click', () => dialog.close());
+    extra?.bind(dialog, draw);
+  };
+
+  // The view behind is only redrawn once, when the dialog is done with.
+  dialog.addEventListener('close', () => render());
+  draw();
+  dialog.showModal();
+}
+
+function openPeopleDialog(list) {
+  const held = () => getList(list.id) || list;
+  openPeopleEditor({
+    hint: t('lists.peopleHint'),
+    confirmRemove: t('lists.confirmRemovePerson'),
+    roster: rosterFor(held()),
+    people: () => held().people,
+    add: (name) => replaceList(addListPerson(held(), name), { redraw: false }),
+    rename: (id, name) => replaceList(renameListPerson(held(), id, name), { redraw: false }),
+    remove: (id) => replaceList(removeListPerson(held(), id), { redraw: false }),
+  });
+}
+
+function openListNameDialog(list) {
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <form method="dialog" class="stack">
+      <h2>${escapeHtml(t('lists.rename'))}</h2>
+      <label class="visually-hidden" for="list-new-name">${escapeHtml(t('lists.name'))}</label>
+      <input type="text" id="list-new-name" value="${escapeHtml(list.name)}" />
+      <div class="row">
+        <button type="button" class="button button--primary" id="name-save">${escapeHtml(t('action.save'))}</button>
+        <button type="button" class="button" id="name-cancel">${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </form>`;
+
+  const field = dialog.querySelector('#list-new-name');
+  const save = () => {
+    dialog.close();
+    replaceList({ ...list, name: field.value.trim(), updatedAt: Date.now() });
+  };
+  dialog.querySelector('#name-save').addEventListener('click', save);
+  field.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    save();
+  });
+  dialog.querySelector('#name-cancel').addEventListener('click', () => dialog.close());
+
+  dialog.showModal();
+  field.focus();
+  field.select();
+}
+
+/** The list as text, to paste into a message. */
+function listText(list) {
+  const line = (item) =>
+    `${item.done ? '[x]' : '[ ]'} ${item.text}${item.who ? ` — ${personName(list, item.who)}` : ''}`;
+  const { done, total } = progress(list);
+  return [
+    listTitle(list),
+    t('lists.progress', { done, total }),
+    '',
+    ...list.items.map(line),
+  ].join('\n');
+}
+
+/**
+ * Fetch a list from the shared database and take what it knows — the same
+ * merge a game gets, for the same reason: two people tick at the same time.
+ */
+async function pullList(id) {
+  if (!state.remote) return false;
+  let stored = null;
+  try {
+    stored = await state.remote.get(id);
+  } catch {
+    return false;
+  }
+  if (stored === null) return whenAbsent(id);
+  return isValidList(stored) ? adoptList(stored) : false;
+}
+
+/** The same, for a list: line by line, so nobody's tick is lost. */
+function adoptList(stored) {
+  const local = getList(stored.id);
+  const merged = local ? mergeLists(local, stored) : stored;
+  if (local && merged === local) return false;
+
+  const adopted = { ...merged, shared: true };
+  state.lists = local
+    ? state.lists.map((list) => (list.id === stored.id ? adopted : list))
+    : [...state.lists, adopted];
+  saveLists(state.lists);
+  return true;
+}
+
+  // ---- src/view-spends.js ----------------------------------------------
+/**
+ * Accounts on screen: the form, the expenses, the balances, the repayments.
+ *
+ * Split out of app.js, which it calls back into: only from inside functions,
+ * so the two may import each other.
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* --------------------------------------------------------------- dépenses --- */
+
+function spendTitle(spend) {
+  return spend.name || t('spends.untitled');
+}
+
+/** Ce que ce compte dit de moi : ce qu'on me doit, ou ce que je dois. */
+function myBalance(spend) {
+  const me = sameName(myNameFor(spend));
+  if (!me) return null;
+  return balances(spend).find((row) => sameName(row.name) === me) || null;
+}
+
+function spendCardHtml(spend) {
+  const mine = myBalance(spend);
+  const line = mine && mine.balance !== 0
+    ? t(mine.balance > 0 ? 'spends.owedToMe' : 'spends.iOwe', { amount: money(Math.abs(mine.balance), spend) })
+    : t('spends.even');
+  return `
+    <button type="button" class="game-card" data-goto="#/spend/${escapeHtml(spend.id)}">
+      <span class="game-card__title">
+        ${escapeHtml(spendTitle(spend))}
+        <span class="pill">${escapeHtml(money(spendTotal(spend), spend))}</span>
+      </span>
+      ${peopleHtml(spend.people.map((person) => person.name))}
+      <span class="game-card__meta">
+        ${escapeHtml(formatDate(spend.updatedAt))} — <span class="${mine && mine.balance < 0 ? 'late' : ''}">${escapeHtml(line)}</span>
+      </span>
+      ${eventTagHtml(spend)}
+    </button>`;
+}
+
+/**
+ * The agenda: what is coming, day by day, each event with what hangs off it;
+ * then the accounts that belong to no event still coming — a flatshare, or the
+ * weekend just past whose money is not settled yet; then the past, folded.
+ *
+ * An event is a poll with a day: settled by a vote, or made with its day
+ * already known. A question still looking for its day comes first, under "to
+ * decide": when it settles it only moves down the same page. Questions about
+ * anything else stay on the home page, and the accounts have their own.
+ */
+function agendaView() {
+  const today = dayNow();
+  const byDay = (a, b) => a.date.localeCompare(b.date) || String(a.at || '').localeCompare(String(b.at || ''));
+  const dated = shownDocs(state.polls).filter((poll) => isLive(poll) && poll.date);
+  // Under way still counts as coming: a weekend is not past on its Saturday.
+  const coming = dated.filter((poll) => lastDay(poll) >= today).sort(byDay);
+  const past = dated.filter((poll) => lastDay(poll) < today).sort(byDay).reverse();
+
+  const deciding = shownDocs(state.polls)
+    .filter((poll) => isLive(poll) && !poll.date && !poll.closedAt && seeksDay(poll))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  const archivedEvents = shownDocs(state.polls).filter((poll) => isEvent(poll) && poll.archivedAt);
+
+  return `
+    ${flashHtml()}
+    ${newButtonHtml('#/agenda/new', t('events.new'), Boolean(dated.length || deciding.length))}
+    ${groupChipsHtml()}
+
+    ${
+      deciding.length
+        ? `<section class="section">
+             <div class="section__head"><h2>${escapeHtml(t('polls.toDecide'))}</h2></div>
+             <div class="game-list">${deciding.map(swipeable(pollCardHtml, isOrganiser)).join('')}</div>
+           </section>`
+        : ''
+    }
+
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('events.coming'))}</h2></div>
+      ${
+        coming.length
+          ? `<div class="game-list">${coming.map(swipeable(eventCardHtml, isOrganiser)).join('')}</div>`
+          : hintHtml('agenda', t('events.none'))
+      }
+      ${hiddenByGroupHtml(state.polls.filter((poll) => poll.date))}
+    </section>
+    ${coming.length && coming.length + deciding.length <= 2 ? hintHtml('agenda', t('hint.agenda')) : ''}
+
+    ${
+      past.length
+        ? `<details class="details">
+             <summary>${escapeHtml(t('events.past', { count: past.length }))}</summary>
+             <div class="game-list">${past.map(swipeable(eventCardHtml, isOrganiser)).join('')}</div>
+           </details>`
+        : ''
+    }
+
+    ${archivedHtml(archivedEvents, swipeable(eventCardHtml, isOrganiser))}`;
+}
+
+/** Every account, on the home page: the ones someone still owes on, then the settled. */
+function spendsView() {
+  const sorted = [...shownDocs(state.spends)].sort((a, b) => b.updatedAt - a.updatedAt);
+  const live = sorted.filter(isLive);
+  const settled = (spend) => spend.lines.length && balances(spend).every((row) => row.balance === 0);
+  const open = live.filter((spend) => !settled(spend));
+  const done = live.filter(settled);
+
+  return `
+    ${flashHtml()}
+    ${kindsHtml('spends')}
+    ${newButtonHtml('#/spends/new', t('spends.new'), live.length > 0)}
+    ${groupChipsHtml()}
+
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('kinds.ongoing'))}</h2></div>
+      ${
+        open.length
+          ? `<div class="game-list">${open.map(swipeable(spendCardHtml)).join('')}</div>`
+          : hintHtml('spends', t('spends.none'))
+      }
+      ${hiddenByGroupHtml(state.spends)}
+    </section>
+    ${open.length && live.length <= 2 ? hintHtml('spends', t('hint.spends')) : ''}
+
+    ${
+      done.length
+        ? `<section class="section">
+             <div class="section__head"><h2>${escapeHtml(t('spends.settled'))}</h2></div>
+             <div class="game-list">${done.map(swipeable(spendCardHtml)).join('')}</div>
+           </section>`
+        : ''
+    }
+
+    ${archivedHtml(sorted, swipeable(spendCardHtml))}`;
+}
+
+/**
+ * An event, in the agenda and on Home: its day, who comes, and what hangs off
+ * it — where its list and account stand, and how many polls, idea boards and
+ * games were made for it.
+ */
+function eventCardHtml(poll) {
+  const { list, spend, polls, boards, games, activities } = eventParts(poll, state);
+  const when = poll.date ? whenText(poll, { long: true }) : t('activity.unscheduled');
+  const parts = [];
+  if (list) {
+    const { done, total } = progress(list);
+    parts.push(total ? `${t('event.list')} : ${t('lists.progress', { done, total })}` : `${t('event.list')} : ${t('lists.empty')}`);
+  }
+  if (spend) parts.push(t('spends.total', { amount: money(spendTotal(spend), spend) }));
+  if (polls.length) parts.push(t('count.polls', { count: polls.length }));
+  if (boards.length) parts.push(t('count.boards', { count: boards.length }));
+  if (games.length) parts.push(t('count.games', { count: games.length }));
+  // What is on the programme, first things first: a card says what is coming.
+  const programme = activities.slice(0, 3).map((one) => [one.date ? whenText(one) : '', eventName(one) || pollTitle(one)].filter(Boolean).join(' '));
+  if (activities.length > 3) programme.push('…');
+  return `
+    <button type="button" class="game-card" data-goto="#/poll/${escapeHtml(poll.id)}">
+      <span class="game-card__title">
+        ${escapeHtml(eventName(poll) || pollTitle(poll))}
+        <span class="pill">${escapeHtml(when)}</span>
+      </span>
+      ${peopleHtml(poll.people.map((person) => person.name))}
+      ${parts.length ? `<span class="game-card__meta">${escapeHtml(parts.join(' · '))}</span>` : ''}
+      ${programme.length ? `<span class="game-card__meta">${escapeHtml(t('activity.onProgramme', { items: programme.join(' · ') }))}</span>` : ''}
+      ${talkSumHtml(poll)}
+    </button>`;
+}
+
+/** A new event whose day is known: a name, the day, perhaps an hour, and who comes. */
+function newEventView() {
+  const suggestions = [...new Set([
+    myName(), ...recentPeople(state.polls), ...recentPeople(state.lists), ...recentPeople(state.spends), ...recentNames(state.games),
+  ].filter(Boolean))].filter((name) => !writtenNames(state.newEventPeople).has(name.toLowerCase())).slice(0, 12);
+
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/agenda')}
+      <h1>${escapeHtml(t('events.new'))}</h1>
+    </div>
+
+    <form id="new-event" class="card stack">
+      <label>
+        ${escapeHtml(t('events.name'))}
+        <input type="text" id="event-name" placeholder="${escapeHtml(t('polls.eventNamePlaceholder'))}"
+               value="${escapeHtml(state.newEventName)}" required />
+      </label>
+
+      <div class="row">
+        <label>
+          ${escapeHtml(t('events.day'))}
+          <input type="date" id="event-day" value="${escapeHtml(state.newEventDay)}" required />
+        </label>
+        <label>
+          ${escapeHtml(t('polls.hour'))}
+          <input type="time" id="event-hour" value="${escapeHtml(state.newEventHour)}" />
+        </label>
+      </div>
+      <label>
+        ${escapeHtml(t('events.until'))}
+        <input type="date" id="event-until" value="${escapeHtml(state.newEventUntil)}" />
+      </label>
+
+      ${rosterPickHtml(state.newEventPeople, t('events.peopleHint')) || `
+      <div class="stack stack--tight">
+        <span class="muted small">${escapeHtml(t('events.peopleHint'))}</span>
+        ${state.newEventPeople
+          .map(
+            (name, index) => `
+              <input type="text" data-person-index="${index}" value="${escapeHtml(name)}"
+                     placeholder="${escapeHtml(t('lists.person', { n: index + 1 }))}"
+                     aria-label="${escapeHtml(t('lists.person', { n: index + 1 }))}" />`,
+          )
+          .join('')}
+        <div class="row">
+          <button type="button" class="button button--small" id="add-person">+ ${escapeHtml(t('lists.addPerson'))}</button>
+          ${
+            state.newEventPeople.length > 1
+              ? `<button type="button" class="button button--small button--ghost" id="drop-person">− ${escapeHtml(t('lists.dropPerson'))}</button>`
+              : ''
+          }
+        </div>
+        ${
+          suggestions.length
+            ? `<div class="row">${suggestions
+                .map((name) => `<button type="button" class="chip" data-suggest="${escapeHtml(name)}">${escapeHtml(name)}</button>`)
+                .join('')}</div>`
+            : ''
+        }
+      </div>`}
+
+      ${willBeInHtml({ events: false })}
+
+      <button type="submit" class="button button--primary button--block">${escapeHtml(t('events.create'))}</button>
+    </form>`;
+}
+
+function bindNewEvent() {
+  const form = view.querySelector('#new-event');
+  if (!form) return;
+  keepUntilAfter(view.querySelector('#event-day'), view.querySelector('#event-until'));
+
+  const snapshot = () => {
+    state.newEventName = view.querySelector('#event-name').value;
+    state.newEventDay = view.querySelector('#event-day').value;
+    state.newEventHour = view.querySelector('#event-hour').value;
+    state.newEventUntil = view.querySelector('#event-until').value;
+    view.querySelectorAll('[data-person-index]').forEach((input) => {
+      state.newEventPeople[Number(input.dataset.personIndex)] = input.value;
+    });
+  };
+
+  view.querySelector('#add-person')?.addEventListener('click', () => {
+    snapshot();
+    state.newEventPeople = [...state.newEventPeople, ''];
+    render();
+    view.querySelector(`[data-person-index="${state.newEventPeople.length - 1}"]`)?.focus();
+  });
+
+  view.querySelector('#drop-person')?.addEventListener('click', () => {
+    snapshot();
+    state.newEventPeople = state.newEventPeople.slice(0, -1);
+    render();
+  });
+
+  // Where the group fixes its first names, the people are ticked, not typed.
+  bindRosterPick(view, () => state.newEventPeople, (names) => {
+    state.newEventPeople = names;
+  });
+  view.querySelector('form')?.addEventListener('rosterchange', () => {
+    snapshot();
+    render();
+  });
+
+  view.querySelectorAll('[data-new-group]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      state.newGroupChoice = { touched: true, id: chip.dataset.newGroup || null };
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-suggest]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      const { suggest } = chip.dataset;
+      if (state.newEventPeople.some((name) => sameName(name) === sameName(suggest))) return;
+      const empty = state.newEventPeople.findIndex((name) => !name.trim());
+      if (empty >= 0) state.newEventPeople[empty] = suggest;
+      else state.newEventPeople = [...state.newEventPeople, suggest];
+      render();
+    });
+  });
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    snapshot();
+    const poll = signed(organise(landing(createEvent({
+      name: state.newEventName,
+      names: peopleForNew(state.newEventPeople),
+      date: state.newEventDay,
+      at: state.newEventHour,
+      until: state.newEventUntil,
+    }), { forEvent: false })));
+    state.polls = [...state.polls, poll];
+    persistPoll(poll);
+    resetGroupChoice();
+    state.newEventName = '';
+    state.newEventDay = '';
+    state.newEventHour = '';
+    state.newEventUntil = '';
+    state.newEventPeople = withMeFirst(['', ''], myName());
+    navigate(`#/poll/${poll.id}`);
+  });
+}
+
+function newSpendView() {
+  const suggestions = [...new Set([
+    myName(), ...recentPeople(state.spends), ...recentPeople(state.lists), ...recentNames(state.games),
+  ].filter(Boolean))].filter((name) => !writtenNames(state.newSpendPeople).has(name.toLowerCase())).slice(0, 12);
+
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/spends')}
+      <h1>${escapeHtml(t('spends.new'))}</h1>
+    </div>
+
+    <form id="new-spend" class="card stack">
+      <label>
+        ${escapeHtml(t('spends.name'))}
+        <input type="text" id="spend-name" placeholder="${escapeHtml(t('spends.namePlaceholder'))}"
+               value="${escapeHtml(state.newSpendName)}" required />
+      </label>
+
+      <label>
+        ${escapeHtml(t('spends.currency'))}
+        <select id="spend-currency">
+          ${CURRENCIES.map((code) => `<option value="${code}" ${code === state.newSpendCurrency ? 'selected' : ''}>${escapeHtml(currencyName(code))}</option>`).join('')}
+        </select>
+      </label>
+
+      ${rosterPickHtml(state.newSpendPeople, t('spends.peopleHint')) || `
+      <div class="stack stack--tight">
+        <span class="muted small">${escapeHtml(t('spends.peopleHint'))}</span>
+        ${state.newSpendPeople
+          .map(
+            (name, index) => `
+              <input type="text" data-person-index="${index}" value="${escapeHtml(name)}"
+                     placeholder="${escapeHtml(t('lists.person', { n: index + 1 }))}"
+                     aria-label="${escapeHtml(t('lists.person', { n: index + 1 }))}" />`,
+          )
+          .join('')}
+        <div class="row">
+          <button type="button" class="button button--small" id="add-person">+ ${escapeHtml(t('lists.addPerson'))}</button>
+          ${
+            state.newSpendPeople.length > 1
+              ? `<button type="button" class="button button--small button--ghost" id="drop-person">− ${escapeHtml(t('lists.dropPerson'))}</button>`
+              : ''
+          }
+        </div>
+        ${
+          suggestions.length
+            ? `<div class="row">${suggestions
+                .map((name) => `<button type="button" class="chip" data-suggest="${escapeHtml(name)}">${escapeHtml(name)}</button>`)
+                .join('')}</div>`
+            : ''
+        }
+      </div>`}
+
+      ${willBeInHtml()}
+
+      <button type="submit" class="button button--primary button--block">${escapeHtml(t('spends.create'))}</button>
+    </form>`;
+}
+
+/** Who pays whom, as text: what the group chat needs to settle up — and how to pay each back. */
+function settleText(spend) {
+  const moves = settle(spend);
+  const paidTo = [...new Set(moves.map((move) => move.toId))]
+    .map((id) => spend.people.find((person) => person.id === id))
+    .filter((person) => payOf(person));
+  return [
+    `${spendTitle(spend)} — ${t('spends.total', { amount: money(spendTotal(spend), spend) })}`,
+    '',
+    t('spends.settle'),
+    ...moves.map((move) => `${t('spends.move', { from: move.from, to: move.to })} — ${money(move.amount, spend)}`),
+    ...(paidTo.length ? ['', ...paidTo.map((person) => `${t('spends.payTo', { name: person.name })} ${payOf(person)}`)] : []),
+  ].join('\n');
+}
+
+/** One transfer, as a message to whoever owes it: how much, to whom, for what, and how. */
+function remindText(spend, move) {
+  const pay = payOf(spend.people.find((person) => person.id === move.toId));
+  return [
+    t('spends.remindText', { from: move.from, to: move.to, amount: money(move.amount, spend), name: spendTitle(spend) }),
+    ...(pay ? [`${t('spends.payTo', { name: move.to })} ${pay}`] : []),
+  ].join('\n');
+}
+
+/**
+ * How someone wrote they want to be paid back in another account, the most
+ * recent first: written once, offered everywhere — the same IBAN for the
+ * holidays and the flatshare.
+ */
+function payElsewhere(name) {
+  const key = sameName(name);
+  for (const other of [...state.spends].sort((a, b) => (b.peopleAt || 0) - (a.peopleAt || 0))) {
+    const person = other.people.find((one) => sameName(one.name) === key && payOf(one));
+    if (person) return payOf(person);
+  }
+  return '';
+}
+
+/** An amount of an account, in that account's currency. */
+function money(cents, spend) {
+  return showAmount(cents, getLanguage(), spendCurrency(spend));
+}
+
+/** « € », « CHF », « £ »: what follows an amount being typed. */
+function currencySymbol(code) {
+  try {
+    return new Intl.NumberFormat(getLanguage(), { style: 'currency', currency: code })
+      .formatToParts(0).find((part) => part.type === 'currency')?.value || code;
+  } catch {
+    return code;
+  }
+}
+
+/** « € — euro », as the currency list of a new account shows it. */
+function currencyName(code) {
+  try {
+    const symbol = currencySymbol(code);
+    const name = new Intl.DisplayNames([getLanguage()], { type: 'currency' }).of(code) || code;
+    return `${symbol} — ${name}`;
+  } catch {
+    return code;
+  }
+}
+
+/** An amount as it is typed back into a field: « 12,50 », « 12.50 » in English. */
+function typedAmount(cents) {
+  const text = ((Number(cents) || 0) / 100).toFixed(2);
+  return getLanguage() === 'fr' ? text.replace('.', ',') : text;
+}
+
+/** A rate as it is typed back into a field: « 0,86 ». */
+function typedRate(rate) {
+  const text = String(readRate(rate) ?? '');
+  return getLanguage() === 'fr' ? text.replace('.', ',') : text;
+}
+
+/** « 1 € = 0,86 £ »: how a rate reads, the way a bank quotes it. */
+function rateText(spend, currency, rate) {
+  return `1 ${currencySymbol(spendCurrency(spend))} = ${typedRate(rate)} ${currencySymbol(currency)}`;
+}
+
+/** The currencies an expense may be paid in: the account's, those it has already met, then the rest. */
+function paidInChoices(spend) {
+  const met = spend.lines.map((line) => paidInOf(spend, line)?.currency).filter(Boolean);
+  return [...new Set([spendCurrency(spend), ...met, ...PAID_IN])];
+}
+
+/**
+ * How much an expense was, and in what: the account's currency unless
+ * another is picked — then the rate (« 1 € = 0,86 £ »), the last one written
+ * for that currency to begin with, and what it comes to in the account. Held
+ * by the markup, like the split editor: nothing has to redraw it.
+ */
+function amountFieldHtml(spend, { id, cents = null, paid = null, pill = false }) {
+  const own = spendCurrency(spend);
+  const currency = paid?.currency || own;
+  const typed = paid ? paid.amount : cents;
+  return `
+    <div class="amount-block" data-amount-field>
+      <label>
+        ${escapeHtml(t('spends.amount'))}
+        <span class="${pill ? 'field-pill field-pill--amount' : 'amount-field'}">
+          <input type="text" id="${id}" data-amount-input inputmode="decimal" placeholder="0,00" autocomplete="off"
+                 value="${typed ? escapeHtml(typedAmount(typed)) : ''}" />
+          <span class="field-pill__suffix currency-pick">
+            <span data-currency-sign>${escapeHtml(currencySymbol(currency))}</span><span class="currency-pick__caret" aria-hidden="true">▾</span>
+            <select data-currency aria-label="${escapeHtml(t('spends.paidInLabel'))}">
+              ${paidInChoices(spend).map((code) => `<option value="${code}" ${code === currency ? 'selected' : ''}>${escapeHtml(currencyName(code))}</option>`).join('')}
+            </select>
+          </span>
+        </span>
+      </label>
+      <div class="rate-row" data-rate-row ${currency === own ? 'hidden' : ''}>
+        <label class="rate-row__rate">
+          <span data-rate-from>1 ${escapeHtml(currencySymbol(own))} =</span>
+          <input type="text" data-rate inputmode="decimal" autocomplete="off" ${pill ? 'class="field-pill"' : ''}
+                 value="${paid ? escapeHtml(typedRate(paid.rate)) : ''}" aria-label="${escapeHtml(t('spends.rateLabel'))}" />
+          <span data-rate-sign>${escapeHtml(currencySymbol(currency))}</span>
+        </label>
+        <span class="muted small" data-converted aria-live="polite"></span>
+      </div>
+      <p class="late small" data-amount-problem aria-live="polite" hidden></p>
+    </div>`;
+}
+
+/**
+ * Make an amount field work. `read()` answers what was typed — `cents`, in
+ * the account's currency or null; `amount`, `currency` and `rate`, as
+ * addSpend() takes them; `error`, 'amount' or 'rate' — and `problem()` says
+ * what is missing where it is, without redrawing what was typed. `changed`
+ * is told of every change: the split editor's shares follow.
+ */
+function bindAmountField(root, spend, changed = () => {}) {
+  const box = root.querySelector('[data-amount-field]');
+  const own = spendCurrency(spend);
+  const input = box.querySelector('[data-amount-input]');
+  const pick = box.querySelector('[data-currency]');
+  const rate = box.querySelector('[data-rate]');
+  const note = box.querySelector('[data-converted]');
+  const amountProblem = box.querySelector('[data-amount-problem]');
+
+  const read = () => {
+    const currency = pick.value || own;
+    const typed = readAmount(input.value);
+    if (currency === own) return { cents: typed, amount: typed, currency, rate: null, error: typed ? null : 'amount' };
+    const kept = readRate(rate.value);
+    return {
+      cents: typed && kept ? convertPaid(typed, kept) : null,
+      amount: typed, currency, rate: kept,
+      error: !typed ? 'amount' : kept ? null : 'rate',
+    };
+  };
+
+  const refresh = () => {
+    const now = read();
+    box.querySelector('[data-currency-sign]').textContent = currencySymbol(now.currency);
+    box.querySelector('[data-rate-sign]').textContent = currencySymbol(now.currency);
+    box.querySelector('[data-rate-row]').hidden = now.currency === own;
+    note.classList.remove('late');
+    if (now.amount) amountProblem.hidden = true;
+    note.textContent = now.cents && now.currency !== own ? t('spends.converted', { amount: money(now.cents, spend) }) : '';
+  };
+
+  pick.addEventListener('change', () => {
+    if (pick.value !== own && !readRate(rate.value)) {
+      const known = lastRate(spend, pick.value, state.spends);
+      rate.value = known ? typedRate(known) : '';
+    }
+    refresh();
+    changed();
+    if (pick.value !== own && !rate.value) rate.focus();
+  });
+  for (const field of [input, rate]) {
+    field.addEventListener('input', () => {
+      refresh();
+      changed();
+    });
+  }
+  refresh();
+
+  // `inField`: said under the field — a window that has its own place for
+  // mistakes only takes the words back.
+  const problem = (inField = true) => {
+    const now = read();
+    if (now.error === 'rate') {
+      note.textContent = t('spends.notARate', { sign: currencySymbol(own) });
+      note.classList.add('late');
+      rate.focus();
+    } else {
+      // Said under the field, where the eyes are: a message at the top of
+      // the page would be out of sight, and redrawing would wipe the rest.
+      amountProblem.textContent = t('spends.notAnAmount');
+      amountProblem.hidden = !inField;
+      input.focus();
+    }
+    return now.error === 'rate' ? t('spends.notARate', { sign: currencySymbol(own) }) : t('spends.notAnAmount');
+  };
+  return { read, problem };
+}
+
+/** « ½ », « 2 », « 1½ »: a number of parts as one reads it. */
+function partsShown(value) {
+  const whole = Math.floor(value);
+  return `${whole || ''}${value % 1 ? '½' : ''}`;
+}
+
+/** « 2 parts », « ½ part ». */
+function partsText(value) {
+  return t('spends.partsCount', { count: value, shown: partsShown(value) });
+}
+
+/** What someone counts for, beside their name — only when it is not one part. */
+function weightMarkHtml(person) {
+  const weight = weightOf(person);
+  return weight === 1 ? '' : ` <span class="split-row__weight">×${escapeHtml(partsShown(weight))}</span>`;
+}
+
+/**
+ * Who an expense is for, and how it is shared — the same wherever an expense
+ * is written: the form, the dialog that corrects it, a receipt from a list.
+ *
+ * A checklist ticked by default, each with what they owe as soon as the
+ * amount is known. « Répartir autrement » gives, for this expense alone,
+ * each one's parts and an amount apart (the pizza Alice had alone); the rest
+ * is shared between the others. The activities of the account's event come
+ * first, as quick choices: the kayak, for those who went.
+ *
+ * Everything is held by the markup itself: nothing has to redraw the page
+ * while it is being filled in, which would lose what was typed.
+ */
+function splitEditorHtml(spend, { forWhom = [], parts = null, fixed = null, groups = [] } = {}) {
+  const open = Boolean(Object.keys(parts || {}).length || Object.keys(fixed || {}).length);
+  const rows = spend.people.map((person) => {
+    const id = escapeHtml(person.id);
+    const ticked = !forWhom.length || forWhom.includes(person.id);
+    const own = readParts(parts?.[person.id]) ?? weightOf(person);
+    const apart = Number.isInteger(fixed?.[person.id]) ? fixed[person.id] : null;
+    return `
+      <div class="split-row" data-split-row="${id}">
+        <label class="split-row__who">
+          <input type="checkbox" data-for="${id}" ${ticked ? 'checked' : ''} />
+          <span class="split-row__name">${escapeHtml(person.name)}${weightMarkHtml(person)}</span>
+        </label>
+        <span class="split-row__share" data-share-of="${id}"></span>
+        <span class="split-row__more">
+          <span class="stepper" role="group" aria-label="${escapeHtml(t('spends.partsOf', { name: person.name }))}">
+            <button type="button" class="stepper__button" data-parts-step="-1" aria-label="${escapeHtml(t('spends.partsLess'))}">−</button>
+            <span class="stepper__value" data-parts-of="${id}" data-value="${own}">${escapeHtml(partsText(own))}</span>
+            <button type="button" class="stepper__button" data-parts-step="1" aria-label="${escapeHtml(t('spends.partsMore'))}">+</button>
+          </span>
+          <input type="text" inputmode="decimal" class="split-row__apart" data-apart-of="${id}" autocomplete="off"
+                 value="${apart ? escapeHtml(typedAmount(apart)) : ''}"
+                 aria-label="${escapeHtml(t('spends.apartOf', { name: person.name }))}" />
+        </span>
+      </div>`;
+  });
+  return `
+    <div class="split-list ${open ? 'split-list--open' : ''}" data-split>
+      <div class="split-list__head">
+        <span>${escapeHtml(t('spends.splitTitle'))}</span>
+        <span class="muted small" data-split-note aria-live="polite"></span>
+      </div>
+      ${
+        groups.length
+          ? `<div class="row row--chips split-list__groups">
+               <button type="button" class="chip" data-split-group="">${escapeHtml(t('spends.everyoneChip'))}</button>
+               ${groups.map((group) => `<button type="button" class="chip" data-split-group="${escapeHtml(group.ids.join(' '))}">${escapeHtml(group.name)}</button>`).join('')}
+             </div>`
+          : ''
+      }
+      ${rows.join('')}
+      <button type="button" class="split-list__open" data-split-open>${escapeHtml(t('spends.splitOther'))}</button>
+    </div>`;
+}
+
+/**
+ * Make a split editor work. `amount()` reads the amount being typed, in
+ * cents or null. Returns `read()` — { forWhom, parts, fixed } as addSpend
+ * takes them, and what is wrong if anything is (`error`, a sentence) — and
+ * `refresh()`, for when the amount changes.
+ */
+function bindSplitEditor(root, spend, amount) {
+  const box = root.querySelector('[data-split]');
+  if (!box) return { read: () => ({ forWhom: [], parts: null, fixed: null, error: null }), refresh: () => {} };
+  const boxes = () => [...box.querySelectorAll('[data-for]')];
+  const isOpen = () => box.classList.contains('split-list--open');
+
+  const read = () => {
+    const ticked = boxes().filter((one) => one.checked).map((one) => one.dataset.for);
+    const forWhom = ticked.length === boxes().length ? [] : ticked;
+    const parts = {};
+    const fixed = {};
+    let unreadable = false;
+    if (isOpen()) {
+      for (const node of box.querySelectorAll('[data-parts-of]')) parts[node.dataset.partsOf] = Number(node.dataset.value);
+      for (const input of box.querySelectorAll('[data-apart-of]')) {
+        if (!input.value.trim() || !ticked.includes(input.dataset.apartOf)) continue;
+        const cents = readAmount(input.value);
+        if (cents) fixed[input.dataset.apartOf] = cents;
+        else unreadable = true;
+      }
+    }
+    const total = amount();
+    const apart = Object.values(fixed).reduce((sum, cents) => sum + cents, 0);
+    const problem = total ? splitProblem(spend, { amount: total, forWhom, fixed }) : null;
+    let error = null;
+    if (!ticked.length) error = t('spends.noOneChosen');
+    else if (unreadable) error = t('spends.notAnAmount');
+    else if (problem === 'over') error = t('spends.apartOver', { amount: money(apart - total, spend) });
+    else if (problem === 'left') error = t('spends.apartLeft', { amount: money(total - apart, spend) });
+    return { forWhom, parts, fixed, error };
+  };
+
+  const refresh = () => {
+    const now = read();
+    const total = amount();
+    const shares = total && !now.error
+      ? lineShares(spend, { amount: total, forWhom: now.forWhom, parts: now.parts, fixed: now.fixed })
+      : new Map();
+    for (const node of box.querySelectorAll('[data-share-of]')) {
+      const cents = shares.get(node.dataset.shareOf);
+      node.textContent = cents === undefined ? '' : money(cents, spend);
+    }
+    // What each would owe, written where an amount apart would go.
+    for (const input of box.querySelectorAll('[data-apart-of]')) {
+      const cents = shares.get(input.dataset.apartOf);
+      input.placeholder = cents === undefined ? '' : typedAmount(cents);
+    }
+    const weighted = spend.people.some((person) => weightOf(person) !== 1);
+    const note = box.querySelector('[data-split-note]');
+    note.textContent = now.error || t(isOpen() ? 'spends.splitOpenHint' : weighted ? 'spends.splitPartsHint' : 'spends.splitHint');
+    note.classList.toggle('late', Boolean(now.error));
+  };
+
+  box.addEventListener('change', refresh);
+  box.addEventListener('input', (event) => {
+    // An amount apart for someone unticked: they are concerned after all.
+    const id = event.target.dataset?.apartOf;
+    if (id && event.target.value.trim()) {
+      const tick = boxes().find((one) => one.dataset.for === id);
+      if (tick) tick.checked = true;
+    }
+    refresh();
+  });
+  box.querySelectorAll('[data-parts-step]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const value = button.closest('.stepper').querySelector('[data-parts-of]');
+      const next = stepParts(Number(value.dataset.value), Number(button.dataset.partsStep));
+      value.dataset.value = String(next);
+      value.textContent = partsText(next);
+      refresh();
+    });
+  });
+  box.querySelector('[data-split-open]')?.addEventListener('click', () => {
+    box.classList.add('split-list--open');
+    refresh();
+    box.querySelector('[data-parts-step]')?.focus();
+  });
+  box.querySelectorAll('[data-split-group]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const ids = chip.dataset.splitGroup ? chip.dataset.splitGroup.split(' ') : null;
+      for (const tick of boxes()) tick.checked = !ids || ids.includes(tick.dataset.for);
+      refresh();
+    });
+  });
+  refresh();
+  return { read, refresh };
+}
+
+/** Une dépense, telle qu'elle se lit dans la liste : qui, combien, pour qui. */
+function spendLineHtml(spend, line) {
+  const who = spend.people.find((person) => person.id === line.by)?.name || '';
+  if (isRepayment(line)) {
+    const to = spend.people.find((person) => person.id === line.forWhom[0])?.name || '';
+    return swipeHtml(line.id, `
+        <button type="button" class="line__text" data-spend-line="${escapeHtml(line.id)}">
+          <span>${escapeHtml(t('spends.repaid', { from: who, to }))}</span>
+          <span class="line__due">${escapeHtml(t('spends.repayment'))}${line.day ? ` · ${escapeHtml(formatDay(line.day))}` : ''}</span>
+        </button>
+        <span class="line__amount">${escapeHtml(money(line.amount, spend))}</span>`,
+      { kind: 'line', tag: 'li', bodyClass: 'line line--money line--repay' });
+  }
+  const forWhom = line.forWhom.length
+    ? spend.people.filter((person) => line.forWhom.includes(person.id)).map((person) => person.name).join(', ')
+    : t('spends.everyone');
+  const paid = paidInOf(spend, line);
+  return swipeHtml(line.id, `
+      <button type="button" class="line__text" data-spend-line="${escapeHtml(line.id)}">
+        <span>${escapeHtml(line.text || t('spends.untitledLine'))}</span>
+        <span class="line__due">
+          ${escapeHtml(who ? t('spends.paidBy', { name: who }) : t('spends.paidByNobody'))}
+          · ${escapeHtml(t('spends.forWhom', { names: forWhom }))}${
+            line.parts || line.fixed ? ` · ${escapeHtml(t('spends.splitOwn'))}` : ''
+          }${paid ? ` · ${escapeHtml(t('spends.paidIn', {
+            amount: showAmount(paid.amount, getLanguage(), paid.currency), rate: rateText(spend, paid.currency, paid.rate),
+          }))}` : ''}${line.day ? ` · ${escapeHtml(formatDay(line.day))}` : ''}
+        </span>
+      </button>
+      <span class="line__amount">${escapeHtml(money(line.amount, spend))}</span>`,
+    { kind: 'line', tag: 'li', bodyClass: 'line line--money' });
+}
+
+function spendView(spend) {
+  if (state.spendTabId !== spend.id) {
+    state.spendTabId = spend.id;
+    state.spendTab = 'expenses';
+  }
+  const rows = balances(spend);
+  const moves = settle(spend);
+  const me = sameName(myNameFor(spend));
+
+  const segmented = `
+    <div class="segmented" role="tablist" aria-label="${escapeHtml(t('spends.sections'))}">
+      <button type="button" class="segmented__option" data-spend-tab="expenses"
+              role="tab" aria-selected="${state.spendTab === 'expenses' ? 'true' : 'false'}"
+              aria-current="${state.spendTab === 'expenses' ? 'true' : 'false'}">
+        ${escapeHtml(t('spend.tabExpenses'))}
+      </button>
+      <button type="button" class="segmented__option" data-spend-tab="balances"
+              role="tab" aria-selected="${state.spendTab === 'balances' ? 'true' : 'false'}"
+              aria-current="${state.spendTab === 'balances' ? 'true' : 'false'}">
+        ${escapeHtml(t('spend.tabBalances'))}
+      </button>
+    </div>`;
+
+  const formShut = spend.lines.length > 0 && state.spendFormOpen !== spend.id;
+  // What lists of the same event have ticked and nobody has written here yet.
+  const waiting = listsFeeding(spend, everything())
+    .map((list) => ticketOffersHtml(list, spend, t('flows.fromList', { name: documentTitle(list) })))
+    .filter(Boolean);
+  const expensesTab = `
+    ${
+      waiting.length
+        ? `<section class="card stack flows" aria-label="${escapeHtml(t('flows.waiting'))}">${waiting.join('')}</section>`
+        : ''
+    }
+    ${
+      spend.people.length && formShut
+        ? `<button type="button" class="button button--block" id="spend-add-open">+ ${escapeHtml(t('spends.addOpen'))}</button>`
+        : spend.people.length
+        ? `<form id="add-spend" class="card stack">
+             <label>
+               ${escapeHtml(t('spends.what'))}
+               <input class="field-pill" type="text" id="spend-text"
+                      placeholder="${escapeHtml(t('spends.textPlaceholder'))}" autocomplete="off" />
+             </label>
+
+             ${amountFieldHtml(spend, { id: 'spend-amount', pill: true })}
+
+             <div class="field-row">
+               <label>
+                 ${escapeHtml(t('spends.by'))}
+                 <select class="field-pill" id="spend-by">
+                   ${spend.people
+                     .map(
+                       (person) => `<option value="${escapeHtml(person.id)}" ${me && sameName(person.name) === me ? 'selected' : ''}>
+                          ${escapeHtml(person.name)}
+                        </option>`,
+                     )
+                     .join('')}
+                 </select>
+               </label>
+               <label>
+                 ${escapeHtml(t('spends.when'))}
+                 <input class="field-pill" type="date" id="spend-day" value="${escapeHtml(dayNow())}" />
+               </label>
+             </div>
+
+             ${spend.people.length > 1 ? splitEditorHtml(spend, { groups: forWhomGroups(spend, everything()) }) : ''}
+
+             <button type="submit" class="button button--primary button--block field-pill--submit">
+               ${escapeHtml(t('spends.add'))}
+             </button>
+           </form>`
+        : `<p class="muted small">${escapeHtml(t('spends.noPeople'))}</p>`
+    }
+
+    ${
+      spend.lines.length
+        ? `<ul class="lines">${[...spend.lines]
+            .sort((a, b) => (b.day || '').localeCompare(a.day || '') || b.createdAt - a.createdAt)
+            .map((line) => spendLineHtml(spend, line))
+            .join('')}</ul>`
+        : `<p class="muted small">${escapeHtml(t('spends.addFirst'))}</p>`
+    }
+    ${spend.people.length && spend.lines.length <= 2 ? hintHtml('spends', t('hint.spend')) : ''}`;
+
+  const balancesTab = !spend.lines.length
+    ? `<p class="muted small">${escapeHtml(t('spends.balancesEmpty'))}</p>`
+    : `
+    <section class="section card">
+      <div class="section__head"><h2>${escapeHtml(t('spends.balances'))}</h2></div>
+      <div class="entries">
+        ${rows
+          .map(
+            (row) => `
+              <div class="entry">
+                <span class="entry__what">
+                  ${escapeHtml(row.name)}${weightMarkHtml(spend.people.find((person) => person.id === row.id))}
+                  <span class="muted small entry__detail">${escapeHtml([
+                    row.paid ? t('spends.paidTotal', { amount: money(row.paid, spend) }) : '',
+                    t('spends.shareTotal', { amount: money(row.owed, spend) }),
+                  ].filter(Boolean).join(' · '))}</span>
+                </span>
+                <span class="entry__value ${row.balance > 0 ? 'entry__value--good' : row.balance < 0 ? 'entry__value--bad' : ''}">
+                  ${escapeHtml(
+                    row.balance === 0
+                      ? t('spends.even')
+                      : t(row.balance > 0 ? 'spends.isOwed' : 'spends.owes', {
+                          amount: money(Math.abs(row.balance), spend),
+                        }),
+                  )}
+                </span>
+              </div>`,
+          )
+          .join('')}
+      </div>
+    </section>
+
+    ${
+      moves.length
+        ? `<section class="section card">
+             <div class="section__head"><h2>${escapeHtml(t('spends.settle'))}</h2></div>
+             <div class="entries">
+               ${moves
+                 .map(
+                   (move, index, all) => {
+                     const pay = payOf(spend.people.find((person) => person.id === move.toId));
+                     // How to pay someone back is said once, at the first transfer to them.
+                     const first = all.findIndex((other) => other.toId === move.toId) === index;
+                     return `
+                     <div class="move">
+                       <div class="entry">
+                         <span class="entry__what">${escapeHtml(t('spends.move', { from: move.from, to: move.to }))}</span>
+                         <span class="entry__value">${escapeHtml(money(move.amount, spend))}</span>
+                       </div>
+                       ${
+                         pay && first
+                           ? `<p class="move__pay small">
+                                <span class="muted">${escapeHtml(t('spends.payTo', { name: move.to }))}</span>
+                                <span class="move__pay-text">${escapeHtml(pay)}</span>
+                              </p>`
+                           : ''
+                       }
+                       <div class="move__actions">
+                         <button type="button" class="button button--small button--primary" data-repay="${index}">
+                           ${escapeHtml(t('spends.markPaid'))}
+                         </button>
+                         <button type="button" class="button button--small" data-remind="${index}">
+                           ${escapeHtml(t('spends.remind', { name: move.from }))}
+                         </button>
+                       </div>
+                       ${
+                         first
+                           ? `<button type="button" class="button button--small button--ghost move__pay-edit" data-pay-edit="${escapeHtml(move.toId)}">
+                                ${escapeHtml(pay ? t('spends.payEdit', { name: move.to }) : t('spends.payAdd', { name: move.to }))}
+                              </button>`
+                           : ''
+                       }
+                     </div>`;
+                   },
+                 )
+                 .join('')}
+             </div>
+             <p class="muted small">${escapeHtml(t('spends.settleHint'))}</p>
+             <button type="button" class="button button--small" id="settle-text">${escapeHtml(t('spends.settleSend'))}</button>
+           </section>`
+        : `<div class="settled-banner">
+             <span class="settled-banner__icon" aria-hidden="true">👍</span>
+             <span>
+               <strong class="settled-banner__title">${escapeHtml(t('spends.allSettled'))}</strong>
+               <br />
+               <span class="muted small">${escapeHtml(t('spends.allSettledHint'))}</span>
+             </span>
+           </div>`
+    }`;
+
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/spends')}
+      <div>
+        <h1>${escapeHtml(spendTitle(spend))}</h1>
+        <p class="muted small">
+          ${escapeHtml(t('spends.total', { amount: money(spendTotal(spend), spend) }))}
+          ${spend.shared ? ` · ${escapeHtml(t('lists.sharedMark'))}` : ''}
+        </p>
+      </div>
+    </div>
+
+    ${eventLinkHtml(spend)}
+
+    ${inGroupHtml(spend)}
+
+    ${state.remote ? shareBarHtml(`<button type="button" class="button button--primary" id="spend-share">${escapeHtml(t('spends.share'))}</button>`) : ''}
+
+    ${segmented}
+
+    ${state.spendTab === 'balances' ? balancesTab : expensesTab}
+
+    ${attachedHtml(spend)}
+
+    ${actionsHtml(`
+        <button type="button" class="button button--small" id="spend-people">${escapeHtml(t('lists.people'))}</button>`, `
+        <button type="button" class="button button--small button--ghost" id="spend-rename">${escapeHtml(t('spends.rename'))}</button>
+        ${chainButtonsHtml(spend)}
+        <button type="button" class="button button--small button--ghost" id="spend-archive">
+          ${escapeHtml(spend.archivedAt ? t('archive.back') : t('archive.put'))}
+        </button>
+        <button type="button" class="button button--small button--ghost" id="spend-delete">${escapeHtml(t('action.delete'))}</button>`)}`;
+}
+
+function bindNewSpend() {
+  const form = view.querySelector('#new-spend');
+  if (!form) return;
+
+  const snapshot = () => {
+    state.newSpendName = view.querySelector('#spend-name').value;
+    state.newSpendCurrency = view.querySelector('#spend-currency')?.value || 'EUR';
+    view.querySelectorAll('[data-person-index]').forEach((input) => {
+      state.newSpendPeople[Number(input.dataset.personIndex)] = input.value;
+    });
+  };
+
+  view.querySelector('#add-person')?.addEventListener('click', () => {
+    snapshot();
+    state.newSpendPeople = [...state.newSpendPeople, ''];
+    render();
+  });
+
+  view.querySelector('#drop-person')?.addEventListener('click', () => {
+    snapshot();
+    state.newSpendPeople = state.newSpendPeople.slice(0, -1);
+    render();
+  });
+
+  // Where the group fixes its first names, the people are ticked, not typed.
+  bindRosterPick(view, () => state.newSpendPeople, (names) => {
+    state.newSpendPeople = names;
+  });
+  view.querySelector('form')?.addEventListener('rosterchange', () => {
+    snapshot();
+    render();
+  });
+
+  view.querySelectorAll('[data-new-group]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      state.newGroupChoice = { touched: true, id: chip.dataset.newGroup || null };
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-suggest]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      const { suggest } = chip.dataset;
+      if (state.newSpendPeople.some((name) => name.trim().toLowerCase() === suggest.toLowerCase())) return;
+      const empty = state.newSpendPeople.findIndex((name) => !name.trim());
+      if (empty >= 0) state.newSpendPeople[empty] = suggest;
+      else state.newSpendPeople = [...state.newSpendPeople, suggest];
+      render();
+    });
+  });
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    snapshot();
+    const spend = landing(createSpend({
+      name: state.newSpendName,
+      names: peopleForNew(state.newSpendPeople),
+      currency: state.newSpendCurrency,
+    }));
+    state.spends = [...state.spends, spend];
+    persistSpend(spend);
+    resetGroupChoice();
+    state.newSpendName = '';
+    state.newSpendCurrency = 'EUR';
+    state.newSpendPeople = withMeFirst(['', ''], myName());
+    navigate(`#/spend/${spend.id}`);
+  });
+}
+
+function bindSpend(spend) {
+  bindData();
+
+  // An expense or a repayment slides left to be deleted, as in its dialog.
+  bindSwipes('line', (lineId) => {
+    const current = getSpend(spend.id);
+    if (!current) return;
+    replaceSpend(removeSpend(current, lineId));
+  }, { undo: t('swipe.lineDeleted') });
+
+  view.querySelectorAll('[data-spend-tab]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.spendTab = button.dataset.spendTab;
+      render();
+    });
+  });
+
+  view.querySelector('#spend-add-open')?.addEventListener('click', () => {
+    state.spendFormOpen = spend.id;
+    render();
+    view.querySelector('#spend-text')?.focus();
+  });
+
+  const addForm = view.querySelector('#add-spend');
+  let split = null;
+  const amountField = addForm ? bindAmountField(addForm, spend, () => split?.refresh()) : null;
+  split = addForm ? bindSplitEditor(addForm, spend, () => amountField.read().cents) : null;
+
+  addForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const text = view.querySelector('#spend-text');
+    const paid = amountField.read();
+    if (paid.error) {
+      // Said under the field, without redrawing what has been typed.
+      amountField.problem();
+      return;
+    }
+    // Tous cochés (ou une seule personne, sans case) : « tout le monde » au
+    // sens large, qui inclut qui rejoint le compte plus tard. Voir addSpend().
+    const shared = split.read();
+    if (shared.error) {
+      // Said where it is wrong, without redrawing what has been typed.
+      addForm.querySelector('[data-split-note]')?.scrollIntoView({ block: 'center' });
+      return;
+    }
+    state.spendFormOpen = null;
+    replaceSpend(addSpend(spend, {
+      text: text.value,
+      amount: paid.amount,
+      currency: paid.currency,
+      rate: paid.rate,
+      by: view.querySelector('#spend-by').value,
+      forWhom: shared.forWhom,
+      parts: shared.parts,
+      fixed: shared.fixed,
+      day: view.querySelector('#spend-day')?.value || dayNow(),
+    }));
+  });
+
+  view.querySelectorAll('[data-spend-line]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const line = spend.lines.find((entry) => entry.id === button.dataset.spendLine);
+      if (isRepayment(line)) openRepayDialog(spend, { line });
+      else openSpendLineDialog(spend, button.dataset.spendLine);
+    });
+  });
+
+  view.querySelector('#settle-text')?.addEventListener('click', () => {
+    showCopyDialog({ title: spendTitle(spend), hint: t('lists.textHint'), text: settleText(spend) });
+  });
+
+  view.querySelectorAll('[data-repay]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const move = settle(spend)[Number(button.dataset.repay)];
+      if (move) openRepayDialog(spend, { move });
+    });
+  });
+
+  view.querySelectorAll('[data-remind]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const move = settle(spend)[Number(button.dataset.remind)];
+      if (!move) return;
+      showCopyDialog({ title: t('spends.remindTitle', { name: move.from }), hint: t('spends.remindHint'), text: remindText(spend, move), send: true });
+    });
+  });
+
+  view.querySelectorAll('[data-pay-edit]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const person = spend.people.find((one) => one.id === button.dataset.payEdit);
+      if (!person) return;
+      const text = await askForText({
+        title: t('spends.payTitle', { name: person.name }),
+        hint: t('spends.payHint'),
+        value: payOf(person) || payElsewhere(person.name),
+        confirmLabel: t('action.save'),
+        maxLength: 300,
+      });
+      if (text === null) return;
+      replaceSpend(setSpendPay(getSpend(spend.id) || spend, person.id, text));
+    });
+  });
+
+  view.querySelector('#spend-people')?.addEventListener('click', () => openSpendPeopleDialog(spend));
+
+  view.querySelector('#spend-share')?.addEventListener('click', async () => {
+    const group = await askGroup();
+    if (!group) {
+      flash(t('groups.needOne'));
+      render();
+      return;
+    }
+    const next = { ...spend, shared: true, groupId: group.id, updatedAt: Date.now() };
+    replaceSpend(next);
+    flash(t('spends.shared', { name: group.name }));
+    render();
+  });
+
+  view.querySelector('#spend-archive')?.addEventListener('click', () => {
+    const next = archiveSpend(spend, !spend.archivedAt);
+    flash(t(next.archivedAt ? 'archive.done' : 'archive.undone'));
+    replaceSpend(next, { redraw: !next.archivedAt });
+    if (next.archivedAt) navigate('#/spends');
+  });
+
+  view.querySelector('#spend-rename')?.addEventListener('click', async () => {
+    const name = await askForText({
+      title: t('spends.rename'),
+      hint: t('spends.renameHint'),
+      value: spend.name,
+      confirmLabel: t('action.save'),
+    });
+    if (name === null) return;
+    replaceSpend({ ...spend, name: String(name).trim(), updatedAt: Date.now() });
+  });
+
+  view.querySelector('#spend-delete')?.addEventListener('click', async () => {
+    if (!(await ask(t('spends.confirmDelete'), { confirmLabel: t('action.delete'), danger: true }))) return;
+    if (!(await removeEverywhere(spend))) return;
+    state.spends = state.spends.filter((item) => item.id !== spend.id);
+    saveSpends(state.spends);
+    if (state.store) void state.store.remove(spend.id);
+    navigate('#/spends');
+  });
+}
+
+/** Une dépense : ce qu'elle était, pour qui, quel jour — et de quoi l'effacer. */
+function openSpendLineDialog(spend, lineId) {
+  const line = spend.lines.find((entry) => entry.id === lineId);
+  if (!line) return;
+
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <form method="dialog" class="stack">
+      <h2>${escapeHtml(t('spends.lineTitle'))}</h2>
+      <label>
+        ${escapeHtml(t('spends.what'))}
+        <input type="text" id="line-what" value="${escapeHtml(line.text)}" />
+      </label>
+      ${amountFieldHtml(spend, { id: 'line-amount', cents: line.amount, paid: paidInOf(spend, line) })}
+      <label>
+        ${escapeHtml(t('spends.by'))}
+        <select id="line-by">
+          ${spend.people
+            .map(
+              (person) => `<option value="${escapeHtml(person.id)}" ${person.id === line.by ? 'selected' : ''}>
+                 ${escapeHtml(person.name)}
+               </option>`,
+            )
+            .join('')}
+        </select>
+      </label>
+      ${
+        spend.people.length > 1
+          ? splitEditorHtml(spend, { forWhom: line.forWhom, parts: line.parts, fixed: line.fixed, groups: forWhomGroups(spend, everything()) })
+          : ''
+      }
+      <label>
+        ${escapeHtml(t('lists.due'))}
+        <input type="date" id="line-day" value="${escapeHtml(line.day || '')}" />
+      </label>
+      <p class="late small" id="line-error" hidden></p>
+      <div class="row">
+        <button type="button" class="button button--primary" id="line-save">${escapeHtml(t('action.save'))}</button>
+        <button type="button" class="button" id="line-cancel">${escapeHtml(t('action.cancel'))}</button>
+        <button type="button" class="button button--danger" id="line-delete">${escapeHtml(t('action.delete'))}</button>
+      </div>
+    </form>`;
+
+  let split = null;
+  const amountField = bindAmountField(dialog, spend, () => split?.refresh());
+  split = bindSplitEditor(dialog, spend, () => amountField.read().cents);
+  const problem = (text) => {
+    const error = dialog.querySelector('#line-error');
+    error.textContent = text;
+    error.hidden = false;
+  };
+
+  dialog.querySelector('#line-save').addEventListener('click', () => {
+    const paid = amountField.read();
+    if (paid.error) {
+      problem(amountField.problem(false));
+      return;
+    }
+    const shared = split.read();
+    if (shared.error) {
+      problem(shared.error);
+      return;
+    }
+    dialog.close();
+    replaceSpend(editSpend(getSpend(spend.id) || spend, lineId, {
+      text: dialog.querySelector('#line-what').value,
+      amount: paid.amount,
+      currency: paid.currency,
+      rate: paid.rate,
+      by: dialog.querySelector('#line-by').value,
+      forWhom: shared.forWhom,
+      parts: shared.parts,
+      fixed: shared.fixed,
+      day: dialog.querySelector('#line-day').value,
+    }));
+  });
+
+  dialog.querySelector('#line-cancel').addEventListener('click', () => dialog.close());
+  dialog.querySelector('#line-delete').addEventListener('click', () => {
+    dialog.close();
+    replaceSpend(removeSpend(getSpend(spend.id) || spend, lineId));
+  });
+
+  dialog.showModal();
+}
+
+/**
+ * A repayment: who gave back how much to whom, and when. Opened from a line
+ * of "who pays whom", filled in with it — the amount stays editable, since a
+ * debt is often paid back in more than one go — or from a repayment already
+ * noted, to correct it or take it back.
+ */
+function openRepayDialog(spend, { move = null, line = null }) {
+  const from = line ? line.by : move.fromId;
+  const to = line ? line.forWhom[0] : move.toId;
+  const amount = line ? line.amount : move.amount;
+  const person = (id) => spend.people.find((one) => one.id === id)?.name || '';
+  const choose = (id, selected) => `
+    <select id="${id}">
+      ${spend.people
+        .map((one) => `<option value="${escapeHtml(one.id)}" ${one.id === selected ? 'selected' : ''}>${escapeHtml(one.name)}</option>`)
+        .join('')}
+    </select>`;
+
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <form method="dialog" class="stack">
+      <h2>${escapeHtml(line ? t('spends.repayment') : t('spends.repaid', { from: person(from), to: person(to) }))}</h2>
+      ${
+        line
+          ? `<div class="field-row">
+               <label>${escapeHtml(t('spends.repayFrom'))} ${choose('repay-from', from)}</label>
+               <label>${escapeHtml(t('spends.repayTo'))} ${choose('repay-to', to)}</label>
+             </div>`
+          : `<p class="muted small">${escapeHtml(t('spends.repayHint'))}</p>`
+      }
+      <label>
+        ${escapeHtml(t('spends.amount'))}
+        <input type="text" id="repay-amount" inputmode="decimal" value="${escapeHtml((amount / 100).toFixed(2).replace('.', ','))}" />
+      </label>
+      <label>
+        ${escapeHtml(t('spends.when'))}
+        <input type="date" id="repay-day" value="${escapeHtml(line?.day || dayNow())}" />
+      </label>
+      <p class="late small" id="repay-error" aria-live="polite" hidden></p>
+      <div class="row">
+        <button type="button" class="button button--primary" id="repay-save">
+          ${escapeHtml(line ? t('action.save') : t('spends.markPaid'))}
+        </button>
+        <button type="button" class="button" id="repay-cancel">${escapeHtml(t('action.cancel'))}</button>
+        ${line ? `<button type="button" class="button button--danger" id="repay-delete">${escapeHtml(t('action.delete'))}</button>` : ''}
+      </div>
+    </form>`;
+
+  dialog.querySelector('#repay-save').addEventListener('click', () => {
+    const typed = dialog.querySelector('#repay-amount').value;
+    const cents = readAmount(typed);
+    const day = dialog.querySelector('#repay-day').value || dayNow();
+    const payer = dialog.querySelector('#repay-from')?.value || from;
+    const payee = dialog.querySelector('#repay-to')?.value || to;
+    // A mistake is said in the window, which stays open with what was typed.
+    const wrong = !cents ? t('spends.notAnAmount') : payer === payee ? t('spends.repaySame') : '';
+    if (wrong) {
+      const error = dialog.querySelector('#repay-error');
+      error.textContent = wrong;
+      error.hidden = false;
+      dialog.querySelector(cents ? '#repay-to' : '#repay-amount')?.focus();
+      return;
+    }
+    dialog.close();
+    const current = getSpend(spend.id) || spend;
+    replaceSpend(line
+      ? editSpend(current, line.id, { amount: cents, by: payer, forWhom: [payee], day })
+      : addRepayment(current, { from: payer, to: payee, amount: cents, day }));
+  });
+  dialog.querySelector('#repay-cancel').addEventListener('click', () => dialog.close());
+  dialog.querySelector('#repay-delete')?.addEventListener('click', () => {
+    dialog.close();
+    replaceSpend(removeSpend(getSpend(spend.id) || spend, line.id));
+  });
+
+  dialog.showModal();
+}
+
+/**
+ * Someone joins an account whose expenses for everyone are already noted:
+ * do they share those too ('all'), or only what comes next ('next')? Null
+ * when called off.
+ */
+function askLatecomer(name) {
+  return new Promise((resolve) => {
+    const dialog = makeDialog('dialog dialog--ask');
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(t('spends.lateTitle', { name }))}</h2>
+        <p class="muted small">${escapeHtml(t('spends.lateHint', { name }))}</p>
+        <div class="stack stack--tight">
+          <button type="button" class="button" data-late="all">${escapeHtml(t('spends.lateAll'))}</button>
+          <button type="button" class="button" data-late="next">${escapeHtml(t('spends.lateNext'))}</button>
+          <button type="button" class="button button--ghost" data-late="">${escapeHtml(t('action.cancel'))}</button>
+        </div>
+      </div>`;
+    let answer = null;
+    dialog.querySelectorAll('[data-late]').forEach((button) => {
+      button.addEventListener('click', () => {
+        answer = button.dataset.late || null;
+        dialog.close();
+      });
+    });
+    dialog.addEventListener('close', () => resolve(answer));
+    dialog.showModal();
+  });
+}
+
+/**
+ * Qui ce compte concerne : ajouter, renommer, retirer — quand c'est possible
+ * —, et pour combien de parts chacun compte : un couple pour deux, une
+ * famille pour quatre, un enfant pour moitié.
+ */
+function openSpendPeopleDialog(spend) {
+  const held = () => getSpend(spend.id) || spend;
+  openPeopleEditor({
+    roster: rosterFor(held()),
+    hint: t('spends.peoplePartsHint'),
+    extra: {
+      html: (person) => `
+        <span class="stepper" role="group" aria-label="${escapeHtml(t('spends.partsOf', { name: person.name }))}">
+          <button type="button" class="stepper__button" data-weight-step="-1" data-weight-of="${escapeHtml(person.id)}"
+                  aria-label="${escapeHtml(t('spends.partsLess'))}">−</button>
+          <span class="stepper__value">${escapeHtml(partsText(weightOf(person)))}</span>
+          <button type="button" class="stepper__button" data-weight-step="1" data-weight-of="${escapeHtml(person.id)}"
+                  aria-label="${escapeHtml(t('spends.partsMore'))}">+</button>
+        </span>`,
+      bind: (dialog, redraw) => {
+        dialog.querySelectorAll('[data-weight-step]').forEach((button) => {
+          button.addEventListener('click', () => {
+            const current = held();
+            const person = current.people.find((one) => one.id === button.dataset.weightOf);
+            if (!person) return;
+            replaceSpend(setSpendWeight(current, person.id, stepParts(weightOf(person), Number(button.dataset.weightStep))), { redraw: false });
+            redraw();
+            dialog.querySelector(`[data-weight-of="${CSS.escape(person.id)}"][data-weight-step="${button.dataset.weightStep}"]`)?.focus();
+          });
+        });
+      },
+    },
+    confirmRemove: t('spends.confirmRemovePerson'),
+    people: () => held().people,
+    // Someone added once expenses for everyone are noted: from now on, or all along?
+    add: async (name) => {
+      if (!sharedWithEveryone(held())) {
+        replaceSpend(addSpendPerson(held(), name), { redraw: false });
+        return true;
+      }
+      const since = await askLatecomer(String(name).trim());
+      if (!since) return false;
+      replaceSpend((since === 'next' ? addLatecomer : addSpendPerson)(held(), name), { redraw: false });
+      return true;
+    },
+    rename: (id, name) => replaceSpend(renameSpendPerson(held(), id, name), { redraw: false }),
+    remove: (id) => replaceSpend(removeSpendPerson(held(), id), { redraw: false }),
+    // Retirer un payeur déséquilibrerait le compte sans rien dire : mieux vaut
+    // refuser en expliquant que rendre un remboursement faux.
+    blocked: (id) => {
+      const why = canRemovePerson(held(), id);
+      if (why === 'ok') return null;
+      return t({ paid: 'spends.cannotDropPaid', alone: 'spends.cannotDropAlone', apart: 'spends.cannotDropApart' }[why]);
+    },
+  });
+}
+
+  // ---- src/view-ideas.js -----------------------------------------------
+/**
+ * Ideas on screen: the boards, one board's cards, and the two editors — a note
+ * and a sketch.
+ *
+ * Split out like the other screens: it calls back into app.js only from inside
+ * functions, so the two may import each other.
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function boardTitle(board) {
+  return board.name || t('ideas.untitled');
+}
+
+/** A board in a list of boards: its topic, and what it holds. */
+function boardCardHtml(board) {
+  const notes = board.cards.filter((card) => card.type !== 'sketch').length;
+  const sketches = board.cards.length - notes;
+  const holds = [
+    notes ? t('ideas.notes', { count: notes }) : '',
+    sketches ? t('ideas.sketches', { count: sketches }) : '',
+  ].filter(Boolean).join(' · ');
+  return `
+    <button type="button" class="game-card" data-goto="#/idea/${escapeHtml(board.id)}">
+      <span class="game-card__title">
+        ${escapeHtml(boardTitle(board))}
+        <span class="pill">${escapeHtml(t('ideas.cards', { count: board.cards.length }))}</span>
+      </span>
+      <span class="game-card__meta">${escapeHtml(formatDate(board.updatedAt))}${holds ? ` — ${escapeHtml(holds)}` : ''}</span>
+      ${talkSumHtml(board)}
+      ${eventTagHtml(board)}
+    </button>`;
+}
+
+/** Delete a whole board, here and in the database. Asked first: it is everyone's. */
+async function deleteBoard(board, { then = null } = {}) {
+  if (!(await ask(t('ideas.confirmDelete'), { confirmLabel: t('action.delete'), danger: true }))) {
+    render();
+    return;
+  }
+  if (!(await removeEverywhere(board))) return;
+  state.boards = state.boards.filter((item) => item.id !== board.id);
+  saveBoards(state.boards);
+  if (state.store) void state.store.remove(board.id);
+  flash(t('ideas.deleted', { name: boardTitle(board) }));
+  if (then) navigate(then);
+  else render();
+}
+
+/** Every board, on the home page: the live ones, then what was put away. */
+function ideasView() {
+  const sorted = [...shownDocs(state.boards)].sort((a, b) => b.updatedAt - a.updatedAt);
+  const live = sorted.filter(isLive);
+  return `
+    ${flashHtml()}
+    ${kindsHtml('ideas')}
+    ${newButtonHtml('#/ideas/new', t('ideas.new'), live.length > 0)}
+    ${groupChipsHtml()}
+
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('kinds.ongoing'))}</h2></div>
+      ${
+        live.length
+          ? `<div class="game-list">${live.map(swipeable(boardCardHtml)).join('')}</div>
+             <p class="muted small">${escapeHtml(t('ideas.swipeHint'))}</p>`
+          : hintHtml('ideas', t('ideas.none'))
+      }
+      ${hiddenByGroupHtml(state.boards)}
+    </section>
+    ${live.length && live.length <= 2 ? hintHtml('ideas', t('hint.ideas')) : ''}
+
+    ${archivedHtml(sorted, swipeable(boardCardHtml))}`;
+}
+
+function newBoardView() {
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/ideas')}
+      <h1>${escapeHtml(t('ideas.new'))}</h1>
+    </div>
+
+    <form id="new-board" class="card stack">
+      <label>
+        ${escapeHtml(t('ideas.name'))}
+        <input type="text" id="board-name" placeholder="${escapeHtml(t('ideas.namePlaceholder'))}"
+               value="${escapeHtml(state.newBoardName)}" required />
+      </label>
+      ${willBeInHtml()}
+      <button type="submit" class="button button--primary button--block">${escapeHtml(t('ideas.create'))}</button>
+    </form>`;
+}
+
+function bindNewBoard() {
+  const form = view.querySelector('#new-board');
+  if (!form) return;
+  const snapshot = () => {
+    state.newBoardName = view.querySelector('#board-name').value;
+  };
+
+  view.querySelectorAll('[data-new-group]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshot();
+      state.newGroupChoice = { touched: true, id: chip.dataset.newGroup || null };
+      render();
+    });
+  });
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    snapshot();
+    // Where it goes is said on the form, « Garder pour moi » included, as for
+    // a list: no question asked after the button.
+    const board = landing(createBoard({ name: state.newBoardName }));
+    state.boards = [...state.boards, board];
+    persistBoard(board);
+    resetGroupChoice();
+    state.newBoardName = '';
+    navigate(`#/idea/${board.id}`);
+  });
+}
+
+/** A sketch as SVG, in the frame it was drawn in: the same on every screen. */
+function sketchSvg(strokes, { id = '', label = '' } = {}) {
+  return `
+    <svg class="sketch" viewBox="0 0 ${SKETCH_WIDTH} ${SKETCH_HEIGHT}" preserveAspectRatio="xMidYMid meet"
+         ${id ? `id="${id}"` : ''} ${label ? `role="img" aria-label="${escapeHtml(label)}"` : 'aria-hidden="true"'}>
+      ${strokes.map(strokeSvg).join('')}
+    </svg>`;
+}
+
+function strokeSvg(stroke) {
+  return `<path class="ink-${escapeHtml(stroke.ink)}" data-stroke="${escapeHtml(stroke.id)}"
+                stroke-width="${Number(stroke.pen) || PENS[0]}" d="${strokePath(stroke)}" />`;
+}
+
+function ideaCardHtml(card) {
+  if (card.type === 'sketch') {
+    return `
+      <button type="button" class="idea-card idea-card--sketch" data-card="${escapeHtml(card.id)}"
+              aria-label="${escapeHtml(card.text || t('ideas.sketchTitle'))}">
+        ${card.strokes.length ? sketchSvg(card.strokes) : `<span class="muted small">${escapeHtml(t('ideas.emptySketch'))}</span>`}
+        ${card.text ? `<span class="idea-card__caption">${escapeHtml(card.text)}</span>` : ''}
+      </button>`;
+  }
+  return `
+    <button type="button" class="idea-card" data-card="${escapeHtml(card.id)}">
+      <span class="idea-card__text">${escapeHtml(card.text)}</span>
+    </button>`;
+}
+
+function boardView(board) {
+  const cards = cardsInOrder(board);
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/ideas')}
+      <div>
+        <h1>${escapeHtml(boardTitle(board))}</h1>
+        <p class="muted small">
+          ${escapeHtml(t('ideas.cards', { count: board.cards.length }))}
+          ${board.shared ? ` · ${escapeHtml(t('lists.sharedMark'))}` : ''}
+        </p>
+      </div>
+    </div>
+
+    ${eventLinkHtml(board)}
+
+    ${inGroupHtml(board)}
+
+    ${state.remote ? shareBarHtml(`<button type="button" class="button button--primary" id="board-share">${escapeHtml(t('ideas.share'))}</button>`) : ''}
+
+    <div class="row idea-add">
+      <button type="button" class="button" id="board-add-note">${escapeHtml(t('ideas.addNote'))}</button>
+      <button type="button" class="button" id="board-add-sketch">${escapeHtml(t('ideas.addSketch'))}</button>
+    </div>
+
+    ${
+      cards.length
+        ? `<div class="idea-grid">${cards.map((card) => swipeHtml(card.id, `${ideaCardHtml(card)}${talkHtml(board, card.id, {
+            title: card.text || t('ideas.sketchTitle'),
+          })}`, { kind: 'card' })).join('')}</div>
+           <p class="muted small idea-hint">${escapeHtml(t('ideas.swipeHint'))}</p>`
+        : `<p class="muted small">${escapeHtml(t('ideas.empty'))}</p>`
+    }
+
+    ${attachedHtml(board)}
+
+    ${actionsHtml(`${boardFlowsHtml(board)}${boardActivitiesHtml(board)}`, `
+        <button type="button" class="button button--small button--ghost" id="board-rename">${escapeHtml(t('ideas.rename'))}</button>
+        ${chainButtonsHtml(board)}
+        <button type="button" class="button button--small button--ghost" id="board-archive">
+          ${escapeHtml(board.archivedAt ? t('archive.back') : t('archive.put'))}
+        </button>
+        <button type="button" class="button button--small button--ghost" id="board-delete">${escapeHtml(t('action.delete'))}</button>`)}`;
+}
+
+function bindBoard(board) {
+  bindData();
+  bindTalk(view);
+
+  bindSwipes('card', (cardId) => {
+    const current = getBoard(board.id);
+    if (!current) return;
+    replaceBoard(removeCard(current, cardId));
+  }, { undo: t('ideas.cardDeleted') });
+
+  view.querySelector('#board-add-note')?.addEventListener('click', () => openNoteDialog(board.id, null));
+  view.querySelector('#board-add-sketch')?.addEventListener('click', () => openSketchDialog(board.id, null));
+  view.querySelectorAll('[data-card]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const card = board.cards.find((entry) => entry.id === button.dataset.card);
+      if (!card) return;
+      if (card.type === 'sketch') openSketchDialog(board.id, card.id);
+      else openNoteDialog(board.id, card.id);
+    });
+  });
+
+  view.querySelector('#board-share')?.addEventListener('click', async () => {
+    const group = await askGroup();
+    if (!group) {
+      flash(t('groups.needOne'));
+      render();
+      return;
+    }
+    replaceBoard({ ...board, shared: true, groupId: group.id, updatedAt: Date.now() });
+    flash(t('ideas.shared', { name: group.name }));
+    render();
+  });
+
+  view.querySelector('#board-archive')?.addEventListener('click', () => {
+    const next = archiveBoard(board, !board.archivedAt);
+    flash(t(next.archivedAt ? 'archive.done' : 'archive.undone'));
+    replaceBoard(next, { redraw: !next.archivedAt });
+    if (next.archivedAt) navigate('#/ideas');
+  });
+
+  view.querySelector('#board-rename')?.addEventListener('click', async () => {
+    const name = await askForText({
+      title: t('ideas.rename'),
+      hint: t('ideas.renameHint'),
+      value: board.name,
+      confirmLabel: t('action.save'),
+    });
+    if (name === null) return;
+    replaceBoard({ ...board, name: String(name).trim(), updatedAt: Date.now() });
+  });
+
+  view.querySelector('#board-delete')?.addEventListener('click', () => deleteBoard(board, { then: '#/ideas' }));
+}
+
+/**
+ * The card's own changes, applied to the board as it is *now*: while the
+ * editor was open, the others' cards and strokes may have come in, and they
+ * must not be written over by the copy the editor was opened on.
+ */
+function commitCard(boardId, cardId, type, change) {
+  const current = getBoard(boardId);
+  if (!current) return;
+  let next = current;
+  let id = cardId;
+  if (!id || !next.cards.some((card) => card.id === id)) {
+    ({ board: next, cardId: id } = addCard(next, type));
+  }
+  next = change(next, id);
+  if (next === current) return;
+  if (boardSize(next) > BOARD_LIMIT) {
+    flash(t('ideas.full'), 'error');
+    render();
+    return;
+  }
+  replaceBoard(next);
+}
+
+/** Save, leave without saving, and — for a card that exists — delete. */
+function cardButtonsHtml(cardId) {
+  return `
+    <div class="row">
+      <button type="submit" class="button button--primary" data-card-save>${escapeHtml(t('action.save'))}</button>
+      <button type="button" class="button" data-card-cancel>${escapeHtml(t('action.cancel'))}</button>
+      ${cardId ? `<button type="button" class="button button--danger" data-card-delete>${escapeHtml(t('action.delete'))}</button>` : ''}
+    </div>`;
+}
+
+/**
+ * Wire a card's editor: only « Enregistrer » keeps what was done. « Annuler »
+ * and Escape leave without saving — after asking, when something would be
+ * lost, so a slip of the finger never throws a thought away. Calls `leave`
+ * with 'save', 'drop' (the card deleted) or 'cancel' when the dialog closes.
+ */
+function bindCardButtons(dialog, { changed, leave }) {
+  let outcome = 'cancel';
+  const cancel = async () => {
+    if (changed() && !(await ask(t('ideas.discard'), { confirmLabel: t('ideas.discardYes'), danger: true }))) return;
+    outcome = 'cancel';
+    dialog.close();
+  };
+  dialog.querySelector('form').addEventListener('submit', () => {
+    outcome = 'save';
+  });
+  dialog.querySelector('[data-card-cancel]').addEventListener('click', (event) => {
+    event.preventDefault();
+    cancel();
+  });
+  dialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    cancel();
+  });
+  dialog.querySelector('[data-card-delete]')?.addEventListener('click', async (event) => {
+    event.preventDefault();
+    if (!(await ask(t('ideas.confirmDeleteCard'), { confirmLabel: t('action.delete'), danger: true }))) return;
+    outcome = 'drop';
+    dialog.close();
+  });
+  dialog.addEventListener('close', () => leave(outcome));
+}
+
+/**
+ * A note: one text box. « Enregistrer » keeps it; « Annuler » leaves it as it
+ * was, after asking if something had been typed.
+ */
+function openNoteDialog(boardId, cardId) {
+  const card = getBoard(boardId)?.cards.find((entry) => entry.id === cardId) || null;
+  const dialog = makeDialog('dialog dialog--note');
+  dialog.innerHTML = `
+    <form method="dialog" class="stack">
+      <h2>${escapeHtml(t('ideas.noteTitle'))}</h2>
+      <textarea id="note-text" rows="8" placeholder="${escapeHtml(t('ideas.notePlaceholder'))}"
+                aria-label="${escapeHtml(t('ideas.noteTitle'))}">${escapeHtml(card?.text || '')}</textarea>
+      ${cardButtonsHtml(cardId)}
+    </form>`;
+
+  const text = dialog.querySelector('#note-text');
+  const before = card?.text || '';
+  bindCardButtons(dialog, {
+    changed: () => text.value.trim() !== before.trim(),
+    leave: (outcome) => {
+      if (outcome === 'drop') {
+        const current = getBoard(boardId);
+        if (current) replaceBoard(removeCard(current, cardId));
+        return;
+      }
+      const written = text.value.trim();
+      // A new note left empty was never a note: nothing to keep.
+      if (outcome === 'save' && (cardId || written)) {
+        commitCard(boardId, cardId, 'note', (board, id) => editCardText(board, id, written));
+      }
+      render();
+    },
+  });
+
+  dialog.showModal();
+  text.focus();
+}
+
+/**
+ * A sketch: a drawing area, a few inks, three pens, an eraser and an undo.
+ *
+ * Drawn in SVG rather than on a canvas: the strokes are already kept as paths,
+ * so what is drawn here is exactly what the card will show, on any screen and
+ * in either theme, with nothing to scale for the pixel density.
+ */
+function openSketchDialog(boardId, cardId) {
+  const card = getBoard(boardId)?.cards.find((entry) => entry.id === cardId) || null;
+  const dialog = makeDialog('dialog dialog--sketch');
+  let ink = state.prefs.sketchInk && INKS.includes(state.prefs.sketchInk) ? state.prefs.sketchInk : 'ink';
+  let pen = PENS.includes(state.prefs.sketchPen) ? state.prefs.sketchPen : PENS[0];
+  let rubber = ERASERS.includes(state.prefs.sketchRubber) ? state.prefs.sketchRubber : ERASERS[0];
+  let erasing = false;
+
+  const toolsHtml = () => `
+    <div class="sketch-tools" role="toolbar" aria-label="${escapeHtml(t('ideas.sketchTitle'))}">
+      <button type="button" class="chip ${erasing ? '' : 'chip--on'}" data-tool="pen" aria-pressed="${erasing ? 'false' : 'true'}">${escapeHtml(t('ideas.pen'))}</button>
+      <button type="button" class="chip ${erasing ? 'chip--on' : ''}" data-tool="eraser" aria-pressed="${erasing ? 'true' : 'false'}">${escapeHtml(t('ideas.eraser'))}</button>
+      <button type="button" class="chip" data-tool="undo">${escapeHtml(t('ideas.undoStroke'))}</button>
+    </div>
+    <div class="sketch-tools" role="group" aria-label="${escapeHtml(t('ideas.inks'))}">
+      ${INKS.map((name) => `
+        <button type="button" class="swatch ink-${name} ${!erasing && ink === name ? 'swatch--on' : ''}" data-ink="${name}"
+                aria-pressed="${!erasing && ink === name ? 'true' : 'false'}" aria-label="${escapeHtml(t(`ideas.ink.${name}`))}"
+                title="${escapeHtml(t(`ideas.ink.${name}`))}"></button>`).join('')}
+      <span class="sketch-tools__gap"></span>
+      ${
+        // The three sizes are the pen's while drawing, the eraser's while
+        // rubbing out: a fine eraser takes off a corner, a broad one a whole
+        // scribble.
+        erasing
+          ? ERASERS.map((size, index) => `
+              <button type="button" class="swatch swatch--pen ${rubber === size ? 'swatch--on' : ''}" data-rubber="${size}"
+                      aria-pressed="${rubber === size ? 'true' : 'false'}" aria-label="${escapeHtml(t(`ideas.rubber.${index}`))}"
+                      title="${escapeHtml(t(`ideas.rubber.${index}`))}"><span class="swatch__rubber" style="width:${6 + index * 6}px;height:${6 + index * 6}px"></span></button>`).join('')
+          : PENS.map((size) => `
+              <button type="button" class="swatch swatch--pen ${pen === size ? 'swatch--on' : ''}" data-pen="${size}"
+                      aria-pressed="${pen === size ? 'true' : 'false'}" aria-label="${escapeHtml(t(`ideas.pen.${size}`))}"
+                      title="${escapeHtml(t(`ideas.pen.${size}`))}"><span style="width:${4 + size / 2}px;height:${4 + size / 2}px"></span></button>`).join('')
+      }
+    </div>`;
+
+  dialog.innerHTML = `
+    <form method="dialog" class="stack">
+      <h2>${escapeHtml(t('ideas.sketchTitle'))}</h2>
+      <div id="sketch-tools">${toolsHtml()}</div>
+      <div class="sketch-pad">${sketchSvg(card?.strokes || [], { id: 'sketch-pad', label: t('ideas.canvas') })}</div>
+      <label>
+        ${escapeHtml(t('ideas.caption'))}
+        <input type="text" id="sketch-caption" value="${escapeHtml(card?.text || '')}"
+               placeholder="${escapeHtml(t('ideas.captionPlaceholder'))}" />
+      </label>
+      ${cardButtonsHtml(cardId)}
+    </form>`;
+
+  const pad = dialog.querySelector('#sketch-pad');
+  const tools = dialog.querySelector('#sketch-tools');
+  // What this editor changed: strokes drawn, strokes rubbed out, and the order
+  // it happened in, for the undo button.
+  const drawn = [];
+  const erased = new Set();
+  const history = [];
+  const visible = () => [
+    ...(card?.strokes || []).filter((stroke) => !erased.has(stroke.id)),
+    ...drawn.filter((stroke) => !erased.has(stroke.id)),
+  ];
+
+  const refreshTools = () => {
+    tools.innerHTML = toolsHtml();
+  };
+  tools.addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (!button) return;
+    event.preventDefault();
+    if (button.dataset.tool === 'pen') erasing = false;
+    else if (button.dataset.tool === 'eraser') erasing = true;
+    else if (button.dataset.tool === 'undo') undo();
+    else if (button.dataset.ink) {
+      ink = button.dataset.ink;
+      erasing = false;
+      state.prefs = { ...state.prefs, sketchInk: ink };
+      savePrefs(state.prefs);
+    } else if (button.dataset.pen) {
+      pen = Number(button.dataset.pen);
+      erasing = false;
+      state.prefs = { ...state.prefs, sketchPen: pen };
+      savePrefs(state.prefs);
+    } else if (button.dataset.rubber) {
+      rubber = Number(button.dataset.rubber);
+      state.prefs = { ...state.prefs, sketchRubber: rubber };
+      savePrefs(state.prefs);
+    }
+    refreshTools();
+  });
+
+  function undo() {
+    const last = history.pop();
+    if (!last) return;
+    if (last.type === 'draw') {
+      const index = drawn.findIndex((stroke) => stroke.id === last.id);
+      if (index >= 0) drawn.splice(index, 1);
+      pad.querySelector(`[data-stroke="${last.id}"]`)?.remove();
+    } else {
+      for (const id of last.ids) erased.delete(id);
+      for (const id of last.added) erased.add(id);
+      pad.innerHTML = visible().map(strokeSvg).join('');
+    }
+  }
+
+  // Where a pointer is, in the frame the strokes are kept in.
+  const toFrame = (event) => {
+    const box = pad.getBoundingClientRect();
+    // The frame is centred inside the box when their proportions differ.
+    const scale = Math.min(box.width / SKETCH_WIDTH, box.height / SKETCH_HEIGHT) || 1;
+    const left = box.left + (box.width - SKETCH_WIDTH * scale) / 2;
+    const top = box.top + (box.height - SKETCH_HEIGHT * scale) / 2;
+    return [(event.clientX - left) / scale, (event.clientY - top) / scale];
+  };
+
+  let current = null;
+  let rubbed = null;
+  // Only what is under the eraser goes: a stroke it crosses is cut in two.
+  const rub = (x, y) => {
+    for (const stroke of visible()) {
+      const pieces = rubOut(stroke, x, y, rubber);
+      if (!pieces) continue;
+      erased.add(stroke.id);
+      rubbed.ids.push(stroke.id);
+      const node = pad.querySelector(`[data-stroke="${stroke.id}"]`);
+      node?.insertAdjacentHTML('afterend', pieces.map(strokeSvg).join(''));
+      node?.remove();
+      for (const piece of pieces) {
+        drawn.push(piece);
+        rubbed.added.push(piece.id);
+      }
+    }
+  };
+
+  pad.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    pad.setPointerCapture?.(event.pointerId);
+    const [x, y] = toFrame(event);
+    if (erasing) {
+      rubbed = { ids: [], added: [] };
+      rub(x, y);
+      return;
+    }
+    current = { id: uid('s'), ink, pen, points: [x, y] };
+    pad.insertAdjacentHTML('beforeend', strokeSvg({ ...current, points: current.points.map(Math.round) }));
+  });
+
+  pad.addEventListener('pointermove', (event) => {
+    if (rubbed) {
+      const [x, y] = toFrame(event);
+      rub(x, y);
+      return;
+    }
+    if (!current) return;
+    const [x, y] = toFrame(event);
+    const [lastX, lastY] = current.points.slice(-2);
+    // A finger sends far more points than a line needs.
+    if (Math.hypot(x - lastX, y - lastY) < 3) return;
+    current.points.push(x, y);
+    pad.querySelector(`[data-stroke="${current.id}"]`)
+      ?.setAttribute('d', strokePath({ points: current.points.map(Math.round) }));
+  });
+
+  const finish = () => {
+    if (rubbed) {
+      if (rubbed.ids.length) history.push({ type: 'erase', ...rubbed });
+      rubbed = null;
+      return;
+    }
+    if (!current) return;
+    const stroke = cleanStroke({ ...current, points: simplifyPoints(current.points.map(Math.round)) });
+    current = null;
+    if (!stroke) return;
+    drawn.push(stroke);
+    history.push({ type: 'draw', id: stroke.id });
+    pad.querySelector(`[data-stroke="${stroke.id}"]`)?.setAttribute('d', strokePath(stroke));
+  };
+  pad.addEventListener('pointerup', finish);
+  pad.addEventListener('pointercancel', finish);
+
+  const caption = dialog.querySelector('#sketch-caption');
+  const captionBefore = card?.text || '';
+  bindCardButtons(dialog, {
+    changed: () => history.length > 0 || caption.value.trim() !== captionBefore.trim(),
+    leave: (outcome) => {
+      finish();
+      if (outcome === 'drop') {
+        const board = getBoard(boardId);
+        if (board) replaceBoard(removeCard(board, cardId));
+        return;
+      }
+      const kept = drawn.filter((stroke) => !erased.has(stroke.id));
+      const text = caption.value.trim();
+      if (outcome === 'save' && (cardId || kept.length || text)) {
+        commitCard(boardId, cardId, 'sketch', (board, id) => {
+          let next = addStrokes(board, id, kept);
+          next = eraseStrokes(next, id, [...erased]);
+          return editCardText(next, id, text);
+        });
+      }
+      render();
+    },
+  });
+
+  dialog.showModal();
+}
+
+/* --------------------------------------------------------- synchronisation --- */
+
+function getBoard(id) {
+  return state.boards.find((board) => board.id === id) || null;
+}
+
+function replaceBoard(next, { redraw = true } = {}) {
+  state.boards = state.boards.map((board) => (board.id === next.id ? next : board));
+  persistBoard(next);
+  if (redraw) render();
+}
+
+function persistBoard(changed) {
+  const ok = saveBoards(state.boards);
+  if (!ok && !keptElsewhere(changed)) flash(t('home.storageWarning'), 'error');
+  if (state.store && changed) void state.store.save(changed);
+  if (state.remote && changed?.shared) pushBoard(changed).catch(pushFailed(changed));
+  return ok;
+}
+
+/**
+ * Send a board — after taking in what the database already has. The database
+ * keeps whatever it is sent, so a copy written straight away would erase the
+ * cards and strokes someone else added since this device last looked.
+ */
+async function pushBoard(changed) {
+  let outgoing = changed;
+  try {
+    const stored = await state.remote.get(changed.id);
+    if (isValidBoard(stored) && adoptBoard(stored)) {
+      outgoing = getBoard(changed.id) || changed;
+      if (!isBusy()) render();
+    }
+  } catch {
+    // Unreadable just now: this copy goes up, and the next look merges.
+  }
+  await state.remote.put(outgoing, keyFor(outgoing), organiserSecret(outgoing.id));
+}
+
+/** The board the database holds, merged into this one if it brings anything. */
+async function pullBoard(id) {
+  if (!state.remote) return false;
+  let stored = null;
+  try {
+    stored = await state.remote.get(id);
+  } catch {
+    return false;
+  }
+  if (stored === null) return whenAbsent(id);
+  return isValidBoard(stored) ? adoptBoard(stored) : false;
+}
+
+function adoptBoard(stored) {
+  const local = getBoard(stored.id);
+  const merged = local ? mergeBoards(local, stored) : stored;
+  if (local && merged === local) return false;
+
+  const adopted = { ...merged, shared: true };
+  state.boards = local
+    ? state.boards.map((board) => (board.id === stored.id ? adopted : board))
+    : [...state.boards, adopted];
+  saveBoards(state.boards);
+  return true;
+}
+
+/** While a shared board is on screen, watch for the others' cards. */
+function watchBoard(id) {
+  stopWatching();
+  if (!state.remote) return;
+  state.poll = setInterval(async () => {
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
+    if (await pullBoard(id)) render();
+  }, 5000);
+}
+
+  // ---- src/view-games.js -----------------------------------------------
+/**
+ * Games on screen: the new-game form, the scores, the card counter, the Tarot
+ * calculator, and the exports.
+ *
+ * Split out of app.js, which it calls back into: only from inside functions,
+ * so the two may import each other.
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* -------------------------------------------------------- new game view --- */
+
+function newGameView() {
+  const presetId = state.newPresetId || PRESETS[0].id;
+  const preset = getPreset(presetId);
+  const config = state.newConfig || presetConfig(preset);
+  const isTeam = config.entrantLabel === 'team';
+  const [min, max] = preset.players;
+
+  // A team is not a person: my name is offered to players only, and only while
+  // nothing has been typed — the preset is not known before this point. Switching
+  // from a game of people to a game of teams takes the offer back, since the
+  // first field stops being a person and becomes "Équipe 1".
+  if (!state.newGameTouched) {
+    state.newGameNames = isTeam
+      ? withoutMe(state.newGameNames, myName())
+      : withMeFirst(state.newGameNames, myName());
+  }
+  while (state.newGameNames.length < min) state.newGameNames.push('');
+  const names = state.newGameNames.slice(0, Math.max(min, Math.min(state.newGameNames.length, max)));
+
+  // In a group that fixes its first names, only those are proposed.
+  const fixed = isTeam ? [] : rosterForNew();
+  const known = fixed.length ? fixed : [...new Set([isTeam ? '' : myName(), ...recentNames(state.games)].filter(Boolean))];
+  const nameRows = names
+    .map(
+      (value, index) => `
+        <div class="score-row">
+          <input type="text" data-name-index="${index}" ${known.length ? 'list="known-names"' : ''} value="${escapeHtml(value)}"
+                 placeholder="${escapeHtml(t(isTeam ? 'new.teamName' : 'new.playerName', { n: index + 1 }))}"
+                 aria-label="${escapeHtml(t(isTeam ? 'new.teamName' : 'new.playerName', { n: index + 1 }))}" />
+          <button type="button" class="button button--small button--ghost" data-remove-name="${index}"
+                  aria-label="${escapeHtml(t('lists.dropPerson'))}" title="${escapeHtml(t('lists.dropPerson'))}"
+                  ${names.length <= min ? 'disabled' : ''}>✕</button>
+        </div>`,
+    )
+    .join('');
+
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/games')}
+      <h1>${escapeHtml(t('new.title'))}</h1>
+    </div>
+
+    <form id="new-game" class="card stack">
+      <label>
+        ${escapeHtml(t('new.game'))}
+        <select id="preset">
+          ${PRESET_GROUPS.map((group) => {
+            const games = PRESETS.filter((item) => item.group === group);
+            if (!games.length) return '';
+            return `<optgroup label="${escapeHtml(t(`group.${group}`))}">${games
+              .map(
+                (item) =>
+                  `<option value="${item.id}" ${item.id === presetId ? 'selected' : ''}>${escapeHtml(presetLabel(item))}</option>`,
+              )
+              .join('')}</optgroup>`;
+          }).join('')}
+        </select>
+      </label>
+      <p class="notes">${escapeHtml(t(preset.notesKey))}</p>
+
+      <label>
+        ${escapeHtml(t('new.customName'))}
+        <input type="text" id="game-name" value="${escapeHtml(state.newName || '')}" placeholder="${escapeHtml(presetLabel(preset))}" />
+      </label>
+
+      <div class="stack">
+        <h2 class="h3">${escapeHtml(t(isTeam ? 'new.teams' : 'new.players'))}</h2>
+        <div class="score-rows">${nameRows}</div>
+        ${
+          known.length
+            ? `<datalist id="known-names">${known.map((name) => `<option value="${escapeHtml(name)}"></option>`).join('')}</datalist>`
+            : ''
+        }
+        <button type="button" class="button button--small" id="add-name" ${names.length >= max ? 'disabled' : ''}>
+          + ${escapeHtml(t(isTeam ? 'action.addTeam' : 'action.addPlayer'))}
+        </button>
+      </div>
+
+      <div class="stack">
+        <h2 class="h3">${escapeHtml(t('new.rules'))}</h2>
+        <div class="field-grid">
+          <label>
+            ${escapeHtml(t('new.direction'))}
+            <select id="direction">
+              <option value="low" ${config.direction === 'low' ? 'selected' : ''}>${escapeHtml(t('new.directionLow'))}</option>
+              <option value="high" ${config.direction === 'high' ? 'selected' : ''}>${escapeHtml(t('new.directionHigh'))}</option>
+            </select>
+          </label>
+          <label>
+            ${escapeHtml(t('new.endMode'))}
+            <select id="end-mode">
+              <option value="threshold" ${config.endMode === 'threshold' ? 'selected' : ''}>${escapeHtml(t('new.endThreshold'))}</option>
+              <option value="rounds" ${config.endMode === 'rounds' ? 'selected' : ''}>${escapeHtml(t('new.endRounds'))}</option>
+              <option value="manual" ${config.endMode === 'manual' ? 'selected' : ''}>${escapeHtml(t('new.endManual'))}</option>
+            </select>
+          </label>
+          ${
+            config.endMode === 'threshold'
+              ? `<label>${escapeHtml(t('new.target'))}
+                   <input type="number" id="target" step="1" value="${config.target ?? ''}" />
+                 </label>`
+              : ''
+          }
+          ${
+            config.endMode === 'rounds'
+              ? `<label>${escapeHtml(t('new.roundsCount'))}
+                   <input type="number" id="rounds" step="1" min="1" value="${config.rounds ?? ''}" />
+                 </label>`
+              : ''
+          }
+          <label>
+            ${escapeHtml(t('new.roundSum'))}
+            <input type="number" id="round-sum" step="1" value="${config.roundSum ?? ''}" />
+            <span class="hint">${escapeHtml(t('new.roundSumHint'))}</span>
+          </label>
+        </div>
+        <label class="checkbox">
+          <input type="checkbox" id="allow-negative" ${config.allowNegative ? 'checked' : ''} />
+          ${escapeHtml(t('new.allowNegative'))}
+        </label>
+      </div>
+
+      ${willBeInHtml()}
+      <button type="submit" class="button button--primary button--block">${escapeHtml(t('new.start'))}</button>
+    </form>`;
+}
+
+/* ------------------------------------------------------------- game view --- */
+
+function roundFormHtml(game) {
+  const preset = getPreset(game.presetId);
+  if (preset?.calculator === 'tarot') {
+    if (!state.deal) state.deal = emptyDeal(game);
+    return tarotFormHtml(game);
+  }
+  const editing = state.editingRoundId ? game.rounds.find((r) => r.id === state.editingRoundId) : null;
+  const index = editing ? game.rounds.indexOf(editing) + 1 : game.rounds.length + 1;
+
+  const rows = game.players
+    .map((player) => {
+      const value = editing && Number.isFinite(editing.scores[player.id]) ? editing.scores[player.id] : '';
+      const counter = preset?.helper
+        ? `<button type="button" class="button button--small counter-button"
+                   data-helper="${escapeHtml(player.id)}" title="${escapeHtml(t('helper.open'))}"
+                   aria-label="${escapeHtml(t('helper.title', { name: player.name }))}">🂠</button>`
+        : '';
+      return `
+        <div class="score-row ${preset?.helper ? 'score-row--counter' : ''}">
+          <label class="score-row__name" for="score-${escapeHtml(player.id)}">${escapeHtml(player.name)}</label>
+          ${counter}
+          <input type="number" step="1" inputmode="numeric" id="score-${escapeHtml(player.id)}"
+                 data-score="${escapeHtml(player.id)}" value="${value}" />
+        </div>`;
+    })
+    .join('');
+
+  const metaField = preset?.meta
+    ? `<label>
+         ${escapeHtml(t(preset.meta.labelKey))}
+         <select id="round-meta">
+           <option value="">${escapeHtml(t('meta.none'))}</option>
+           ${preset.meta.options
+             .map(
+               (option) =>
+                 `<option value="${escapeHtml(option.value)}" ${editing?.meta === option.value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`,
+             )
+             .join('')}
+         </select>
+       </label>`
+    : '';
+
+  const dealer = getPreset(game.presetId)?.group === 'cards' ? dealerFor(game, index - 1) : null;
+
+  return `
+    <form id="round-form" class="card stack">
+      <h2>${escapeHtml(editing ? t('game.editRound', { n: index }) : t('game.newRound', { n: index }))}</h2>
+      ${dealer ? `<p class="muted small">${escapeHtml(t('game.dealer', { name: dealer.name }))}</p>` : ''}
+      <div class="score-rows">${rows}</div>
+      <p class="banner banner--warn" id="round-issues" hidden></p>
+      <div class="sum-line">
+        <span id="sum-line"></span>
+        <button type="button" class="button button--small" id="complete" hidden>${escapeHtml(t('action.complete'))}</button>
+      </div>
+      ${metaField}
+      <label>
+        ${escapeHtml(t('game.note'))}
+        <input type="text" id="round-note" value="${escapeHtml(editing?.note || '')}" />
+      </label>
+      <div class="row">
+        <button type="submit" class="button button--primary">
+          ${escapeHtml(editing ? t('action.saveRound') : t('action.addRound'))}
+        </button>
+        ${
+          editing
+            ? `<button type="button" class="button" id="cancel-edit">${escapeHtml(t('action.cancel'))}</button>
+               <button type="button" class="button button--danger" id="delete-round">${escapeHtml(t('action.deleteRound'))}</button>`
+            : ''
+        }
+      </div>
+    </form>`;
+}
+
+function scoreTableHtml(game) {
+  const preset = getPreset(game.presetId);
+  const totalsById = totals(game);
+  const metaLabel = preset?.meta ? t(preset.meta.labelKey) : null;
+  const metaText = (round) =>
+    preset?.meta ? preset.meta.options.find((o) => o.value === round.meta)?.label || '' : '';
+
+  return `
+    <div class="table-wrap">
+      <table class="scores">
+        <thead>
+          <tr>
+            <th>${escapeHtml(t('game.round'))}</th>
+            ${game.players.map((player) => `<th>${escapeHtml(player.name)}</th>`).join('')}
+            ${metaLabel ? `<th>${escapeHtml(metaLabel)}</th>` : ''}
+          </tr>
+        </thead>
+        <tbody>
+          ${game.rounds
+            .map(
+              (round, index) => `
+              <tr class="round-edit" data-edit-round="${escapeHtml(round.id)}" tabindex="0"
+                  title="${escapeHtml(t('action.edit'))}">
+                <td>${index + 1}${round.note ? ` <span class="muted small">· ${escapeHtml(round.note)}</span>` : ''}</td>
+                ${game.players
+                  .map((player) => `<td>${roundScore(round, player.id)}</td>`)
+                  .join('')}
+                ${metaLabel ? `<td class="meta-cell">${escapeHtml(metaText(round))}</td>` : ''}
+              </tr>`,
+            )
+            .join('')}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td>${escapeHtml(t('game.total'))}</td>
+            ${game.players.map((player) => `<td>${totalsById[player.id]}</td>`).join('')}
+            ${metaLabel ? '<td></td>' : ''}
+          </tr>
+        </tfoot>
+      </table>
+    </div>`;
+}
+
+function gameView(game) {
+  const status = gameStatus(game);
+  const preset = getPreset(game.presetId);
+
+  const winnerBanner = status.finished && status.winners.length
+    ? `<p class="banner banner--win">
+         <strong>${escapeHtml(t(status.winners.length > 1 ? 'home.winners' : 'home.winner', {
+           name: status.winners.map((row) => row.name).join(', '),
+         }))}</strong>
+       </p>`
+    : '';
+
+  let remainingText = '';
+  if (!status.finished && Number.isFinite(status.remaining)) {
+    remainingText = game.config.endMode === 'threshold'
+      ? t('game.remainingThreshold', { count: status.remaining })
+      : t('game.remainingRounds', { count: status.remaining });
+  }
+
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/games')}
+      <div>
+        <h1>${escapeHtml(gameTitle(game))}</h1>
+        <p class="muted small">${escapeHtml(preset ? presetLabel(preset) : '')} · ${escapeHtml(t('home.rounds', { count: game.rounds.length }))}</p>
+      </div>
+    </div>
+
+    ${eventLinkHtml(game)}
+
+    ${inGroupHtml(game)}
+
+    ${state.remote ? shareBarHtml(`<button type="button" class="button button--primary" id="share">${escapeHtml(t('action.share'))}</button>`) : ''}
+
+    ${winnerBanner}
+
+    <section class="section card">
+      <div class="section__head">
+        <h2>${escapeHtml(t('game.standings'))}</h2>
+        ${remainingText ? `<span class="muted small">${escapeHtml(remainingText)}</span>` : ''}
+      </div>
+      <div class="standings">
+        ${status.standings
+          .map(
+            (row) => `
+            <div class="standing ${row.rank === 1 ? 'standing--leader' : ''}">
+              <span class="standing__rank">${row.rank}</span>
+              <span class="standing__name">${escapeHtml(row.name)}</span>
+              <span>
+                <span class="standing__total">${row.total}</span>
+                ${row.gap ? `<span class="standing__gap"> ${escapeHtml(t('game.gap', { gap: row.gap }))}</span>` : ''}
+              </span>
+            </div>`,
+          )
+          .join('')}
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('game.perRound'))}</h2></div>
+      ${game.rounds.length ? scoreTableHtml(game) : `<p class="muted small">${escapeHtml(t('game.noRounds'))}</p>`}
+    </section>
+
+    ${roundFormHtml(game)}
+
+    ${attachedHtml(game)}
+
+    ${actionsHtml(`
+        ${
+          game.rounds.length
+            ? `<button type="button" class="button button--small" id="undo">${escapeHtml(t('action.undo'))}</button>`
+            : ''
+        }
+        <button type="button" class="button button--small" id="recap">${escapeHtml(t('action.recap'))}</button>
+        ${
+          EXPORT_MODE === 'download'
+            ? `<button type="button" class="button button--small" id="export-docx">${escapeHtml(t('action.exportDocx'))}</button>
+               <button type="button" class="button button--small" id="export-pdf">${escapeHtml(t('action.exportPdf'))}</button>`
+            : ''
+        }
+        <button type="button" class="button button--small" id="replay">${escapeHtml(t('action.replay'))}</button>
+        <button type="button" class="button button--small" id="toggle-finish">
+          ${escapeHtml(game.finishedAt ? t('action.reopen') : t('action.finish'))}
+        </button>`, `
+        <button type="button" class="button button--small button--ghost" id="rename">${escapeHtml(t('action.rename'))}</button>
+        ${chainButtonsHtml(game)}
+        <button type="button" class="button button--small button--ghost" id="game-archive">
+          ${escapeHtml(game.archivedAt ? t('archive.back') : t('archive.put'))}
+        </button>
+        <button type="button" class="button button--small button--danger" id="delete-game">${escapeHtml(t('action.delete'))}</button>`)}
+
+    ${preset ? `<p class="notes">${escapeHtml(t(preset.notesKey))}</p>` : ''}`;
+}
+
+/* ----------------------------------------------------------- interactions --- */
+
+function readScores(game) {
+  const scores = {};
+  for (const player of game.players) {
+    const input = view.querySelector(`[data-score="${player.id}"]`);
+    scores[player.id] = parseScore(input?.value);
+  }
+  return scores;
+}
+
+function refreshSumLine(game) {
+  const line = view.querySelector('#sum-line');
+  const completeButton = view.querySelector('#complete');
+  if (!line) return;
+
+  const scores = readScores(game);
+  const entered = Object.values(scores).reduce(
+    (sum, value) => sum + (Number.isFinite(value) ? value : 0),
+    0,
+  );
+  const expected = game.config.roundSum;
+
+  if (Number.isFinite(expected)) {
+    line.textContent = t('game.sumExpected', { sum: entered, expected });
+    const complete = game.players.every((player) => Number.isFinite(scores[player.id]));
+    line.parentElement.classList.toggle('sum-line--ok', complete && entered === expected);
+    line.parentElement.classList.toggle('sum-line--off', complete && entered !== expected);
+  } else {
+    line.textContent = t('game.sum', { sum: entered });
+  }
+
+  if (completeButton) {
+    const suggestion = completingScore(game, scores);
+    completeButton.hidden = !suggestion;
+    completeButton.dataset.playerId = suggestion?.playerId || '';
+    completeButton.dataset.value = suggestion ? String(suggestion.value) : '';
+  }
+}
+
+function describeIssue(issue) {
+  if (issue.code === 'missing') return t('warn.missing', { players: issue.players.join(', ') });
+  if (issue.code === 'sum') return t('warn.sum', { sum: issue.sum, expected: issue.expected });
+  return t(`error.${issue.code}`, { player: issue.player });
+}
+
+/**
+ * A dialog made for one use. It takes itself off the page when it closes —
+ * including when Escape closes it, which is the case that otherwise leaves
+ * orphans behind: duplicate ids, and radio buttons quietly sharing a group
+ * with the dialog opened before them.
+ */
+function makeDialog(className = 'dialog') {
+  const dialog = document.createElement('dialog');
+  dialog.className = className;
+  dialog.addEventListener('close', () => dialog.remove());
+  document.body.append(dialog);
+  return dialog;
+}
+
+/**
+ * Ask a yes/no question.
+ *
+ * Not the browser's own confirm dialog: a sandboxed page — the app embedded
+ * in another site — is refused browser modals, and the call then returns
+ * false without ever asking, so every action behind one silently does
+ * nothing. A `<dialog>` is ordinary DOM and works everywhere.
+ */
+function ask(message, { confirmLabel, danger = false } = {}) {
+  return new Promise((resolve) => {
+    const dialog = makeDialog('dialog dialog--ask');
+    dialog.innerHTML = `
+      <div class="stack">
+        <p class="ask-message"></p>
+        <div class="row">
+          <button type="button" class="button ${danger ? 'button--danger' : 'button--primary'}"
+                  data-answer="yes"></button>
+          <button type="button" class="button" data-answer="no"></button>
+        </div>
+      </div>`;
+    dialog.querySelector('.ask-message').textContent = message;
+    dialog.querySelector('[data-answer="yes"]').textContent = confirmLabel || t('action.save');
+    dialog.querySelector('[data-answer="no"]').textContent = t('action.cancel');
+
+    let settled = false;
+    const finish = (answer) => {
+      if (settled) return;
+      settled = true;
+      resolve(answer);
+      dialog.close();
+    };
+
+    dialog.querySelector('[data-answer="yes"]').addEventListener('click', () => finish(true));
+    dialog.querySelector('[data-answer="no"]').addEventListener('click', () => finish(false));
+    // Escape, or a close from anywhere else, means no.
+    dialog.addEventListener('close', () => finish(false));
+
+    dialog.showModal();
+    dialog.querySelector('[data-answer="no"]').focus();
+  });
+}
+
+async function submitRound(game) {
+  const scores = readScores(game);
+  const result = validateRound(game, scores);
+
+  const issues = view.querySelector('#round-issues');
+  if (!result.ok) {
+    // Report in place: re-rendering here would throw away the typed scores.
+    if (issues) {
+      issues.textContent = result.errors.map(describeIssue).join(' ');
+      issues.hidden = false;
+    }
+    return;
+  }
+  if (issues) issues.hidden = true;
+  if (result.warnings.length) {
+    const message = `${result.warnings.map(describeIssue).join('\n')}\n\n${t('game.confirmWarnings')}`;
+    const accepted = await ask(message, { confirmLabel: t('action.save') });
+    if (!accepted) return;
+  }
+
+  const meta = view.querySelector('#round-meta')?.value || null;
+  const note = view.querySelector('#round-note')?.value.trim() || '';
+
+  const next = state.editingRoundId
+    ? updateRound(game, state.editingRoundId, { scores, meta, note })
+    : addRound(game, { scores, meta, note });
+
+  state.editingRoundId = null;
+  replaceGame(next);
+  render();
+}
+
+/**
+ * Some hosts (a sandboxed page, for instance) silently ignore a download a
+ * page starts by itself. Where that is the case the build sets
+ * MARQUE_POINTS_EXPORT_MODE = 'copy' and the data is shown to be copied
+ * instead, so the button never looks like it did nothing.
+ */
+const EXPORT_MODE = globalThis.MARQUE_POINTS_EXPORT_MODE === 'copy' ? 'copy' : 'download';
+
+function exportGames() {
+  const json = JSON.stringify(
+    {
+      version: 1,
+      games: state.games,
+      lists: state.lists,
+      polls: state.polls,
+      spends: state.spends,
+      boards: state.boards,
+      // The organiser's secrets, for the polls in this file: they live on this
+      // device alone, and a phone replaced, or Safari clearing the app after
+      // a few weeks unopened, would leave those polls with no one to set
+      // their date or close them. Group keys stay out, as always.
+      organiser: heldOrganiserSecrets(),
+    },
+    null,
+    2,
+  );
+  if (EXPORT_MODE === 'copy') {
+    showExportDialog(json);
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `marque-points-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function showExportDialog(json) {
+  showCopyDialog({ title: t('export.title'), hint: t('export.hint'), text: json });
+}
+
+/**
+ * A QR code sized to whole pixels per module: a fractional size blurs the
+ * edges and readers give up — something a reference encoder does too.
+ */
+function qrFor(text) {
+  const modules = qrMatrix(text);
+  if (!modules) return null;
+  const side = modules.length + 8;
+  const scale = Math.max(4, Math.floor(260 / side));
+  return qrSvg(text, { size: side * scale });
+}
+
+function showCopyDialog({
+  title,
+  hint,
+  text: content,
+  qr = false,
+  // The QR carries the link, while the box shows the whole message: a QR of a
+  // twelve-line message is unreadable, and a link is what a camera is for.
+  qrText = null,
+  code = null,
+  send = false,
+  // A lot's code is a second secret, to be sent by another route; an
+  // invitation's is already inside the link, and saying otherwise would be
+  // advice nobody can follow.
+  codeLabel = 'shareSet.codeLabel',
+  codeHint = 'shareSet.codeApart',
+}) {
+  let dialog = document.getElementById('export-dialog');
+  if (!dialog) {
+    dialog = document.createElement('dialog');
+    dialog.id = 'export-dialog';
+    dialog.className = 'dialog';
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2 id="export-title"></h2>
+        <p class="muted small" id="export-hint"></p>
+        <div class="code-box" id="export-code" hidden>
+          <span class="code-box__label" id="export-code-label"></span>
+          <strong class="code-box__value" id="export-code-value"></strong>
+          <span class="muted small" id="export-code-hint"></span>
+        </div>
+        <div id="export-qr" class="qr" hidden></div>
+        <textarea id="export-text" readonly rows="12"></textarea>
+        <div class="row">
+          <button type="button" class="button button--primary" id="export-copy"></button>
+          <button type="button" class="button" id="export-send" hidden></button>
+          <button type="button" class="button" id="export-close"></button>
+        </div>
+      </div>`;
+    document.body.append(dialog);
+
+    dialog.querySelector('#export-close').addEventListener('click', () => dialog.close());
+    // Sending hands over what the box holds. A bare link goes as a link: for
+    // a lot that is the whole point — its code travels by another route — and
+    // for an invitation the code is in the link already, on purpose. A
+    // message goes whole, as text: it carries its link, and handed it again
+    // as `url`, iOS and Android would add it a second time (see shareMessage).
+    dialog.querySelector('#export-send').addEventListener('click', async () => {
+      const content = dialog.querySelector('#export-text').value.trim();
+      try {
+        await navigator.share(/\s/.test(content)
+          ? { title: t('app.title'), text: content }
+          : { title: t('app.title'), text: t('shareSet.text'), url: content });
+      } catch {
+        // Cancelled, or refused: the text and its code are still on screen.
+      }
+    });
+    dialog.querySelector('#export-copy').addEventListener('click', async (event) => {
+      // Hold on to the button: currentTarget is null once the handler awaits.
+      const button = event.currentTarget;
+      const text = dialog.querySelector('#export-text');
+      text.select();
+
+      // Where the clipboard is blocked the promise can also simply never
+      // settle, so the button answers on its own after a moment rather than
+      // looking dead. The text is selected either way.
+      const copied = await Promise.race([
+        Promise.resolve(navigator.clipboard?.writeText(text.value)).then(() => true, () => false),
+        new Promise((done) => setTimeout(() => done(false), 600)),
+      ]);
+      button.textContent = copied ? t('export.copied') : t('export.copyByHand');
+    });
+  }
+
+  dialog.querySelector('#export-title').textContent = title;
+  dialog.querySelector('#export-hint').textContent = hint;
+  const text = dialog.querySelector('#export-text');
+  text.value = content;
+  text.setAttribute('aria-label', title);
+
+  const image = dialog.querySelector('#export-qr');
+  const svg = qr ? qrFor(qrText || content) : null;
+  image.innerHTML = svg || '';
+  image.hidden = !svg;
+  if (svg) image.setAttribute('aria-label', t('share.qrLabel'));
+  const box = dialog.querySelector('#export-code');
+  box.hidden = !code;
+  if (code) {
+    dialog.querySelector('#export-code-label').textContent = t(codeLabel);
+    dialog.querySelector('#export-code-value').textContent = code;
+    dialog.querySelector('#export-code-hint').textContent = t(codeHint);
+  }
+
+  const sendButton = dialog.querySelector('#export-send');
+  sendButton.hidden = !(send && navigator.share);
+  sendButton.textContent = t('shareSet.send');
+
+  dialog.querySelector('#export-copy').textContent = t('action.copy');
+  dialog.querySelector('#export-close').textContent = t('action.close');
+  dialog.showModal();
+  // After opening, not before: opening the dialog puts the caret at the end of
+  // the box, and a message longer than it then starts on its last line — which
+  // reads as if the beginning were missing.
+  text.scrollTop = 0;
+}
+
+/**
+ * Take in an export, from wherever it came. Games already here are left
+ * alone — importing twice must not double everything.
+ */
+function importGames(source) {
+  let parsed = null;
+  try {
+    parsed = JSON.parse(source);
+  } catch {
+    flash(t('home.importFailed'), 'error');
+    return false;
+  }
+
+  const all = Array.isArray(parsed)
+    ? parsed
+    : [
+        ...(parsed?.games || []), ...(parsed?.lists || []), ...(parsed?.polls || []), ...(parsed?.spends || []),
+        ...(parsed?.boards || []),
+      ];
+  const games = all.filter(isValidGame);
+  const lists = all.filter(isValidList);
+  const polls = all.filter(isValidPoll);
+  const spends = all.filter(isValidSpend);
+  const boards = all.filter(isValidBoard);
+  if (!games.length && !lists.length && !polls.length && !spends.length && !boards.length) {
+    flash(t('home.importFailed'), 'error');
+    return false;
+  }
+
+  // First, so that what is sent below goes with its organiser — and for the
+  // polls already here too: after a reinstall, the group brings the polls
+  // back, but only a backup brings back the right to set them.
+  const organising = restoreOrganiserSecrets(Array.isArray(parsed) ? null : parsed?.organiser);
+
+  const knownGames = new Set(state.games.map((game) => game.id));
+  const freshGames = games.filter((game) => !knownGames.has(game.id));
+  state.games = [...state.games, ...freshGames];
+  saveGames(state.games);
+
+  const knownLists = new Set(state.lists.map((list) => list.id));
+  const freshLists = lists.filter((list) => !knownLists.has(list.id));
+  state.lists = [...state.lists, ...freshLists];
+  saveLists(state.lists);
+
+  const knownPolls = new Set(state.polls.map((poll) => poll.id));
+  const freshPolls = polls.filter((poll) => !knownPolls.has(poll.id));
+  state.polls = [...state.polls, ...freshPolls];
+  savePolls(state.polls);
+
+  const knownSpends = new Set(state.spends.map((spend) => spend.id));
+  const freshSpends = spends.filter((spend) => !knownSpends.has(spend.id));
+  state.spends = [...state.spends, ...freshSpends];
+  saveSpends(state.spends);
+
+  const knownBoards = new Set(state.boards.map((board) => board.id));
+  const freshBoards = boards.filter((board) => !knownBoards.has(board.id));
+  state.boards = [...state.boards, ...freshBoards];
+  saveBoards(state.boards);
+
+  for (const document_ of [...freshGames, ...freshLists, ...freshPolls, ...freshSpends, ...freshBoards]) {
+    if (state.store) void state.store.save(document_);
+    if (state.remote && document_.shared) {
+      // A backup older than a deletion must not bring the thing back for everyone.
+      state.remote.put(document_, keyFor(document_), organiserSecret(document_.id))
+        .catch((error) => wasDeleted(error) && dropDeleted(document_.id));
+    }
+  }
+  const count = freshGames.length + freshLists.length + freshPolls.length + freshSpends.length + freshBoards.length;
+  flash(organising
+    ? t('home.importOrganiser', { count, polls: organising })
+    : t('home.importDone', { count }));
+  return true;
+}
+
+/**
+ * Paste an export in. A phone cannot easily hand a file to a web page, and an
+ * app installed on the home screen keeps its own storage — so this is how
+ * games move from one to the other.
+ */
+function openPasteDialog() {
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('paste.title'))}</h2>
+      <p class="muted small">${escapeHtml(t('paste.hint'))}</p>
+      <textarea id="paste-text" rows="8" aria-label="${escapeHtml(t('paste.title'))}"></textarea>
+      <p class="banner banner--warn" id="paste-error" hidden></p>
+      <div class="row">
+        <button type="button" class="button button--primary" id="paste-import">${escapeHtml(t('action.import'))}</button>
+        <button type="button" class="button" id="paste-cancel">${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </div>`;
+
+  const close = () => dialog.close();
+  dialog.querySelector('#paste-cancel').addEventListener('click', close);
+  dialog.querySelector('#paste-import').addEventListener('click', () => {
+    const value = dialog.querySelector('#paste-text').value.trim();
+    if (!value) return;
+    if (!importGames(value)) {
+      const error = dialog.querySelector('#paste-error');
+      error.textContent = t('home.importFailed');
+      error.hidden = false;
+      return;
+    }
+    close();
+    render();
+  });
+
+  dialog.showModal();
+  dialog.querySelector('#paste-text').focus();
+}
+
+/**
+ * Open a shared game from its link.
+ *
+ * The database can only be asked for a game by its exact id — that is what
+ * keeps anyone from listing someone else's games, and it means a game already
+ * in the database still has to be *named* to be found. On a phone there is no
+ * other way in: tapping a link opens the browser, never the installed app,
+ * which has no address bar of its own.
+ */
+function openLinkDialog() {
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('openLink.title'))}</h2>
+      <p class="muted small">${escapeHtml(t('openLink.hint'))}</p>
+      <textarea id="link-text" rows="3" aria-label="${escapeHtml(t('openLink.title'))}"></textarea>
+      <p class="banner banner--warn" id="link-error" hidden></p>
+      <div class="row">
+        <button type="button" class="button button--primary" id="link-open">${escapeHtml(t('openLink.open'))}</button>
+        <button type="button" class="button" id="link-cancel">${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </div>`;
+
+  const close = () => dialog.close();
+  const fail = (message) => {
+    const error = dialog.querySelector('#link-error');
+    error.textContent = message;
+    error.hidden = false;
+    dialog.querySelector('#link-open').disabled = false;
+    dialog.querySelector('#link-open').textContent = t('openLink.open');
+  };
+
+  dialog.querySelector('#link-cancel').addEventListener('click', close);
+  dialog.querySelector('#link-open').addEventListener('click', async (event) => {
+    const pasted = dialog.querySelector('#link-text').value;
+
+    // A link to a whole set of games is pasted here too: on a phone the
+    // installed app has no address bar, so this is the only way in.
+    // An invitation pasted rather than tapped: the same screen, prefilled.
+    const invitation = joinFrom(pasted);
+    if (invitation) {
+      close();
+      navigate(`#/join/${invitation.code}/${encodeURIComponent(invitation.name)}`);
+      return;
+    }
+
+    // A form filled in elsewhere (by Claude, say): opened here, in the
+    // installed app, rather than in the browser the link would open in.
+    const form = prefillLinkFrom(pasted);
+    if (form) {
+      close();
+      navigate(form);
+      return;
+    }
+
+    const setId = setIdFrom(pasted);
+    if (setId) {
+      event.currentTarget.disabled = true;
+      event.currentTarget.textContent = t('share.sending');
+      await openSet(setId);
+      close();
+      navigate('#/');
+      return;
+    }
+
+    const listId = listIdFrom(pasted);
+    if (listId) {
+      event.currentTarget.disabled = true;
+      event.currentTarget.textContent = t('share.sending');
+      if (!getList(listId) && !(await pullList(listId))) return fail(t('openLink.notFound'));
+      close();
+      navigate(`#/list/${listId}`);
+      return;
+    }
+
+    const pollId = pollIdFrom(pasted);
+    if (pollId) {
+      event.currentTarget.disabled = true;
+      event.currentTarget.textContent = t('share.sending');
+      if (!getPoll(pollId) && !(await pullPoll(pollId))) return fail(t('openLink.notFound'));
+      close();
+      navigate(`#/poll/${pollId}`);
+      return;
+    }
+
+    const id = gameIdFrom(pasted);
+    if (!id) return fail(t('openLink.noId'));
+
+    event.currentTarget.disabled = true;
+    event.currentTarget.textContent = t('share.sending');
+
+    if (getGame(id)) {
+      close();
+      navigate(`#/game/${id}`);
+      return;
+    }
+    // A bare identifier says nothing about what it stands for.
+    if (await pullGame(id)) {
+      close();
+      navigate(`#/game/${id}`);
+      return;
+    }
+    if (await pullList(id)) {
+      close();
+      navigate(`#/list/${id}`);
+      return;
+    }
+    if (await pullPoll(id)) {
+      close();
+      navigate(`#/poll/${id}`);
+      return;
+    }
+    return fail(t('openLink.notFound'));
+  });
+
+  dialog.showModal();
+  dialog.querySelector('#link-text').focus();
+}
+
+/**
+ * Hand a link over the easy way when the device offers one — one tap to a
+ * message — and fall back to the text with its QR code everywhere else.
+ */
+/**
+ * Hand over a whole message rather than a bare link.
+ *
+ * An invitation is not a link with a sentence around it: it is a name, a code,
+ * a link and how to install the app, and all four have to survive the trip.
+ * The message already carries the link, so it goes alone: handed `url` as
+ * well, iOS and Android add the link a second time under the text. Where
+ * navigator.share is absent, the message is on screen in one block, ready to
+ * copy.
+ */
+async function shareMessage({ title, hint, message, url, code = null }) {
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: t('app.title'), text: message.includes(url) ? message : `${message}\n${url}` });
+      return;
+    } catch (error) {
+      if (error?.name === 'AbortError') return;
+    }
+  }
+  // The six digits stay in their own box, big, above the message: they are
+  // what gets read out over the phone when the link will not go through.
+  showCopyDialog({
+    title,
+    hint,
+    text: message,
+    qr: true,
+    qrText: url,
+    code,
+    codeLabel: 'groups.codeLabel',
+    codeHint: 'groups.codeInLink',
+  });
+}
+
+async function shareUrl({ url, title, hint, text, code = null, codeLabel, codeHint }) {
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: t('app.title'), text, url });
+      return;
+    } catch (error) {
+      // Cancelling is not a failure, and nothing should be shown for it.
+      if (error?.name === 'AbortError') return;
+      // Anything else: fall through to the text everyone can copy.
+    }
+  }
+  showCopyDialog({ title, hint, text: url, qr: true, code, codeLabel, codeHint });
+}
+
+/* ------------------------------------------------------- games: behaviour --- */
+
+function bindNewGame() {
+  const form = view.querySelector('#new-game');
+  if (!form) return;
+
+  const snapshotNames = () => {
+    view.querySelectorAll('[data-name-index]').forEach((input) => {
+      state.newGameNames[Number(input.dataset.nameIndex)] = input.value;
+    });
+  };
+
+  // Typing in a name is what counts as touching the form — not switching preset,
+  // which merely keeps what is there.
+  view.querySelectorAll('[data-name-index]').forEach((input) => {
+    input.addEventListener('input', () => {
+      state.newGameTouched = true;
+    });
+  });
+
+  const readConfigFromForm = () => ({
+    direction: view.querySelector('#direction').value,
+    endMode: view.querySelector('#end-mode').value,
+    // A field that the current end mode hides keeps its previous value, so
+    // switching modes back and forth does not lose what was typed.
+    target: view.querySelector('#target')
+      ? parseIntOrNull(view.querySelector('#target').value)
+      : state.newConfig?.target ?? null,
+    rounds: view.querySelector('#rounds')
+      ? parseIntOrNull(view.querySelector('#rounds').value)
+      : state.newConfig?.rounds ?? null,
+    roundSum: parseIntOrNull(view.querySelector('#round-sum')?.value),
+    allowNegative: view.querySelector('#allow-negative').checked,
+    entrantLabel: getPreset(view.querySelector('#preset').value)?.entrantLabel || 'player',
+  });
+
+  view.querySelector('#preset').addEventListener('change', (event) => {
+    snapshotNames();
+    const preset = getPreset(event.target.value);
+    state.newPresetId = preset.id;
+    state.newConfig = presetConfig(preset);
+    state.newGameNames = state.newGameNames.slice(0, preset.players[1]);
+    render();
+  });
+
+  // Only the end mode changes which fields exist, so it is the only rule field
+  // worth re-rendering for — re-rendering on every keystroke elsewhere would
+  // steal the focus mid-typing. The others are read straight from the DOM when
+  // the form is submitted.
+  view.querySelector('#end-mode')?.addEventListener('change', () => {
+    snapshotNames();
+    state.newName = view.querySelector('#game-name').value;
+    state.newConfig = readConfigFromForm();
+    render();
+    view.querySelector('#end-mode')?.focus();
+  });
+
+  view.querySelector('#add-name')?.addEventListener('click', () => {
+    snapshotNames();
+    state.newName = view.querySelector('#game-name').value;
+    state.newConfig = readConfigFromForm();
+    state.newGameNames.push('');
+    render();
+  });
+
+  view.querySelectorAll('[data-new-group]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      snapshotNames();
+      state.newName = view.querySelector('#game-name').value;
+      state.newConfig = readConfigFromForm();
+      state.newGroupChoice = { touched: true, id: chip.dataset.newGroup || null };
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-remove-name]').forEach((button) => {
+    button.addEventListener('click', () => {
+      snapshotNames();
+      state.newName = view.querySelector('#game-name').value;
+      state.newConfig = readConfigFromForm();
+      state.newGameNames.splice(Number(button.dataset.removeName), 1);
+      render();
+    });
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    snapshotNames();
+    const presetId = state.newPresetId || PRESETS[0].id;
+    const preset = getPreset(presetId);
+    const config = readConfigFromForm();
+    const [min, max] = preset.players;
+    let names = state.newGameNames
+      .slice(0, max)
+      .map((name, index) => (name || '').trim() || t(config.entrantLabel === 'team' ? 'new.teamName' : 'new.playerName', { n: index + 1 }));
+
+    // In a group that fixes its first names, the players are among them —
+    // written as the list writes them. Teams are not people: any name.
+    const roster = config.entrantLabel === 'team' ? [] : rosterForNew();
+    if (roster.length) {
+      const { group } = destinationForNew();
+      const mine = myNameIn(group.id);
+      const listed = names.map((name) => rosterName(group.id, name)
+        || (mine && name.toLowerCase() === myName().toLowerCase() ? mine : ''));
+      if (listed.some((name) => !name)) {
+        flash(t('roster.gameNames', { name: group.name, names: roster.join(', ') }), 'error');
+        render();
+        return;
+      }
+      names = listed;
+    }
+
+    if (names.length < min || names.length > max) {
+      flash(t('new.errorPlayers', { min, max, label: t(config.entrantLabel === 'team' ? 'new.teams' : 'new.players').toLowerCase() }), 'error');
+      render();
+      return;
+    }
+    if (new Set(names.map((name) => name.toLowerCase())).size !== names.length) {
+      flash(t('new.errorNames'), 'error');
+      render();
+      return;
+    }
+
+    const game = landing(createGame({
+      presetId,
+      names,
+      overrides: config,
+      name: view.querySelector('#game-name').value,
+    }));
+    state.games = [...state.games, game];
+    persist(game);
+    resetGroupChoice();
+
+    state.newGameNames = ['', '', ''];
+    state.newGameTouched = false;
+    state.newPresetId = null;
+    state.newConfig = null;
+    state.newName = '';
+    navigate(`#/game/${game.id}`);
+  });
+}
+
+/** What the open card counter holds, while it is open. */
+let counterEntry = emptyHelperEntry();
+
+function emptyDeal(game) {
+  return {
+    takerId: game.players[0]?.id || null,
+    partnerId: null,
+    contract: 'garde',
+    oudlers: 1,
+    points: null,
+    petitAuBout: 'none',
+    poignee: 'none',
+    chelem: 'none',
+  };
+}
+
+/** The Tarot entry screen: a deal is described, not a row of scores typed. */
+function tarotFormHtml(game) {
+  const editing = state.editingRoundId
+    ? game.rounds.find((round) => round.id === state.editingRoundId)
+    : null;
+  const index = editing ? game.rounds.indexOf(editing) + 1 : game.rounds.length + 1;
+  const threshold = THRESHOLDS[state.deal.oudlers];
+  const complete = isCompleteDeal(game.players, state.deal);
+  const result = complete ? scoreDeal(game.players, state.deal) : null;
+
+  const options = (items, selected, label) =>
+    items.map((item) => `<option value="${item.id}" ${item.id === selected ? 'selected' : ''}>${escapeHtml(label(item))}</option>`).join('');
+
+  const playerOptions = (selected, extra = '') =>
+    extra + game.players
+      .map((player) => `<option value="${escapeHtml(player.id)}" ${player.id === selected ? 'selected' : ''}>${escapeHtml(player.name)}</option>`)
+      .join('');
+
+  return `
+    <form id="round-form" class="card stack">
+      <h2>${escapeHtml(editing ? t('game.editRound', { n: index }) : t('game.newRound', { n: index }))}</h2>
+
+      <div class="field-grid">
+        <label>${escapeHtml(t('tarot.taker'))}
+          <select id="deal-taker">${playerOptions(state.deal.takerId)}</select>
+        </label>
+        ${
+          game.players.length === 5
+            ? `<label>${escapeHtml(t('tarot.partner'))}
+                 <select id="deal-partner">
+                   <option value="">${escapeHtml(t('tarot.alone'))}</option>
+                   ${playerOptions(state.deal.partnerId)}
+                 </select>
+               </label>`
+            : ''
+        }
+        <label>${escapeHtml(t('tarot.contract'))}
+          <select id="deal-contract">${options(CONTRACTS, state.deal.contract, (c) => `${t(`tarot.${c.id}`)} ×${c.multiplier}`)}</select>
+        </label>
+        <label>${escapeHtml(t('tarot.oudlers'))}
+          <select id="deal-oudlers">
+            ${[0, 1, 2, 3].map((n) => `<option value="${n}" ${n === state.deal.oudlers ? 'selected' : ''}>${n} — ${THRESHOLDS[n]} ${escapeHtml(t('tarot.pointsNeeded'))}</option>`).join('')}
+          </select>
+        </label>
+        <label>${escapeHtml(t('tarot.points', { max: TOTAL_POINTS }))}
+          <input type="number" id="deal-points" inputmode="numeric" step="1" min="0" max="${TOTAL_POINTS}"
+                 value="${Number.isFinite(state.deal.points) ? state.deal.points : ''}" />
+        </label>
+        <label>${escapeHtml(t('tarot.petitAuBout'))}
+          <select id="deal-petit">
+            ${['none', 'taker', 'defence'].map((id) => `<option value="${id}" ${id === state.deal.petitAuBout ? 'selected' : ''}>${escapeHtml(t(`tarot.petit.${id}`))}</option>`).join('')}
+          </select>
+        </label>
+        <label>${escapeHtml(t('tarot.poignee'))}
+          <select id="deal-poignee">${options(POIGNEES, state.deal.poignee, (p) => `${t(`tarot.poignee.${p.id}`)}${p.value ? ` (+${p.value})` : ''}`)}</select>
+        </label>
+        <label>${escapeHtml(t('tarot.chelem'))}
+          <select id="deal-chelem">${options(CHELEMS, state.deal.chelem, (c) => t(`tarot.chelem.${c.id}`))}</select>
+        </label>
+      </div>
+
+      ${
+        result
+          ? `<div class="deal-result ${result.won ? 'deal-result--won' : 'deal-result--lost'}">
+               <strong>${escapeHtml(t(result.won ? 'tarot.made' : 'tarot.failed', {
+                 gap: Math.abs(result.gap),
+               }))}</strong>
+               <span class="small">${escapeHtml(t('tarot.sum', {
+                 base: 25,
+                 gap: Math.abs(result.gap),
+                 petit: result.breakdown.petit ? (result.breakdown.petit > 0 ? ` + 10` : ` − 10`) : '',
+                 multiplier: result.multiplier,
+                 extra: [
+                   result.breakdown.poignee ? `${result.breakdown.poignee > 0 ? '+' : '−'} ${Math.abs(result.breakdown.poignee)}` : '',
+                   result.breakdown.chelem ? `${result.breakdown.chelem > 0 ? '+' : '−'} ${Math.abs(result.breakdown.chelem)}` : '',
+                 ].filter(Boolean).map((piece) => ` ${piece}`).join(''),
+                 amount: result.amount,
+               }))}</span>
+               <div class="deal-scores">
+                 ${game.players.map((player) => `<span><b>${escapeHtml(player.name)}</b> ${result.scores[player.id] > 0 ? '+' : ''}${result.scores[player.id]}</span>`).join('')}
+               </div>
+             </div>`
+          : `<p class="muted small">${escapeHtml(t('tarot.needPoints'))}</p>`
+      }
+
+      <label>${escapeHtml(t('game.note'))}
+        <input type="text" id="round-note" value="${escapeHtml(editing?.note || '')}" />
+      </label>
+
+      <div class="row">
+        <button type="submit" class="button button--primary" ${complete ? '' : 'disabled'}>
+          ${escapeHtml(editing ? t('action.saveRound') : t('action.addRound'))}
+        </button>
+        ${
+          editing
+            ? `<button type="button" class="button" id="cancel-edit">${escapeHtml(t('action.cancel'))}</button>
+               <button type="button" class="button button--danger" id="delete-round">${escapeHtml(t('action.deleteRound'))}</button>`
+            : ''
+        }
+      </div>
+    </form>`;
+}
+
+function renderCounter(helper, player) {
+  const dialog = document.getElementById('counter-dialog');
+  const total = helperTotal(helper, counterEntry);
+
+  dialog.querySelector('#counter-title').textContent = t('helper.title', { name: player.name });
+  dialog.querySelector('#counter-total').textContent = t('helper.total', { total });
+  dialog.querySelector('#counter-count').textContent = t('helper.cards', {
+    count: counterEntry.cards.length,
+  });
+
+  dialog.querySelector('#counter-values').innerHTML = helper.values
+    .map((value) => {
+      const count = cardCount(counterEntry, value);
+      const label = helper.labels?.[value] ?? value;
+      return `
+        <button type="button" class="card-button ${count ? 'card-button--picked' : ''}"
+                data-card="${value}">
+          <span>${escapeHtml(String(label))}</span>
+          ${count > 1 ? `<small>×${count}</small>` : ''}
+        </button>`;
+    })
+    .join('');
+
+  dialog.querySelector('#counter-toggles').innerHTML = (helper.toggles || [])
+    .map(
+      (item) => `
+        <label class="checkbox">
+          <input type="checkbox" data-switch="${escapeHtml(item.key)}"
+                 ${counterEntry.toggles[item.key] ? 'checked' : ''} />
+          ${escapeHtml(t(item.labelKey))}
+        </label>`,
+    )
+    .join('');
+
+  dialog.querySelector('#counter-undo').disabled = counterEntry.cards.length === 0;
+  dialog.querySelector('#counter-apply').disabled = isEmptyEntry(counterEntry);
+}
+
+function openCounter(game, playerId) {
+  const helper = getPreset(game.presetId)?.helper;
+  const player = game.players.find((item) => item.id === playerId);
+  if (!helper || !player) return;
+
+  let dialog = document.getElementById('counter-dialog');
+  if (!dialog) {
+    dialog = document.createElement('dialog');
+    dialog.id = 'counter-dialog';
+    dialog.className = 'dialog';
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2 id="counter-title"></h2>
+        <p class="muted small" id="counter-hint"></p>
+        <div class="counter-readout">
+          <strong id="counter-total"></strong>
+          <span class="muted small" id="counter-count"></span>
+        </div>
+        <div class="card-grid" id="counter-values"></div>
+        <div class="stack" id="counter-toggles"></div>
+        <div class="row">
+          <button type="button" class="button button--primary" id="counter-apply"></button>
+          <button type="button" class="button button--small" id="counter-undo"></button>
+          <button type="button" class="button button--small" id="counter-clear"></button>
+          <button type="button" class="button button--small button--ghost" id="counter-close"></button>
+        </div>
+      </div>`;
+    document.body.append(dialog);
+  }
+
+  // The listeners close over this round's game and player, so they are rebound
+  // every time the counter opens.
+  const fresh = dialog.cloneNode(true);
+  dialog.replaceWith(fresh);
+  dialog = fresh;
+
+  counterEntry = emptyHelperEntry();
+
+  dialog.querySelector('#counter-hint').textContent = helper.hintKey ? t(helper.hintKey) : '';
+  dialog.querySelector('#counter-apply').textContent = t('helper.apply');
+  dialog.querySelector('#counter-undo').textContent = t('helper.undo');
+  dialog.querySelector('#counter-clear').textContent = t('helper.clear');
+  dialog.querySelector('#counter-close').textContent = t('action.close');
+
+  dialog.querySelector('#counter-values').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-card]');
+    if (!button) return;
+    counterEntry = tapCard(helper, counterEntry, Number(button.dataset.card));
+    renderCounter(helper, player);
+  });
+
+  dialog.querySelector('#counter-toggles').addEventListener('change', (event) => {
+    const box = event.target.closest('[data-switch]');
+    if (!box) return;
+    counterEntry = toggleSwitch(counterEntry, box.dataset.switch);
+    renderCounter(helper, player);
+  });
+
+  dialog.querySelector('#counter-undo').addEventListener('click', () => {
+    counterEntry = undoCard(counterEntry);
+    renderCounter(helper, player);
+  });
+
+  dialog.querySelector('#counter-clear').addEventListener('click', () => {
+    counterEntry = emptyHelperEntry();
+    renderCounter(helper, player);
+  });
+
+  dialog.querySelector('#counter-close').addEventListener('click', () => dialog.close());
+
+  dialog.querySelector('#counter-apply').addEventListener('click', () => {
+    const input = view.querySelector(`[data-score="${player.id}"]`);
+    if (input) input.value = String(helperTotal(helper, counterEntry));
+    dialog.close();
+    refreshSumLine(game);
+  });
+
+  renderCounter(helper, player);
+  dialog.showModal();
+}
+
+/** Read the Tarot form back into the deal, and redraw its result. */
+function bindTarot(game) {
+  const fields = {
+    '#deal-taker': (v) => { state.deal.takerId = v; },
+    '#deal-partner': (v) => { state.deal.partnerId = v || null; },
+    '#deal-contract': (v) => { state.deal.contract = v; },
+    '#deal-oudlers': (v) => { state.deal.oudlers = Number(v); },
+    '#deal-points': (v) => { state.deal.points = v === '' ? null : Number(v); },
+    '#deal-petit': (v) => { state.deal.petitAuBout = v; },
+    '#deal-poignee': (v) => { state.deal.poignee = v; },
+    '#deal-chelem': (v) => { state.deal.chelem = v; },
+  };
+
+  for (const [selector, apply] of Object.entries(fields)) {
+    const field = view.querySelector(selector);
+    field?.addEventListener('input', (event) => {
+      apply(event.target.value);
+      // Only the result panel changes, so the form is redrawn in place and
+      // the field being typed into keeps the focus.
+      const active = document.activeElement?.id;
+      const caret = document.activeElement?.selectionStart ?? null;
+      render();
+      const again = active ? view.querySelector(`#${active}`) : null;
+      if (again) {
+        again.focus();
+        if (caret !== null && again.setSelectionRange) {
+          try { again.setSelectionRange(caret, caret); } catch { /* not a text field */ }
+        }
+      }
+    });
+  }
+}
+
+function submitDeal(game) {
+  if (!isCompleteDeal(game.players, state.deal)) return;
+  const { scores } = scoreDeal(game.players, state.deal);
+  const note = view.querySelector('#round-note')?.value.trim() || '';
+  const meta = JSON.stringify(state.deal);
+
+  const next = state.editingRoundId
+    ? updateRound(game, state.editingRoundId, { scores, meta, note })
+    : addRound(game, { scores, meta, note });
+
+  state.editingRoundId = null;
+  state.deal = emptyDeal(game);
+  replaceGame(next);
+  render();
+}
+
+/** Hand the viewer a file. Where the page is not allowed to, nothing happens. */
+function download(filename, bytes, type) {
+  const url = URL.createObjectURL(new Blob([bytes], { type }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/** A safe-ish file name from any title: letters, digits, and what joins them. */
+function fileName(title) {
+  const base = String(title || '')
+    .replace(/[^\p{L}\p{N} _-]/gu, '')
+    .trim()
+    .replace(/\s+/g, '-');
+  return base || 'together';
+}
+
+/** A safe-ish file name built from the game's own title. */
+function fileNameFor(game, extension) {
+  const base = `${gameTitle(game)} ${formatDate(game.updatedAt)}`
+    .replace(/[^\p{L}\p{N} _-]/gu, '')
+    .trim()
+    .replace(/\s+/g, '-');
+  return `${base || 'marque-points'}.${extension}`;
+}
+
+/** Everything a results file needs, already translated. */
+function reportFor(game) {
+  const status = gameStatus(game);
+  const preset = getPreset(game.presetId);
+  return {
+    title: gameTitle(game),
+    subtitle: [
+      preset ? presetLabel(preset) : '',
+      formatDate(game.updatedAt),
+      t('home.rounds', { count: game.rounds.length }),
+    ].filter(Boolean).join(' · '),
+    winner: status.finished && status.winners.length
+      ? t(status.winners.length > 1 ? 'home.winners' : 'home.winner', {
+          name: status.winners.map((row) => row.name).join(', '),
+        })
+      : '',
+    standingsTitle: t('game.standings'),
+    standingsHeader: [t('game.rank'), t('new.players'), t('game.total')],
+    standings: status.standings.map((row) => [String(row.rank), row.name, String(row.total)]),
+    roundsTitle: t('game.perRound'),
+    roundsHeader: [t('game.round'), ...game.players.map((player) => player.name)],
+    rounds: game.rounds.map((round, index) => [
+      String(index + 1),
+      ...game.players.map((player) => String(roundScore(round, player.id))),
+    ]),
+  };
+}
+
+/** Fix a mistyped name, mid-game, without touching a single score. */
+function openRenameDialog(game) {
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <form method="dialog" class="stack">
+      <h2>${escapeHtml(t('rename.title'))}</h2>
+      <p class="muted small">${escapeHtml(t('rename.hint'))}</p>
+      <div class="stack">
+        ${game.players
+          .map(
+            (player, index) => `
+            <label>${escapeHtml(t(game.config.entrantLabel === 'team' ? 'new.teamName' : 'new.playerName', { n: index + 1 }))}
+              <input type="text" data-rename="${escapeHtml(player.id)}" value="${escapeHtml(player.name)}" />
+            </label>`,
+          )
+          .join('')}
+      </div>
+      <div class="row">
+        <button type="button" class="button button--primary" id="rename-save">${escapeHtml(t('action.save'))}</button>
+        <button type="button" class="button" id="rename-cancel">${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </form>`;
+
+  const close = () => dialog.close();
+  dialog.querySelector('#rename-cancel').addEventListener('click', close);
+  dialog.querySelector('#rename-save').addEventListener('click', () => {
+    let next = game;
+    dialog.querySelectorAll('[data-rename]').forEach((input) => {
+      next = renamePlayer(next, input.dataset.rename, input.value);
+    });
+    close();
+    if (next !== game) {
+      replaceGame(next);
+      render();
+    }
+  });
+
+  dialog.showModal();
+}
+
+function bindGame(game) {
+  const form = view.querySelector('#round-form');
+  const preset = getPreset(game.presetId);
+
+  if (preset?.calculator === 'tarot') {
+    bindTarot(game);
+    form?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      submitDeal(game);
+    });
+  }
+
+  if (preset?.calculator !== 'tarot') {
+    form?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      void submitRound(game);
+    });
+
+    form?.addEventListener('input', () => refreshSumLine(game));
+    refreshSumLine(game);
+  }
+
+  // Enter walks down the score inputs instead of submitting halfway through.
+  const inputs = [...view.querySelectorAll('[data-score]')];
+  inputs.forEach((input, index) => {
+    input.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' || index === inputs.length - 1) return;
+      event.preventDefault();
+      inputs[index + 1].focus();
+    });
+  });
+
+  view.querySelectorAll('[data-helper]').forEach((button) => {
+    button.addEventListener('click', () => openCounter(game, button.dataset.helper));
+  });
+
+  view.querySelector('#complete')?.addEventListener('click', (event) => {
+    const { playerId, value } = event.currentTarget.dataset;
+    const input = view.querySelector(`[data-score="${playerId}"]`);
+    if (input) input.value = value;
+    refreshSumLine(game);
+  });
+
+  view.querySelector('#cancel-edit')?.addEventListener('click', () => {
+    state.editingRoundId = null;
+    if (preset?.calculator === 'tarot') state.deal = emptyDeal(game);
+    render();
+  });
+
+  view.querySelector('#delete-round')?.addEventListener('click', async () => {
+    const roundId = state.editingRoundId;
+    if (!(await ask(t('game.confirmDeleteRound'), { confirmLabel: t('action.delete'), danger: true }))) return;
+    replaceGame(removeRound(game, roundId));
+    state.editingRoundId = null;
+    render();
+  });
+
+  const openRound = (roundId) => {
+    state.editingRoundId = roundId;
+    if (preset?.calculator === 'tarot') {
+      const round = game.rounds.find((item) => item.id === roundId);
+      try {
+        const stored = JSON.parse(round?.meta || 'null');
+        state.deal = stored && typeof stored === 'object' ? stored : emptyDeal(game);
+      } catch {
+        state.deal = emptyDeal(game);
+      }
+    }
+    render();
+    view.querySelector('#round-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  view.querySelectorAll('[data-edit-round]').forEach((row) => {
+    row.addEventListener('click', () => openRound(row.dataset.editRound));
+    row.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openRound(row.dataset.editRound);
+      }
+    });
+  });
+
+  view.querySelector('#undo')?.addEventListener('click', async () => {
+    const last = game.rounds[game.rounds.length - 1];
+    if (!last) return;
+    if (!(await ask(t('game.confirmDeleteRound'), { confirmLabel: t('action.delete'), danger: true }))) return;
+    state.editingRoundId = null;
+    replaceGame(removeRound(game, last.id));
+    render();
+  });
+
+  view.querySelector('#share')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    let current = game;
+
+    if (!current.shared) {
+      // Send it before handing out a link to it, or the link opens nothing.
+      button.disabled = true;
+      button.textContent = t('share.sending');
+      current = await startSharing(current);
+      if (!current) return;
+      replaceGame(current);
+      // Redraw so every handler below works on the now-shared game: without
+      // this, the round form still holds the copy captured before sharing,
+      // and the next round would be saved as unshared and never sent.
+      render();
+    }
+
+    showCopyDialog({
+      title: t('share.title'),
+      hint: t('share.hint'),
+      text: shareLink(location, current.id),
+      qr: true,
+    });
+  });
+
+  view.querySelector('#recap')?.addEventListener('click', () => {
+    showCopyDialog({
+      title: t('results.recapTitle'),
+      hint: t('results.recapHint'),
+      text: recapText(game, t, { title: gameTitle(game), withRounds: true }),
+    });
+  });
+
+  view.querySelector('#export-docx')?.addEventListener('click', () => {
+    download(fileNameFor(game, 'docx'), buildDocx(reportFor(game)),
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  });
+
+  view.querySelector('#export-pdf')?.addEventListener('click', () => {
+    download(fileNameFor(game, 'pdf'), buildPdf(reportFor(game)), 'application/pdf');
+  });
+
+  view.querySelector('#game-archive')?.addEventListener('click', () => {
+    const next = archiveGame(game, !game.archivedAt);
+    flash(t(next.archivedAt ? 'archive.done' : 'archive.undone'));
+    replaceGame(next);
+    if (next.archivedAt) navigate('#/games');
+    else render();
+  });
+
+  view.querySelector('#replay')?.addEventListener('click', () => {
+    const next = replayGame(game);
+    state.games = [...state.games, next];
+    persist(next);
+    navigate(`#/game/${next.id}`);
+  });
+
+  view.querySelector('#rename')?.addEventListener('click', () => openRenameDialog(game));
+
+  view.querySelector('#toggle-finish')?.addEventListener('click', () => {
+    replaceGame(setFinished(game, !game.finishedAt));
+    render();
+  });
+
+  view.querySelector('#delete-game')?.addEventListener('click', async () => {
+    if (!(await ask(t('game.confirmDeleteGame'), { confirmLabel: t('action.delete'), danger: true }))) return;
+    state.games = state.games.filter((item) => item.id !== game.id);
+    forget(game.id, game);
+    navigate('#/games');
+  });
+}
+
+  // ---- src/view-groups.js ----------------------------------------------
+/**
+ * Groups on screen: joining, inviting, admitting, sharing the app, and the
+ * lots of games opened with a code.
+ *
+ * Split out of app.js, which it calls back into: only from inside functions,
+ * so the two may import each other.
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ------------------------------------------------------------- the chain --- */
+
+/** Write a document back, whatever its kind. */
+function replaceAny(next) {
+  const kind = kindOf(next);
+  if (kind === 'list') replaceList(next);
+  else if (kind === 'poll') replacePoll(next);
+  else if (kind === 'spend') replaceSpend(next);
+  else if (kind === 'board') replaceBoard(next);
+  else replaceGame(next);
+}
+
+/** What a document is, in a word: « Liste », « Sondage »… — an event says so. */
+function kindLabel(document_) {
+  if (isEventDoc(document_)) return t('chain.kind.event');
+  return t(`chain.kind.${kindOf(document_) || 'game'}`);
+}
+
+/** The choices of an attach dialog: events first, soonest first; then the rest, newest first. */
+function candidatesHtml(documents, { on = null, attr }) {
+  const events = documents.filter(isEventDoc).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const others = documents.filter((one) => !isEventDoc(one)).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const row = (one) => `
+    <button type="button" class="game-card ${one.id === on ? 'game-card--on' : ''}" ${attr}="${escapeHtml(one.id)}"
+            ${one.id === on ? 'aria-current="true"' : ''}>
+      <span class="game-card__title">${escapeHtml(chainLabel(one))}</span>
+      <span class="game-card__meta">${escapeHtml([kindLabel(one), ...chainOf(one).map(chainLabel)].join(' · '))}</span>
+    </button>`;
+  const block = (title, rows) => (rows.length
+    ? `<span class="muted small">${escapeHtml(title)}</span><div class="game-list">${rows.map(row).join('')}</div>`
+    : '');
+  return `${block(t('events.title'), events)}${block(t('chain.others'), others)}`;
+}
+
+/**
+ * Attach a document to another — an event, or anything in its chain — or
+ * detach it, to attach it elsewhere later. Only what lives in the same group
+ * is offered, and nothing below it: the chain never closes on itself.
+ */
+function openAttachDialog(document_) {
+  const targets = attachTargets(document_, everything());
+  const chain = chainOf(document_);
+  const current = parentId(document_) && chain.length ? chain[chain.length - 1] : null;
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('chain.attachTitle', { name: documentTitle(document_) }))}</h2>
+      ${
+        current
+          ? `<p class="small">${escapeHtml(t('chain.now', { chain: chain.map(chainLabel).join(' › ') }))}</p>
+             <div class="row"><button type="button" class="button" data-detach>${escapeHtml(t('chain.detach'))}</button></div>`
+          : `<p class="muted small">${escapeHtml(t(isEventDoc(document_) ? 'activity.attachHint' : 'chain.attachHint'))}</p>`
+      }
+      ${targets.length ? candidatesHtml(targets, { on: current?.id, attr: 'data-attach-to' }) : `<p class="muted small">${escapeHtml(t('chain.nothing'))}</p>`}
+      <div class="row">
+        <button type="button" class="button button--ghost" data-attach-cancel>${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </div>`;
+  dialog.querySelector('[data-attach-cancel]').addEventListener('click', () => dialog.close());
+  dialog.querySelector('[data-detach]')?.addEventListener('click', () => {
+    dialog.close();
+    replaceAny(attach(document_, null));
+    flash(t('chain.detached', { name: chainLabel(current) }));
+  });
+  dialog.querySelectorAll('[data-attach-to]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const target = targets.find((one) => one.id === node.dataset.attachTo);
+      dialog.close();
+      if (!target || target.id === current?.id) return;
+      replaceAny(attach(document_, target.id));
+      flash(t('chain.attached', { name: chainLabel(target) }));
+    });
+  });
+  dialog.showModal();
+}
+
+/**
+ * The other way round: bring existing things under this one — on an event,
+ * the list made last week, the poll started before the date was known. Offers
+ * what may go there and is not there yet.
+ */
+function openGatherDialog(target) {
+  const all = everything();
+  const offered = all.filter(
+    (one) => parentId(one) !== target.id && attachTargets(one, all).some((candidate) => candidate.id === target.id),
+  );
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('chain.gatherTitle', { name: chainLabel(target) }))}</h2>
+      <p class="muted small">${escapeHtml(t('chain.gatherHint'))}</p>
+      ${offered.length ? candidatesHtml(offered, { attr: 'data-gather' }) : `<p class="muted small">${escapeHtml(t('chain.nothingToGather'))}</p>`}
+      <div class="row">
+        <button type="button" class="button button--ghost" data-gather-close>${escapeHtml(t('action.close'))}</button>
+      </div>
+    </div>`;
+  dialog.querySelector('[data-gather-close]').addEventListener('click', () => dialog.close());
+  dialog.querySelectorAll('[data-gather]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const one = offered.find((candidate) => candidate.id === node.dataset.gather);
+      dialog.close();
+      if (!one) return;
+      replaceAny(attach(one, target.id));
+      flash(t('chain.gathered', { name: documentTitle(one), target: chainLabel(target) }));
+    });
+  });
+  dialog.showModal();
+}
+
+/**
+ * Link a document to another, across the chain. The links it has already come
+ * first, each said as a sentence, with a way to undo it; then what to link it
+ * to; then how, in sentences naming both — « Courses » se fait après « Quel
+ * vin ? » — never one that would make an order go round in a circle.
+ */
+function openRelateDialog(document_) {
+  const dialog = makeDialog();
+  let target = null;
+  // A link as it reads from here, whichever side holds it.
+  const sentence = (kind, other) => t(`relate.says.${kind}`, { name: chainLabelShort(document_), other: chainLabelShort(other) });
+  const fromHere = { with: 'with', waits: 'after', unblocks: 'before' };
+  const draw = () => {
+    const all = everything();
+    const relations = relationsOf(document_, all);
+    const targets = linkTargets(document_, all, 'with');
+    // Two ways, one verb each: goes with it, or waits for it. That the other
+    // waits for this one is said from the other one — the same link, seen
+    // from there; links made that way before keep their meaning.
+    const ways = target
+      ? ['with', 'after'].filter((kind) => linkTargets(document_, all, kind).some((one) => one.id === target.id))
+      : [];
+    const close = `<button type="button" class="button button--ghost" data-relate-close>${escapeHtml(t('action.close'))}</button>`;
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(t('relate.title', { name: documentTitle(document_) }))}</h2>
+        ${
+          target
+            ? `<span class="muted small">${escapeHtml(t('relate.how'))}</span>
+               ${
+                 ways.length
+                   ? `<div class="game-list">${ways.map((kind) => `
+                       <button type="button" class="game-card" data-relate-kind="${kind}">
+                         <span class="game-card__title">${escapeHtml(sentence(kind, target))}</span>
+                       </button>`).join('')}</div>`
+                   : `<p class="muted small">${escapeHtml(t('relate.nothing'))}</p>`
+               }
+               <div class="row">
+                 <button type="button" class="button" data-relate-back>${escapeHtml(t('relate.back'))}</button>
+                 ${close}
+               </div>`
+            : `<p class="muted small">${escapeHtml(t('relate.hint'))}</p>
+               ${
+                 relations.length
+                   ? `<span class="muted small">${escapeHtml(t('relate.current'))}</span>
+                      <ul class="relate-list">${relations.map((one) => `
+                        <li class="relate-list__row">
+                          <span>${escapeHtml(sentence(fromHere[one.kind], one.document))}</span>
+                          <button type="button" class="button button--small button--ghost" data-unrelate="${escapeHtml(one.document.id)}">${escapeHtml(t('relate.undo'))}</button>
+                        </li>`).join('')}</ul>`
+                   : ''
+               }
+               <span class="muted small">${escapeHtml(t('relate.pick'))}</span>
+               ${targets.length ? candidatesHtml(targets, { attr: 'data-relate-to' }) : `<p class="muted small">${escapeHtml(t('relate.nothing'))}</p>`}
+               <div class="row">${close}</div>`
+        }
+      </div>`;
+    dialog.querySelector('[data-relate-close]').addEventListener('click', () => dialog.close());
+    // Each step replaces the last: the focus goes on with the reader.
+    dialog.querySelector('[data-relate-back]')?.addEventListener('click', () => {
+      const was = target;
+      target = null;
+      draw();
+      [...dialog.querySelectorAll('[data-relate-to]')].find((one) => one.dataset.relateTo === was?.id)?.focus();
+    });
+    dialog.querySelectorAll('[data-relate-to]').forEach((node) => {
+      node.addEventListener('click', () => {
+        target = targets.find((one) => one.id === node.dataset.relateTo) || null;
+        draw();
+        dialog.querySelector('[data-relate-kind], [data-relate-back]')?.focus();
+      });
+    });
+    dialog.querySelectorAll('[data-relate-kind]').forEach((node) => {
+      node.addEventListener('click', () => {
+        const kind = node.dataset.relateKind;
+        dialog.close();
+        if (!target) return;
+        const fresh = everything().find((one) => one.id === document_.id) || document_;
+        replaceAny(linkTo(fresh, target.id, kind));
+        flash(t('relate.done', { name: chainLabel(target) }));
+      });
+    });
+    dialog.querySelectorAll('[data-unrelate]').forEach((node) => {
+      node.addEventListener('click', () => {
+        const one = relations.find((relation) => relation.document.id === node.dataset.unrelate);
+        if (!one) return;
+        // Either side may hold it — both, even, if two phones linked them at once.
+        for (const [holder, other] of [[document_.id, one.document.id], [one.document.id, document_.id]]) {
+          const held = everything().find((doc) => doc.id === holder);
+          if (held && (held.links || []).some((link) => link?.id === other)) replaceAny(unlinkFrom(held, other));
+        }
+        flash(t('relate.undone', { name: chainLabel(one.document) }));
+        draw();
+      });
+    });
+  };
+  draw();
+  dialog.showModal();
+}
+
+/* ----------------------------------------------------------------- groups --- */
+
+/**
+ * A group is a circle of people and a key: the family, the Tuesday card
+ * players. Holding its key is what lets this device start sharing, and what
+ * shows it everything the group shares — games, lists and polls together.
+ *
+ * The keys live on this device and nowhere else: not in the repository, not in
+ * the page, not in an export.
+ */
+function groups() {
+  const value = state.prefs.groups;
+  return Array.isArray(value)
+    ? value.filter((group) => group && typeof group.key === 'string' && group.key)
+    : [];
+}
+
+function rememberGroup(group) {
+  const known = groups().some((held) => held.id === group.id && held.key === group.key);
+  const others = groups().filter((held) => held.id !== group.id);
+  state.prefs = { ...state.prefs, groups: [...others, group] };
+  savePrefs(state.prefs);
+  // A group joined here, while signed in: the account learns it at once. And
+  // now there is something worth asking the browser to keep.
+  if (!known) {
+    void syncAccount({ restore: false, force: true });
+    void keepData();
+    void syncPush();
+  }
+}
+
+function forgetGroup(id) {
+  state.prefs = { ...state.prefs, groups: groups().filter((group) => group.id !== id) };
+  savePrefs(state.prefs);
+}
+
+/** The first names a group has fixed, as the database gave them — or none. */
+function fixedPeople(found) {
+  return Array.isArray(found?.people)
+    ? found.people.filter((name) => typeof name === 'string' && name.trim()).map((name) => name.trim().slice(0, 24))
+    : [];
+}
+
+/** The first name this device's person entered the group under, as the database has it. */
+function knownAs(found) {
+  return typeof found?.who === 'string' ? found.who.trim().slice(0, 24) : '';
+}
+
+/**
+ * The first names a group has decided on, or [] when it fixes none.
+ *
+ * Decided in advance by whoever lets people in, on the group's page: then a
+ * list, a poll or an account of the group takes its people from these names
+ * and no others — « Gui » is not « Guillaume » in the next list.
+ */
+function rosterOf(groupId) {
+  const group = groupId ? groups().find((held) => held.id === groupId) : null;
+  return Array.isArray(group?.people) ? group.people : [];
+}
+
+/** A name as the group's list writes it, or '' when it is not on it. */
+function rosterName(groupId, name) {
+  const key = sameName(name);
+  return (key && rosterOf(groupId).find((one) => sameName(one) === key)) || '';
+}
+
+/**
+ * Who this device is in a group. Where the group fixes its names: the one
+ * chosen there, or the device's own name when the list has it — and nobody
+ * until one is chosen. Elsewhere, the device's name.
+ */
+function myNameIn(groupId) {
+  if (!rosterOf(groupId).length) return myName();
+  const group = groups().find((held) => held.id === groupId);
+  return rosterName(groupId, group?.me) || rosterName(groupId, myName());
+}
+
+/**
+ * The names a document takes its people from: its group's, when the group
+ * fixes them. A link-only document is in no group's tabs, and takes any.
+ */
+function rosterFor(document_) {
+  return document_?.groupId && !document_.linkOnly ? rosterOf(document_.groupId) : [];
+}
+
+/** Who this device is for a document: in its group, or by its own name. */
+function myNameFor(document_) {
+  return rosterFor(document_).length ? myNameIn(document_.groupId) : myName();
+}
+
+/** Say who this device is in a group that fixes its names. */
+function setMyNameIn(groupId, name) {
+  const group = groups().find((held) => held.id === groupId);
+  const listed = rosterName(groupId, name);
+  if (!group || !listed || group.me === listed) return;
+  rememberGroup({ ...group, me: listed });
+}
+
+/** A window of names, to touch one. Answers it, or '' when the window is left. */
+function chooseName(names, title, hint) {
+  return new Promise((resolve) => {
+    const dialog = makeDialog();
+    let chosen = '';
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(title)}</h2>
+        <p class="muted small">${escapeHtml(hint)}</p>
+        <div class="row row--chips">
+          ${names.map((name) => `<button type="button" class="chip" data-who="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')}
+        </div>
+        <div class="row">
+          <button type="button" class="button button--ghost" data-who-cancel>${escapeHtml(t('action.cancel'))}</button>
+        </div>
+      </div>`;
+    dialog.querySelectorAll('[data-who]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        chosen = chip.dataset.who;
+        dialog.close();
+      });
+    });
+    dialog.querySelector('[data-who-cancel]').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('close', () => resolve(chosen));
+    dialog.showModal();
+  });
+}
+
+/**
+ * « Qui êtes-vous dans ce groupe ? » — the group's names, to touch one. Kept
+ * for the group; answers the name, or '' when the window is left.
+ */
+async function askWhoIn(groupId) {
+  const group = groups().find((held) => held.id === groupId);
+  const roster = rosterOf(groupId);
+  if (!group || !roster.length) return '';
+  const chosen = await chooseName(roster, t('roster.whoTitle', { name: group.name }), t('roster.whoHint'));
+  if (chosen) setMyNameIn(groupId, chosen);
+  return chosen;
+}
+
+/**
+ * Knock at a group's door as `me`. Where the group fixes its first names and
+ * `me` is none of them, they are shown, to touch one, and the knock is made
+ * again as that one. Answers as remote.ask() does, with `me`: who knocked —
+ * and { status: 'who' } when no name was chosen. Throws when out of reach.
+ */
+async function knockAs(name, code, me) {
+  const answer = await state.remote.ask(name, code, me, deviceLabel());
+  if (answer.status !== 'who') return { ...answer, me };
+  const chosen = await chooseName(answer.people, t('roster.whoTitle', { name }), t('roster.whoHint'));
+  if (!chosen) return { status: 'who', me };
+  return { ...(await state.remote.ask(name, code, chosen, deviceLabel())), me: chosen };
+}
+
+/**
+ * The names written in a group's documents that its list does not have:
+ * each is to be merged into a name of the list, or added to it.
+ */
+function offRoster(groupId, names) {
+  if (!rosterOf(groupId).length) return [];
+  const seen = new Set();
+  const out = [];
+  for (const name of names) {
+    const key = sameName(name);
+    if (!key || seen.has(key) || rosterName(groupId, name)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}
+
+/** The groups by name, so the pastilles keep their order from render to render. */
+function groupsByName() {
+  return [...groups()].sort((a, b) => String(a.name).localeCompare(String(b.name)));
+}
+
+/**
+ * Which group the three tabs are showing, '' for all of them.
+ *
+ * Kept in the preferences rather than in memory: looking at one group means
+ * looking at its lists *and* its polls *and* its games, so the choice has to
+ * survive a tab change and a reload. A filter left on a group this device has
+ * since left means nothing any more, and falls back to all of them.
+ */
+/**
+ * The pastille for what is in none of this device's groups: kept to oneself,
+ * sent by link only, or from a group this device is not in. Under "Tous" it
+ * is mixed in with everything else; here it is on its own, said as such.
+ */
+const OUTSIDE_GROUPS = 'outside';
+
+function outsideGroups(document_) {
+  return !groups().some((group) => inGroup(document_, group.id));
+}
+
+function groupFilter() {
+  const wanted = state.prefs.groupFilter || '';
+  if (wanted === OUTSIDE_GROUPS) return groups().length ? wanted : '';
+  return groups().some((group) => group.id === wanted) ? wanted : '';
+}
+
+function setGroupFilter(id) {
+  state.prefs = { ...state.prefs, groupFilter: id || '' };
+  savePrefs(state.prefs);
+}
+
+/** The documents a tab shows, once the chosen group has had its say. */
+function shownDocs(documents) {
+  const wanted = groupFilter();
+  if (wanted === OUTSIDE_GROUPS) return documents.filter(outsideGroups);
+  return wanted ? documents.filter((document_) => inGroup(document_, wanted)) : documents;
+}
+
+/**
+ * What the chosen group is keeping out of sight, when it is keeping anything.
+ *
+ * A filter that empties a tab tells the same story as having nothing: the page
+ * reads "no polls yet" while the polls are right there, one chip away. Worse
+ * for what was never shared — it belongs to no group, so *every* group hides
+ * it. So wherever the filter can empty a screen, it says how much it is
+ * holding back, and offers to stop.
+ */
+function hiddenByGroupHtml(all) {
+  const wanted = groupFilter();
+  if (!wanted) return '';
+  const hidden = all.length - shownDocs(all).length;
+  if (hidden <= 0) return '';
+  return `
+    <p class="muted small">
+      ${escapeHtml(t('filter.hidden', { count: hidden }))}
+      <button type="button" class="button button--small button--ghost" data-group-filter="">
+        ${escapeHtml(t('filter.all'))}
+      </button>
+    </p>`;
+}
+
+/**
+ * The group a device sends its new things to on its own, when it was asked to.
+ * Only when there is exactly one: with several, the app asks each time rather
+ * than choosing for you.
+ */
+function autoGroup() {
+  if (!state.prefs.autoShare || !state.remote) return null;
+  const held = groups();
+  return held.length === 1 ? held[0] : null;
+}
+
+/**
+ * The group a new thing goes into: the one being looked at, or the only one
+ * this device sends to on its own.
+ *
+ * Looking at Mifa and writing a list means writing a list for Mifa. Choosing
+ * the group again, in a dialog, for something that was made inside that very
+ * filter, is a question whose answer is already on the screen — and one that,
+ * unasked, left the list in no group at all.
+ */
+function groupForNew() {
+  const chosen = groupFilter();
+  if (chosen) return groups().find((group) => group.id === chosen) || null;
+  return autoGroup();
+}
+
+function resetGroupChoice() {
+  state.newGroupChoice = { touched: false, id: null };
+  state.newEventLink = null;
+}
+
+/** The group chip that says where an event's documents belong. */
+function chipOfEvent(poll) {
+  return poll.linkOnly ? LINK_ONLY : poll.groupId || '';
+}
+
+/**
+ * The event a new thing will be made for — dropped when the group chosen since
+ * is not the event's: what is made for an event lives where the event does.
+ */
+function linkedEvent() {
+  const poll = state.newEventLink ? state.polls.find((one) => one.id === state.newEventLink) : null;
+  if (!poll) return null;
+  if (state.remote && groups().length && state.newGroupChoice.touched && state.newGroupChoice.id !== chipOfEvent(poll)) {
+    state.newEventLink = null;
+    return null;
+  }
+  return poll;
+}
+
+/**
+ * Make the next new thing part of an event: its group chosen to match. From
+ * the event's own page, and from the event chips of a form.
+ */
+function chooseEvent(poll) {
+  state.newEventLink = poll?.id || null;
+  if (poll && state.remote && groups().length) state.newGroupChoice = { touched: true, id: chipOfEvent(poll) };
+}
+
+/** The group a new thing goes into, chip or no chip. */
+/** The chip that means "only those who get the link". */
+const LINK_ONLY = '@lien';
+
+/**
+ * Where a new thing lands: a group, nowhere, or "link only".
+ *
+ * Link only still needs a group behind it. Creating anything in the database
+ * takes a group's key — that is what keeps strangers from filling it — and the
+ * key that created a thing is the one that may delete it. So a link-only thing
+ * is written with a key of this device's, and the database is told the group
+ * must not list it: not in its tabs, not in its calendar. Which group lends
+ * the key matters to nobody but the one deleting, so it is the one being
+ * looked at, or the first by name.
+ */
+function destinationForNew() {
+  const held = groups();
+  if (!state.remote || !held.length) return { group: null, linkOnly: false };
+  if (state.newGroupChoice.touched) {
+    if (state.newGroupChoice.id === LINK_ONLY) {
+      return { group: groupForNew() || groupsByName()[0], linkOnly: true };
+    }
+    const group = state.newGroupChoice.id ? held.find((item) => item.id === state.newGroupChoice.id) || null : null;
+    return { group, linkOnly: false };
+  }
+  // Nobody has touched anything: the group being looked at, the only one there
+  // is, or — with several and none chosen — none, said plainly on the form.
+  return { group: groupForNew() || (held.length === 1 ? held[0] : null), linkOnly: false };
+}
+
+/** What a new document carries about where it went, and which event it is for. */
+function landing(document_, { forEvent = true } = {}) {
+  const { group, linkOnly } = destinationForNew();
+  const event = forEvent ? linkedEvent() : null;
+  return {
+    ...document_,
+    shared: Boolean(group),
+    groupId: group?.id || null,
+    ...(linkOnly ? { linkOnly: true } : {}),
+    ...(event ? { parent: event.id } : {}),
+  };
+}
+
+/**
+ * The chips that say where it will land, and change it — the group, then the
+ * event it is for, when there are events coming. Picking an event picks its
+ * group too.
+ */
+function willBeInHtml({ events = true } = {}) {
+  return `${groupChoiceHtml()}${events ? eventChoiceHtml() : ''}`;
+}
+
+/**
+ * The names a new document may take its people from — those of the group it
+ * is about to land in, when that group fixes them — or [] for any name.
+ */
+function rosterForNew() {
+  const { group, linkOnly } = destinationForNew();
+  return group && !linkOnly ? rosterOf(group.id) : [];
+}
+
+/**
+ * The people of a new document: those written, or — where the group fixes its
+ * names — those of them the list has, as it writes them and in its order. The
+ * device's own name stands for whoever it is in that group.
+ */
+function peopleForNew(names) {
+  const roster = rosterForNew();
+  if (!roster.length) return names;
+  const { group } = destinationForNew();
+  const me = sameName(myName());
+  const mine = sameName(myNameIn(group.id));
+  const keys = new Set(names.map(sameName).filter(Boolean).map((key) => (key === me && mine ? mine : key)));
+  return roster.filter((name) => keys.has(sameName(name)));
+}
+
+/**
+ * The people of a new document, where its group fixes its first names: the
+ * list, to tick — nothing to type, so nothing to mistype. '' elsewhere: the
+ * form keeps its fields.
+ */
+function rosterPickHtml(names, hint) {
+  const roster = rosterForNew();
+  if (!roster.length) return '';
+  const { group } = destinationForNew();
+  const on = new Set(peopleForNew(names).map(sameName));
+  return `
+    <div class="stack stack--tight" data-roster-pick>
+      <span class="muted small">${escapeHtml(hint)}</span>
+      <div class="row row--chips" role="group" aria-label="${escapeHtml(t('roster.title'))}">
+        ${roster
+          .map((name) => `
+            <button type="button" class="chip ${on.has(sameName(name)) ? 'chip--on' : ''}"
+                    data-roster-name="${escapeHtml(name)}" aria-pressed="${on.has(sameName(name)) ? 'true' : 'false'}">
+              ${escapeHtml(name)}
+            </button>`)
+          .join('')}
+      </div>
+      <div class="row">
+        <button type="button" class="button button--small button--ghost" data-roster-all>${escapeHtml(t('roster.everyone'))}</button>
+      </div>
+      <p class="muted small">${escapeHtml(t('roster.formHint', { name: group.name }))}</p>
+    </div>`;
+}
+
+/**
+ * Make the ticked list work: `read()` gives the form's names, `write(names)`
+ * keeps them. A group or an event chosen further down the form may change
+ * whose list this is: the form is then told (« rosterchange ») and redraws.
+ */
+function bindRosterPick(root, read, write) {
+  const mark = () => {
+    const on = new Set(peopleForNew(read()).map(sameName));
+    root.querySelectorAll('[data-roster-name]').forEach((chip) => {
+      const lit = on.has(sameName(chip.dataset.rosterName));
+      chip.classList.toggle('chip--on', lit);
+      chip.setAttribute('aria-pressed', lit ? 'true' : 'false');
+    });
+  };
+  root.querySelectorAll('[data-roster-name]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const key = sameName(chip.dataset.rosterName);
+      const held = peopleForNew(read());
+      write(held.some((name) => sameName(name) === key)
+        ? held.filter((name) => sameName(name) !== key)
+        : [...held, chip.dataset.rosterName]);
+      mark();
+    });
+  });
+  root.querySelector('[data-roster-all]')?.addEventListener('click', () => {
+    const all = rosterForNew();
+    write(peopleForNew(read()).length === all.length ? [] : [...all]);
+    mark();
+  });
+}
+
+function groupChoiceHtml() {
+  const held = groups();
+  if (!state.remote || !held.length) return '';
+  const { group, linkOnly } = destinationForNew();
+  const on = linkOnly ? LINK_ONLY : group?.id || '';
+  const chip = (id, label) => `
+    <button type="button" class="chip ${on === id ? 'chip--on' : ''}"
+            data-new-group="${escapeHtml(id)}" aria-pressed="${on === id ? 'true' : 'false'}">
+      ${escapeHtml(label)}
+    </button>`;
+  const note = linkOnly ? t('groups.linkOnlyHint') : group ? '' : t('groups.willBeInNone');
+  return `
+    <div class="stack stack--tight">
+      <span class="muted small">${escapeHtml(t('groups.willGoIn'))}</span>
+      <div class="row row--chips" role="group" aria-label="${escapeHtml(t('groups.willGoIn'))}">
+        ${groupsByName().map((item) => chip(item.id, item.name)).join('')}
+        ${chip(LINK_ONLY, t('groups.linkOnly'))}
+        ${chip('', t('groups.keepToMyself'))}
+      </div>
+      ${note ? `<p class="muted small">${escapeHtml(note)}</p>` : ''}
+    </div>`;
+}
+
+function eventChoiceHtml() {
+  const linked = linkedEvent();
+  const coming = upcomingEvents(state.polls).slice(0, 6);
+  if (linked && !coming.includes(linked)) coming.unshift(linked);
+  if (!coming.length) return '';
+  const on = linked?.id || '';
+  const chip = (id, label) => `
+    <button type="button" class="chip ${on === id ? 'chip--on' : ''}"
+            data-new-event="${escapeHtml(id)}" aria-pressed="${on === id ? 'true' : 'false'}">
+      ${escapeHtml(label)}
+    </button>`;
+  return `
+    <div class="stack stack--tight">
+      <span class="muted small">${escapeHtml(t('event.forWhich'))}</span>
+      <div class="row row--chips" role="group" aria-label="${escapeHtml(t('event.forWhich'))}">
+        ${chip('', t('event.none'))}
+        ${coming.map((poll) => chip(poll.id, `${eventName(poll) || poll.question} · ${formatDay(poll.date)}`)).join('')}
+      </div>
+    </div>`;
+}
+
+/**
+ * The event chips, on whichever form shows them. They change nothing typed,
+ * so they redraw nothing: the chips — the event's, and the group's it brings
+ * along — are updated where they are.
+ */
+function bindEventChips(root) {
+  root.querySelectorAll('[data-new-event]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const poll = state.polls.find((one) => one.id === node.dataset.newEvent) || null;
+      const before = rosterForNew().join('\n');
+      chooseEvent(poll);
+      const form = node.closest('form') || root;
+      // The event brought its group along, and that group's first names: the
+      // form redraws its people (it keeps what was typed first).
+      if (rosterForNew().join('\n') !== before) {
+        form.dispatchEvent(new CustomEvent('rosterchange'));
+        return;
+      }
+      const mark = (selector, value) => form.querySelectorAll(selector).forEach((other) => {
+        const on = other.dataset[selector === '[data-new-event]' ? 'newEvent' : 'newGroup'] === value;
+        other.classList.toggle('chip--on', on);
+        other.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      mark('[data-new-event]', poll?.id || '');
+      if (poll && state.newGroupChoice.touched) mark('[data-new-group]', state.newGroupChoice.id || '');
+    });
+  });
+}
+
+/** The group a document belongs to, when it belongs to one this device knows. */
+function groupOf(document_) {
+  return document_?.groupId ? groups().find((group) => group.id === document_.groupId) || null : null;
+}
+
+/**
+ * Which group a thing is in, said on the thing itself — and the way to put it
+ * in one.
+ *
+ * Until now the only way to attach a list or a poll to a group was the Share
+ * button, which reads as "give me a link", not as "put this in Mifa". With a
+ * single group the app did it silently and nobody had to know; with two, it
+ * stopped doing it and still nobody was told. So a document sat in no group,
+ * invisible to everyone else and hidden by every filter, with nothing on the
+ * page to say so or to fix it.
+ */
+function inGroupHtml(document_) {
+  if (!state.remote || !groups().length) return '';
+  if (document_.linkOnly) {
+    // No group to name, and none to put it in: the database fixed that at
+    // its first write. What it is, and how it travels, is all there is to say.
+    return `
+      <div class="row row--tight">
+        <span class="muted small">${escapeHtml(t('groups.inLinkOnly'))}</span>
+      </div>`;
+  }
+  const group = groupOf(document_);
+  return `
+    <div class="row row--tight">
+      <span class="muted small">
+        ${escapeHtml(group ? t('groups.inGroup', { name: group.name }) : t('groups.inNone'))}
+      </span>
+      ${
+        group
+          ? groups().length > 1
+            ? `<button type="button" class="button button--small button--ghost" data-copy-to-group="${escapeHtml(document_.id)}">
+                 ${escapeHtml(t('groups.copyTo'))}
+               </button>`
+            : ''
+          : `<button type="button" class="button button--small" data-put-in-group="${escapeHtml(document_.id)}">
+               ${escapeHtml(t('groups.putIn'))}
+             </button>`
+      }
+    </div>`;
+}
+
+/**
+ * Put a document in a group, whichever kind it is. The document travels from
+ * here on, and stops being hidden by the group pastilles.
+ */
+async function putInGroup(id) {
+  const poll = getPoll(id);
+  const list = getList(id);
+  const game = getGame(id);
+  const spend = getSpend(id);
+  const board = getBoard(id);
+  const document_ = poll || list || game || spend || board;
+  if (!document_ || !state.remote) return;
+
+  const group = await askGroup();
+  if (!group) {
+    render();
+    return;
+  }
+
+  const next = { ...document_, shared: true, groupId: group.id, updatedAt: Date.now() };
+  try {
+    await state.remote.put(next, group.key, organiserSecret(next.id));
+  } catch (error) {
+    pushFailed(next)(error);
+    render();
+    return;
+  }
+
+  flash(t('groups.putInDone', { name: group.name }));
+  if (poll) replacePoll(next);
+  else if (list) replaceList(next);
+  else if (spend) replaceSpend(next);
+  else if (board) replaceBoard(next);
+  else replaceGame(next);
+}
+
+/**
+ * Delete a whole document from its tab, whichever kind it is — what sliding
+ * its card left leads to. Asked first, as on its own page: a list or an
+ * account is usually everyone's, and deleting it deletes it for them too.
+ */
+/**
+ * Delete a document from the database before this device lets go of it. The
+ * database may refuse — a poll someone else organises, a group whose key this
+ * device does not hold, no connection —, and a copy dropped here while the
+ * database keeps it would still open from its link. So: refused, nothing is
+ * dropped, and the reason is said. True when it is gone (or never was there).
+ */
+async function removeEverywhere(document_) {
+  // Never shared, never in the database: nothing to ask it.
+  if (!state.remote || !document_.shared) return true;
+  try {
+    await state.remote.remove(document_.id, keyFor(document_), organiserSecret(document_.id));
+    return true;
+  } catch (error) {
+    const said = String(error?.detail || error?.message || '');
+    flash(t(/organisateur/.test(said) ? 'delete.notOrganiser' : /cle de groupe/.test(said) ? 'delete.noKey' : 'delete.offline'), 'error');
+    render();
+    return false;
+  }
+}
+
+async function deleteDocument(id) {
+  const poll = getPoll(id);
+  const list = getList(id);
+  const spend = getSpend(id);
+  const board = getBoard(id);
+  const game = getGame(id);
+  const document_ = poll || list || spend || board || game;
+  if (!document_) return;
+  const question = poll
+    ? 'polls.confirmDelete'
+    : list
+      ? 'lists.confirmDelete'
+      : spend
+        ? 'spends.confirmDelete'
+        : board
+          ? 'ideas.confirmDelete'
+          : 'game.confirmDeleteGame';
+  if (!(await ask(t(question), { confirmLabel: t('action.delete'), danger: true }))) {
+    render();
+    return;
+  }
+  if (!(await removeEverywhere(document_))) return;
+
+  if (poll) {
+    state.polls = state.polls.filter((item) => item.id !== id);
+    savePolls(state.polls);
+  } else if (list) {
+    state.lists = state.lists.filter((item) => item.id !== id);
+    saveLists(state.lists);
+  } else if (spend) {
+    state.spends = state.spends.filter((item) => item.id !== id);
+    saveSpends(state.spends);
+  } else if (board) {
+    state.boards = state.boards.filter((item) => item.id !== id);
+    saveBoards(state.boards);
+  } else {
+    state.games = state.games.filter((item) => item.id !== id);
+    saveGames(state.games);
+  }
+  if (state.store) void state.store.remove(id);
+  flash(t('swipe.deleted', { name: documentTitle(document_) }));
+  // On the page of what was just deleted, there is nothing left to show.
+  if (location.hash.endsWith(`/${id}`)) navigate('#/');
+  else render();
+}
+
+/** The cards of a tab slide left to be deleted. */
+function bindDocSwipes() {
+  bindSwipes('doc', (id) => void deleteDocument(id));
+}
+
+/**
+ * Copy a thing into another group.
+ *
+ * A copy and not a move, and deliberately so: what is shared travels by its
+ * own identifier, and the database fixes a document's group when it is first
+ * written — a later write never moves it. Worse, a move that only happened
+ * here would be undone by anyone else's device, which still holds the thing
+ * under the old group and would write it back there at their next change. A
+ * copy owes nothing to the old group: a new identifier, a new row, and the
+ * original left exactly where it was.
+ */
+async function copyToGroup(id) {
+  const poll = getPoll(id);
+  const list = getList(id);
+  const game = getGame(id);
+  const spend = getSpend(id);
+  const board = getBoard(id);
+  const document_ = poll || list || game || spend || board;
+  if (!document_ || !state.remote) return;
+
+  const group = await askGroup({ title: t('groups.copyWhere'), except: document_.groupId, always: true });
+  if (!group) {
+    render();
+    return;
+  }
+
+  const now = Date.now();
+  const fresh = {
+    ...document_,
+    id: uid(document_.id.split('_')[0] || 'id'),
+    shared: true,
+    groupId: group.id,
+    // Copied into a group, it is the group's: a link-only original makes a
+    // copy the group can see, which is the point of copying it there.
+    linkOnly: false,
+    // What it hung from stays in the other group, with the original.
+    event: null,
+    parent: null,
+    // Nor what it was linked to: all of that stays with the original.
+    links: [],
+    // A copy is its own thing from here on: it is new to the group receiving
+    // it, whatever age the original had reached.
+    createdAt: now,
+    updatedAt: now,
+    archivedAt: null,
+  };
+  // A copied poll is a new poll, and whoever copies it organises it.
+  const copy = poll ? organise(fresh) : fresh;
+
+  try {
+    await state.remote.put(copy, group.key, organiserSecret(copy.id));
+  } catch {
+    flash(t('share.pushFailed'), 'error');
+    render();
+    return;
+  }
+
+  flash(t('groups.copiedTo', { name: group.name }));
+  if (poll) {
+    state.polls = [...state.polls, copy];
+    persistPoll(copy);
+    navigate(`#/poll/${copy.id}`);
+  } else if (list) {
+    state.lists = [...state.lists, copy];
+    persistList(copy);
+    navigate(`#/list/${copy.id}`);
+  } else if (spend) {
+    state.spends = [...state.spends, copy];
+    persistSpend(copy);
+    navigate(`#/spend/${copy.id}`);
+  } else if (board) {
+    state.boards = [...state.boards, copy];
+    persistBoard(copy);
+    navigate(`#/idea/${copy.id}`);
+  } else {
+    state.games = [...state.games, copy];
+    persist(copy);
+    navigate(`#/game/${copy.id}`);
+  }
+}
+
+/**
+ * The organiser of a poll: the device that created it, holding a secret the
+ * database knows only by its fingerprint.
+ *
+ * Everyone else — the other members of the group as much as a visitor from a
+ * link — ticks their evenings and adds their own name, and that is all: the
+ * day, the closing, the question, the choices, the list of people and the
+ * poll itself are the organiser's. The screen hides what is not theirs, and
+ * the database, told nothing it can check, keeps what the organiser set.
+ *
+ * The secret lives on this device only. A poll made before the organiser
+ * existed has none, and stays open to all, as it always was.
+ */
+function organiserSecret(id) {
+  return state.prefs.organiser?.[id] || null;
+}
+
+/** The organiser's secrets for the polls this device still holds. */
+function heldOrganiserSecrets() {
+  const held = state.prefs.organiser || {};
+  return Object.fromEntries(state.polls.filter((poll) => held[poll.id]).map((poll) => [poll.id, held[poll.id]]));
+}
+
+/**
+ * Take back the organiser's secrets from an export. Only well-formed ones, and
+ * never over a secret already here: the one this device holds is the one the
+ * database knows. Returns how many polls this device organises again.
+ */
+function restoreOrganiserSecrets(found) {
+  if (!found || typeof found !== 'object' || Array.isArray(found)) return 0;
+  const held = { ...state.prefs.organiser };
+  let restored = 0;
+  for (const [id, secret] of Object.entries(found)) {
+    if (typeof secret !== 'string' || !/^[0-9a-f]{16,128}$/.test(secret) || held[id]) continue;
+    held[id] = secret;
+    restored += 1;
+  }
+  if (restored) {
+    state.prefs = { ...state.prefs, organiser: held };
+    savePrefs(state.prefs);
+  }
+  return restored;
+}
+
+/**
+ * A choice a guest adds stays theirs to take back — a slip of the thumb, an
+ * idea dropped — and only theirs. Each one gets a secret of its own, kept on
+ * this device; the choice carries only its fingerprint (`by`), which the
+ * database checks the secret against before letting it go.
+ */
+async function claimChoices(before, after) {
+  const known = new Set(before.options.map((option) => option.id));
+  const fresh = after.options.filter((option) => !known.has(option.id));
+  if (!fresh.length || !globalThis.crypto?.subtle) return after;
+  const secrets = { ...state.prefs.chooser };
+  const marks = {};
+  for (const option of fresh) {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const secret = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret)));
+    secrets[option.id] = secret;
+    marks[option.id] = [...digest].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+  state.prefs = { ...state.prefs, chooser: secrets };
+  savePrefs(state.prefs);
+  return { ...after, options: after.options.map((option) => (marks[option.id] ? { ...option, by: marks[option.id] } : option)) };
+}
+
+/** Whether this device added that choice, and may take it back. */
+function ownsChoice(option) {
+  return Boolean(option?.by && state.prefs.chooser?.[option.id]);
+}
+
+/** The secrets proving the choices this poll dropped were this device's own. */
+function choiceUnlocks(poll) {
+  const held = state.prefs.chooser || {};
+  return Object.fromEntries(Object.keys(poll.removed || {}).filter((id) => held[id]).map((id) => [id, held[id]]));
+}
+
+function isOrganiser(poll) {
+  return !poll?.owned || Boolean(organiserSecret(poll.id));
+}
+
+/** Make this device the organiser of a new poll: a secret, kept here. */
+function organise(poll) {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  const secret = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  state.prefs = { ...state.prefs, organiser: { ...state.prefs.organiser, [poll.id]: secret } };
+  savePrefs(state.prefs);
+  return { ...poll, owned: true };
+}
+
+/** The key a document was shared with, or the only group's, or none. */
+function keyFor(document_) {
+  const held = groups();
+  if (document_?.groupId) {
+    const group = held.find((item) => item.id === document_.groupId);
+    if (group) return group.key;
+  }
+  return held.length === 1 ? held[0].key : null;
+}
+
+/**
+ * Which group to share this in. Answers straight away when there is only one
+ * — the usual case — and asks when there are several.
+ */
+async function askGroup({ title = null, except = null, keepToMyself = false, always = false } = {}) {
+  const held = groups().filter((group) => group.id !== except);
+  if (!held.length) return null;
+  // One group and nothing to weigh it against: asking would be a question with
+  // a single answer. With "keep it to myself" on the table there are two — and
+  // an action worth a second look asks whatever the count.
+  if (held.length === 1 && !keepToMyself && !always) return held[0];
+
+  return new Promise((resolve) => {
+    const dialog = makeDialog('dialog dialog--ask');
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(title || t('groups.which'))}</h2>
+        <div class="stack stack--tight">
+          ${held
+            .map(
+              (group) => `<button type="button" class="button button--block" data-group="${escapeHtml(group.id)}">${escapeHtml(group.name)}</button>`,
+            )
+            .join('')}
+        </div>
+        ${
+          keepToMyself
+            ? `<button type="button" class="button button--block button--ghost" id="group-none">
+                 ${escapeHtml(t('groups.keepToMyself'))}
+               </button>
+               <p class="muted small">${escapeHtml(t('groups.keepToMyselfHint'))}</p>`
+            : ''
+        }
+        <div class="row">
+          <button type="button" class="button" id="group-cancel">${escapeHtml(t('action.cancel'))}</button>
+        </div>
+      </div>`;
+
+    let answered = false;
+    const done = (group) => {
+      if (answered) return;
+      answered = true;
+      resolve(group);
+      dialog.close();
+    };
+    dialog.addEventListener('close', () => done(null));
+    dialog.querySelector('#group-cancel').addEventListener('click', () => done(null));
+    dialog.querySelector('#group-none')?.addEventListener('click', () => done(null));
+    dialog.querySelectorAll('[data-group]').forEach((button) => {
+      button.addEventListener('click', () => done(held.find((group) => group.id === button.dataset.group)));
+    });
+    dialog.showModal();
+  });
+}
+
+/**
+ * Share a document for the first time: pick the group, send it, and remember
+ * which group it went to. Returns the shared document, or null when there was
+ * no group to share it in or the database refused.
+ */
+async function startSharing(document_) {
+  if (document_.shared) return document_;
+  const group = await askGroup();
+  if (!group) {
+    flash(t('groups.needOne'), 'error');
+    render();
+    return null;
+  }
+
+  const shared = { ...document_, shared: true, groupId: group.id, updatedAt: Date.now() };
+  try {
+    await state.remote.put(shared, group.key, organiserSecret(shared.id));
+  } catch (error) {
+    flash(remoteReason(error), 'error');
+    render();
+    return null;
+  }
+  return shared;
+}
+
+/** Long enough for any first name, short enough to leave room on a key's label. */
+const NAME_KEPT = 24;
+
+/**
+ * Who is holding this device — a first name, nothing more.
+ *
+ * It is asked once, when joining a group, because that is the moment it is
+ * actually wanted: the group needs to know who has just come in, and the
+ * person is going to type their name into the first list anyway.
+ *
+ * Where it goes: the label on this device's key, so the group can tell whose
+ * device is whose — and, like any name typed into a list, into that list,
+ * which travels to the group when the list is shared. Nowhere else.
+ */
+/**
+ * What to tell Claude so it answers « une liste pour la raclette » with a link
+ * that opens this app's form already filled in (see prefill.js): the forms'
+ * addresses, on this very copy of the app, and who « moi » is.
+ */
+function openClaudeGuide() {
+  const me = myName();
+  showCopyDialog({
+    title: t('claude.title'),
+    hint: t('claude.hint'),
+    text: t('claude.guide', { link: appLink(), me: me || t('claude.noName') }),
+  });
+}
+
+function myName() {
+  const value = state.prefs.me;
+  return typeof value === 'string' ? value.trim().slice(0, NAME_KEPT) : '';
+}
+
+function setMyName(name) {
+  const clean = String(name || '').trim().slice(0, NAME_KEPT);
+  if (clean === myName()) return clean;
+  state.prefs = { ...state.prefs, me: clean };
+  savePrefs(state.prefs);
+  // A name given just now — on joining a group, most of the time — belongs in
+  // the forms that are still empty, without waiting for the app to be reopened.
+  offerMeInForms();
+  return clean;
+}
+
+/**
+ * Offer me as the first person of each form that is currently empty. Called
+ * when the app starts and each time a form is emptied after creating
+ * something — never on a redraw, so a name deleted by hand stays deleted.
+ */
+function offerMeInForms() {
+  state.newListPeople = withMeFirst(state.newListPeople, myName());
+  state.newPollPeople = withMeFirst(state.newPollPeople, myName());
+  state.newEventPeople = withMeFirst(state.newEventPeople, myName());
+  state.newSpendPeople = withMeFirst(state.newSpendPeople, myName());
+  // Games are left to newGameView: only there is it known whether this preset
+  // is played by people or by teams.
+  state.newGameTouched = false;
+}
+
+/**
+ * Where this device is, and when it knocked — enough to tell one line from
+ * another in the group's list of devices. The first name is *not* in here: it
+ * travels beside it, and the database puts the two together, so a line reads
+ * "Alice · écran d'accueil · 20 sept. 2026" and never "Alice · Alice · …".
+ */
+/**
+ * The warning to show someone reading this inside Messenger, Instagram or the
+ * like: what they do here stays here. It is the most likely way to arrive, since
+ * the invitation travels by message — and the least durable place to land.
+ */
+function inAppWarningHtml() {
+  const app = inAppBrowser(navigator.userAgent);
+  if (!app) return '';
+  return `
+    <p class="banner banner--warn">
+      ${escapeHtml(t('browser.inApp', { app }))}
+      <button type="button" class="button button--small" id="copy-here">
+        ${escapeHtml(t('browser.copyLink'))}
+      </button>
+    </p>`;
+}
+
+function bindInAppWarning() {
+  view.querySelector('#copy-here')?.addEventListener('click', () => {
+    showCopyDialog({
+      title: t('browser.copyTitle'),
+      hint: t('browser.copyHint'),
+      text: location.href,
+    });
+  });
+}
+
+/** Whether this is the app added to a home screen rather than a browser tab. */
+function onHomeScreen() {
+  return Boolean(matchMedia?.('(display-mode: standalone)')?.matches || navigator.standalone);
+}
+
+function deviceLabel() {
+  const standalone = onHomeScreen();
+  const where = standalone ? t('groups.onHomeScreen') : t('groups.inBrowser');
+  return `${where} · ${formatDate(Date.now())}`;
+}
+
+/**
+ * Take in a key: the database says which group it opens, or refuses it. This is
+ * the very first device of a group — the one nobody can invite, which starts
+ * from the key the SQL editor printed.
+ */
+async function joinGroup(key) {
+  const clean = String(key || '').trim();
+  if (!clean || !state.remote) return null;
+  const group = await state.remote.groupOf(clean);
+  if (!group) return null;
+  rememberGroup({
+    id: group.id, name: group.name, key: clean, admits: Boolean(group.admits),
+    accounts: Boolean(group.accounts), linked: Boolean(group.linked), channel: liveChannel(group),
+    people: fixedPeople(group),
+  });
+  return group;
+}
+
+/**
+ * Check every group this device believes it is in.
+ *
+ * A key can be cut off from the other side — a phone lost, someone who left.
+ * Without this the group would sit in the list for ever, refusing everything
+ * with no explanation. Asked once, on opening the app.
+ */
+async function verifyGroups() {
+  if (!state.remote) return false;
+  let learnt = false;
+  for (const group of groups()) {
+    let found = null;
+    try {
+      found = await state.remote.groupOf(group.key);
+    } catch {
+      continue; // No answer is not an answer: the group stays.
+    }
+    if (!found) {
+      forgetGroup(group.id);
+      flash(t('gate.cutMe', { name: group.name }), 'error');
+      learnt = true;
+      continue;
+    }
+    if (found.name !== group.name || Boolean(found.admits) !== group.admits
+        || Boolean(found.accounts) !== Boolean(group.accounts) || Boolean(found.linked) !== Boolean(group.linked)
+        || liveChannel(found) !== (group.channel || '')
+        || fixedPeople(found).join('\n') !== rosterOf(group.id).join('\n')
+        || (!group.me && found.who)) {
+      rememberGroup({
+        ...group, name: found.name || group.name, admits: Boolean(found.admits),
+        accounts: Boolean(found.accounts), linked: Boolean(found.linked), channel: liveChannel(found),
+        people: fixedPeople(found), me: group.me || knownAs(found),
+      });
+      learnt = true;
+    }
+  }
+  return learnt;
+}
+
+/* ------------------------------------------------- knocking, and admitting --- */
+
+/**
+ * A device does not let itself into a group: it knocks, and waits.
+ *
+ * What it keeps while it waits is a ticket — a secret the database handed it
+ * once. Accepted, that very ticket becomes its key; refused, it never opened
+ * anything. So the wait costs nothing and shows nothing, and an invitation that
+ * goes astray is a knock at the door rather than a stranger in the house.
+ */
+function pendings() {
+  const value = state.prefs.pendings;
+  return Array.isArray(value)
+    ? value.filter((knock) => knock && typeof knock.ticket === 'string' && knock.ticket)
+    : [];
+}
+
+/**
+ * Knocks are kept generously — a ticket is handed over once and stored nowhere
+ * else — but not without end: a device that knocks at door after door without
+ * ever being let in would grow a list nobody reads, and claim every one of them
+ * at each start.
+ */
+const KNOCKS_KEPT = 20;
+
+function rememberPending(knock) {
+  const others = pendings().filter((held) => held.ticket !== knock.ticket);
+  state.prefs = { ...state.prefs, pendings: [...others, knock].slice(-KNOCKS_KEPT) };
+  savePrefs(state.prefs);
+}
+
+function forgetPending(ticket) {
+  state.prefs = { ...state.prefs, pendings: pendings().filter((knock) => knock.ticket !== ticket) };
+  savePrefs(state.prefs);
+}
+
+/** The knock this device is still waiting on for that group, if any. */
+function pendingFor(name) {
+  const wanted = String(name || '').trim().toLowerCase();
+  if (!wanted) return null;
+  return pendings().find((knock) => String(knock.groupName || '').trim().toLowerCase() === wanted) || null;
+}
+
+/**
+ * Ask the database where a knock stands. Accepted, the group is remembered with
+ * the ticket as its key and everything it shares comes in; refused, the knock
+ * is forgotten. Returns the answer's status, or null when nothing was learnt.
+ */
+async function checkPending(knock) {
+  if (!state.remote) return null;
+  let answer = null;
+  try {
+    answer = await state.remote.claim(knock.ticket);
+  } catch {
+    return null;
+  }
+
+  if (answer.status === 'ok') {
+    // A device that is somehow already in this group keeps the key it has: the
+    // ticket it was just handed is an ordinary key, and the one it holds may be
+    // the only one in the group that lets anyone in.
+    const alreadyIn = groups().find((item) => item.id === answer.id);
+    const group = alreadyIn || { id: answer.id, name: answer.name || knock.groupName, key: knock.ticket, admits: false, me: knock.me || '' };
+    rememberGroup(group);
+    forgetPending(knock.ticket);
+    // The names the group fixes, among which this device has just said who it is.
+    await refreshGroup(group);
+    let taken = 0;
+    try {
+      taken = await catchUpWith(group);
+    } catch {
+      // In the group either way; what it shares can be fetched later.
+    }
+    // Just let in: the one moment they will listen to "keep this group". An
+    // account is offered on the groups tab, where they land, the return link
+    // beside it; signed in already, the account keeps it. Said on the page
+    // rather than in a dialog — a question that blocks the screen on the way
+    // in is a question in the wrong place.
+    const offered = !alreadyIn && offerAccount(group);
+    flash(offered || account()
+      ? t(taken ? 'groups.joinedWith' : 'groups.joined', { name: group.name, count: taken })
+      : t(taken ? 'groups.joinedWithKeepLink' : 'groups.joinedKeepLink', { name: group.name, count: taken }));
+    return 'ok';
+  }
+
+  if (answer.status === 'refused') {
+    forgetPending(knock.ticket);
+    flash(t('gate.refusedMe', { name: knock.groupName }), 'error');
+    return 'refused';
+  }
+
+  // 'unknown' means the knock is gone — expired, or the group was deleted.
+  if (answer.status === 'unknown') {
+    forgetPending(knock.ticket);
+    flash(t('gate.lostMe', { name: knock.groupName }), 'error');
+    return 'unknown';
+  }
+
+  return 'waiting';
+}
+
+/** Look in on every knock at once — on opening the app, or on demand. */
+async function checkAllPendings() {
+  let learnt = false;
+  for (const knock of pendings()) {
+    const status = await checkPending(knock);
+    if (status && status !== 'waiting') learnt = true;
+  }
+  return learnt;
+}
+
+/**
+ * What the group's gatekeeper sees: who is knocking, and which devices are in.
+ * Both are asked of the database and kept until something changes them, so a
+ * redraw does not knock again.
+ */
+function gate() {
+  if (!state.gate) state.gate = { requests: {}, devices: {}, asked: {}, at: {} };
+  return state.gate;
+}
+
+function forgetGate(groupId) {
+  const held = gate();
+  delete held.requests[groupId];
+  delete held.devices[groupId];
+  delete held.asked[groupId];
+  delete held.at[groupId];
+}
+
+/**
+ * Ask again for what the gatekeeper is looking at, quietly, while the overview
+ * is open — someone knocking on the other side of the room must not stay
+ * invisible until the app is closed and opened again.
+ */
+async function refreshGate() {
+  let changed = false;
+  for (const group of groups()) {
+    if (group.admits === false) continue;
+    const before = JSON.stringify(gate().requests[group.id] ?? null)
+      + JSON.stringify(gate().devices[group.id] ?? null);
+    gate().asked[group.id] = false;
+    await loadGate(group);
+    const after = JSON.stringify(gate().requests[group.id] ?? null)
+      + JSON.stringify(gate().devices[group.id] ?? null);
+    if (before !== after) changed = true;
+  }
+  return changed;
+}
+
+/**
+ * Load a group's knocks and devices, once — and never draw over a message
+ * nobody has read yet: a redraw consumes it, and a second one would wipe it.
+ */
+async function loadGate(group) {
+  const held = gate();
+  if (held.asked[group.id]) return false;
+  held.asked[group.id] = true;
+  if (!state.remote) return false;
+
+  try {
+    const [requests, devices] = await Promise.all([
+      state.remote.requests(group.key),
+      state.remote.groupKeys(group.key),
+    ]);
+    held.requests[group.id] = requests;
+    held.devices[group.id] = devices;
+    held.at[group.id] = Date.now();
+    return true;
+  } catch (error) {
+    // Two very different refusals, and taking one for the other used to cost
+    // the gatekeeper their own door: the database saying "this key does not let
+    // people in" is settled, while a network that failed says nothing at all.
+    if (/ne fait pas entrer/i.test(String(error?.message || ''))) {
+      rememberGroup({ ...group, admits: false });
+      return true;
+    }
+    held.asked[group.id] = false;
+    return false;
+  }
+}
+
+/**
+ * The secret name of the group's channel on Realtime (see live.js), or '' from
+ * a database that does not announce its changes yet.
+ */
+function liveChannel(found) {
+  return typeof found?.channel === 'string' && /^[a-z0-9]{8,64}$/.test(found.channel) ? found.channel : '';
+}
+
+/**
+ * Whether this device's key lets people in. Groups remembered before the
+ * question existed do not say, so the database is asked once.
+ */
+async function refreshGroup(group) {
+  if (!state.remote) return false;
+  let found = null;
+  try {
+    found = await state.remote.groupOf(group.key);
+  } catch {
+    return false;
+  }
+  if (!found) return false;
+  // Read again: the group may have been remembered anew while the answer came.
+  const held = groups().find((one) => one.id === group.id) || group;
+  rememberGroup({
+    ...held, name: found.name || held.name, admits: Boolean(found.admits),
+    accounts: Boolean(found.accounts), linked: Boolean(found.linked), channel: liveChannel(found),
+    people: fixedPeople(found), me: held.me || knownAs(found),
+  });
+  return true;
+}
+
+/**
+ * Fetch what every group shares, for all of them at once.
+ *
+ * This is what "the other phone pushed something" needs: a game played in
+ * Safari and a list ticked off in the app on the home screen are two devices as
+ * far as the database is concerned, and nothing but this brings one's work to
+ * the other when neither has the document open.
+ */
+async function catchUpAll() {
+  let taken = 0;
+  for (const group of groups()) {
+    try {
+      taken += await catchUpWith(group);
+    } catch {
+      // One group out of reach is not a reason to skip the others.
+    }
+  }
+  // A link-only poll is listed for no group, on purpose — so no group's
+  // catch-up brings its answers. The devices that hold one ask for it by
+  // name instead: few of them, and the only way anyone would hear back.
+  for (const poll of state.polls.filter((held) => held.shared && held.linkOnly && !held.archivedAt)) {
+    try {
+      if (await pullPoll(poll.id)) taken += 1;
+    } catch {
+      // Out of reach now; the next catch-up asks again.
+    }
+  }
+  state.syncedAt = Date.now();
+  return taken;
+}
+
+/** Not more often than this, when it happens on its own. */
+const SYNC_EVERY = 20000;
+/** And while the database announces every change (live.js). */
+const SYNC_HEARD = 120000;
+
+/**
+ * Catch up by itself: when the app opens, and each time it comes back to the
+ * front — which on a phone is what "I switched from Safari to the app" means.
+ */
+async function catchUpQuietly() {
+  if (!state.remote || !groups().length) return;
+  // Every group heard as it changes: asking is only a net, in case an
+  // announcement was lost.
+  const every = liveCoversGroups() ? SYNC_HEARD : SYNC_EVERY;
+  if (state.syncedAt && Date.now() - state.syncedAt < every) return;
+  const taken = await catchUpAll();
+  const changed = showsGate() ? await refreshGate() : false;
+  if ((taken || changed) && !isBusy()) render();
+}
+
+/**
+ * Fetch everything the group shares that this device is missing or behind on.
+ * The database hands over ids and their dates, so a device that is up to date
+ * asks for nothing more.
+ */
+async function catchUpWith(group) {
+  if (!state.remote) return 0;
+  const rows = await state.remote.groupDocs(group.key);
+  let taken = 0;
+  for (const row of rows) {
+    const held = getGame(row.id) || getList(row.id) || getPoll(row.id);
+    if (held && (row.updatedAt || 0) <= (held.updatedAt || 0)) continue;
+    if (await pullAny(row.id)) taken += 1;
+  }
+  return taken;
+}
+
+/* ------------------------------------------------------------------- lots --- */
+
+/**
+ * The lots shared from this device, newest first. Their codes are kept so a
+ * code can be read again later, and so a lot can be revoked — both of which
+ * are the point of the sharing key: the shares stay in one pair of hands.
+ */
+function lots() {
+  const value = state.prefs.lots;
+  return Array.isArray(value) ? value.filter((lot) => lot && typeof lot.id === 'string') : [];
+}
+
+/**
+ * Remembered shares are kept generously: the entry is the only record of a
+ * lot's id and its code, so dropping one leaves a live share that can never be
+ * read again nor revoked. Two hundred of them weigh some twenty kilobytes, and
+ * nobody shares two hundred times.
+ */
+const LOTS_KEPT = 200;
+
+function rememberLot(lot) {
+  state.prefs = { ...state.prefs, lots: [lot, ...lots()].slice(0, LOTS_KEPT) };
+  savePrefs(state.prefs);
+}
+
+function forgetLot(id) {
+  state.prefs = { ...state.prefs, lots: lots().filter((lot) => lot.id !== id) };
+  savePrefs(state.prefs);
+}
+
+/** Why the database refused, in words that say what to do about it. */
+function remoteReason(error) {
+  const text = String(error?.message || '');
+  // "That function does not exist" has two causes, and they call for opposite
+  // things: the database has not been brought up to date, or this copy of the app
+  // has not. Only whoever set the database up can do the first, so the message
+  // names both and points at the update button rather than at the SQL guide.
+  if (error?.status === 404 || /PGRST202/.test(text)) {
+    return t(groups().some((group) => group.admits) ? 'shareApp.needsSql' : 'shareApp.needsUpdate');
+  }
+  if (/cle de (partage|groupe)/i.test(text)) return t('groups.refused');
+  return t('shareApp.failed');
+}
+
+/* --------------------------------------------------------- sharing the app --- */
+
+/**
+ * Share the app, on its own or carrying games.
+ *
+ * A link cannot carry the games themselves: ten of them would make an address
+ * no one could paste and no QR code could hold. So the games are sent to the
+ * shared database — which is what makes them openable elsewhere anyway — and
+ * the link carries one short identifier standing for the lot.
+ *
+ * A lot is not something anyone may create: the database asks for the sharing
+ * key first, and that key lives only on the devices its holder typed it into.
+ * Opening one asks the receiver for a six-digit code, drawn afresh for every
+ * share — so a link passed on to someone else is worth nothing on its own.
+ */
+function openShareAppDialog() {
+  // Games and lists travel together: they are documents of the same kind to
+  // the database, and "everything I have" is what the link is asked for.
+  const games = [...state.games, ...state.lists, ...state.polls, ...state.spends, ...state.boards].sort((a, b) => b.updatedAt - a.updatedAt);
+  const held = groups();
+  // Without a shared database there is nothing to attach: the app alone, then.
+  if (!state.remote || !games.length) {
+    void shareUrl({
+      url: appLink(),
+      title: t('shareApp.title'),
+      hint: t('shareApp.hint'),
+      text: t('shareApp.text'),
+    });
+    return;
+  }
+
+  const off = held.length ? '' : ' disabled';
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('shareApp.title'))}</h2>
+      <div class="stack stack--tight" role="radiogroup" aria-label="${escapeHtml(t('shareApp.title'))}">
+        <label class="choice">
+          <input type="radio" name="share-kind" value="app" checked />
+          <span>${escapeHtml(t('shareApp.kindApp'))}<span class="muted small"> — ${escapeHtml(t('shareApp.kindAppHint'))}</span></span>
+        </label>
+        <label class="choice${held.length ? '' : ' choice--off'}">
+          <input type="radio" name="share-kind" value="all"${off} />
+          <span>${escapeHtml(t('shareApp.kindAll', { count: games.length }))}</span>
+        </label>
+        <label class="choice${held.length ? '' : ' choice--off'}">
+          <input type="radio" name="share-kind" value="some"${off} />
+          <span>${escapeHtml(t('shareApp.kindSome'))}</span>
+        </label>
+      </div>
+
+      ${held.length ? '' : `<p class="banner">${escapeHtml(t('groups.needOne'))}</p>`}
+
+      <div class="stack stack--tight" id="share-pick" hidden>
+        <p class="muted small">${escapeHtml(t('shareApp.pickHint'))}</p>
+        ${games
+          .map(
+            (game) => `
+              <label class="choice">
+                <input type="checkbox" data-share-id="${escapeHtml(game.id)}" />
+                <span>${escapeHtml(documentTitle(game))}<span class="muted small"> — ${escapeHtml(formatDate(game.updatedAt))}</span></span>
+              </label>`,
+          )
+          .join('')}
+      </div>
+
+      <p class="muted small" id="share-note" hidden>${escapeHtml(t('shareApp.note'))}</p>
+      <p class="banner banner--warn" id="share-error" hidden></p>
+      <div class="row">
+        <button type="button" class="button button--primary" id="share-make">${escapeHtml(t('shareApp.make'))}</button>
+        <button type="button" class="button" id="share-cancel">${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </div>`;
+
+  const close = () => dialog.close();
+  const button = dialog.querySelector('#share-make');
+  const error = dialog.querySelector('#share-error');
+  const kind = () => dialog.querySelector('input[name="share-kind"]:checked').value;
+
+  const refresh = () => {
+    dialog.querySelector('#share-pick').hidden = kind() !== 'some';
+    dialog.querySelector('#share-note').hidden = kind() === 'app';
+    error.hidden = true;
+  };
+  dialog.querySelectorAll('input[name="share-kind"]').forEach((input) => {
+    input.addEventListener('change', refresh);
+  });
+
+  const fail = (message) => {
+    error.textContent = message;
+    error.hidden = false;
+    button.disabled = false;
+    button.textContent = t('shareApp.make');
+  };
+
+  dialog.querySelector('#share-cancel').addEventListener('click', close);
+  button.addEventListener('click', async () => {
+    const choice = kind();
+    if (choice === 'app') {
+      close();
+      void shareUrl({
+        url: appLink(),
+        title: t('shareApp.title'),
+        hint: t('shareApp.hint'),
+        text: t('shareApp.text'),
+      });
+      return;
+    }
+
+    const chosen =
+      choice === 'all'
+        ? games
+        : [...dialog.querySelectorAll('input[data-share-id]:checked')]
+            .map((input) =>
+              getGame(input.dataset.shareId) || getList(input.dataset.shareId) || getPoll(input.dataset.shareId))
+            .filter(Boolean);
+    if (!chosen.length) return fail(t('shareApp.pickNone'));
+
+    button.disabled = true;
+    button.textContent = t('share.sending');
+
+    const setId = uid('lot');
+    const code = newCode();
+    const ids = chosen.map((game) => game.id);
+    const group = await askGroup();
+    if (!group) return fail(t('groups.needOne'));
+
+    try {
+      // The key first, and only then the documents: a key the database no
+      // longer recognises must not cost an evening its privacy on the way to
+      // being told so.
+      if (!(await state.remote.groupOf(group.key))) return fail(t('groups.refused'));
+      // Sealed where the browser can: then the stored lot holds no identifier
+      // at all, only their encrypted form.
+      const contents = canSeal() ? { sealed: await seal(ids, code) } : { ids };
+      await shareGames(chosen, group);
+      await state.remote.putSet(setId, contents, code, group.key);
+    } catch (error_) {
+      return fail(remoteReason(error_));
+    }
+
+    rememberLot({ id: setId, code, count: chosen.length, createdAt: Date.now() });
+    close();
+    // The games are shared now, and the share is remembered: the list shows it.
+    render();
+    showLotLink(setId, code, chosen.length);
+  });
+
+  dialog.showModal();
+}
+
+/**
+ * The link and its code, side by side but never in the same message: the link
+ * is what gets sent, the code is what is said out loud. Copying the link alone
+ * is what the button does, on purpose.
+ */
+function showLotLink(setId, code, count) {
+  showCopyDialog({
+    title: t('shareSet.title'),
+    hint: t('shareSet.hint', { count }),
+    text: setLink(location, setId),
+    qr: true,
+    code,
+    send: true,
+  });
+}
+
+/**
+ * Put every one of these games in the shared database, marking as shared those
+ * that were not — a link that hands over a game no one sent would open nothing.
+ */
+async function shareGames(games, group) {
+  try {
+    for (const document_ of games) {
+      const next = document_.shared
+        ? document_
+        : { ...document_, shared: true, groupId: group.id, updatedAt: Date.now() };
+      await state.remote.put(next, group.key, organiserSecret(next.id));
+      if (next === document_) continue;
+      state.games = state.games.map((item) => (item.id === next.id ? next : item));
+      state.lists = state.lists.map((item) => (item.id === next.id ? next : item));
+      state.polls = state.polls.map((item) => (item.id === next.id ? next : item));
+      if (state.store) void state.store.save(next);
+    }
+  } finally {
+    // Whatever went through is written down, so a failure halfway is not lost.
+    saveGames(state.games);
+    saveLists(state.lists);
+    savePolls(state.polls);
+  }
+}
+
+/* --------------------------------------------------------- my own shares --- */
+
+/**
+ * The shares made from this device: their code, to read again, and a way to
+ * revoke them. Revoking takes the sharing key, so a link handed out can be
+ * taken back — by its author, and by nobody else.
+ */
+function openMySharesDialog() {
+  const dialog = makeDialog();
+  const close = () => dialog.close();
+
+  const draw = () => {
+    const mine = lots();
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(t('lots.title', { count: mine.length }))}</h2>
+        <p class="muted small">${escapeHtml(t('lots.hint'))}</p>
+        <p class="banner banner--warn" id="lots-error" hidden></p>
+        ${
+          mine.length
+            ? `<div class="stack stack--tight">${mine
+                .map(
+                  (lot) => `
+                    <div class="lot">
+                      <div>
+                        <span class="lot__code">${escapeHtml(lot.code || '······')}</span>
+                        <span class="muted small">${escapeHtml(t('lots.line', {
+                          count: lot.count || 0,
+                          date: formatDate(lot.createdAt || Date.now()),
+                        }))}</span>
+                      </div>
+                      <div class="row">
+                        <button type="button" class="button button--small" data-lot-link="${escapeHtml(lot.id)}">${escapeHtml(t('lots.link'))}</button>
+                        <button type="button" class="button button--small button--ghost" data-lot-revoke="${escapeHtml(lot.id)}">${escapeHtml(t('lots.revoke'))}</button>
+                      </div>
+                    </div>`,
+                )
+                .join('')}</div>`
+            : `<p class="muted small">${escapeHtml(t('lots.empty'))}</p>`
+        }
+        <div class="row">
+          <button type="button" class="button" id="lots-close">${escapeHtml(t('action.close'))}</button>
+        </div>
+      </div>`;
+
+    dialog.querySelector('#lots-close').addEventListener('click', close);
+
+    dialog.querySelectorAll('[data-lot-link]').forEach((node) => {
+      node.addEventListener('click', () => {
+        const lot = lots().find((item) => item.id === node.dataset.lotLink);
+        if (lot) showLotLink(lot.id, lot.code, lot.count || 0);
+      });
+    });
+
+    dialog.querySelectorAll('[data-lot-revoke]').forEach((node) => {
+      node.addEventListener('click', async () => {
+        const id = node.dataset.lotRevoke;
+        if (!(await ask(t('lots.confirmRevoke'), { confirmLabel: t('lots.revoke'), danger: true }))) return;
+        node.disabled = true;
+        node.textContent = t('share.sending');
+        let gone = false;
+        try {
+          gone = await state.remote.forgetSet(id, groups()[0]?.key || '');
+        } catch (error) {
+          const line = dialog.querySelector('#lots-error');
+          line.textContent = remoteReason(error);
+          line.hidden = false;
+          node.disabled = false;
+          node.textContent = t('lots.revoke');
+          return;
+        }
+        // Not there any more either way: stop remembering it.
+        forgetLot(id);
+        draw();
+        if (!gone) {
+          const line = dialog.querySelector('#lots-error');
+          line.textContent = t('lots.alreadyGone');
+          line.hidden = false;
+        }
+        render();
+      });
+    });
+  };
+
+  draw();
+  dialog.showModal();
+}
+
+/* ------------------------------------------------- opening a shared lot --- */
+
+/**
+ * Ask for the six-digit code, and give back the game ids it unlocks.
+ *
+ * The database allows ten wrong answers, then closes that lot for good — which
+ * is what makes six digits enough to be worth typing. Resolves null when the
+ * person gives up, or when the answer leaves nothing to try again with.
+ */
+function askLotCode(id) {
+  return new Promise((resolve) => {
+    const dialog = makeDialog('dialog dialog--ask');
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(t('shareSet.codeTitle'))}</h2>
+        <p class="muted small">${escapeHtml(t('shareSet.codeHint'))}</p>
+        <input type="text" id="lot-code" class="code-input" inputmode="numeric" autocomplete="one-time-code"
+               maxlength="7" aria-label="${escapeHtml(t('shareSet.codeTitle'))}" />
+        <p class="banner banner--warn" id="lot-error" hidden></p>
+        <div class="row">
+          <button type="button" class="button button--primary" id="lot-open">${escapeHtml(t('openLink.open'))}</button>
+          <button type="button" class="button" id="lot-cancel">${escapeHtml(t('action.cancel'))}</button>
+        </div>
+      </div>`;
+
+    const button = dialog.querySelector('#lot-open');
+    const error = dialog.querySelector('#lot-error');
+    const done = (value) => { resolve(value); dialog.close(); };
+    // Escape closes a dialog without asking anyone: whoever is waiting on this
+    // promise must be told, or the view stays on "fetching" for good.
+    dialog.addEventListener('close', () => resolve(null));
+    const fail = (message) => {
+      error.textContent = message;
+      error.hidden = false;
+      button.disabled = false;
+      button.textContent = t('openLink.open');
+      dialog.querySelector('#lot-code').select();
+    };
+
+    dialog.querySelector('#lot-cancel').addEventListener('click', () => done(null));
+    button.addEventListener('click', async () => {
+      const code = readCode(dialog.querySelector('#lot-code').value);
+      if (!code) return fail(t('shareSet.badCode'));
+
+      button.disabled = true;
+      button.textContent = t('share.sending');
+
+      let answer = null;
+      try {
+        answer = await state.remote.openSet(id, code);
+      } catch (error_) {
+        return fail(remoteReason(error_));
+      }
+
+      if (answer.status === 'wrong') return fail(t('shareSet.wrongCode', { left: answer.left }));
+      if (answer.status === 'locked') {
+        flash(t('shareSet.locked'), 'error');
+        return done(null);
+      }
+      if (answer.status !== 'ok') {
+        flash(t('shareSet.notFound'), 'error');
+        return done(null);
+      }
+
+      const ids = answer.contents?.sealed
+        ? await unseal(answer.contents.sealed, code)
+        : answer.contents?.ids;
+      const clean = Array.isArray(ids) ? ids.filter((value) => typeof value === 'string') : [];
+      // The code was right, so a lot that will not open is a lot this browser
+      // cannot unseal — over http, where Web Crypto is not offered.
+      if (!clean.length) return fail(t('shareSet.cannotUnseal'));
+      done(clean);
+    });
+
+    dialog.showModal();
+    dialog.querySelector('#lot-code').focus();
+  });
+}
+
+/**
+ * Take in a lot of games from its link: the code, then the list, then each
+ * game.
+ *
+ * A game already here is merged rather than replaced, exactly as a single
+ * shared game is, so opening the link twice costs nothing and opening it while
+ * a game is in progress loses no round.
+ */
+async function openSet(id) {
+  if (!state.remote) {
+    flash(t('shareSet.noDatabase'), 'error');
+    return;
+  }
+
+  const ids = await askLotCode(id);
+  if (!ids) return;
+
+  // Everything, even what is already here: the point of a lot shared again is
+  // to bring what has happened since, and pulling merges rather than replaces.
+  for (const id_ of ids) await pullAny(id_);
+
+  const held = ids.filter((id_) => getGame(id_) || getList(id_) || getPoll(id_)).length;
+  if (!held) {
+    flash(t('shareSet.notFound'), 'error');
+    return;
+  }
+  flash(
+    held === ids.length
+      ? t('shareSet.opened', { count: held })
+      : t('shareSet.openedSome', { count: held, total: ids.length }),
+  );
+}
+
+function bindHome() {
+  const search = view.querySelector('#search');
+  search?.addEventListener('input', (event) => {
+    state.search = event.target.value;
+    const at = event.target.selectionStart;
+    render();
+    const again = view.querySelector('#search');
+    if (again) {
+      again.focus();
+      try { again.setSelectionRange(at, at); } catch { /* not a text field */ }
+    }
+  });
+}
+
+/**
+ * The data section, which belongs to the app rather than to any one tab: the
+ * app's own link, what leaves the device and what comes back.
+ */
+function bindData() {
+  view.querySelector('#look-update')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    const answer = await lookForUpdate();
+    button.disabled = false;
+    if (answer === 'coming') flash(t('data.updateComing'));
+    else if (answer === 'current') flash(t('data.updateNone'));
+    else flash(t('data.updateUnknown'), 'error');
+    render();
+  });
+
+  view.querySelector('#share-app')?.addEventListener('click', openShareAppDialog);
+  view.querySelector('#my-shares')?.addEventListener('click', openMySharesDialog);
+
+  view.querySelector('#auto-share')?.addEventListener('change', (event) => {
+    state.prefs = { ...state.prefs, autoShare: event.target.checked };
+    savePrefs(state.prefs);
+  });
+
+  view.querySelector('#export')?.addEventListener('click', exportGames);
+  view.querySelector('#import-paste')?.addEventListener('click', openPasteDialog);
+  view.querySelector('#open-link')?.addEventListener('click', openLinkDialog);
+  view.querySelector('#claude-guide')?.addEventListener('click', openClaudeGuide);
+
+  const fileInput = view.querySelector('#import-file');
+  view.querySelector('#import')?.addEventListener('click', () => fileInput?.click());
+  fileInput?.addEventListener('change', async () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    try {
+      importGames(await file.text());
+    } catch {
+      flash(t('home.importFailed'), 'error');
+    }
+    render();
+  });
+}
+
+  // ---- src/view-flows.js -----------------------------------------------
+/**
+ * What linked things do for each other, on screen: on a list, the ideas and
+ * the poll's choice waiting to come in, and the lines ticked that the account
+ * has not seen; on a board, the way to vote on its ideas; on a closed poll,
+ * its choice for the list; on an event, who is coming and missing from its
+ * lists and accounts; on Home, what has just been unblocked. And the long
+ * press, on anything that opens a document, for what is done to it.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * A poll under an event settled on a day: the activity it makes, kept as an
+ * element of its own, and the poll, closed. False when it makes none, for
+ * the poll to take the day itself.
+ */
+function settlePollActivity(poll, how) {
+  const settled = settleAsActivity(poll, everything(), how);
+  if (!settled) return false;
+  const made = organise(signed(settled.activity));
+  state.polls = [...state.polls, made];
+  persistPoll(made);
+  flash(t('activity.made', { name: documentTitle(made), event: chainLabelShort(byId(made.parent) || made) }));
+  replacePoll(settled.poll);
+  return true;
+}
+
+/** One document by id, whatever its kind. */
+function byId(id) {
+  return everything().find((one) => one.id === id) || null;
+}
+
+/** A block of offers: a title, then a row of buttons. */
+function offersHtml(title, buttons) {
+  return buttons.length
+    ? `<div class="stack stack--tight">
+         <span class="muted small">${escapeHtml(title)}</span>
+         <div class="row row--chips">${buttons.join('')}</div>
+       </div>`
+    : '';
+}
+
+function offerButton(attr, value, label) {
+  return `<button type="button" class="chip" ${attr}="${escapeHtml(value)}">+ ${escapeHtml(label)}</button>`;
+}
+
+/* ---------------------------------------------------------------- a list --- */
+
+/**
+ * On a list, what the things it is linked to offer: ideas from a board, what
+ * a closed poll chose, and — to an account, linked or of the same event — the
+ * lines ticked and not yet written there.
+ */
+function listFlowsHtml(list) {
+  const all = everything();
+  const blocks = [];
+  for (const board of related(list, all, 'board')) {
+    const offers = ideasFor(list, board).filter((one) => !one.added).slice(0, 12);
+    blocks.push(offersHtml(t('flows.ideasFrom', { name: documentTitle(board) }),
+      offers.map((one) => offerButton('data-flow-idea', `${board.id}|${one.card.id}`, one.text))));
+  }
+  for (const poll of related(list, all, 'poll')) {
+    const offers = winnerOffers(poll, list).filter((one) => !one.added);
+    blocks.push(offersHtml(t('flows.chosenIn', { name: documentTitle(poll) }),
+      offers.map((one) => offerButton('data-flow-winner', `${poll.id}|${one.option.id}`, choiceLabel(one.option)))));
+  }
+  for (const spend of accountsFor(list, all)) {
+    blocks.push(ticketOffersHtml(list, spend, t('flows.toAccount', { name: documentTitle(spend) })));
+  }
+  const shown = blocks.filter(Boolean);
+  return shown.length
+    ? `<section class="card stack flows" data-flows-for="${escapeHtml(list.id)}" aria-label="${escapeHtml(t('flows.title'))}">${shown.join('')}</section>`
+    : '';
+}
+
+/**
+ * What waits to go from a list into an account, one chip per receipt: the
+ * lines each person had and has ticked — « Alice : fromage, patates » —, then
+ * those nobody had. On the list, and on the account the other way round.
+ */
+function ticketOffersHtml(list, spend, title) {
+  return offersHtml(title, ticketGroups(list, spend, everything()).map((group) => {
+    const words = group.items.slice(0, 3).map((item) => withoutPrice(item.text)).join(', ');
+    const more = group.items.length > 3 ? ` +${group.items.length - 3}` : '';
+    const label = group.who ? t('flows.ticketOf', { name: group.who, lines: `${words}${more}` }) : `${words}${more}`;
+    return `<button type="button" class="chip" data-flow-ticket="${escapeHtml(`${spend.id}|${list.id}|${group.whoId}`)}">💶 ${escapeHtml(label)}</button>`;
+  }));
+}
+
+/**
+ * Write ticked lines in an account, as one expense — the receipt: its lines
+ * ticked from the start, the other lines waiting there too, to add or leave;
+ * what it cost (what the lines said they would, to start with); who paid —
+ * whoever had them —; and who it is for, as any expense is shared.
+ */
+function openTicketDialog(spend, list, picked) {
+  const account = byId(spend.id) || spend;
+  const source = byId(list.id) || list;
+  const all = everything();
+  const waiting = unspentItems(source, account, all);
+  const chosen = new Set(picked.map((item) => item.id).filter((id) => waiting.some((item) => item.id === id)));
+  if (!chosen.size) return;
+  const lines = () => waiting.filter((item) => chosen.has(item.id));
+  const holders = [...new Set(lines().map((item) => item.who))];
+  const holder = holders.length === 1 ? source.people.find((person) => person.id === holders[0])?.name || '' : '';
+  const names = [...new Set([holder, ...account.people.map((person) => person.name), ...source.people.map((person) => person.name)]
+    .map((name) => String(name || '').trim()).filter(Boolean))];
+  let payer = holder || names.find((name) => sameName(name) === sameName(myNameFor(account))) || names[0] || '';
+  const guess = () => estimateOf(lines());
+
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <form class="stack" method="dialog">
+      <h2>${escapeHtml(t('flows.ticketTitle', { name: documentTitle(account) }))}</h2>
+      <div class="ticket-lines" role="group" aria-label="${escapeHtml(t('flows.ticketLines'))}">
+        ${waiting.map((item) => {
+          const price = priceIn(item.text);
+          return `
+            <label class="split-row">
+              <input type="checkbox" data-ticket-line="${escapeHtml(item.id)}" ${chosen.has(item.id) ? 'checked' : ''} />
+              <span class="split-row__name">${escapeHtml(withoutPrice(item.text))}</span>
+              ${price ? `<span class="split-row__share">≈ ${escapeHtml(money(price, account))}</span>` : ''}
+            </label>`;
+        }).join('')}
+      </div>
+      <label>
+        ${escapeHtml(t('spends.what'))}
+        <input type="text" id="ticket-text" autocomplete="off" value="${escapeHtml(ticketText(source, lines()))}" />
+      </label>
+      <label>
+        ${escapeHtml(t('spends.amount'))}
+        <input type="text" inputmode="decimal" id="ticket-amount" autocomplete="off" placeholder="0,00"
+               value="${guess() ? escapeHtml(typedAmount(guess())) : ''}" />
+      </label>
+      ${
+        names.length
+          ? `<span class="small">${escapeHtml(t('flows.paidBy'))}</span>
+             <div class="row row--chips" role="group" aria-label="${escapeHtml(t('flows.paidBy'))}">${names.map((name) => `
+               <button type="button" class="chip ${name === payer ? 'chip--on' : ''}" data-flow-payer="${escapeHtml(name)}"
+                       aria-pressed="${name === payer ? 'true' : 'false'}">${escapeHtml(name)}</button>`).join('')}
+             </div>`
+          : ''
+      }
+      ${account.people.length > 1 ? splitEditorHtml(account, { forWhom: defaultForWhom(source, account, all), groups: forWhomGroups(account, all) }) : ''}
+      <p class="late small" id="ticket-error" hidden></p>
+      <div class="row">
+        <button type="submit" class="button button--primary" id="ticket-ok">${escapeHtml(t('flows.spendAdd'))}</button>
+        <button type="button" class="button" data-flow-cancel>${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </form>`;
+
+  const text = dialog.querySelector('#ticket-text');
+  const amount = dialog.querySelector('#ticket-amount');
+  // What the box says is the app's guess until someone writes over it.
+  let ownText = false;
+  let ownAmount = false;
+  text.addEventListener('input', () => { ownText = true; });
+  const split = bindSplitEditor(dialog, account, () => readAmount(amount.value));
+  amount.addEventListener('input', () => {
+    ownAmount = true;
+    split.refresh();
+  });
+  dialog.querySelectorAll('[data-ticket-line]').forEach((box) => {
+    box.addEventListener('change', () => {
+      if (box.checked) chosen.add(box.dataset.ticketLine);
+      else chosen.delete(box.dataset.ticketLine);
+      if (!ownText) text.value = lines().length ? ticketText(source, lines()) : '';
+      if (!ownAmount) amount.value = guess() ? typedAmount(guess()) : '';
+      split.refresh();
+    });
+  });
+  dialog.querySelectorAll('[data-flow-payer]').forEach((node) => {
+    node.addEventListener('click', () => {
+      payer = node.dataset.flowPayer;
+      dialog.querySelectorAll('[data-flow-payer]').forEach((one) => {
+        const on = one === node;
+        one.classList.toggle('chip--on', on);
+        one.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    });
+  });
+  const problem = (message) => {
+    const error = dialog.querySelector('#ticket-error');
+    error.textContent = message;
+    error.hidden = false;
+  };
+  dialog.querySelector('[data-flow-cancel]').addEventListener('click', () => dialog.close());
+  dialog.querySelector('form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const cents = readAmount(amount.value);
+    if (!lines().length) return problem(t('flows.ticketNoLine'));
+    if (!cents) {
+      amount.focus();
+      return problem(t('spends.notAnAmount'));
+    }
+    const shared = split.read();
+    if (shared.error) return problem(shared.error);
+    const fresh = byId(spend.id) || spend;
+    const next = spendFromLines(fresh, byId(list.id) || list, lines(), cents, {
+      byName: payer, text: text.value, forWhom: shared.forWhom, parts: shared.parts, fixed: shared.fixed,
+    });
+    dialog.close();
+    if (next === fresh) return;
+    flash(t('flows.spent', { name: next.lines[next.lines.length - 1].text, account: documentTitle(spend) }));
+    replaceAny(next);
+  });
+  dialog.showModal();
+  amount.focus();
+}
+
+/* ---------------------------------------------------------------- a board --- */
+
+/** On a board with ideas, the way to vote on them. */
+function boardFlowsHtml(board) {
+  if (ideasFor({ items: [] }, board).length < 2) return '';
+  return `<button type="button" class="button button--small" data-flow-vote="${escapeHtml(board.id)}">🗳️ ${escapeHtml(t('flows.vote'))}</button>`;
+}
+
+async function voteOnIdeas(board) {
+  const question = await askForText({
+    title: t('flows.voteTitle'),
+    hint: t('flows.voteHint'),
+    value: documentTitle(board),
+    confirmLabel: t('flows.voteMake'),
+  });
+  if (question === null || question === undefined) return;
+  const poll = signed(organise(pollFromIdeas(board, { question, names: [myNameFor(board)].filter(Boolean) })));
+  state.polls = [...state.polls, poll];
+  persistPoll(poll);
+  flash(t('flows.voteMade'));
+  navigate(`#/poll/${poll.id}`);
+}
+
+/* ----------------------------------------------------------------- a poll --- */
+
+/** On a closed poll, its choice for the lists it goes with. */
+function pollFlowsHtml(poll) {
+  if (!winnersOf(poll).length) return '';
+  const blocks = related(poll, everything(), 'list').map((list) => offersHtml(
+    t('flows.intoList', { name: documentTitle(list) }),
+    winnerOffers(poll, list).filter((one) => !one.added)
+      .map((one) => offerButton('data-flow-winner-to', `${list.id}|${one.option.id}`, choiceLabel(one.option))),
+  )).filter(Boolean);
+  return blocks.length
+    ? `<section class="card stack flows" data-flows-for="${escapeHtml(poll.id)}" aria-label="${escapeHtml(t('flows.title'))}">${blocks.join('')}</section>`
+    : '';
+}
+
+/* ---------------------------------------------------------------- an event --- */
+
+/** On an event, who is coming and missing from its lists and accounts. */
+function eventFlowsHtml(event) {
+  const missing = missingGoers(event, everything());
+  if (!missing.length) return '';
+  return `
+    <div class="card stack stack--tight flows">
+      ${missing.map((one) => `<p class="small">${escapeHtml(t('flows.missing', { names: one.names.join(', '), name: documentTitle(one.document) }))}</p>`).join('')}
+      <div class="row"><button type="button" class="button button--small" data-flow-people="${escapeHtml(event.id)}">${escapeHtml(t('flows.people'))}</button></div>
+    </div>`;
+}
+
+/* ------------------------------------------------------------------ Home --- */
+
+/** On Home, what has just been unblocked. */
+function unblockedHtml() {
+  const found = unblockedNow(shownDocs(everything())).slice(0, 5);
+  if (!found.length) return '';
+  return `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('flows.unblocked'))}</h2></div>
+      <div class="game-list">${found.map(({ document: one, by }) => `
+        <button type="button" class="game-card" data-goto="${escapeHtml(documentHref(one))}">
+          <span class="game-card__title">🔓 ${escapeHtml(documentTitle(one))}</span>
+          <span class="game-card__meta">${escapeHtml(t('flows.freedBy', { names: by.map(chainLabel).join(', ') }))}</span>
+        </button>`).join('')}
+      </div>
+    </section>`;
+}
+
+/* ------------------------------------------------------------ activities --- */
+
+/** An activity's day and hour, or « à caler ». */
+function activityWhen(activity) {
+  return activity.date ? whenText(activity) : t('activity.unscheduled');
+}
+
+/**
+ * On an event, its programme: the activities in the order they happen, each
+ * a way to its page, and the way to add one.
+ */
+function programmeHtml(event, { guest = false } = {}) {
+  const activities = programmeOf(event, everything());
+  const votes = activityVotes(event, everything());
+  if (guest && !activities.length && !votes.length) return '';
+  return `
+    <div class="stack stack--tight programme" data-flows-for="${escapeHtml(event.id)}">
+      <span class="muted small">${escapeHtml(t('activity.programme'))}</span>
+      ${
+        activities.length
+          ? `<ul class="programme__list">${activities.map((one) => `
+              <li>
+                <button type="button" class="programme__item" data-goto="${escapeHtml(documentHref(one))}">
+                  <span class="programme__when">${escapeHtml(activityWhen(one))}</span>
+                  <span class="programme__what">${escapeHtml(documentTitle(one))}</span>
+                  ${outsideEvent(one, event) ? `<span class="pill pill--late">${escapeHtml(t('activity.outsideShort'))}</span>` : ''}
+                  ${talkSumHtml(one)}
+                </button>
+              </li>`).join('')}</ul>`
+          : votes.length ? '' : `<p class="muted small">${escapeHtml(t('activity.none'))}</p>`
+      }
+      ${votes.length ? `<ul class="programme__list">${votes.map((one) => `
+        <li>
+          <button type="button" class="programme__item programme__item--vote" data-goto="${escapeHtml(documentHref(one))}">
+            <span class="programme__when">🎯 ${escapeHtml(t('activity.voting'))}</span>
+            <span class="programme__what">${escapeHtml(documentTitle(one))}</span>
+          </button>
+        </li>`).join('')}</ul>` : ''}
+      ${guest ? '' : `<div class="row"><button type="button" class="button button--small" data-flow-activity="${escapeHtml(event.id)}">+ ${escapeHtml(t('activity.add'))}</button></div>`}
+    </div>`;
+}
+
+/** Day chips for an event's days, one picked; `none` offers « à caler ». */
+function dayChipsHtml(event, picked, { none = true, noneLabel = t('activity.unscheduled'), attr = 'data-activity-day' } = {}) {
+  const chip = (value, label) => `<button type="button" class="chip ${value === picked ? 'chip--on' : ''}" ${attr}="${escapeHtml(value)}"
+      aria-pressed="${value === picked ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
+  return `<div class="row row--chips" role="group">
+      ${eventDays(event).map((day) => chip(day, formatDayLong(day))).join('')}
+      ${none ? chip('', noneLabel) : ''}
+    </div>`;
+}
+
+/**
+ * « + → Activité », away from any event: which event it is for — the coming
+ * ones, soonest first —, straight to it when there is only one.
+ */
+function openActivityPicker() {
+  const all = everything();
+  const events = upcomingEvents(shownDocs(state.polls));
+  if (events.length === 1) {
+    openActivityDialog(events[0]);
+    return;
+  }
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('activity.forWhich'))}</h2>
+      ${
+        events.length
+          ? `<div class="game-list">${events.map((one) => `
+              <button type="button" class="game-card" data-activity-for="${escapeHtml(one.id)}">
+                <span class="game-card__title">${escapeHtml(documentTitle(one))}</span>
+                <span class="game-card__meta">${escapeHtml([whenText(one, { long: true }), t('count.activities', { count: programmeOf(one, all).length })].join(' · '))}</span>
+              </button>`).join('')}</div>`
+          : `<p class="muted small">${escapeHtml(t('activity.noEvent'))}</p>
+             <div class="row"><button type="button" class="button button--primary" data-activity-new-event>+ ${escapeHtml(t('events.new'))}</button></div>`
+      }
+      <div class="row"><button type="button" class="button button--ghost" data-activity-pick-close>${escapeHtml(t('action.cancel'))}</button></div>
+    </div>`;
+  dialog.querySelector('[data-activity-pick-close]').addEventListener('click', () => dialog.close());
+  dialog.querySelector('[data-activity-new-event]')?.addEventListener('click', () => {
+    dialog.close();
+    navigate('#/agenda/new');
+  });
+  dialog.querySelectorAll('[data-activity-for]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const event = byId(node.dataset.activityFor);
+      dialog.close();
+      if (event) openActivityDialog(event);
+    });
+  });
+  dialog.showModal();
+}
+
+/** A new activity: what, which day of the event — or later —, and when. */
+function openActivityDialog(event, { name = '', date = null, at = null, from = null, names = null } = {}) {
+  let day = date || '';
+  const dialog = makeDialog();
+  const draw = () => {
+    const typed = dialog.querySelector('#activity-name')?.value ?? name;
+    const hour = dialog.querySelector('#activity-at')?.value ?? (at || '');
+    dialog.innerHTML = `
+      <form class="stack" method="dialog">
+        <h2>${escapeHtml(t('activity.newTitle', { name: documentTitle(event) }))}</h2>
+        <label class="stack stack--tight">
+          <span class="small">${escapeHtml(t('activity.name'))}</span>
+          <input type="text" id="activity-name" maxlength="80" autocomplete="off" placeholder="${escapeHtml(t('activity.namePlaceholder'))}" />
+        </label>
+        <span class="small">${escapeHtml(t('activity.day'))}</span>
+        ${dayChipsHtml(event, day)}
+        <label class="stack stack--tight">
+          <span class="small">${escapeHtml(t('activity.at'))}</span>
+          <input type="time" id="activity-at" ${day ? '' : 'disabled'} />
+        </label>
+        <p class="muted small">${escapeHtml(t('activity.newHint'))}</p>
+        <div class="row">
+          <button type="submit" class="button button--primary" id="activity-ok">${escapeHtml(t('activity.create'))}</button>
+          <button type="button" class="button" data-activity-cancel>${escapeHtml(t('action.cancel'))}</button>
+        </div>
+      </form>`;
+    dialog.querySelector('#activity-name').value = typed;
+    dialog.querySelector('#activity-at').value = day ? hour : '';
+    dialog.querySelector('[data-activity-cancel]').addEventListener('click', () => dialog.close());
+    dialog.querySelectorAll('[data-activity-day]').forEach((node) => {
+      node.addEventListener('click', () => {
+        day = node.dataset.activityDay;
+        draw();
+      });
+    });
+    dialog.querySelector('form').addEventListener('submit', (submitted) => {
+      submitted.preventDefault();
+      const what = dialog.querySelector('#activity-name').value.trim();
+      if (!what) {
+        dialog.querySelector('#activity-name').focus();
+        return;
+      }
+      const at = dialog.querySelector('#activity-at').value || null;
+      const made = organise(signed(activityFor(event, { name: what, date: day || null, at: day ? at : null, from, names })));
+      dialog.close();
+      state.polls = [...state.polls, made];
+      persistPoll(made);
+      flash(t('activity.made', { name: what, event: documentTitle(event) }));
+      render();
+    });
+  };
+  draw();
+  dialog.showModal();
+  dialog.querySelector('#activity-name').focus();
+}
+
+/**
+ * On an activity's page: whose activity it is and when that is; with no day
+ * yet, the days of the event to pick from, or a poll to ask; a word when its
+ * day falls outside the event.
+ */
+function activityHeadHtml(activity) {
+  const all = everything();
+  if (!isActivity(activity, all)) return '';
+  const event = all.find((one) => one.id === parentId(activity));
+  const asking = all.find((one) => one.whenFor === activity.id && !one.closedAt && !one.archivedAt);
+  return `
+    <section class="card stack stack--tight activity-head" data-flows-for="${escapeHtml(activity.id)}">
+      <p class="small">${escapeHtml(t('activity.of', { name: documentTitle(event), when: whenText(event, { long: true }) }))}</p>
+      ${outsideEvent(activity, event) ? `<p class="small late">${escapeHtml(t('activity.outside'))}</p>` : ''}
+      ${
+        isOrganiser(activity) && splitPollActivity(activity, all)
+          ? `<p class="small">${escapeHtml(t('activity.splitHint'))}</p>
+             <div class="row"><button type="button" class="button button--small" data-flow-split>${escapeHtml(t('activity.split', { name: documentTitle(splitPollActivity(activity, all).activity) }))}</button></div>`
+          : ''
+      }
+      ${
+        activity.date
+          ? ''
+          : `<span class="small">${escapeHtml(t('activity.pickDay'))}</span>
+             ${dayChipsHtml(event, '', { none: false, attr: 'data-activity-set-day' })}
+             <div class="row">
+               ${
+                 asking
+                   ? `<button type="button" class="button button--small" data-goto="${escapeHtml(documentHref(asking))}">🗳️ ${escapeHtml(t('activity.seeWhen'))}</button>`
+                   : `<button type="button" class="button button--small" data-flow-when="${escapeHtml(activity.id)}">🗳️ ${escapeHtml(t('activity.askWhen'))}</button>`
+               }
+             </div>`
+      }
+    </section>`;
+}
+
+/** On a board that is part of an event, the way to make activities of its ideas. */
+function boardActivitiesHtml(board) {
+  const { event, ideas } = ideaActivities(board, everything());
+  if (!event || !ideas.length) return '';
+  return `<button type="button" class="button button--small" data-flow-idea-activities="${escapeHtml(board.id)}">🎯 ${escapeHtml(t('activity.fromIdeas'))}</button>`;
+}
+
+/** Pick the ideas that become activities: one tap each, the dialog stays. */
+function openIdeaActivitiesDialog(board) {
+  const dialog = makeDialog();
+  const draw = () => {
+    const { event, ideas } = ideaActivities(byId(board.id) || board, everything());
+    if (!event) {
+      dialog.close();
+      return;
+    }
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(t('activity.fromIdeasTitle', { name: documentTitle(event) }))}</h2>
+        <p class="muted small">${escapeHtml(t('activity.fromIdeasHint'))}</p>
+        <div class="row row--chips">${ideas.map((one) => (one.made
+          ? `<span class="chip chip--on">✓ ${escapeHtml(one.text)}</span>`
+          : `<button type="button" class="chip" data-idea-activity="${escapeHtml(one.card.id)}">+ ${escapeHtml(one.text)}</button>`)).join('')}
+        </div>
+        <div class="row"><button type="button" class="button button--ghost" data-idea-activities-close>${escapeHtml(t('action.close'))}</button></div>
+      </div>`;
+    dialog.querySelector('[data-idea-activities-close]').addEventListener('click', () => dialog.close());
+    dialog.querySelectorAll('[data-idea-activity]').forEach((node) => {
+      node.addEventListener('click', () => {
+        const one = ideas.find((idea) => idea.card.id === node.dataset.ideaActivity);
+        if (!one) return;
+        const made = organise(signed(activityFor(event, { name: one.text, from: { doc: board.id, part: one.card.id } })));
+        state.polls = [...state.polls, made];
+        persistPoll(made);
+        flash(t('activity.made', { name: one.text, event: documentTitle(event) }));
+        render();
+        draw();
+      });
+    });
+  };
+  draw();
+  dialog.showModal();
+}
+
+/** On a closed poll that is part of an event, its choice to organise. */
+function pollActivitiesHtml(poll) {
+  const { event, choices } = choiceActivities(poll, everything());
+  const open = choices.filter((one) => !one.made);
+  if (!event || !open.length) return '';
+  return `
+    <section class="card stack stack--tight flows" data-flows-for="${escapeHtml(poll.id)}">
+      ${offersHtml(t('activity.organise', { name: documentTitle(event) }),
+        open.map((one) => offerButton('data-flow-choice-activity', one.option.id, choiceLabel(one.option))))}
+    </section>`;
+}
+
+/* ------------------------------------------------------------ the binder --- */
+
+/** Every offer on the page, bound. Called after each render. */
+function bindFlows(root) {
+  const pair = (value) => String(value || '').split('|');
+  const current = (id) => byId(id);
+  const owner = (node) => current(node.closest('[data-flows-for]')?.dataset.flowsFor);
+  root.querySelectorAll('[data-flow-idea]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const [boardId, cardId] = pair(node.dataset.flowIdea);
+      const list = owner(node);
+      addFrom(list, boardId, (target, board) => addIdea(target, board, board.cards.find((card) => card.id === cardId)));
+    });
+  });
+  root.querySelectorAll('[data-flow-winner]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const [pollId, optionId] = pair(node.dataset.flowWinner);
+      const list = owner(node);
+      addFrom(list, pollId, (target, poll) => addWinner(target, poll, poll.options.find((option) => option.id === optionId), getLanguage()));
+    });
+  });
+  root.querySelectorAll('[data-flow-winner-to]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const [listId, optionId] = pair(node.dataset.flowWinnerTo);
+      const poll = owner(node);
+      if (!poll) return;
+      addFrom(current(listId), poll.id, (target, source) => addWinner(target, source, source.options.find((option) => option.id === optionId), getLanguage()));
+    });
+  });
+  root.querySelectorAll('[data-flow-ticket]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const [spendId, listId, whoId] = pair(node.dataset.flowTicket);
+      const spend = current(spendId);
+      const list = current(listId);
+      const group = list && spend && ticketGroups(list, spend, everything()).find((one) => one.whoId === whoId);
+      if (group) openTicketDialog(spend, list, group.items);
+    });
+  });
+  root.querySelectorAll('[data-flow-vote]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const board = current(node.dataset.flowVote);
+      if (board) void voteOnIdeas(board);
+    });
+  });
+  root.querySelectorAll('[data-flow-people]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const event = current(node.dataset.flowPeople);
+      if (!event) return;
+      const missing = missingGoers(event, everything());
+      flash(t('flows.peopleDone', { count: missing.length }));
+      for (const one of missing) replaceAny(addGoers(one.document, one.names));
+    });
+  });
+  root.querySelectorAll('[data-flow-activity]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const event = current(node.dataset.flowActivity);
+      if (event) openActivityDialog(event);
+    });
+  });
+  root.querySelectorAll('[data-activity-set-day]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const activity = owner(node);
+      if (!activity) return;
+      flash(t('activity.dayKept', { day: formatDayLong(node.dataset.activitySetDay) }));
+      replacePoll(setPollDate(activity, node.dataset.activitySetDay, activity.at || null, null));
+    });
+  });
+  root.querySelectorAll('[data-flow-split]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const poll = owner(node);
+      const split = poll && splitPollActivity(poll, everything());
+      if (!split) return;
+      const made = organise(signed(split.activity));
+      state.polls = [...state.polls, made];
+      persistPoll(made);
+      replacePoll(split.poll, { redraw: false });
+      flash(t('activity.made', { name: documentTitle(made), event: chainLabelShort(byId(made.parent) || made) }));
+      navigate(documentHref(made));
+    });
+  });
+  root.querySelectorAll('[data-flow-when]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const activity = current(node.dataset.flowWhen);
+      const event = activity && current(parentId(activity));
+      if (!activity || !event) return;
+      const poll = signed(organise(whenPoll(activity, event, {
+        question: t('activity.whenQuestion', { name: documentTitle(activity) }),
+      })));
+      state.polls = [...state.polls, poll];
+      persistPoll(poll);
+      flash(t('activity.whenMade'));
+      navigate(`#/poll/${poll.id}`);
+    });
+  });
+  root.querySelectorAll('[data-flow-idea-activities]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const board = current(node.dataset.flowIdeaActivities);
+      if (board) openIdeaActivitiesDialog(board);
+    });
+  });
+  root.querySelectorAll('[data-flow-choice-activity]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const poll = owner(node);
+      const { event, choices } = poll ? choiceActivities(poll, everything()) : { event: null, choices: [] };
+      const one = choices.find((choice) => choice.option.id === node.dataset.flowChoiceActivity);
+      if (!event || !one) return;
+      const keen = activityFromChoice(event, poll, one.option);
+      openActivityDialog(event, { name: keen.title || '', date: keen.date, at: keen.at, from: keen.from, names: keen.people.map((person) => person.name) });
+    });
+  });
+  bindLongPress(root);
+}
+
+/** Add to a list from another document, and say so. */
+function addFrom(list, sourceId, make) {
+  const source = byId(sourceId);
+  if (!list || !source) return;
+  const next = make(list, source);
+  if (!next || next === list) return;
+  flash(t('flows.added', { name: next.items[next.items.length - 1].text, list: documentTitle(list) }));
+  replaceAny(next);
+}
+
+/* ------------------------------------------------------------ long press --- */
+
+const PRESS_MS = 500;
+const PRESS_SLOP = 10;
+
+/**
+ * Whatever opens a document's page, as that document — or what says which
+ * document it stands for without opening it: the tree's node for the page
+ * one is on (`data-press`).
+ */
+function pressedDocument(node) {
+  if (node.dataset.press) return byId(node.dataset.press);
+  const match = /^#\/(list|poll|spend|game|idea)\/([^/]+)$/.exec(node.dataset.goto || '');
+  return match ? byId(match[2]) : null;
+}
+
+/**
+ * Hold anything that opens a document — a card, a line of Home, a node of the
+ * chain's tree — for its menu: open, attach, link, put away, delete. A right
+ * click does the same on a computer. Moving the finger, as a scroll or a
+ * swipe does, cancels it; once the menu is out, the tap that ends the press
+ * opens nothing — neither the page under the finger nor the menu's button
+ * that has just appeared there.
+ */
+function bindLongPress(root) {
+  root.querySelectorAll('[data-goto], [data-press]').forEach((node) => {
+    if (!pressedDocument(node) || node.dataset.pressBound) return;
+    node.dataset.pressBound = '1';
+    node.classList.add('pressable');
+    // For a mouse: a « ⋯ » that says there is a menu, and opens it. Inside
+    // the thing it stands for, so a card's layout does not move; hidden from
+    // screen readers, who have the context-menu key.
+    if (node.matches('.game-card, .chain-map__node, .programme__item')) {
+      const more = document.createElement('span');
+      more.className = 'press-more';
+      more.setAttribute('aria-hidden', 'true');
+      more.title = t('menu.more');
+      more.textContent = '⋯';
+      more.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const document_ = pressedDocument(node);
+        if (document_) openDocumentMenu(document_);
+      });
+      node.append(more);
+    }
+    let timer = null;
+    let start = null;
+    let fired = false;
+    const cancel = () => {
+      clearTimeout(timer);
+      timer = null;
+      node.classList.remove('pressable--held');
+    };
+    node.addEventListener('pointerdown', (event) => {
+      if (event.button !== undefined && event.button !== 0) return;
+      fired = false;
+      start = { x: event.clientX, y: event.clientY };
+      node.classList.add('pressable--held');
+      timer = setTimeout(() => {
+        timer = null;
+        fired = true;
+        node.classList.remove('pressable--held');
+        const document_ = pressedDocument(node);
+        if (!document_) return;
+        navigator.vibrate?.(12);
+        openDocumentMenu(document_, { underFinger: true });
+      }, PRESS_MS);
+    });
+    node.addEventListener('pointermove', (event) => {
+      if (timer && start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > PRESS_SLOP) cancel();
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach((type) => node.addEventListener(type, cancel));
+    // Capture: the menu's press must not also open the page.
+    node.addEventListener('click', (event) => {
+      if (!fired) return;
+      fired = false;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, true);
+    node.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      cancel();
+      if (fired) return;
+      const document_ = pressedDocument(node);
+      if (document_) openDocumentMenu(document_);
+    });
+  });
+}
+
+const ARCHIVERS = { list: archiveList, poll: archivePoll, spend: archiveSpend, board: archiveBoard, game: archiveGame };
+
+/** What can be done to a document, from wherever it shows. */
+function openDocumentMenu(document_, { underFinger = false } = {}) {
+  const kind = kindOf(document_) || 'game';
+  // A poll is its organiser's to move, put away or delete: the database
+  // refuses anyone else, so the menu does not offer it.
+  const mine = kind !== 'poll' || isOrganiser(document_);
+  const dialog = makeDialog('dialog dialog--ask doc-menu-dialog');
+  // Opened under a finger still down: the tap that lifts it would land on
+  // whichever button appeared there. So a click counts only when its press
+  // began inside the menu — the lifting one began before the menu was there.
+  // No timer: a phone that ends a long press by cancelling the touch rather
+  // than lifting it (iOS does) must not leave the menu deaf to the next tap.
+  // A click from the keyboard (detail 0) always counts.
+  if (underFinger) {
+    let pressed = false;
+    dialog.addEventListener('pointerdown', () => { pressed = true; }, true);
+    dialog.addEventListener('click', (event) => {
+      if (pressed || event.detail === 0) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, true);
+  }
+  const button = (attr, label, extra = '') => `<button type="button" class="button ${extra}" ${attr}>${escapeHtml(label)}</button>`;
+  dialog.innerHTML = `
+    <div class="stack">
+      <div>
+        <h2>${escapeHtml(chainLabel(document_))}</h2>
+        <p class="muted small">${escapeHtml([t(isEventDoc(document_) ? 'chain.kind.event' : `chain.kind.${kind}`), ...chainOf(document_).map(chainLabel)].join(' · '))}</p>
+      </div>
+      <div class="stack stack--tight doc-menu">
+        ${location.hash === documentHref(document_) ? '' : button('data-menu-open', t('menu.open'), 'button--primary')}
+        ${
+          mine
+            ? `${attachTargets(document_, everything()).length || parentId(document_) ? button('data-menu-attach', t(isEventDoc(document_) ? 'activity.attach' : 'chain.attach')) : ''}
+               ${button('data-menu-relate', t('relate.button'))}
+               ${button('data-menu-archive', t(document_.archivedAt ? 'archive.back' : 'archive.put'))}
+               ${button('data-menu-delete', t('action.delete'), 'button--danger')}`
+            : `<p class="muted small">${escapeHtml(t('menu.notOrganiser'))}</p>`
+        }
+        ${button('data-menu-cancel', t('action.cancel'), 'button--ghost')}
+      </div>
+    </div>`;
+  const on = (attr, run) => dialog.querySelector(`[${attr}]`)?.addEventListener('click', () => {
+    dialog.close();
+    run();
+  });
+  on('data-menu-open', () => navigate(documentHref(document_)));
+  on('data-menu-attach', () => openAttachDialog(byId(document_.id) || document_));
+  on('data-menu-relate', () => openRelateDialog(byId(document_.id) || document_));
+  on('data-menu-archive', () => {
+    const fresh = byId(document_.id) || document_;
+    flash(t(fresh.archivedAt ? 'menu.unarchived' : 'menu.archived', { name: documentTitle(fresh) }));
+    replaceAny(ARCHIVERS[kind](fresh, !fresh.archivedAt));
+    if (kind === 'game') render(); // a game's writer does not redraw
+  });
+  on('data-menu-delete', () => void deleteDocument(document_.id));
+  on('data-menu-cancel', () => {});
+  dialog.showModal();
+}
+
+  // ---- src/view-account.js ---------------------------------------------
+/**
+ * Accounts, optional: sign in with an e-mail address and a code, no password.
+ *
+ * What an account keeps is what a device alone would lose: which groups it is
+ * in — by marking the device's own keys as the account's, never a key in
+ * clear — and the organiser's secrets of its polls. On a new device, or in a
+ * browser that forgot everything, signing in gives a fresh key for each group
+ * and the secrets back.
+ *
+ * Nobody has to: without an account, the app works as it always has. A poll's
+ * visitor from a link never sees any of this.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+
+/** The address a code was sent to, while the code is awaited. */
+let awaiting = '';
+/** When this device last told the account what it holds. */
+let lastSync = 0;
+/** One sync at a time. */
+let syncing = null;
+
+const RESYNC_MS = 10 * 60 * 1000;
+
+/** The session of the signed-in account on this device, or null. */
+function account() {
+  return loadAccount();
+}
+
+/**
+ * A token that is still good: refreshed when it is about to end. Null when
+ * signed out — or when the account can no longer be refreshed, which signs
+ * this device out rather than fail at every call.
+ */
+async function accountToken() {
+  const session = account();
+  if (!session || !state.remote) return null;
+  if (session.expires - Date.now() > 60 * 1000) return session.access;
+  try {
+    const fresh = await state.remote.refreshSession(session.refresh);
+    if (!fresh) throw new Error('no session');
+    saveAccount({ ...fresh, email: fresh.email || session.email, sent: session.sent });
+    return fresh.access;
+  } catch (error) {
+    // Refused (the account was removed, the refresh token spent): out. No
+    // answer at all (offline): keep the session, and try again later.
+    if (error?.status >= 400 && error?.status < 500) saveAccount(null);
+    return null;
+  }
+}
+
+/**
+ * Tell the account what this device holds, and take what it holds that this
+ * device does not. `restore` asks for the groups and secrets; without it, only
+ * what is here goes up. Quiet: a failure is tried again at the next sync.
+ */
+function syncAccount({ restore = true, force = false } = {}) {
+  if (!account() || !state.remote) return Promise.resolve(false);
+  if (!force && Date.now() - lastSync < RESYNC_MS) return Promise.resolve(false);
+  if (syncing) return syncing;
+  syncing = (async () => {
+    let learnt = false;
+    try {
+      const token = await accountToken();
+      if (!token) return false;
+      if (restore) {
+        const answer = await state.remote.accountRestore(token, groups().map((group) => group.id), deviceLabel());
+        for (const group of answer?.groups || []) {
+          if (!group?.id || !group?.key) continue;
+          rememberGroup({ id: group.id, name: group.name, key: group.key, admits: Boolean(group.admits) });
+          learnt = true;
+        }
+        const secrets = answer?.owners && typeof answer.owners === 'object' ? answer.owners : {};
+        const held = state.prefs.organiser || {};
+        const missing = Object.entries(secrets).filter(([id, secret]) => typeof secret === 'string' && !held[id]);
+        if (missing.length) {
+          state.prefs = { ...state.prefs, organiser: { ...held, ...Object.fromEntries(missing) } };
+          savePrefs(state.prefs);
+          learnt = true;
+        }
+        if (!myName() && answer?.name) setMyName(answer.name);
+      }
+      // What went up already does not go up again: one call per new key or
+      // new secret, not one per thing held, at every opening.
+      const sent = account()?.sent || { keys: [], owners: [] };
+      const keys = new Set(sent.keys);
+      const owners = new Set(sent.owners);
+      const name = myName();
+      for (const group of groups()) {
+        const mark = `${group.id}|${group.key.slice(0, 8)}|${name}`;
+        if (keys.has(mark)) continue;
+        const answer = await state.remote.accountLink(token, group.key, name).catch(() => null);
+        if (answer?.status === 'ok') {
+          keys.add(mark);
+          // Its key is the account's now: a group that requires one opens.
+          if (!group.linked) {
+            state.prefs = { ...state.prefs, groups: groups().map((one) => (one.id === group.id ? { ...one, linked: true } : one)) };
+            savePrefs(state.prefs);
+            // What it shares comes now, not at the next round of catching up.
+            state.syncedAt = 0;
+            learnt = true;
+          }
+        }
+      }
+      for (const [id, secret] of Object.entries(state.prefs.organiser || {})) {
+        if (owners.has(id)) continue;
+        const answer = await state.remote.accountOwner(token, id, secret).catch(() => null);
+        if (answer?.status === 'ok') owners.add(id);
+      }
+      const now = account();
+      if (now) saveAccount({ ...now, sent: { keys: [...keys], owners: [...owners] } });
+      lastSync = Date.now();
+    } catch {
+      return false;
+    } finally {
+      syncing = null;
+    }
+    if (learnt) {
+      await catchUpQuietly();
+      render();
+    }
+    return learnt;
+  })();
+  return syncing;
+}
+
+/** Leave a group for good while signed in: no device of the account keeps it. */
+async function leaveWithAccount(group) {
+  const token = await accountToken();
+  if (!token || !group?.key) return;
+  await state.remote.accountLeave(token, group.key).catch(() => null);
+}
+
+/* ---------------------------------------------------------------- screen --- */
+
+/** The account section of the settings. */
+function accountHtml() {
+  if (!state.remote) return '';
+  const session = account();
+  if (session) {
+    return `
+      <section class="section" id="account">
+        <div class="section__head"><h2>${escapeHtml(t('account.title'))}</h2></div>
+        <p class="small">${escapeHtml(t('account.signedIn', { email: session.email }))}</p>
+        <p class="muted small">${escapeHtml(t('account.keeps'))}</p>
+        <div class="row">
+          <button type="button" class="button button--small" id="account-sync">${escapeHtml(t('account.sync'))}</button>
+          <button type="button" class="button button--small button--ghost" id="account-out">${escapeHtml(t('account.signOut'))}</button>
+          <button type="button" class="button button--small button--ghost" id="account-out-all">${escapeHtml(t('account.signOutAll'))}</button>
+          <button type="button" class="button button--small button--ghost button--danger" id="account-delete">${escapeHtml(t('account.delete'))}</button>
+        </div>
+        <div class="row"><button type="button" class="button button--small button--ghost" data-goto="#/confidentialite">${escapeHtml(t('privacy.title'))}</button></div>
+      </section>`;
+  }
+  return `
+    <section class="section" id="account">
+      <div class="section__head"><h2>${escapeHtml(t('account.title'))}</h2></div>
+      <p class="muted small">${escapeHtml(t('account.why'))}</p>
+      ${signInFormHtml()}
+    </section>`;
+}
+
+/** The two steps of signing in: the address, then the code it received. */
+function signInFormHtml() {
+  return awaiting
+    ? `<form id="account-code-form" class="card stack stack--tight">
+         <label class="stack stack--tight">
+           <span class="small">${escapeHtml(t('account.codeSent', { email: awaiting }))}</span>
+           <input type="text" id="account-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10"
+                  placeholder="${escapeHtml(t('account.codePlaceholder'))}" />
+         </label>
+         <div class="row">
+           <button type="submit" class="button button--primary">${escapeHtml(t('account.signIn'))}</button>
+           <button type="button" class="button button--ghost" id="account-other">${escapeHtml(t('account.otherEmail'))}</button>
+         </div>
+       </form>`
+    : `<form id="account-email-form" class="card stack stack--tight">
+         <label class="stack stack--tight">
+           <span class="small">${escapeHtml(t('account.email'))}</span>
+           <input type="email" id="account-email" autocomplete="email" inputmode="email"
+                  placeholder="${escapeHtml(t('account.emailPlaceholder'))}" />
+         </label>
+         <div class="row"><button type="submit" class="button button--primary">${escapeHtml(t('account.sendCode'))}</button></div>
+         <p class="muted small">${escapeHtml(t('account.privacy'))}</p>
+         <div class="row"><button type="button" class="button button--small button--ghost" data-goto="#/confidentialite">${escapeHtml(t('privacy.title'))}</button></div>
+       </form>`;
+}
+
+/* ------------------------------------------------- offered on the way in --- */
+
+/**
+ * Just let into a group: the moment to offer an account, once. It is what
+ * keeps the group when the phone wipes its data or is replaced — and nobody
+ * listens to that advice later, from the settings. Optional: « Plus tard »
+ * puts it away, and nothing else changes.
+ */
+function offerAccount(group) {
+  // Answered once — « Plus tard », or signed in — is answered for this device:
+  // the reminder on Home takes over from there.
+  if (!state.remote || account() || state.prefs.accountOfferDone) return false;
+  state.prefs = { ...state.prefs, accountOffer: { name: String(group?.name || ''), at: Date.now() } };
+  savePrefs(state.prefs);
+  return true;
+}
+
+/** Offered for a week at most: by then, the reminder on Home takes over. */
+const OFFER_MS = 7 * 24 * 60 * 60 * 1000;
+
+function offered() {
+  const offer = state.prefs.accountOffer;
+  if (!offer || !state.remote || account() || state.prefs.accountOfferDone) return null;
+  return Date.now() - (offer.at || 0) < OFFER_MS ? offer : null;
+}
+
+function forgetOffer() {
+  const { accountOffer, ...rest } = state.prefs;
+  state.prefs = { ...rest, accountOfferDone: Date.now() };
+  savePrefs(state.prefs);
+}
+
+/** On the groups tab, where someone just let in lands. */
+function accountOfferHtml() {
+  const offer = offered();
+  if (!offer) return '';
+  return `
+    <section class="section account-offer" id="account">
+      <div class="section__head">
+        <h2>${escapeHtml(offer.name ? t('account.offerTitle', { name: offer.name }) : t('account.offerTitleBare'))}</h2>
+      </div>
+      <p class="small">${escapeHtml(t('account.offerWhy'))}</p>
+      ${signInFormHtml()}
+      <p class="muted small">${escapeHtml(t('account.offerWithout'))}</p>
+      <div class="row"><button type="button" class="button button--small button--ghost" data-account-later>${escapeHtml(t('install.later'))}</button></div>
+    </section>`;
+}
+
+function bindAccount() {
+  view.querySelector('#account-email-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const field = view.querySelector('#account-email');
+    const email = field.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      field.focus();
+      return;
+    }
+    const button = event.currentTarget.querySelector('button[type=submit]');
+    button.disabled = true;
+    try {
+      await state.remote.sendCode(email);
+      awaiting = email;
+    } catch (error) {
+      flash(t(error?.status === 429 ? 'account.tooMany' : 'account.sendFailed'), 'error');
+    }
+    render();
+  });
+  view.querySelector('#account-code-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const code = view.querySelector('#account-code').value.replace(/\s+/g, '');
+    if (!code) return;
+    const button = event.currentTarget.querySelector('button[type=submit]');
+    button.disabled = true;
+    let session = null;
+    try {
+      session = await state.remote.verifyCode(awaiting, code);
+    } catch {
+      session = null;
+    }
+    if (!session) {
+      flash(t('account.badCode'), 'error');
+      render();
+      return;
+    }
+    saveAccount({ ...session, email: session.email || awaiting });
+    awaiting = '';
+    forgetOffer();
+    flash(t('account.welcome'));
+    render();
+    await syncAccount({ force: true });
+    render();
+  });
+  view.querySelector('[data-account-later]')?.addEventListener('click', () => {
+    awaiting = '';
+    forgetOffer();
+    render();
+  });
+  view.querySelector('#account-other')?.addEventListener('click', () => {
+    awaiting = '';
+    render();
+  });
+  view.querySelector('#account-sync')?.addEventListener('click', async (event) => {
+    event.currentTarget.disabled = true;
+    const learnt = await syncAccount({ force: true });
+    flash(t(learnt ? 'account.synced' : 'account.upToDate'));
+    render();
+  });
+  view.querySelector('#account-delete')?.addEventListener('click', async () => {
+    if (!(await ask(t('account.deleteConfirm'), { confirmLabel: t('account.delete'), danger: true }))) return;
+    const token = await accountToken();
+    let answer = null;
+    try {
+      if (!token) throw new Error('no token');
+      answer = await state.remote.accountDelete(token);
+    } catch {
+      flash(t('account.deleteFailed'), 'error');
+      render();
+      return;
+    }
+    saveAccount(null);
+    // Everything of ours is gone; only the address, kept by Supabase itself,
+    // may have been out of reach — then it is said, not hidden.
+    flash(t(answer?.status === 'partial' ? 'account.deletedPartly' : 'account.deleted'), answer?.status === 'partial' ? 'error' : 'info');
+    render();
+  });
+  const signOut = async (everywhere) => {
+    const session = account();
+    if (session?.access) await state.remote.signOut(session.access, everywhere).catch(() => null);
+    saveAccount(null);
+    flash(t(everywhere ? 'account.signedOutAll' : 'account.signedOut'));
+    render();
+  };
+  view.querySelector('#account-out')?.addEventListener('click', () => void signOut(false));
+  view.querySelector('#account-out-all')?.addEventListener('click', async () => {
+    if (!(await ask(t('account.signOutAllConfirm'), { confirmLabel: t('account.signOutAll') }))) return;
+    await signOut(true);
+  });
+}
+
+/* ------------------------------------------------- groups needing one --- */
+
+/**
+ * The groups that require an account and whose key here is no account's: they
+ * show nothing of what they share until this device signs in.
+ */
+function groupsNeedingAccount() {
+  return groups().filter((group) => group.accounts && !group.linked);
+}
+
+/** On Home and on Groups: sign in, or the group stays closed. */
+function accountNeededHtml() {
+  const closed = groupsNeedingAccount();
+  if (!closed.length || !state.remote) return '';
+  return `
+    <section class="banner banner--warn stack stack--tight account-needed">
+      <p class="small">${escapeHtml(t('account.needed', { names: closed.map((group) => group.name).join(', '), count: closed.length }))}</p>
+      <div class="row">
+        <button type="button" class="button button--small button--primary" data-goto="#/settings">${escapeHtml(t(account() ? 'account.sync' : 'install.signIn'))}</button>
+      </div>
+    </section>`;
+}
+
+/* --------------------------------------------------------------- privacy --- */
+
+/** What the app keeps, where, who sees it, and how to have it erased. */
+function privacyView() {
+  const block = (title, text) => `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t(title))}</h2></div>
+      <p class="small">${escapeHtml(t(text))}</p>
+    </section>`;
+  const contact = String(CONTACT || '').trim();
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/settings')}
+      <h1>${escapeHtml(t('privacy.title'))}</h1>
+    </div>
+    <p class="lead">${escapeHtml(t('privacy.intro'))}</p>
+    ${block('privacy.deviceTitle', 'privacy.device')}
+    ${block('privacy.sharedTitle', 'privacy.shared')}
+    ${block('privacy.accountTitle', 'privacy.account')}
+    ${block('privacy.noneTitle', 'privacy.none')}
+    ${block('privacy.keepTitle', 'privacy.keep')}
+    ${block('privacy.whoTitle', 'privacy.processors')}
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('privacy.rightsTitle'))}</h2></div>
+      <p class="small">${escapeHtml(t('privacy.rights'))}</p>
+      <p class="small">${
+        contact
+          ? `${escapeHtml(t('privacy.contact'))} <a href="mailto:${escapeHtml(contact)}">${escapeHtml(contact)}</a>`
+          : escapeHtml(t('privacy.noContact'))
+      }</p>
+    </section>`;
+}
+
+  // ---- src/view-install.js ---------------------------------------------
+/**
+ * Installing first, on a phone.
+ *
+ * On an iPhone, the app on the home screen and Safari keep separate data: a
+ * group joined in Safari is not in the installed app, and Safari may wipe a
+ * site not opened for weeks. So on an iPhone the invitation page leads with
+ * installing — the steps, then the group's name and code to type in the app —
+ * and joining in the browser is still there, below, not recommended.
+ *
+ * On Android, the installed app shares Chrome's data: joining here is safe,
+ * and installing is one button when Chrome offers it.
+ *
+ * Wherever it runs, the app asks the browser to keep its data (a request
+ * browsers grant or not, without asking anyone most of the time), and Home
+ * reminds someone in a group, in a phone's browser and without an account,
+ * how not to lose it.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+
+
+/** Chrome's offer to install, kept for when someone asks for it. */
+let installOffer = null;
+
+/** How long « Plus tard » quiets the reminder. */
+const QUIET_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** This phone, if it is one — and not already the installed app, nor a messaging app's browser. */
+function phoneToInstall() {
+  if (onHomeScreen() || inAppBrowser(navigator.userAgent)) return null;
+  return phoneKind(navigator.userAgent, navigator.maxTouchPoints || 0);
+}
+
+/**
+ * Once, on opening: listen for Chrome's offer to install, and ask the browser
+ * to keep this app's data when there is something worth keeping.
+ */
+function startInstall() {
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    installOffer = event;
+    if (view.querySelector('[data-install-slot]')) render();
+  });
+  window.addEventListener('appinstalled', () => {
+    installOffer = null;
+  });
+  void keepData();
+}
+
+/**
+ * Ask the browser not to clear this app's data on its own. Only once there is
+ * something to lose — a group, an account — and only if not granted already:
+ * some browsers ask the person, and a question about nothing is noise.
+ */
+async function keepData() {
+  try {
+    if (!navigator.storage?.persist || !(groups().length || account())) return false;
+    if (await navigator.storage.persisted()) return true;
+    return await navigator.storage.persist();
+  } catch {
+    return false;
+  }
+}
+
+/** The steps that put the app on this phone's home screen. */
+function stepsHtml(kind) {
+  if (kind === 'android') {
+    return installOffer
+      ? `<div class="row"><button type="button" class="button button--primary" data-install-now>${escapeHtml(t('install.button'))}</button></div>`
+      : `<ol class="steps small"><li>${escapeHtml(t('install.android1'))}</li><li>${escapeHtml(t('install.android2'))}</li></ol>`;
+  }
+  return `<ol class="steps small">
+      <li>${escapeHtml(t('install.ios1'))}</li>
+      <li>${escapeHtml(t('install.ios2'))}</li>
+      <li>${escapeHtml(t('install.ios3'))}</li>
+    </ol>`;
+}
+
+/**
+ * The invitation page on an iPhone, in Safari: install, then join from the
+ * app — with the group's name and code to type there.
+ */
+function installFirstHtml(invitation) {
+  const name = String(invitation.group || '').trim();
+  const code = String(invitation.code || '').trim();
+  return `
+    <section class="card stack install-first" data-install-slot>
+      <h2>${escapeHtml(t('install.firstTitle'))}</h2>
+      <p class="small">${escapeHtml(t('install.firstWhy'))}</p>
+      ${stepsHtml('ios')}
+      <p class="small">${escapeHtml(t('install.thenJoin'))}</p>
+      ${
+        name && code
+          ? `<p class="small"><strong>${escapeHtml(t('join.toHomeScreenWhat'))}</strong>
+               ${escapeHtml(name)} · <span class="code-shown">${escapeHtml(code)}</span></p>
+             <div class="row"><button type="button" class="button button--small" id="join-copy-code">${escapeHtml(t('join.toHomeScreenCopy'))}</button></div>`
+          : ''
+      }
+      <p class="muted small">${escapeHtml(t('install.account'))}</p>
+    </section>
+    <div class="row">
+      <button type="button" class="button button--small button--ghost" data-join-here>${escapeHtml(t('install.joinHere'))}</button>
+    </div>`;
+}
+
+/** On Android, above the invitation's form: install, if Chrome offers it. */
+function installOfferHtml() {
+  if (phoneToInstall() !== 'android' || !installOffer) return '<div data-install-slot></div>';
+  return `
+    <div class="card stack stack--tight" data-install-slot>
+      <p class="small">${escapeHtml(t('install.androidWhy'))}</p>
+      ${stepsHtml('android')}
+    </div>`;
+}
+
+/**
+ * On Home: someone in a group, in a phone's browser, with no account, can lose
+ * the group when the browser clears its data. Said once a month at most.
+ */
+function installReminderHtml() {
+  const kind = phoneToInstall();
+  if (!kind || !groups().length || account()) return '';
+  if (Date.now() - (state.prefs.installQuietAt || 0) < QUIET_MS) return '';
+  return `
+    <section class="banner banner--warn stack stack--tight install-reminder" data-install-slot>
+      <p class="small">${escapeHtml(t(kind === 'ios' ? 'install.reminderIos' : 'install.reminderAndroid'))}</p>
+      <div class="row">
+        <button type="button" class="button button--small" data-install-how="${kind}">${escapeHtml(t('install.how'))}</button>
+        <button type="button" class="button button--small button--ghost" data-goto="#/settings">${escapeHtml(t('install.signIn'))}</button>
+        <button type="button" class="button button--small button--ghost" data-install-later>${escapeHtml(t('install.later'))}</button>
+      </div>
+    </section>`;
+}
+
+/** Every install button on the page, bound. */
+function bindInstall(root = view) {
+  root.querySelectorAll('[data-install-now]').forEach((node) => {
+    node.addEventListener('click', async () => {
+      if (!installOffer) return;
+      const offer = installOffer;
+      installOffer = null;
+      offer.prompt();
+      await offer.userChoice.catch(() => null);
+      render();
+    });
+  });
+  root.querySelectorAll('[data-join-here]').forEach((node) => {
+    node.addEventListener('click', () => {
+      state.joinHere = true;
+      render();
+    });
+  });
+  root.querySelectorAll('[data-install-later]').forEach((node) => {
+    node.addEventListener('click', () => {
+      state.prefs = { ...state.prefs, installQuietAt: Date.now() };
+      savePrefs(state.prefs);
+      render();
+    });
+  });
+  root.querySelectorAll('[data-install-how]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const dialog = makeDialog();
+      dialog.innerHTML = `
+        <div class="stack" data-install-slot>
+          <h2>${escapeHtml(t('install.howTitle'))}</h2>
+          ${stepsHtml(node.dataset.installHow)}
+          <p class="muted small">${escapeHtml(t(node.dataset.installHow === 'ios' ? 'install.howIosAfter' : 'install.howAndroidAfter'))}</p>
+          <div class="row"><button type="button" class="button button--ghost" data-install-close>${escapeHtml(t('action.close'))}</button></div>
+        </div>`;
+      dialog.querySelector('[data-install-close]').addEventListener('click', () => dialog.close());
+      bindInstall(dialog);
+      dialog.showModal();
+    });
+  });
+}
+
+  // ---- src/view-look.js ------------------------------------------------
+/**
+ * How the app looks, chosen in Réglages → Apparence: a style (the hologram,
+ * the first warm look, a calm grey one, the sky, or the seasons), a colour,
+ * a background, and night or light. And the language it speaks, chosen just
+ * above (Réglages → Langue).
+ *
+ * Kept on this device with the other preferences, and written as attributes
+ * on the root element that styles.css reads — `data-look`, `data-accent`,
+ * `data-decor`, `data-season`, `data-theme`. index.html sets them once more
+ * before the first paint, so that a phone on the classic style does not flash
+ * the hologram while the app loads.
+ *
+ * Calls back into app.js only from inside functions.
+ */
+
+
+
+
+
+/** The styles, the app's own first: it is the one with no attribute. */
+const LOOKS = ['holo', 'classic', 'calm', 'astro', 'seasons'];
+
+/** The colours one may choose, in the order of the rainbow. */
+const LOOK_ACCENTS = ['red', 'orange', 'amber', 'green', 'cyan', 'blue', 'violet', 'pink'];
+
+/** What may move behind the page, besides the style's own. */
+const LOOK_DECORS = ['stars', 'aurora', 'season', 'confetti'];
+
+/** Each style's own colour, the one shown under « Celle du style »; the seasons' changes with them. */
+const LOOK_OWN_ACCENT = { holo: 'cyan', classic: 'amber', calm: 'blue', astro: 'violet' };
+const SEASON_ACCENT = { spring: 'pink', summer: 'amber', autumn: 'orange', winter: 'blue' };
+
+/** The background a style brings when none is chosen: the sky, the season — or its own pattern. */
+const LOOK_OWN_DECOR = { astro: 'stars', seasons: 'season' };
+
+/** A style's own colour, today: the seasons' is the season's. */
+function ownAccent(look) {
+  return look === 'seasons' ? SEASON_ACCENT[skySeason()] : LOOK_OWN_ACCENT[look];
+}
+
+/** Night is the app's own; light is a choice, made here or with the round button at the top. */
+function lookIsDark() {
+  return state.prefs.theme !== 'light';
+}
+
+function chosenLook() {
+  return LOOKS.includes(state.prefs.look) ? state.prefs.look : 'holo';
+}
+
+function chosenAccent() {
+  return LOOK_ACCENTS.includes(state.prefs.accent) ? state.prefs.accent : '';
+}
+
+function chosenDecor() {
+  return LOOK_DECORS.includes(state.prefs.decor) ? state.prefs.decor : '';
+}
+
+/** What is behind the page: the background chosen, or the style's own, or nothing moving. */
+function shownDecor() {
+  return chosenDecor() || LOOK_OWN_DECOR[chosenLook()] || '';
+}
+
+/** Write the choices on the root element; the phone's bar takes the page's colour. */
+function applyLook() {
+  const root = document.documentElement;
+  const theme = state.prefs.theme;
+  if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
+  else delete root.dataset.theme;
+  const look = chosenLook();
+  if (look === 'holo') delete root.dataset.look;
+  else root.dataset.look = look;
+  const accent = chosenAccent();
+  if (accent) root.dataset.accent = accent;
+  else delete root.dataset.accent;
+  root.dataset.season = skySeason();
+  const decor = shownDecor();
+  if (decor) root.dataset.decor = decor;
+  else delete root.dataset.decor;
+  // The moon, among the stars, as it is tonight: lit, or drawn on the chart.
+  if (decor === 'stars') {
+    const phase = skyMoonPhase();
+    root.style.setProperty('--moon', skyMoonMask(phase));
+    root.style.setProperty('--moon-line', skyMoonLine(phase));
+  } else {
+    root.style.removeProperty('--moon');
+    root.style.removeProperty('--moon-line');
+  }
+  const ground = getComputedStyle(root).getPropertyValue('--bg').trim();
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', ground || '#050b16');
+}
+
+/**
+ * Back in front, perhaps days later — an app on a phone's home screen is
+ * resumed, not reloaded: the season may have turned, the moon has moved.
+ * Says whether the season turned, for a page that names it to be redrawn.
+ */
+function refreshSky() {
+  const turned = document.documentElement.dataset.season !== skySeason();
+  applyLook();
+  return turned;
+}
+
+/**
+ * Each language by its own name, whatever the app speaks: someone who does
+ * not read the one on screen still finds theirs. Chosen here, once — a button
+ * for it at the top of every page took the room of what is used every day.
+ */
+const LANGUAGE_NAMES = { fr: 'Français', en: 'English' };
+
+/** Réglages → Langue, titled in both languages for the same reason. */
+function languageHtml() {
+  const on = getLanguage();
+  return `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('lang.title'))}</h2></div>
+      <div class="row row--chips" role="group" aria-label="${escapeHtml(t('lang.title'))}">
+        ${Object.entries(LANGUAGE_NAMES).map(([value, name]) => `
+          <button type="button" class="chip ${on === value ? 'chip--on' : ''}" data-pick-lang="${value}" lang="${value}"
+                  aria-pressed="${on === value ? 'true' : 'false'}">${escapeHtml(name)}</button>`).join('')}
+      </div>
+    </section>`;
+}
+
+/** Réglages → Apparence. */
+function lookHtml() {
+  const look = chosenLook();
+  const accent = chosenAccent();
+  const decor = chosenDecor();
+  const shown = shownDecor();
+  const season = skySeason();
+  const dark = lookIsDark();
+  const chip = (kind, value, label, on) => `
+    <button type="button" class="chip ${on ? 'chip--on' : ''}" data-pick-${kind}="${escapeHtml(value)}"
+            aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
+  // A colour is shown as itself, in the theme on screen: the same token the
+  // page would take, read from styles.css rather than written twice.
+  //
+  // The style's own colour is one of the dots, not a dot of its own beside
+  // them — that showed the same colour twice. Picking it means « the style's
+  // own »: no colour is kept, and changing style changes the colour with it.
+  // A colour kept that the season has since come round to is still kept,
+  // and named plainly: it will not follow the next season.
+  const own = ownAccent(look);
+  const tint = accent || own;
+  const name = (value) => (value === own && !accent ? t('look.accent.own', { name: t(`look.accent.${value}`) }) : t(`look.accent.${value}`));
+  const dot = (value) => `
+    <button type="button" class="tint ${tint === value ? 'tint--on' : ''}" data-pick-accent="${value === own ? '' : escapeHtml(value)}"
+            aria-pressed="${tint === value ? 'true' : 'false'}" aria-label="${escapeHtml(name(value))}" title="${escapeHtml(name(value))}">
+      <span class="tint__dot" style="--tint: var(--accent-${value})" aria-hidden="true"></span>
+    </button>`;
+  // What the background on screen is, when there is something to say: the
+  // season it follows, the moon it shows.
+  const about = [
+    shown === 'season' ? t('look.seasonNow', { season: t(`look.season.${season}`) }) : '',
+    shown === 'stars' ? t('look.moonNow') : '',
+    shown ? t('look.decorStill') : '',
+  ].filter(Boolean).join(' ');
+  return `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('look.title'))}</h2></div>
+      <div class="stack stack--tight">
+        <span class="muted small">${escapeHtml(t('look.style'))}</span>
+        <div class="row row--chips" role="group" aria-label="${escapeHtml(t('look.style'))}">
+          ${LOOKS.map((value) => chip('look', value, t(`look.${value}`), look === value)).join('')}
+        </div>
+        <span class="muted small">${escapeHtml(t('look.colour'))}</span>
+        <div class="row row--chips tints" role="group" aria-label="${escapeHtml(t('look.colour'))}">
+          ${LOOK_ACCENTS.map(dot).join('')}
+        </div>
+        <span class="muted small" id="look-colour-name">${escapeHtml(name(tint))}</span>
+        <span class="muted small">${escapeHtml(t('look.decor'))}</span>
+        <div class="row row--chips" role="group" aria-label="${escapeHtml(t('look.decor'))}">
+          ${['', ...LOOK_DECORS].map((value) => chip('decor', value, t(`look.decor.${value || 'own'}`), decor === value)).join('')}
+        </div>
+        ${about ? `<span class="muted small" id="look-decor-about">${escapeHtml(about)}</span>` : ''}
+        <span class="muted small">${escapeHtml(t('look.theme'))}</span>
+        <div class="row row--chips" role="group" aria-label="${escapeHtml(t('look.theme'))}">
+          ${chip('theme', 'dark', t('look.night'), dark)}
+          ${chip('theme', 'light', t('look.light'), !dark)}
+        </div>
+        <p class="muted small">${escapeHtml(t('look.hint'))}</p>
+      </div>
+    </section>`;
+}
+
+/** One choice made: kept, applied at once, and the page redrawn to say so. */
+function pickLook(change) {
+  state.prefs = { ...state.prefs, ...change };
+  savePrefs(state.prefs);
+  applyLook();
+  render();
+}
+
+function bindLook(view) {
+  view.querySelectorAll('[data-pick-look]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const look = button.dataset.pickLook;
+      // A colour kept that is the new style's own is the style's own: no
+      // need to keep it, and the seasons' would otherwise stop changing.
+      const kept = state.prefs.accent === ownAccent(look) ? undefined : state.prefs.accent;
+      pickLook({ look: look === 'holo' ? undefined : look, accent: kept });
+    });
+  });
+  view.querySelectorAll('[data-pick-accent]').forEach((button) => {
+    button.addEventListener('click', () => pickLook({ accent: button.dataset.pickAccent || undefined }));
+  });
+  view.querySelectorAll('[data-pick-decor]').forEach((button) => {
+    button.addEventListener('click', () => pickLook({ decor: button.dataset.pickDecor || undefined }));
+  });
+  view.querySelectorAll('[data-pick-theme]').forEach((button) => {
+    button.addEventListener('click', () => pickLook({ theme: button.dataset.pickTheme }));
+  });
+  view.querySelectorAll('[data-pick-lang]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (button.dataset.pickLang !== getLanguage()) switchLanguage(button.dataset.pickLang);
+    });
+  });
+}
+
+  // ---- src/view-home.js ------------------------------------------------
+/**
+ * Home, the groups tab and the settings: what is coming, what waits on me, the
+ * groups this device is in and who knocks at them, and the app's own settings.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* --------------------------------------------------------------- overview --- */
+
+/**
+ * The page the app opens on: what is going on, and what the app is made of.
+ *
+ * It holds what belongs to no one tab — the groups this device is in, the
+ * data, the app's own link — and the few things actually in progress across
+ * the three, so that opening the app answers "where were we" before it asks
+ * anything.
+ */
+/**
+ * What is coming: the days this group's polls settled on, and the lines that
+ * are due on one, in the order they will happen.
+ *
+ * Built from the very same agendaFor() the .ics is built from, so what shows
+ * here and what a subscribed calendar receives cannot drift apart. Overdue
+ * lines come first: a day that has passed is the one thing worth looking at
+ * before the ones that have not.
+ */
+function comingHtml() {
+  const today = dayNow();
+  // Events have their own section above; what is left is the lines given a day.
+  const events = agendaFor({ lists: shownDocs(state.lists), polls: [] });
+  // An event over several days is late only once its last day has gone.
+  const ends = (event) => event.until || event.day;
+  const late = events.filter((event) => ends(event) < today);
+  const coming = events.filter((event) => ends(event) >= today);
+
+  // Nothing dated on show: say so only when the group filter is what hides it.
+  if (!events.length) return hiddenByGroupHtml(state.lists.filter((list) => isLive(list) && list.items.some((item) => item.due)));
+
+  const shown = [...late.slice(-3), ...coming.slice(0, 8)];
+  const hidden = events.length - shown.length;
+
+  const row = (event) => {
+    const overdue = ends(event) < today;
+    const when = whenText({ date: event.day, until: event.until, at: event.at }, { long: true });
+    return `
+      <button type="button" class="game-card" data-goto="#/${event.kind === 'poll' ? 'poll' : 'list'}/${escapeHtml(event.docId)}">
+        <span class="game-card__title">
+          ${escapeHtml(event.summary)}
+          ${overdue ? `<span class="pill pill--late">${escapeHtml(t('agenda.late'))}</span>` : ''}
+        </span>
+        <span class="game-card__meta">${escapeHtml(when)}${event.description ? ` · ${escapeHtml(event.description)}` : ''}</span>
+      </button>`;
+  };
+
+  return `
+    <div class="game-list">${shown.map(row).join('')}</div>
+    ${hidden > 0 ? `<p class="muted small">${escapeHtml(t('agenda.more', { count: hidden }))}</p>` : ''}`;
+}
+
+/**
+ * The events coming, first on Home: an event is what most of the rest is for —
+ * the list of what to bring, the account, the polls, the ideas. Each card says
+ * where those stand; the event's page holds them all. Polls still looking for
+ * a day are counted, one tap from the agenda where they are decided.
+ */
+function eventsHtml() {
+  const coming = upcomingEvents(shownDocs(state.polls));
+  const deciding = shownDocs(state.polls).filter((poll) => isLive(poll) && !poll.date && !poll.closedAt && seeksDay(poll));
+  const shown = coming.slice(0, 3);
+  return `
+    <section class="section">
+      <div class="section__head">
+        <h2>${escapeHtml(t('events.title'))}</h2>
+        <button type="button" class="button button--small button--ghost" data-goto="#/agenda">${escapeHtml(t('events.seeAgenda'))}</button>
+      </div>
+      ${
+        shown.length
+          ? `<div class="game-list">${shown.map(eventCardHtml).join('')}</div>`
+          : `<p class="muted small">${escapeHtml(t('events.noneHome'))}</p>`
+      }
+      ${coming.length > shown.length ? `<p class="muted small">${escapeHtml(t('events.more', { count: coming.length - shown.length }))}</p>` : ''}
+      ${hiddenByGroupHtml(upcomingEvents(state.polls))}
+      ${
+        deciding.length
+          ? `<button type="button" class="game-card" data-goto="#/agenda">
+               <span class="game-card__title">${escapeHtml(t('polls.toDecide'))}</span>
+               <span class="game-card__meta">${escapeHtml(t('events.deciding', { count: deciding.length }))}</span>
+             </button>`
+          : ''
+      }
+      <div class="row">
+        <button type="button" class="button button--small button--new" data-goto="#/agenda/new">+ ${escapeHtml(t('events.new'))}</button>
+      </div>
+    </section>`;
+}
+
+
+
+
+
+
+/**
+ * The rest of what is going on, a few of each kind — leaving out what "For
+ * you" already shows, which is given as the addresses it opens.
+ */
+function pendingHtml(shown = new Set()) {
+  const lines = [];
+  const recent = (a, b) => b.updatedAt - a.updatedAt;
+  const all = everything();
+  const today = dayNow();
+  // What is over is not going on any more, whatever was left undone in it.
+  const notShown = (goto) => (document_) => !shown.has(`${goto}${document_.id}`) && !isOver(document_, all, today);
+
+  const ongoing = shownDocs(state.games).filter((game) => isLive(game) && !gameStatus(game).finished)
+    .filter(notShown('#/game/')).sort(recent);
+  const open = shownDocs(state.lists).filter((list) => isLive(list) && progress(list).left > 0)
+    .filter(notShown('#/list/')).sort(recent);
+  const asked = shownDocs(state.polls).filter((poll) => isLive(poll) && !poll.closedAt)
+    .filter(notShown('#/poll/')).sort(recent);
+  const owing = shownDocs(state.spends).filter((spend) => isLive(spend) && balances(spend).some((row) => row.balance !== 0))
+    .filter(notShown('#/spend/')).sort(recent);
+
+  for (const list of open.slice(0, 3)) {
+    const { left } = progress(list);
+    lines.push({
+      goto: `#/list/${list.id}`,
+      title: listTitle(list),
+      meta: t('lists.leftToDo', { count: left }) + forEventText(list),
+    });
+  }
+  for (const poll of asked.slice(0, 3)) {
+    const { answered } = tally(poll);
+    lines.push({
+      goto: `#/poll/${poll.id}`,
+      title: pollTitle(poll),
+      meta: t('polls.answered', { count: answered, total: poll.people.length }) + forEventText(poll),
+    });
+  }
+  for (const spend of owing.slice(0, 3)) {
+    const mine = myBalance(spend);
+    lines.push({
+      goto: `#/spend/${spend.id}`,
+      title: spendTitle(spend),
+      meta: (mine && mine.balance !== 0
+        ? t(mine.balance > 0 ? 'spends.owedToMe' : 'spends.iOwe', { amount: money(Math.abs(mine.balance), spend) })
+        : t('spends.total', { amount: money(spendTotal(spend), spend) })) + forEventText(spend),
+    });
+  }
+  for (const game of ongoing.slice(0, 3)) {
+    lines.push({
+      goto: `#/game/${game.id}`,
+      title: gameTitle(game),
+      meta: t('home.rounds', { count: game.rounds.length }) + forEventText(game),
+    });
+  }
+
+  if (!lines.length) {
+    return shown.size ? '' : `<p class="muted small">${escapeHtml(t('overview.nothing'))}</p>`;
+  }
+  return `<div class="game-list">${lines
+    .map(
+      (line) => `
+        <button type="button" class="game-card" data-goto="${escapeHtml(line.goto)}">
+          <span class="game-card__title">${escapeHtml(line.title)}</span>
+          <span class="game-card__meta">${escapeHtml(line.meta)}</span>
+        </button>`,
+    )
+    .join('')}</div>`;
+}
+
+/**
+ * What the gatekeeper of a group sees: the people knocking, each with the first
+ * name they gave, and one tap to let them in or turn them away.
+ */
+function requestsHtml(group) {
+  const rows = gate().requests[group.id];
+  if (!rows) return `<p class="muted small">${escapeHtml(t('gate.loading'))}</p>`;
+  if (!rows.length) return `<p class="muted small">${escapeHtml(t('gate.nobody'))}</p>`;
+
+  return `<div class="stack stack--tight">${rows
+    .map(
+      (row) => `
+        <div class="knock">
+          <div>
+            <strong>${escapeHtml(row.name || t('gate.someone'))}</strong>
+            <span class="muted small">${escapeHtml(row.label || '')}</span>
+          </div>
+          <div class="row row--tight">
+            <button type="button" class="button button--small button--primary"
+                    data-admit="${escapeHtml(group.id)}" data-request="${escapeHtml(row.id)}">
+              ${escapeHtml(t('gate.admit'))}
+            </button>
+            <button type="button" class="button button--small button--ghost"
+                    data-refuse="${escapeHtml(group.id)}" data-request="${escapeHtml(row.id)}">
+              ${escapeHtml(t('gate.refuse'))}
+            </button>
+          </div>
+        </div>`,
+    )
+    .join('')}</div>`;
+}
+
+/** Who is in the group, device by device, and the one tap that cuts one off. */
+function devicesHtml(group) {
+  const rows = gate().devices[group.id];
+  if (!rows) return `<p class="muted small">${escapeHtml(t('gate.loading'))}</p>`;
+
+  // How many devices have an account: what tells whether everyone has moved
+  // over, before requiring one.
+  const withAccount = rows.filter((row) => row.account).length;
+  // Cutting a person's last device cuts their return link too (the database
+  // does it), so the question asked first has to say so.
+  const lastWithLink = (row) => row.link && row.person && rows.filter((other) => other.person === row.person).length === 1;
+  const accounts = `
+    <div class="card stack stack--tight accounts-switch">
+      <p class="small">${escapeHtml(t('gate.accountsCount', { count: withAccount, total: rows.length }))}</p>
+      <p class="muted small">${escapeHtml(t(group.accounts ? 'gate.accountsOnHint' : 'gate.accountsOffHint'))}</p>
+      <div class="row">
+        <button type="button" class="button button--small ${group.accounts ? 'button--ghost' : ''}"
+                data-accounts="${escapeHtml(group.id)}" data-on="${group.accounts ? 'no' : 'yes'}">
+          ${escapeHtml(t(group.accounts ? 'gate.accountsOff' : 'gate.accountsOn'))}
+        </button>
+      </div>
+    </div>`;
+  return `<div class="stack stack--tight">${accounts}${rows
+    .map(
+      (row) => `
+        <div class="knock">
+          <div>
+            <strong>${escapeHtml(row.label || t('gate.unnamedDevice'))}</strong>
+            <span class="muted small">${escapeHtml(
+              [
+                row.mine ? t('gate.thisDevice') : '',
+                row.admits ? t('gate.admitsToo') : '',
+                row.link ? t('back.hasLink') : '',
+                row.account ? t('gate.hasAccount') : t('gate.noAccount'),
+              ]
+                .filter(Boolean)
+                .join(' · '),
+            )}</span>
+          </div>
+          <div class="row row--tight">
+            ${
+              row.link
+                ? `<button type="button" class="button button--small button--ghost"
+                           data-cut-link="${escapeHtml(group.id)}" data-person="${escapeHtml(row.person)}">
+                     ${escapeHtml(t('back.cutLink'))}
+                   </button>`
+                : ''
+            }
+            <button type="button" class="button button--small button--ghost"
+                    data-admits="${escapeHtml(group.id)}" data-key="${escapeHtml(row.id)}"
+                    data-allow="${row.admits ? 'no' : 'yes'}">
+              ${escapeHtml(t(row.admits ? 'gate.dropAdmits' : 'gate.giveAdmits'))}
+            </button>
+            ${
+              row.mine
+                ? ''
+                : `<button type="button" class="button button--small button--ghost"
+                           data-cut="${escapeHtml(group.id)}" data-key="${escapeHtml(row.id)}"
+                           ${lastWithLink(row) ? 'data-with-link' : ''}>
+                     ${escapeHtml(t('gate.cut'))}
+                   </button>`
+            }
+          </div>
+        </div>`,
+    )
+    .join('')}</div>`;
+}
+
+/** The knocks this device is waiting on, so a wait is never invisible. */
+function myKnocksHtml() {
+  const held = pendings();
+  if (!held.length) return '';
+  return `
+    <div class="stack stack--tight">${held
+      .map(
+        // The ticket is this device's future key: it stays in storage, and the
+        // buttons carry a place in the list instead.
+        (knock, index) => `
+          <div class="knock">
+            <div>
+              <strong>${escapeHtml(knock.groupName)}</strong>
+              <span class="muted small">${escapeHtml(t('gate.askedAt', { date: formatDate(knock.at) }))}</span>
+            </div>
+            <div class="row row--tight">
+              <button type="button" class="button button--small" data-check="${index}">
+                ${escapeHtml(t('gate.check'))}
+              </button>
+              <button type="button" class="button button--small button--ghost" data-drop="${index}">
+                ${escapeHtml(t('gate.dropMine'))}
+              </button>
+            </div>
+          </div>`,
+      )
+      .join('')}</div>`;
+}
+
+function groupsHtml() {
+  const held = groups();
+  return `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('groups.manage'))}</h2></div>
+      <p class="muted small">${escapeHtml(t('groups.hint'))}</p>
+      ${
+        held.length
+          ? `<p class="muted small">${escapeHtml(t('groups.keepKey'))}</p>`
+          : ''
+      }
+      ${
+        // Une app posée sur l'écran d'accueil part de zéro : le dire ici, avant
+        // qu'on la pose, plutôt que de la laisser paraître cassée une fois posée.
+        held.length && !onHomeScreen()
+          ? `<p class="muted small">${escapeHtml(t('groups.beforeHomeScreen'))}</p>`
+          : ''
+      }
+      ${
+        held.length
+          ? `<div class="stack stack--tight">${held
+              .map(
+                (group) => `
+                  <div class="group">
+                    <div>
+                      <strong>${escapeHtml(group.name)}</strong>
+                      <span class="muted small">${escapeHtml(t('groups.shared', {
+                        count: [...state.games, ...state.lists, ...state.polls, ...state.spends, ...state.boards]
+                          .filter((document_) => document_.groupId === group.id).length,
+                      }))}</span>
+                    </div>
+                    <div class="row">
+                      <button type="button" class="button button--small" data-invite="${escapeHtml(group.id)}">
+                        ${escapeHtml(t('groups.invite'))}
+                      </button>
+                      <button type="button" class="button button--small" data-catch-up="${escapeHtml(group.id)}">
+                        ${escapeHtml(t('groups.catchUp'))}
+                      </button>
+                      <button type="button" class="button button--small button--ghost" data-show-key="${escapeHtml(group.id)}">
+                        ${escapeHtml(t('groups.showKey'))}
+                      </button>
+                      ${
+                        // The founder's key belongs to no person, so it has no
+                        // return link — it is the one that gets pasted instead.
+                        group.admits
+                          ? ''
+                          : `<button type="button" class="button button--small button--ghost" data-my-link="${escapeHtml(group.id)}">
+                               ${escapeHtml(t('back.myLink'))}
+                             </button>`
+                      }
+                      <button type="button" class="button button--small button--ghost" data-calendar="${escapeHtml(group.id)}">
+                        ${escapeHtml(t('agenda.group'))}
+                      </button>
+                      ${
+                        // Cutting the address stops everyone's calendar: the
+                        // database leaves it to a key that lets people in.
+                        group.admits
+                          ? `<button type="button" class="button button--small button--ghost" data-cut-calendar="${escapeHtml(group.id)}">
+                               ${escapeHtml(t('agenda.cut'))}
+                             </button>`
+                          : ''
+                      }
+                      <button type="button" class="button button--small button--ghost" data-leave="${escapeHtml(group.id)}">
+                        ${escapeHtml(t('groups.leave'))}
+                      </button>
+                    </div>
+                    ${
+                      group.admits === false
+                        ? ''
+                        : `<div class="stack stack--tight">
+                             <span class="muted small">${escapeHtml(t('gate.knocking'))}</span>
+                             ${requestsHtml(group)}
+                             <details class="details">
+                               <summary>${escapeHtml(t('gate.who'))}</summary>
+                               ${devicesHtml(group)}
+                             </details>
+                           </div>`
+                    }
+                  </div>`,
+              )
+              .join('')}</div>`
+          : `<p class="muted small">${escapeHtml(t('groups.none'))}</p>
+             ${inAppWarningHtml()}
+             ${
+               // An app added to the home screen keeps its own files and its own
+               // storage: it is a second device, not the same one, and the first
+               // time that surprises someone is when their group is not there.
+               onHomeScreen()
+                 ? `<p class="muted small">${escapeHtml(t('groups.standaloneNew'))}</p>`
+                 : ''
+             }`
+      }
+
+      ${
+        pendings().length
+          ? `<div class="stack stack--tight">
+               <span class="muted small">${escapeHtml(t('gate.mine'))}</span>
+               ${myKnocksHtml()}
+             </div>`
+          : ''
+      }
+
+      <label for="group-name">${escapeHtml(t('groups.add'))}</label>
+      <div class="row row--tight">
+        <input type="text" id="group-name" autocomplete="off"
+               placeholder="${escapeHtml(t('groups.namePlaceholder'))}" />
+        <input type="text" id="group-code" class="code-input" inputmode="numeric" autocomplete="one-time-code"
+               placeholder="000000" aria-label="${escapeHtml(t('groups.codePlaceholder'))}" />
+      </div>
+      <button type="button" class="button button--primary button--block" id="group-join">${escapeHtml(t('gate.knock'))}</button>
+      <p class="muted small" id="group-state">${escapeHtml(t('groups.codeHint'))}</p>
+
+      <details class="details">
+        <summary>${escapeHtml(t('groups.withKey'))}</summary>
+        <p class="muted small">${escapeHtml(t('groups.keyHint'))}</p>
+        <div class="row row--tight">
+          <input type="password" id="group-key" autocomplete="off" spellcheck="false"
+                 placeholder="${escapeHtml(t('groups.keyPlaceholder'))}" />
+          <button type="button" class="button" id="group-paste">${escapeHtml(t('groups.join'))}</button>
+        </div>
+      </details>
+    </section>`;
+}
+
+/**
+ * Who this device belongs to. Shown here rather than buried in a setting,
+ * because it is what the app puts in a group's list of keys and what it offers
+ * as the first person of every new list.
+ */
+function meHtml() {
+  return `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('me.title'))}</h2></div>
+      <p class="muted small">${escapeHtml(t(state.remote ? 'me.hint' : 'me.hintAlone'))}</p>
+      <div class="row row--tight">
+        <input type="text" id="me-name" autocomplete="given-name" maxlength="${NAME_KEPT}"
+               value="${escapeHtml(myName())}" placeholder="${escapeHtml(t('me.placeholder'))}"
+               aria-label="${escapeHtml(t('me.title'))}" />
+        <button type="button" class="button" id="me-save">${escapeHtml(t('action.save'))}</button>
+      </div>
+    </section>`;
+}
+
+/**
+ * The overview's group boards: what each group has on the go, in numbers that
+ * are also the way in — tapping one opens that tab, already on that group.
+ */
+function byGroupHtml() {
+  const held = groupsByName();
+  if (!held.length) return '';
+  return `
+    <section class="section">
+      <div class="section__head">
+        <h2>${escapeHtml(t('groups.title'))}</h2>
+        <span class="muted small">${escapeHtml(t('dash.groupCount', { count: held.length }))}</span>
+      </div>
+      ${held.map(groupBoardHtml).join('')}
+    </section>`;
+}
+
+function groupBoardHtml(group) {
+  const counts = groupCounts(state, group.id);
+  const tile = (value, label, goto) => `
+    <button type="button" class="tile" data-group-tile="${escapeHtml(group.id)}" data-tile-goto="${goto}"
+            aria-label="${escapeHtml(`${group.name} — ${value} ${label}`)}">
+      <span class="tile__value">${value}</span>
+      <span class="tile__label">${escapeHtml(label)}</span>
+    </button>`;
+  return `
+    <div class="card stack stack--tight">
+      <div class="spread">
+        <button type="button" class="group-link" data-goto="#/group/${escapeHtml(encodeURIComponent(group.id))}">
+          <strong>${escapeHtml(group.name)}</strong>
+          <span class="muted small">${escapeHtml(t('group.open'))} ›</span>
+        </button>
+        ${
+          // The key that may let people in is the one worth naming: it is the
+          // only one whose holder has anything to do when someone knocks.
+          group.admits === false
+            ? `<span class="muted small">${escapeHtml(t('dash.member'))}</span>`
+            : `<span class="pill">${escapeHtml(t('dash.gate'))}</span>`
+        }
+      </div>
+      <div class="tiles">
+        ${tile(counts.lists, t('tab.lists'), '#/lists')}
+        ${tile(counts.polls, t('tab.polls'), '#/polls')}
+        ${tile(counts.games, t('tab.games'), '#/games')}
+        ${tile(counts.spends, t('tab.spends'), '#/spends')}
+        ${tile(counts.boards, t('tab.ideas'), '#/ideas')}
+      </div>
+      <p class="muted small">
+        ${escapeHtml(t('dash.peopleCount', { count: counts.people }))}${
+          counts.at ? ` · ${escapeHtml(formatDate(counts.at))}` : ''
+        }${counts.late ? ` · <span class="late">${escapeHtml(t('lists.late', { count: counts.late }))}</span>` : ''}
+      </p>
+      ${rosterLineHtml(group)}
+    </div>`;
+}
+
+/**
+ * The group's first names, said on its board in the groups tab — where one
+ * looks for anything about a group — with the way to them: fixed, the names;
+ * not fixed, the offer to whoever lets people in.
+ */
+function rosterLineHtml(group) {
+  const fixed = rosterOf(group.id);
+  if (!fixed.length && (group.admits === false || !state.remote)) return '';
+  const me = myNameIn(group.id);
+  const said = fixed.length ? t('roster.line', { names: fixed.join(' · ') }) : t('roster.lineOff');
+  const action = !fixed.length ? t('roster.fix') : !me ? t('roster.pickShort') : '';
+  return `
+    <div class="row row--tight">
+      <span class="muted small">${escapeHtml(said)}</span>
+      ${
+        action
+          ? `<button type="button" class="button button--small ${me || !fixed.length ? '' : 'button--primary'}"
+                     data-goto="#/group/${escapeHtml(encodeURIComponent(group.id))}">${escapeHtml(action)}</button>`
+          : ''
+      }
+    </div>`;
+}
+
+/**
+ * Who is in a group, and what is still waiting on each of them — folded away
+ * by default. It used to sit in the open on the overview, for every group at
+ * once; on a page already scoped to one group, it earns a spot, but not one
+ * that pushes past what a group is coming here for: what is going on.
+ */
+function groupPeopleHtml(group) {
+  const mine = (documents) => documents.filter((document_) => inGroup(document_, group.id));
+  const me = sameName(myNameIn(group.id));
+  const names = [...peopleIn({
+    lists: mine(state.lists), polls: mine(state.polls), games: mine(state.games), spends: mine(state.spends),
+  })].sort((a, b) => (me ? (sameName(a) === me ? 0 : 1) - (sameName(b) === me ? 0 : 1) : 0) || a.localeCompare(b));
+  if (!names.length) return '';
+
+  const row = (name) => {
+    const waiting = waitingLine(personFile(state, name));
+    return `
+      <button type="button" class="game-card" data-goto="#/person/${escapeHtml(encodeURIComponent(name))}">
+        <span class="game-card__title">${escapeHtml(me && sameName(name) === me ? t('dash.you', { name }) : name)}</span>
+        <span class="game-card__meta">${escapeHtml(waiting || t('dash.nothing'))}</span>
+      </button>`;
+  };
+
+  return `
+    <details class="details">
+      <summary>${escapeHtml(t('group.who'))}</summary>
+      <div class="game-list">${names.map(row).join('')}</div>
+    </details>`;
+}
+
+/** The names written in a group's lists, polls and accounts. */
+function namesWrittenIn(group) {
+  const mine = (documents) => documents.filter((document_) => inGroup(document_, group.id) && !document_.linkOnly);
+  return peopleIn({ lists: mine(state.lists), polls: mine(state.polls), spends: mine(state.spends) });
+}
+
+/**
+ * The first names of a group, decided in advance by whoever lets people in:
+ * a list, a poll or an account of the group then takes its people from these
+ * names and no others. Here the list is fixed and changed, each device says
+ * which name it is, and a name written otherwise before — « Guillaume » when
+ * the list says « Gui » — is merged into one of the list, on a touch.
+ */
+function groupRosterHtml(group) {
+  const roster = rosterOf(group.id);
+  const admits = group.admits !== false;
+  if (!roster.length) {
+    if (!admits || !state.remote) return '';
+    return `
+      <section class="section card stack stack--tight" id="group-roster">
+        <div class="section__head"><h2>${escapeHtml(t('roster.title'))}</h2></div>
+        <p class="muted small">${escapeHtml(t('roster.offHint'))}</p>
+        <div class="row">
+          <button type="button" class="button button--small" data-roster-edit>${escapeHtml(t('roster.fix'))}</button>
+        </div>
+      </section>`;
+  }
+  const me = myNameIn(group.id);
+  const strays = offRoster(group.id, namesWrittenIn(group));
+  return `
+    <section class="section card stack stack--tight" id="group-roster">
+      <div class="section__head">
+        <h2>${escapeHtml(t('roster.title'))}</h2>
+        ${admits ? `<button type="button" class="button button--small button--ghost" data-roster-edit>${escapeHtml(t('roster.edit'))}</button>` : ''}
+      </div>
+      <p class="muted small">${escapeHtml(t(admits ? 'roster.onHintGate' : 'roster.onHint'))}</p>
+      <div class="row row--chips iam ${me ? '' : 'iam--needed'}" role="group" aria-label="${escapeHtml(t('polls.iAm'))}">
+        <span class="muted small">${escapeHtml(t('polls.iAm'))}</span>
+        ${roster
+          .map((name) => `
+            <button type="button" class="chip ${name === me ? 'chip--on' : ''}" data-roster-me="${escapeHtml(name)}"
+                    aria-pressed="${name === me ? 'true' : 'false'}">${escapeHtml(name)}</button>`)
+          .join('')}
+      </div>
+      ${me ? '' : `<p class="late small">${escapeHtml(t('roster.pickMe'))}</p>`}
+      ${
+        strays.length
+          ? `<div class="stack stack--tight" id="roster-strays">
+               <p class="small">${escapeHtml(t('roster.strays'))}</p>
+               ${strays
+                 .map((name) => `
+                   <div class="knock">
+                     <strong>${escapeHtml(name)}</strong>
+                     <div class="row">
+                       <button type="button" class="button button--small" data-stray-merge="${escapeHtml(name)}">${escapeHtml(t('roster.merge'))}</button>
+                       ${admits ? `<button type="button" class="button button--small button--ghost" data-stray-add="${escapeHtml(name)}">${escapeHtml(t('roster.addToList'))}</button>` : ''}
+                     </div>
+                   </div>`)
+                 .join('')}
+             </div>`
+          : ''
+      }
+    </section>`;
+}
+
+/** Keep the group's first names in the database, then here. Null when it could not. */
+async function saveRoster(group, names) {
+  let kept = null;
+  try {
+    kept = await state.remote.setPeople(group.key, names);
+  } catch {
+    kept = null;
+  }
+  if (!kept) return null;
+  const held = groups().find((one) => one.id === group.id) || group;
+  rememberGroup({ ...held, people: kept });
+  return kept;
+}
+
+/** Fix the group's first names, change them, or stop fixing them. */
+function openRosterDialog(group) {
+  const roster = rosterOf(group.id);
+  // Nothing fixed yet: start from the names the group already writes.
+  const start = roster.length ? roster : distinctNames([myName(), ...namesWrittenIn(group)]);
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('roster.editTitle', { name: group.name }))}</h2>
+      <p class="muted small">${escapeHtml(t('roster.editHint'))}</p>
+      <label class="visually-hidden" for="roster-names">${escapeHtml(t('roster.title'))}</label>
+      <textarea id="roster-names" rows="8" autocomplete="off">${escapeHtml(start.join('\n'))}</textarea>
+      <p class="late small" id="roster-problem" aria-live="polite" hidden></p>
+      <div class="row">
+        <button type="button" class="button button--primary" data-roster-save>${escapeHtml(t('action.save'))}</button>
+        <button type="button" class="button" data-roster-cancel>${escapeHtml(t('action.cancel'))}</button>
+        ${roster.length ? `<button type="button" class="button button--ghost" data-roster-off>${escapeHtml(t('roster.stop'))}</button>` : ''}
+      </div>
+    </div>`;
+  const keep = async (names, said) => {
+    const buttons = dialog.querySelectorAll('button');
+    buttons.forEach((button) => { button.disabled = true; });
+    const kept = await saveRoster(group, names);
+    if (!kept) {
+      buttons.forEach((button) => { button.disabled = false; });
+      const problem = dialog.querySelector('#roster-problem');
+      problem.textContent = t('groups.unsure');
+      problem.hidden = false;
+      return;
+    }
+    dialog.close();
+    flash(said(kept));
+    render();
+  };
+  dialog.querySelector('[data-roster-save]').addEventListener('click', () => {
+    const names = distinctNames(dialog.querySelector('#roster-names').value.split('\n')).map((name) => name.slice(0, NAME_KEPT));
+    if (!names.length && !roster.length) {
+      dialog.querySelector('#roster-names').focus();
+      return;
+    }
+    void keep(names, (kept) => (kept.length ? t('roster.saved', { count: kept.length }) : t('roster.stopped')));
+  });
+  dialog.querySelector('[data-roster-off]')?.addEventListener('click', () => void keep([], () => t('roster.stopped')));
+  dialog.querySelector('[data-roster-cancel]').addEventListener('click', () => dialog.close());
+  dialog.showModal();
+}
+
+/** « Guillaume », written before the list said « Gui »: which name of the list is it? */
+function openMergeDialog(group, stray) {
+  const dialog = makeDialog();
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('roster.mergeTitle', { name: stray }))}</h2>
+      <p class="muted small">${escapeHtml(t('roster.mergeHint', { name: stray }))}</p>
+      <div class="row row--chips">
+        ${rosterOf(group.id).map((name) => `<button type="button" class="chip" data-merge-into="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')}
+      </div>
+      <div class="row">
+        <button type="button" class="button button--ghost" data-merge-cancel>${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </div>`;
+  dialog.querySelectorAll('[data-merge-into]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const into = chip.dataset.mergeInto;
+      dialog.close();
+      const { touched, left } = renameAcross(stray, into, (document_) => inGroup(document_, group.id));
+      flash(left
+        ? t('roster.mergedLeft', { before: stray, after: into, count: touched, left })
+        : t('roster.merged', { before: stray, after: into, count: touched }), left ? 'error' : 'info');
+      render();
+    });
+  });
+  dialog.querySelector('[data-merge-cancel]').addEventListener('click', () => dialog.close());
+  dialog.showModal();
+}
+
+/** When each group's first names were last asked for, so a page redrawn does not ask again. */
+const rosterAskedAt = new Map();
+
+function bindGroup(group) {
+  view.querySelectorAll('[data-roster-me]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      setMyNameIn(group.id, chip.dataset.rosterMe);
+      render();
+    });
+  });
+  view.querySelector('[data-roster-edit]')?.addEventListener('click', () => openRosterDialog(group));
+  view.querySelectorAll('[data-stray-merge]').forEach((button) => {
+    button.addEventListener('click', () => openMergeDialog(group, button.dataset.strayMerge));
+  });
+  view.querySelectorAll('[data-stray-add]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      const kept = await saveRoster(group, [...rosterOf(group.id), button.dataset.strayAdd]);
+      flash(kept ? t('roster.added', { name: button.dataset.strayAdd }) : t('groups.unsure'), kept ? 'info' : 'error');
+      render();
+    });
+  });
+
+  // The names may have been changed from another device: asked on arriving
+  // here, and the page redrawn only if they did change.
+  if (state.remote && Date.now() - (rosterAskedAt.get(group.id) || 0) > 30000) {
+    rosterAskedAt.set(group.id, Date.now());
+    const before = rosterOf(group.id).join('\n');
+    void refreshGroup(group).then(() => {
+      const here = route();
+      if (rosterOf(group.id).join('\n') !== before && !isBusy() && here.name === 'group' && here.id === group.id) render();
+    });
+  }
+}
+
+/**
+ * One group, and everything going on in it, on one page.
+ *
+ * The tabs sort by kind — lists here, polls there — but the question people
+ * come with is about a group: "what is on with the Thursday lot?". So the
+ * answer is on one page: what is coming, what is left to tick, to vote, to
+ * play, to pay back. Only what is in progress; "see all" opens the tab,
+ * already set on this group, for the rest.
+ */
+function groupView(group) {
+  const ours = (documents) => documents.filter((document_) => isLive(document_) && inGroup(document_, group.id));
+  const today = dayNow();
+  const byDay = (a, b) => a.date.localeCompare(b.date) || String(a.at || '').localeCompare(String(b.at || ''));
+  const recent = (a, b) => b.updatedAt - a.updatedAt;
+  const events = ours(state.polls).filter((poll) => poll.date && lastDay(poll) >= today).sort(byDay);
+  const polls = ours(state.polls)
+    .filter((poll) => !isEvent(poll) && !poll.closedAt && !events.includes(poll))
+    .sort(recent);
+  const lists = ours(state.lists).filter((list) => progress(list).left > 0).sort(recent);
+  const games = ours(state.games).filter((game) => !gameStatus(game).finished).sort(recent);
+  const spends = ours(state.spends)
+    .filter((spend) => balances(spend).some((row) => row.balance !== 0))
+    .sort(recent);
+  const boards = ours(state.boards).sort(recent);
+  const counts = groupCounts(state, group.id);
+
+  const section = (title, documents, cardHtml, tab) =>
+    documents.length
+      ? `<section class="section">
+           <div class="section__head">
+             <h2>${escapeHtml(title)}</h2>
+             <button type="button" class="button button--small button--ghost"
+                     data-group-tile="${escapeHtml(group.id)}" data-tile-goto="${tab}">
+               ${escapeHtml(t('group.seeAll'))}
+             </button>
+           </div>
+           <div class="game-list">${documents.map(cardHtml).join('')}</div>
+         </section>`
+      : '';
+
+  const sections = [
+    section(t('events.coming'), events, eventCardHtml, '#/agenda'),
+    section(t('tab.lists'), lists, listCardHtml, '#/lists'),
+    section(t('tab.polls'), polls, pollCardHtml, '#/polls'),
+    section(t('tab.games'), games, gameCardHtml, '#/games'),
+    section(t('tab.spends'), spends, spendCardHtml, '#/spends'),
+    section(t('tab.ideas'), boards, boardCardHtml, '#/ideas'),
+  ].join('');
+
+  // The first names come first while there is something to do with them —
+  // fix them, say which one is mine, merge a name written otherwise — and
+  // go under what is going on once all is settled.
+  const roster = groupRosterHtml(group);
+  const fixed = rosterOf(group.id);
+  const rosterFirst = Boolean(roster) && (!fixed.length || !myNameIn(group.id)
+    || offRoster(group.id, namesWrittenIn(group)).length > 0);
+
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/groups')}
+      <h1>${escapeHtml(group.name)}</h1>
+    </div>
+    <p class="muted small">
+      ${escapeHtml(t('dash.peopleCount', { count: counts.people }))} · ${escapeHtml(countsText(counts))}
+    </p>
+    <button type="button" class="button button--primary button--block" data-create-menu>
+      + ${escapeHtml(t('create.title'))}
+    </button>
+    ${rosterFirst ? roster : ''}
+    ${sections || `<p class="muted small">${escapeHtml(t('group.nothing'))}</p>`}
+    ${rosterFirst ? '' : roster}
+    ${groupPeopleHtml(group)}`;
+}
+
+/**
+ * The "+" in the tab bar: whatever can be made, from wherever one is — and
+ * where it will go, said and changeable right here.
+ *
+ * The destination was once only stated ("it will go into Mifa"), and followed
+ * whatever filter happened to be set; people found everything landing in one
+ * group without having chosen it. So the menu shows the choice as chips, set
+ * on the obvious answer — the group whose page this is, the group picked at
+ * the top of Home, the only group there is — and one tap changes it. The form
+ * that opens carries it on, with the same chips.
+ */
+function openCreateMenu() {
+  const here = route();
+  // On an event's page, the "+" adds to that event.
+  const poll = here.name === 'poll' && !here.solo ? getPoll(here.id) : null;
+  if (poll?.date) openEventMenu(poll);
+  else openPlainMenu();
+}
+
+function openPlainMenu() {
+  const here = route();
+  const dialog = makeDialog();
+  resetGroupChoice();
+  const fromPage = here.name === 'group' ? groups().find((group) => group.id === here.id) : null;
+  const start = fromPage ? { group: fromPage, linkOnly: false } : destinationForNew();
+  let chosen = start.linkOnly ? LINK_ONLY : start.group?.id || '';
+  const asks = Boolean(state.remote && groups().length);
+
+  const choice = (goto, label) => `
+    <button type="button" class="button button--block" data-create="${goto}">+ ${escapeHtml(label)}</button>`;
+  const chip = (id, label) => `
+    <button type="button" class="chip ${chosen === id ? 'chip--on' : ''}"
+            data-create-into="${escapeHtml(id)}" aria-pressed="${chosen === id ? 'true' : 'false'}">
+      ${escapeHtml(label)}
+    </button>`;
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('create.what'))}</h2>
+      ${
+        asks
+          ? `<div class="stack stack--tight">
+               <span class="muted small">${escapeHtml(t('groups.willGoIn'))}</span>
+               <div class="row" role="group" aria-label="${escapeHtml(t('groups.willGoIn'))}">
+                 ${groupsByName().map((group) => chip(group.id, group.name)).join('')}
+                 ${chip(LINK_ONLY, t('groups.linkOnly'))}
+                 ${chip('', t('groups.keepToMyself'))}
+               </div>
+             </div>`
+          : ''
+      }
+      <div class="create-menu">
+        ${choice('#/lists/new', t('lists.new'))}
+        ${choice('#/polls/new', t('polls.new'))}
+        ${choice('#/agenda/new', t('events.new'))}
+        <button type="button" class="button button--block" data-create-activity>+ ${escapeHtml(t('activity.new'))}</button>
+        ${choice('#/new', t('action.newGame'))}
+        ${choice('#/spends/new', t('spends.new'))}
+        ${choice('#/ideas/new', t('ideas.new'))}
+      </div>
+      <div class="row">
+        <button type="button" class="button button--ghost" data-create-close>${escapeHtml(t('action.cancel'))}</button>
+      </div>
+    </div>`;
+  dialog.querySelectorAll('[data-create-into]').forEach((node) => {
+    node.addEventListener('click', () => {
+      chosen = node.dataset.createInto;
+      dialog.querySelectorAll('[data-create-into]').forEach((other) => {
+        const on = other.dataset.createInto === chosen;
+        other.classList.toggle('chip--on', on);
+        other.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    });
+  });
+  dialog.querySelectorAll('[data-create]').forEach((node) => {
+    node.addEventListener('click', () => {
+      // Said in the menu is chosen: the form starts from it.
+      if (asks) state.newGroupChoice = { touched: true, id: chosen };
+      dialog.close();
+      navigate(node.dataset.create);
+    });
+  });
+  dialog.querySelector('[data-create-activity]').addEventListener('click', () => {
+    dialog.close();
+    openActivityPicker();
+  });
+  dialog.querySelector('[data-create-close]').addEventListener('click', () => dialog.close());
+  dialog.showModal();
+}
+
+/**
+ * Add something to an event: whatever can be made, already set on the event —
+ * in its group, and between the people who are coming. No group to choose:
+ * what is made for an event lives where the event does.
+ */
+function openEventMenu(poll) {
+  const dialog = makeDialog();
+  const name = eventName(poll) || pollTitle(poll);
+  const choice = (goto, label) => `
+    <button type="button" class="button button--block" data-create="${goto}">+ ${escapeHtml(label)}</button>`;
+  dialog.innerHTML = `
+    <div class="stack">
+      <h2>${escapeHtml(t('event.addTo', { name }))}</h2>
+      <p class="muted small">${escapeHtml(t('event.addToHint'))}</p>
+      <div class="create-menu">
+        <button type="button" class="button button--block" data-create-activity>+ ${escapeHtml(t('activity.new'))}</button>
+        ${choice('#/lists/new', t('lists.new'))}
+        ${choice('#/polls/new', t('polls.new'))}
+        ${choice('#/new', t('action.newGame'))}
+        ${choice('#/spends/new', t('spends.new'))}
+        ${choice('#/ideas/new', t('ideas.new'))}
+      </div>
+      <div class="row">
+        <button type="button" class="button button--ghost" data-create-close>${escapeHtml(t('action.cancel'))}</button>
+        <button type="button" class="button button--ghost" data-create-plain>${escapeHtml(t('event.addElsewhere'))}</button>
+      </div>
+    </div>`;
+  dialog.querySelector('[data-create-plain]').addEventListener('click', () => {
+    dialog.close();
+    openPlainMenu();
+  });
+  // On an activity's page, a new activity is its event's: one level only.
+  dialog.querySelector('[data-create-activity]').addEventListener('click', () => {
+    dialog.close();
+    openActivityDialog(topEventOf(poll, everything()) || poll);
+  });
+  dialog.querySelectorAll('[data-create]').forEach((node) => {
+    node.addEventListener('click', () => {
+      resetGroupChoice();
+      chooseEvent(poll);
+      // Those coming are the people of whatever is made for the event.
+      const coming = goers(poll);
+      if (coming.length) {
+        state.newListPeople = [...coming];
+        state.newPollPeople = [...coming];
+        state.newSpendPeople = [...coming];
+        state.newGameNames = [...coming];
+        state.newGameTouched = true;
+      }
+      dialog.close();
+      navigate(node.dataset.create);
+    });
+  });
+  dialog.querySelector('[data-create-close]').addEventListener('click', () => dialog.close());
+  dialog.showModal();
+}
+
+/**
+ * What someone owes across accounts: added up per currency, since euros and
+ * pounds do not add — « 12,00 € + 8,00 £ ».
+ */
+function owedText(accounts) {
+  const byCurrency = new Map();
+  for (const row of accounts) {
+    if (row.balance >= 0) continue;
+    const code = spendCurrency(row.spend);
+    byCurrency.set(code, (byCurrency.get(code) || 0) - row.balance);
+  }
+  return [...byCurrency].map(([code, cents]) => showAmount(cents, getLanguage(), code)).join(' + ');
+}
+
+/**
+ * What is waiting on someone, in one line. Late first: a line whose day has
+ * passed is the only part of this that is worse today than it was yesterday.
+ */
+function waitingLine({ counts, accounts = [] }) {
+  return [
+    counts.late ? t('lists.late', { count: counts.late }) : '',
+    counts.left ? t('lists.leftToDo', { count: counts.left }) : '',
+    counts.votes ? t('dash.votes', { count: counts.votes }) : '',
+    counts.owes ? t('spends.owes', { amount: owedText(accounts) }) : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** Line icons for the welcome's ways in, drawn like the tabs' own. */
+const WELCOME_ICONS = {
+  poll: '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M9 14.5l2 2 4-4"/>',
+  list: '<path d="M9 7h11M9 12h11M9 17h11"/><path d="M3.5 7l1.2 1.2L7 6M3.5 12l1.2 1.2L7 11M3.5 17l1.2 1.2L7 16"/>',
+  spend: '<circle cx="12" cy="12" r="8.5"/><path d="M15.2 8.6a4.3 4.3 0 1 0 0 6.8M7.5 11h6M7.5 13.4h6"/>',
+};
+
+/**
+ * The first time the app opens, empty and in no group: what it is for, and
+ * one way in that matters most — a group — with three smaller ones for
+ * starting alone. The first name is not asked here: it is asked where it is
+ * used (knocking at a group, Réglages), so the first screen asks for nothing.
+ */
+function welcomeHtml() {
+  const tile = (goto, label, icon) => `
+    <button type="button" class="welcome__tile" data-goto="${goto}">
+      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none" stroke="currentColor"
+           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${WELCOME_ICONS[icon]}</svg>
+      <span>${escapeHtml(label)}</span>
+    </button>`;
+  return `
+    <section class="welcome">
+      <span class="welcome__mark" aria-hidden="true">
+        <svg viewBox="11 18 42 28" width="84" height="56">
+          <circle cx="25" cy="32" r="12.5" fill="none" stroke="currentColor" stroke-width="3.6" />
+          <circle cx="39" cy="32" r="12.5" fill="none" stroke="currentColor" stroke-width="3.6" />
+        </svg>
+      </span>
+      <h2>${escapeHtml(myName() ? t('welcome.hello', { name: myName() }) : t('welcome.title'))}</h2>
+      <p class="lead">${escapeHtml(t('overview.what'))}</p>
+      ${
+        state.remote
+          ? `<button type="button" class="button button--primary welcome__main" data-goto="#/groups">${escapeHtml(t('welcome.join'))}</button>
+             <p class="muted small welcome__or">${escapeHtml(t('welcome.alone'))}</p>`
+          : ''
+      }
+      <div class="welcome__tiles">
+        ${tile('#/polls/new', t('welcome.poll'), 'poll')}
+        ${tile('#/lists/new', t('welcome.list'), 'list')}
+        ${tile('#/spends/new', t('welcome.spend'), 'spend')}
+      </div>
+    </section>`;
+}
+
+function overviewView() {
+  const forYou = forYouItems();
+  const nothingYet = ![...state.lists, ...state.polls, ...state.games, ...state.spends, ...state.boards].length;
+  const pending = pendingHtml(new Set(forYou.items.map((item) => item.goto)));
+  const coming = comingHtml();
+  // The first opening: the welcome says it all, and empty sections under it
+  // would only say « nothing yet » three more times.
+  if (nothingYet && !groups().length) {
+    return `
+      ${flashHtml()}
+      ${kindsHtml('overview')}
+      ${welcomeHtml()}`;
+  }
+
+  return `
+    ${flashHtml()}
+    ${kindsHtml('overview')}
+    ${groupChipsHtml()}
+    ${holoPlaceHtml()}
+    ${nothingYet ? `<p class="lead">${escapeHtml(t('overview.what'))}</p>` : ''}
+
+    ${accountNeededHtml()}
+
+    ${installReminderHtml()}
+
+    ${eventsHtml()}
+
+    ${unblockedHtml()}
+
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('forYou.title'))}</h2></div>
+      ${forYouHtml(forYou)}
+    </section>
+
+    ${
+      coming
+        ? `<section class="section">
+             <div class="section__head"><h2>${escapeHtml(t('agenda.dated'))}</h2></div>
+             ${coming}
+           </section>`
+        : ''
+    }
+
+    ${
+      pending
+        ? `<section class="section">
+             <div class="section__head"><h2>${escapeHtml(t('overview.pending'))}</h2></div>
+             ${pending}
+           </section>`
+        : ''
+    }`;
+}
+
+
+/**
+ * What is waiting on this device's person, and on nobody else: a poll they
+ * have not answered, lines they were given, money they owe — and, for whoever
+ * opens a group's door, the people knocking at it. It is what opening the app
+ * is for, so it comes first; the rest of what is going on comes after.
+ */
+function forYouItems() {
+  const items = [];
+  for (const group of groupsByName()) {
+    const rows = group.admits === false ? null : gate().requests[group.id];
+    if (!rows?.length) continue;
+    items.push({
+      goto: '#/groups',
+      title: t('forYou.knocks', { count: rows.length }),
+      meta: t('forYou.knocksWhere', { name: group.name }),
+    });
+  }
+  // A group has fixed its first names, and this device has not said which
+  // one it is: nothing of that group can be « for you » until it does.
+  for (const group of groupsByName()) {
+    if (!rosterOf(group.id).length || myNameIn(group.id)) continue;
+    items.push({ goto: `#/group/${group.id}`, title: group.name, meta: t('roster.forYou') });
+  }
+  // One first name in each group that fixes its names, the device's own
+  // elsewhere: what waits on this device is gathered name by name.
+  const sorted = new Map();
+  for (const [kind, documents] of [['lists', state.lists], ['polls', state.polls], ['spends', state.spends]]) {
+    for (const one of shownDocs(documents)) {
+      const name = myNameFor(one);
+      if (!name) continue;
+      const key = sameName(name);
+      if (!sorted.has(key)) sorted.set(key, { name, lists: [], polls: [], spends: [] });
+      sorted.get(key)[kind].push(one);
+    }
+  }
+  if (!myName() && !sorted.size) return { items, noName: true };
+  const files = [...sorted.values()].map((held) => ({ ...held, file: personFile(held, held.name) }));
+  const file = {
+    votes: files.flatMap((held) => held.file.votes),
+    lines: files.flatMap((held) => held.file.lines),
+    accounts: files.flatMap((held) => held.file.accounts),
+  };
+  for (const row of file.votes.filter((one) => !one.closed && !one.answered)) {
+    items.push({ goto: `#/poll/${row.poll.id}`, title: pollTitle(row.poll), meta: t('forYou.vote') + forEventText(row.poll) });
+  }
+  // Everyone has answered a poll this device organises, and it is still
+  // open: the next move is the organiser's, who may not look at it again.
+  for (const poll of shownDocs(state.polls)) {
+    if (poll.closedAt || poll.date || poll.archivedAt || isEvent(poll) || !isOrganiser(poll)) continue;
+    if (poll.people.length < 2 || !poll.options.length) continue;
+    if (tally(poll).answered < poll.people.length) continue;
+    items.push({ goto: `#/poll/${poll.id}`, title: pollTitle(poll), meta: t('forYou.decide') + forEventText(poll) });
+  }
+  for (const row of file.lines.filter((one) => one.left > 0).sort((a, b) => b.late - a.late)) {
+    items.push({
+      goto: `#/list/${row.list.id}`,
+      title: listTitle(row.list),
+      meta: t('forYou.lines', { count: row.left }) + forEventText(row.list),
+      late: row.late ? t('lists.late', { count: row.late }) : '',
+    });
+  }
+  // Bought, ticked, and in no account yet: the receipt is still in a pocket.
+  for (const row of files.flatMap((held) => purchasesToWrite(held.name, held.lists, everything()))) {
+    items.push({
+      goto: `#/list/${row.list.id}`,
+      title: listTitle(row.list),
+      meta: t('forYou.purchases', { count: row.items.length, name: spendTitle(row.account) }) + forEventText(row.list),
+    });
+  }
+  for (const row of file.accounts.filter((one) => one.balance < 0)) {
+    items.push({
+      goto: `#/spend/${row.spend.id}`,
+      title: spendTitle(row.spend),
+      meta: t('spends.iOwe', { amount: money(-row.balance, row.spend) }) + forEventText(row.spend),
+    });
+  }
+  return { items };
+}
+
+function forYouHtml({ items, noName }) {
+  const rows = items.map((item) => `
+    <button type="button" class="game-card" data-goto="${escapeHtml(item.goto)}">
+      <span class="game-card__title">
+        ${escapeHtml(item.title)}
+        ${item.late ? `<span class="pill pill--late">${escapeHtml(item.late)}</span>` : ''}
+      </span>
+      <span class="game-card__meta">${escapeHtml(item.meta)}</span>
+    </button>`).join('');
+  return `
+    ${rows ? `<div class="game-list" id="for-you">${rows}</div>` : ''}
+    ${
+      noName
+        ? `<p class="muted small">${escapeHtml(t('forYou.noName'))}</p>
+           <div class="row row--tight">
+             <input type="text" id="me-name" autocomplete="given-name" maxlength="${NAME_KEPT}"
+                    placeholder="${escapeHtml(t('me.placeholder'))}" aria-label="${escapeHtml(t('me.title'))}" />
+             <button type="button" class="button" id="me-save">${escapeHtml(t('welcome.itsMe'))}</button>
+           </div>`
+        : rows ? '' : `<p class="muted small">${escapeHtml(t('forYou.nothing'))}</p>`
+    }`;
+}
+
+/**
+ * The groups tab: each group this device is in, as a board that opens the
+ * group's own page — then everything that lets people in or out of one.
+ */
+function groupsView() {
+  if (!state.remote) {
+    return `
+      ${flashHtml()}
+      <p class="muted small">${escapeHtml(t('groups.noDatabase'))}</p>`;
+  }
+  return `
+    ${flashHtml()}
+    ${
+      // Just let in, an account is offered with its form; the same form says
+      // what the reminder would.
+      accountOfferHtml() || accountNeededHtml()
+    }
+    ${
+      // Knocking at a group asks for a first name: better to meet the field
+      // here than to be sent to the settings by an error.
+      myName() ? '' : meHtml()
+    }
+    ${byGroupHtml()}
+    ${groupsHtml()}`;
+}
+
+/** The app's own settings: who this device is, and its data. */
+function settingsView() {
+  return `
+    ${flashHtml()}
+    ${meHtml()}
+    ${languageHtml()}
+    ${lookHtml()}
+    ${accountHtml()}
+    ${notifyHtml()}
+    ${dataHtml()}`;
+}
+
+function dataHtml() {
+  return `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('home.data'))}</h2></div>
+      <div class="row">
+        <button type="button" class="button button--small button--ghost" id="share-app">${escapeHtml(t('action.shareApp'))}</button>
+        <button type="button" class="button button--small" id="export">${escapeHtml(t('action.export'))}</button>
+        <button type="button" class="button button--small" id="import">${escapeHtml(t('action.import'))}</button>
+        <button type="button" class="button button--small" id="import-paste">${escapeHtml(t('action.importPaste'))}</button>
+        <button type="button" class="button button--small" id="open-link">${escapeHtml(t('action.openLink'))}</button>
+        <button type="button" class="button button--small" id="claude-guide">${escapeHtml(t('claude.button'))}</button>
+        ${
+          lots().length
+            ? `<button type="button" class="button button--small" id="my-shares">${escapeHtml(t('lots.title', { count: lots().length }))}</button>`
+            : ''
+        }
+        <input type="file" id="import-file" accept="application/json,.json" class="visually-hidden" tabindex="-1" aria-hidden="true" />
+      </div>
+      <p class="muted small">${escapeHtml(
+        t(state.remote ? 'home.storedShared' : state.store ? 'home.storedCloud' : 'home.storedLocal'),
+      )}</p>
+      <p class="muted small">${escapeHtml(t('data.holds', heldCounts()))}</p>
+      ${
+        Object.keys(heldOrganiserSecrets()).length
+          ? `<p class="muted small" id="organiser-backup">${escapeHtml(
+              t('data.organiserBackup', { count: Object.keys(heldOrganiserSecrets()).length }),
+            )}</p>`
+          : ''
+      }
+      ${
+        appVersion()
+          ? `<p class="muted small">
+               ${escapeHtml(t('data.version', { version: appVersion() }))}
+               ${
+                 'serviceWorker' in navigator
+                   ? `<button type="button" class="button button--small button--ghost" id="look-update">
+                        ${escapeHtml(t('data.lookForUpdate'))}
+                      </button>`
+                   : ''
+               }
+             </p>`
+          : ''
+      }
+      ${
+        state.remote && groups().length
+          ? `<label class="checkbox">
+               <input type="checkbox" id="auto-share" ${state.prefs.autoShare ? 'checked' : ''} />
+               ${escapeHtml(t('data.autoShare'))}
+             </label>
+             <p class="muted small">${escapeHtml(t('data.autoShareHint'))}</p>`
+          : ''
+      }
+    </section>`;
+}
+
+/**
+ * Paste an invitation into either field and both fill.
+ *
+ * Whatever lands in the name or the code box is read as a whole invitation
+ * first: the message carries the name, the six digits and the link, and
+ * selecting exactly one of them on a phone is the step people fail at. What is
+ * not an invitation is left to paste normally.
+ */
+function bindInvitationPaste(nameField, codeField) {
+  if (!nameField || !codeField) return;
+  const take = (event) => {
+    const pasted = event.clipboardData?.getData('text') || '';
+    const { name, code } = readInvite(pasted);
+    if (!code && !name) return;
+    event.preventDefault();
+    if (name) nameField.value = name;
+    if (code) codeField.value = code;
+    // Where the paste landed is where the eye is; the other field is now
+    // filled behind it, so the button is the only thing left to press.
+    (code ? codeField : nameField).focus();
+  };
+  nameField.addEventListener('paste', take);
+  codeField.addEventListener('paste', take);
+
+  // Typed, or pasted by a route that skips the event: the digits are the only
+  // thing this box is for.
+  codeField.addEventListener('input', () => {
+    const digits = codeField.value.replace(/[^0-9]/g, '').slice(0, 6);
+    if (digits !== codeField.value) codeField.value = digits;
+  });
+}
+
+function bindOverview() {
+  bindData();
+  bindInAppWarning();
+
+  view.querySelector('#me-save')?.addEventListener('click', () => {
+    const name = setMyName(view.querySelector('#me-name').value);
+    flash(name ? t('me.saved', { name }) : t('me.cleared'));
+    render();
+  });
+  view.querySelector('#me-name')?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    view.querySelector('#me-save')?.click();
+  });
+
+  const joining = (line, message) => {
+    line.textContent = message;
+  };
+
+  bindInvitationPaste(view.querySelector('#group-name'), view.querySelector('#group-code'));
+
+  view.querySelector('#group-join')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    const line = view.querySelector('#group-state');
+    const name = view.querySelector('#group-name').value.trim();
+    const code = readCode(view.querySelector('#group-code').value);
+    if (!name) return joining(line, t('groups.needName'));
+    if (!code) return joining(line, t('groups.needCode'));
+    // Everything that can refuse without asking the database is refused before
+    // the button goes dead, or a missing first name would leave it dead.
+    if (!myName()) return joining(line, t('gate.needNameFirst'));
+
+    button.disabled = true;
+    joining(line, t('groups.checking'));
+    const me = myName();
+
+    // Already in this group: knocking again would hand this device a second,
+    // ordinary key — and remembering it would throw away the one it holds,
+    // which on the founder's phone is the only key that lets anyone in.
+    const held = groupNamed(name);
+    if (held) {
+      let taken = 0;
+      try {
+        taken = await catchUpWith(held);
+      } catch {
+        button.disabled = false;
+        return joining(line, t('groups.unsure'));
+      }
+      button.disabled = false;
+      flash(taken
+        ? t('join.alreadyCaughtUp', { name: held.name, count: taken })
+        : t('join.alreadyUpToDate', { name: held.name }));
+      render();
+      return;
+    }
+
+    let answer = { status: 'unknown' };
+    try {
+      answer = await knockAs(name, code, me);
+    } catch {
+      button.disabled = false;
+      return joining(line, t('groups.unsure'));
+    }
+    button.disabled = false;
+
+    if (answer.status === 'busy') return joining(line, t('gate.busy'));
+    if (answer.status === 'who') return joining(line, t('roster.whoNeeded'));
+    if (answer.status !== 'waiting') return joining(line, t('groups.codeRefused'));
+
+    rememberPending({
+      ticket: answer.ticket,
+      groupId: answer.id,
+      groupName: answer.name || name,
+      me: answer.me,
+      at: Date.now(),
+    });
+    flash(t('gate.asked', { name: answer.name || name }));
+    render();
+  });
+
+  view.querySelector('#group-code')?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    view.querySelector('#group-join')?.click();
+  });
+
+  // The very first device of a group has no one to invite it: it starts from
+  // the key the database printed in the SQL editor.
+  view.querySelector('#group-paste')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    const line = view.querySelector('#group-state');
+    const key = view.querySelector('#group-key').value.trim();
+    if (!key) return;
+
+    button.disabled = true;
+    joining(line, t('groups.checking'));
+    let group = null;
+    try {
+      group = await joinGroup(key);
+    } catch {
+      button.disabled = false;
+      return joining(line, t('groups.unsure'));
+    }
+    button.disabled = false;
+    if (!group) return joining(line, t('groups.refused'));
+
+    flash(t('groups.joined', { name: group.name }));
+    render();
+  });
+
+  view.querySelectorAll('[data-invite]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const group = groups().find((item) => item.id === button.dataset.invite);
+      if (!group) return;
+
+      // Two shapes, and the usual one first: a link good for the day that
+      // several people can knock with, or one meant for a single person.
+      const shape = await askInvitationShape();
+      if (!shape) return;
+
+      button.disabled = true;
+      button.textContent = t('share.sending');
+      let invitation = null;
+      try {
+        invitation = await state.remote.invite(group.key, shape.minutes, shape.uses);
+      } catch (error) {
+        flash(remoteReason(error), 'error');
+        render();
+        return;
+      }
+      if (!invitation) {
+        flash(t('groups.unsure'), 'error');
+        render();
+        return;
+      }
+      render();
+      // Everything in one message: the group, the code in plain sight, the link
+      // and how to install the app. It is the only thing the person will read —
+      // they will not open a guide, and will remember nothing else.
+      const url = joinLink(location, group.name, invitation.code);
+      const days = Math.max(1, Math.round(invitation.minutes / (24 * 60)));
+      await shareMessage({
+        title: t('groups.inviteReady', { name: group.name }),
+        hint: t('groups.inviteWhy'),
+        message: t('groups.inviteText', { name: group.name, code: invitation.code, url, days }),
+        url,
+        code: invitation.code,
+      });
+    });
+  });
+
+  view.querySelectorAll('[data-admit], [data-refuse]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const admit = 'admit' in button.dataset;
+      const group = groups().find((item) => item.id === (admit ? button.dataset.admit : button.dataset.refuse));
+      if (!group) return;
+      button.disabled = true;
+      let status = 'unknown';
+      try {
+        status = await state.remote.answer(group.key, button.dataset.request, admit);
+      } catch {
+        flash(t('groups.unsure'), 'error');
+        render();
+        return;
+      }
+      forgetGate(group.id);
+      await loadGate(group);
+      if (status === 'ok') flash(t('gate.admitted'));
+      else if (status === 'refused') flash(t('gate.refused'));
+      else flash(t('gate.gone'), 'error');
+      render();
+    });
+  });
+
+  // Who may let people in, decided from the app: the same thing the guide used to
+  // ask for an `update` in the SQL editor for.
+  view.querySelectorAll('[data-accounts]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const group = groups().find((item) => item.id === button.dataset.accounts);
+      if (!group) return;
+      const on = button.dataset.on === 'yes';
+      const sure = await ask(t(on ? 'gate.accountsConfirmOn' : 'gate.accountsConfirmOff'),
+        { confirmLabel: t(on ? 'gate.accountsOn' : 'gate.accountsOff'), danger: on });
+      if (!sure) return;
+      button.disabled = true;
+      let status = 'unknown';
+      try {
+        // Requiring one takes this device signed in, its key the account's:
+        // the account learns the key first.
+        if (on) await syncAccount({ restore: false, force: true });
+        status = await state.remote.setAccounts(group.key, on, on ? await accountToken() : null);
+      } catch {
+        flash(t('groups.unsure'), 'error');
+        render();
+        return;
+      }
+      await refreshGroup(group);
+      forgetGate(group.id);
+      await loadGate(group);
+      flash(t(status === 'ok' ? (on ? 'gate.accountsDoneOn' : 'gate.accountsDoneOff') : 'gate.accountsNeedMine'), status === 'ok' ? 'info' : 'error');
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-admits]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const group = groups().find((item) => item.id === button.dataset.admits);
+      if (!group) return;
+      const allow = button.dataset.allow === 'yes';
+      const sure = await ask(t(allow ? 'gate.confirmGiveAdmits' : 'gate.confirmDropAdmits'),
+        { confirmLabel: t(allow ? 'gate.giveAdmits' : 'gate.dropAdmits'), danger: !allow });
+      if (!sure) return;
+
+      button.disabled = true;
+      let status = 'unknown';
+      try {
+        status = await state.remote.setAdmits(group.key, button.dataset.key, allow);
+      } catch {
+        flash(t('groups.unsure'), 'error');
+        render();
+        return;
+      }
+      forgetGate(group.id);
+      await loadGate(group);
+      // This device may have just changed what it is allowed to do.
+      await refreshGroup(group);
+      if (status === 'ok') flash(t(allow ? 'gate.gaveAdmits' : 'gate.droppedAdmits'));
+      else if (status === 'last') flash(t('gate.cutLast'), 'error');
+      else flash(t('gate.gone'), 'error');
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-cut-link]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const group = groups().find((item) => item.id === button.dataset.cutLink);
+      if (!group) return;
+      if (!(await ask(t('back.confirmCutLink'), { confirmLabel: t('back.cutLink'), danger: true }))) return;
+      button.disabled = true;
+      let status = 'unknown';
+      try {
+        status = await state.remote.forgetLink(group.key, button.dataset.person);
+      } catch {
+        flash(t('groups.unsure'), 'error');
+        render();
+        return;
+      }
+      forgetGate(group.id);
+      await loadGate(group);
+      flash(status === 'ok' ? t('back.cutLinkDone') : t('gate.gone'), status === 'ok' ? 'info' : 'error');
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-cut]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const group = groups().find((item) => item.id === button.dataset.cut);
+      if (!group) return;
+      const question = 'withLink' in button.dataset ? 'gate.confirmCutWithLink' : 'gate.confirmCut';
+      if (!(await ask(t(question), { confirmLabel: t('gate.cut'), danger: true }))) return;
+      let status = 'unknown';
+      try {
+        status = await state.remote.cutKey(group.key, button.dataset.key);
+      } catch {
+        flash(t('groups.unsure'), 'error');
+        render();
+        return;
+      }
+      forgetGate(group.id);
+      await loadGate(group);
+      if (status === 'ok') flash(t('gate.cutDone'));
+      else if (status === 'last') flash(t('gate.cutLast'), 'error');
+      else flash(t('gate.gone'), 'error');
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-check]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const knock = pendings()[Number(button.dataset.check)];
+      if (!knock) return;
+      button.disabled = true;
+      const status = await checkPending(knock);
+      if (status === 'waiting') flash(t('gate.stillWaiting'));
+      else if (status === null) flash(t('groups.unsure'), 'error');
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-drop]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const knock = pendings()[Number(button.dataset.drop)];
+      if (!knock) return;
+      if (!(await ask(t('gate.confirmDropMine', { name: knock.groupName }),
+        { confirmLabel: t('gate.dropMine'), danger: true }))) return;
+      forgetPending(knock.ticket);
+      flash(t('gate.droppedMine', { name: knock.groupName }));
+      render();
+    });
+  });
+
+  // What the gatekeeper's blocks need, asked once and then kept.
+  for (const group of showsGate() ? groups() : []) {
+    if (group.admits === undefined) {
+      refreshGroup(group).then((learnt) => {
+        if (learnt && !isBusy() && showsGate()) render();
+      });
+      continue;
+    }
+    if (group.admits === false) continue;
+    loadGate(group).then((learnt) => {
+      if (learnt && !isBusy() && showsGate()) render();
+    });
+  }
+
+  view.querySelectorAll('[data-catch-up]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const group = groups().find((item) => item.id === button.dataset.catchUp);
+      if (!group) return;
+      button.disabled = true;
+      button.textContent = t('share.sending');
+      let taken = 0;
+      try {
+        taken = await catchUpWith(group);
+      } catch {
+        flash(t('groups.unsure'), 'error');
+        render();
+        return;
+      }
+      flash(taken ? t('groups.caughtUp', { count: taken }) : t('groups.upToDate'));
+      render();
+    });
+  });
+
+  // The key this device holds, readable again — so it can be kept somewhere safe,
+  // or put into a second installation (the app on a home screen, a new phone)
+  // without inviting anyone or asking anyone to accept anything.
+  view.querySelectorAll('[data-my-link]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const group = groups().find((item) => item.id === button.dataset.myLink);
+      if (!group) return;
+      if (!(await ask(t('back.confirmMyLink'), { confirmLabel: t('back.myLink') }))) return;
+      button.disabled = true;
+      await showMyLink(group);
+    });
+  });
+
+  view.querySelectorAll('[data-calendar]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const group = groups().find((item) => item.id === button.dataset.calendar);
+      if (!group) return;
+      // Disabled while the database is asked, and given back afterwards: the
+      // dialog that opens does not redraw the page behind it, so a button left
+      // disabled here would stay grey until something else redrew it.
+      button.disabled = true;
+      try {
+        await showCalendar(group);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+
+  view.querySelectorAll('[data-cut-calendar]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const group = groups().find((item) => item.id === button.dataset.cutCalendar);
+      if (!group) return;
+      if (!(await ask(t('agenda.confirmCut'), { confirmLabel: t('agenda.cut'), danger: true }))) return;
+      button.disabled = true;
+      let answer = 'unknown';
+      try {
+        answer = await state.remote.forgetCalendar(group.key);
+      } catch {
+        button.disabled = false;
+        flash(t('groups.unsure'), 'error');
+        render();
+        return;
+      }
+      flash(answer === 'ok' ? t('agenda.cutDone') : t('agenda.none'), answer === 'ok' ? 'info' : 'error');
+      render();
+    });
+  });
+
+  view.querySelectorAll('[data-show-key]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const group = groups().find((item) => item.id === button.dataset.showKey);
+      if (!group) return;
+      if (!(await ask(t('groups.confirmShowKey', { name: group.name }), { confirmLabel: t('groups.showKey') }))) return;
+      showCopyDialog({
+        title: t('groups.keyTitle', { name: group.name }),
+        // Which key this is matters more than the key itself: the one printed at
+        // the group's creation lets people in, every other one does not.
+        hint: `${t('groups.keyWarning')} ${t(group.admits ? 'groups.keyAdmits' : 'groups.keyPlain')}`,
+        text: group.key,
+      });
+    });
+  });
+
+  view.querySelectorAll('[data-leave]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      if (!(await ask(t('groups.confirmLeave'), { confirmLabel: t('groups.leave'), danger: true }))) return;
+      await leaveWithAccount(groups().find((group) => group.id === button.dataset.leave));
+      forgetGroup(button.dataset.leave);
+      render();
+    });
+  });
+}
+
+/* ------------------------------------------------------------- 3D view --- */
+
+/**
+ * Home's 3D view (view-holo.js, holo.js): a part of its own, fetched the
+ * first time Home has something to show in it (later.js). Until it is here,
+ * its place is kept, the size it will be, so that Home does not jump.
+ */
+function holoPart() {
+  return laterPart('holo', () => togetherPart('holo', () => ({ OUTSIDE_GROUPS, allDocuments, documentHref, documentTitle, escapeHtml, groupFilter, groupsByName, inGroup, isDone, isEventDoc, isLive, kindOf, linksOf, navigate, parentId, render, setGroupFilter, shownDocs, state, t })));
+}
+
+function holoPlaceHtml() {
+  const kinds = [state.lists, state.polls, state.games, state.spends, state.boards];
+  if (!kinds.some((docs) => shownDocs(docs || []).length)) return '';
+  const part = holoPart();
+  if (part.module) return part.module.holoHtml();
+  return '<section class="holo holo--waiting" id="holo-wait" aria-hidden="true"></section>';
+}
+
+/** Wire the 3D view once Home is drawn, or draw it in its place once it has come. */
+function bindHoloPlace() {
+  if (!document.getElementById('holo') && !document.getElementById('holo-wait')) return;
+  const part = holoPart();
+  if (part.module) {
+    part.module.bindHolo();
+    return;
+  }
+  part.coming.then(
+    (module) => {
+      const wait = document.getElementById('holo-wait');
+      if (!wait) return;
+      wait.outerHTML = module.holoHtml();
+      module.bindHolo();
+    },
+    () => document.getElementById('holo-wait')?.remove(),
+  );
+}
+
+  // ---- src/view-join.js ------------------------------------------------
+/**
+ * Coming into a group: the invitation, the knock and the wait, and the return
+ * link that hands a known person a key again.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+
+
+
+
+/* ------------------------------------------------------------- coming back --- */
+
+/**
+ * The screen a return link opens: one button, because there is nothing to ask.
+ * The token is the person's own, it was accepted once, and what it hands over is
+ * a key for this browser — which is exactly what a browser that knows nothing
+ * about the group needs.
+ */
+function backView(token) {
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
+      <h1>${escapeHtml(t('back.title'))}</h1>
+    </div>
+
+    ${inAppWarningHtml()}
+
+    <div class="card stack">
+      <p>${escapeHtml(token ? t('back.what') : t('back.broken'))}</p>
+      <p class="muted small" id="back-state"></p>
+      ${
+        token
+          ? `<button type="button" class="button button--primary button--block" id="back-go">
+               ${escapeHtml(t('back.action'))}
+             </button>`
+          : ''
+      }
+    </div>`;
+}
+
+function bindBack(token) {
+  bindInAppWarning();
+  const line = view.querySelector('#back-state');
+  view.querySelector('#back-go')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    if (!state.remote) {
+      line.textContent = t('join.noDatabase');
+      return;
+    }
+    button.disabled = true;
+    line.textContent = t('groups.checking');
+
+    let answer = { status: 'unknown' };
+    try {
+      answer = await state.remote.returnWith(token, deviceLabel());
+    } catch {
+      button.disabled = false;
+      line.textContent = t('groups.unsure');
+      return;
+    }
+    button.disabled = false;
+
+    if (answer.status === 'busy') return void (line.textContent = t('gate.busy'));
+    if (answer.status !== 'ok') return void (line.textContent = t('back.refused'));
+
+    // The name they are in this group; the device keeps its own if it has one.
+    if (answer.who && !myName()) setMyName(answer.who);
+    const group = { id: answer.id, name: answer.name, key: answer.key, admits: false, me: answer.who || '' };
+    rememberGroup(group);
+    // The first names the group fixes, of which this person is one.
+    await refreshGroup(group);
+    let taken = 0;
+    try {
+      taken = await catchUpWith(group);
+    } catch {
+      // In the group either way.
+    }
+    offerAccount(group);
+    flash(taken
+      ? t('groups.joinedWith', { name: group.name, count: taken })
+      : t('groups.joined', { name: group.name }));
+    // Onto the groups tab, where the group just joined now shows.
+    if (location.hash.startsWith('#/back/')) location.replace(`${location.pathname}${location.search}#/groups`);
+    else navigate('#/groups');
+  });
+}
+
+/**
+ * Show this device's return link — drawing a fresh one, which retires the
+ * previous. Offered right after being let in, and available afterwards in
+ * *Mes groupes*, because the moment someone will want it is not the moment they
+ * are told about it.
+ */
+async function showMyLink(group) {
+  let answer = { status: 'none' };
+  try {
+    answer = await state.remote.myLink(group.key);
+  } catch {
+    flash(t('groups.unsure'), 'error');
+    render();
+    return;
+  }
+  if (answer.status !== 'ok') {
+    flash(t('back.noneForThisKey'));
+    render();
+    return;
+  }
+  showCopyDialog({
+    title: t('back.linkTitle', { name: group.name }),
+    hint: t('back.linkHint'),
+    text: backLink(location, answer.token),
+    qr: true,
+  });
+}
+
+/**
+ * The group's calendar address: one link, which every calendar knows how to
+ * subscribe to — and which anyone holding it can read, so it is shown with
+ * what it costs, and with the way to cut it.
+ */
+async function showCalendar(group) {
+  let answer = { status: 'unknown' };
+  try {
+    answer = await state.remote.calendar(group.key);
+  } catch {
+    flash(t('groups.unsure'), 'error');
+    render();
+    return;
+  }
+  if (answer.status !== 'ok') {
+    flash(t(answer.status === 'account' ? 'agenda.needsAccount' : 'agenda.none'), 'error');
+    render();
+    return;
+  }
+
+  showCopyDialog({
+    title: t('agenda.title', { name: group.name }),
+    hint: t('agenda.hint'),
+    text: state.remote.calendarUrl(answer.token),
+  });
+}
+
+/* ------------------------------------------------------- joining a group --- */
+
+/**
+ * The page an invitation link opens: one field, the first name of whoever is
+ * joining, and a button. The group's name and the six digits arrived in the
+ * link, and are shown so that a link mangled by a messaging app can still be
+ * corrected by hand rather than being a dead end.
+ */
+function joinView(invitation) {
+  const waiting = invitation.group ? pendingFor(invitation.group) : null;
+  if (waiting) return waitingView(waiting);
+
+  const already = invitation.group ? groupNamed(invitation.group) : null;
+  const head = `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
+      <h1>${escapeHtml(invitation.group ? t('join.title', { name: invitation.group }) : t('join.titlePlain'))}</h1>
+    </div>
+
+    ${inAppWarningHtml()}`;
+  // On an iPhone, in Safari: install first, and join from the app — a group
+  // joined here would not be in the app on the home screen.
+  if (!already && phoneToInstall() === 'ios' && !state.joinHere) return `${head}${installFirstHtml(invitation)}`;
+  return `
+    ${head}
+
+    ${installOfferHtml()}
+
+    <form id="join-form" class="card stack">
+      <p class="muted small">${escapeHtml(already ? t('join.already', { name: already.name }) : t('join.hint'))}</p>
+      <label>
+        ${escapeHtml(t('join.me'))}
+        <input type="text" id="join-me" autocomplete="given-name" maxlength="${NAME_KEPT}" aria-required="true"
+               value="${escapeHtml(myName())}" placeholder="${escapeHtml(t('me.placeholder'))}" />
+      </label>
+
+      <button type="submit" class="button button--primary button--block">
+        ${escapeHtml(already ? t('groups.catchUp') : t('join.action'))}
+      </button>
+      <p class="muted small" id="join-state"></p>
+
+      <details class="details">
+        <summary>${escapeHtml(t('join.byHand'))}</summary>
+        <div class="row row--tight">
+          <input type="text" id="join-group" autocomplete="off" value="${escapeHtml(invitation.group)}"
+                 placeholder="${escapeHtml(t('groups.namePlaceholder'))}" aria-label="${escapeHtml(t('groups.namePlaceholder'))}" />
+          <input type="text" id="join-code" class="code-input" inputmode="numeric" autocomplete="one-time-code"
+                 value="${escapeHtml(invitation.code || '')}" placeholder="000000"
+                 aria-label="${escapeHtml(t('groups.codePlaceholder'))}" />
+        </div>
+      </details>
+
+      ${toHomeScreenHtml(invitation)}
+    </form>`;
+}
+
+/**
+ * How to enter a group from the app rather than from the page this link opened.
+ *
+ * The invitation travels as a link, and a link always opens in the browser —
+ * never in an app sitting on a home screen, which iOS gives its own storage and
+ * no way of being handed a URL. So someone who joins here and then installs the
+ * app finds it empty, and has every reason to think the app is broken. The only
+ * order that works is the other one: install first, join from inside. That is
+ * worth saying on the very page where the mistake is made, with the two things
+ * to copy right underneath.
+ *
+ * Folded away, because most people are not installing anything: one line until
+ * it is the line they need.
+ */
+function toHomeScreenHtml(invitation) {
+  if (onHomeScreen()) return '';
+  const name = String(invitation.group || '').trim();
+  const code = String(invitation.code || '').trim();
+  return `
+    <details class="details">
+      <summary>${escapeHtml(t('join.toHomeScreen'))}</summary>
+      <p class="muted small">${escapeHtml(t('join.toHomeScreenWhy'))}</p>
+      <ol class="steps muted small">
+        <li>${escapeHtml(t('join.toHomeScreenStep1'))}</li>
+        <li>${escapeHtml(t('join.toHomeScreenStep2'))}</li>
+        <li>${escapeHtml(t('join.toHomeScreenStep3'))}</li>
+      </ol>
+      ${
+        name && code
+          ? `<p class="small"><strong>${escapeHtml(t('join.toHomeScreenWhat'))}</strong>
+               ${escapeHtml(name)} · <span class="code-shown">${escapeHtml(code)}</span></p>
+             <div class="row row--tight">
+               <button type="button" class="button button--small" id="join-copy-code">
+                 ${escapeHtml(t('join.toHomeScreenCopy'))}
+               </button>
+             </div>`
+          : ''
+      }
+      <p class="muted small">${escapeHtml(t('join.toHomeScreenDone'))}</p>
+    </details>`;
+}
+
+/**
+ * The screen of someone who has knocked: nothing to do but wait, and nothing
+ * shown that they are not yet entitled to see. It looks in on its own while it
+ * is open, so being accepted needs no gesture on this side.
+ */
+function waitingView(knock) {
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
+      <h1>${escapeHtml(t('gate.waitingTitle', { name: knock.groupName }))}</h1>
+    </div>
+
+    <div class="card stack">
+      <p>${escapeHtml(t('gate.waitingWhat', { name: knock.groupName, me: knock.me || t('gate.someone') }))}</p>
+      <p class="muted small">${escapeHtml(t('gate.waitingHow'))}</p>
+      <p class="muted small" id="waiting-state"></p>
+      <div class="row">
+        <button type="button" class="button button--primary" id="waiting-check">${escapeHtml(t('gate.check'))}</button>
+        <button type="button" class="button button--ghost" id="waiting-drop">${escapeHtml(t('gate.dropMine'))}</button>
+      </div>
+    </div>`;
+}
+
+/**
+ * How long an invitation lasts: two days.
+ *
+ * A day was too short for a link sent in the evening to someone who opens
+ * their messages the following evening; two covers a weekend, and a link found
+ * a week later is still dead. The database caps it as well — the guide's SQL
+ * has to allow it, or the server quietly shortens it back.
+ */
+const INVITE_MINUTES = 2 * 24 * 60;
+
+/**
+ * Which invitation to draw. Both last two days; what separates them is how many
+ * people may knock with it: the first is for a family, the second for someone
+ * you would rather not see a link forwarded for.
+ */
+async function askInvitationShape() {
+  return new Promise((resolve) => {
+    const dialog = makeDialog('dialog dialog--ask');
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(t('groups.inviteWhich'))}</h2>
+        <p class="muted small">${escapeHtml(t('groups.inviteWhichHint'))}</p>
+        <div class="stack stack--tight">
+          <button type="button" class="button button--primary button--block" id="invite-open">
+            ${escapeHtml(t('groups.inviteOpen'))}
+          </button>
+          <button type="button" class="button button--block" id="invite-one">
+            ${escapeHtml(t('groups.inviteOne'))}
+          </button>
+        </div>
+        <div class="row">
+          <button type="button" class="button" id="invite-cancel">${escapeHtml(t('action.cancel'))}</button>
+        </div>
+      </div>`;
+
+    let answered = false;
+    const done = (shape) => {
+      if (answered) return;
+      answered = true;
+      resolve(shape);
+      dialog.close();
+    };
+    dialog.addEventListener('close', () => done(null));
+    dialog.querySelector('#invite-cancel').addEventListener('click', () => done(null));
+    dialog.querySelector('#invite-open').addEventListener('click', () => done({ minutes: INVITE_MINUTES, uses: 50 }));
+    dialog.querySelector('#invite-one').addEventListener('click', () => done({ minutes: INVITE_MINUTES, uses: 1 }));
+    dialog.showModal();
+  });
+}
+
+/** The group of that name this device is in, if any. */
+function groupNamed(name) {
+  const wanted = String(name || '').trim().toLowerCase();
+  if (!wanted) return null;
+  return groups().find((group) => String(group.name || '').trim().toLowerCase() === wanted) || null;
+}
+
+/**
+ * Leave the invitation screen for the overview, without leaving the link in
+ * the history: the code is spent, and a back button that lands on a dead
+ * invitation explains nothing to anyone.
+ */
+function leaveInvitation() {
+  // Replacing rather than pushing: the hash really changes, so the redraw comes
+  // from the hashchange the way it does everywhere else. Drawing here as well
+  // would show the "you are in Mifa" line and then immediately wipe it.
+  if (location.hash.startsWith('#/join/')) {
+    location.replace(`${location.pathname}${location.search}#/groups`);
+    return;
+  }
+  navigate('#/groups');
+}
+
+/** True while a knock is on its way, so no second one leaves for the same form. */
+let knocking = false;
+
+function bindJoin() {
+  bindInAppWarning();
+  bindInvitationPaste(view.querySelector('#join-group'), view.querySelector('#join-code'));
+
+  view.querySelector('#join-copy-code')?.addEventListener('click', () => {
+    const invitation = route();
+    showCopyDialog({
+      title: t('join.toHomeScreen'),
+      hint: t('join.toHomeScreenStep3'),
+      text: `${invitation.group} · ${invitation.code}`,
+    });
+  });
+
+  const waitingLine = view.querySelector('#waiting-state');
+  if (waitingLine) {
+    const knock = pendingFor(route().group);
+    const look = async (button) => {
+      if (!knock) return;
+      if (button) button.disabled = true;
+      waitingLine.textContent = t('groups.checking');
+      const status = await checkPending(knock);
+      if (status === 'waiting') {
+        waitingLine.textContent = t('gate.stillWaiting');
+        if (button) button.disabled = false;
+        return;
+      }
+      if (status === null) {
+        waitingLine.textContent = t('groups.unsure');
+        if (button) button.disabled = false;
+        return;
+      }
+      leaveInvitation();
+    };
+
+    view.querySelector('#waiting-check')?.addEventListener('click', (event) => look(event.currentTarget));
+    view.querySelector('#waiting-drop')?.addEventListener('click', async () => {
+      if (!knock) return;
+      const sure = await ask(t('gate.confirmDropMine', { name: knock.groupName }),
+        { confirmLabel: t('gate.dropMine'), danger: true });
+      if (!sure) return;
+      forgetPending(knock.ticket);
+      flash(t('gate.droppedMine', { name: knock.groupName }));
+      leaveInvitation();
+    });
+    return;
+  }
+
+  const form = view.querySelector('#join-form');
+  const line = view.querySelector('#join-state');
+  const say = (message) => {
+    line.textContent = message;
+  };
+
+  knocking = false;
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (knocking) return;
+    const button = form.querySelector('button[type="submit"]');
+    const me = view.querySelector('#join-me').value.trim();
+    const group = view.querySelector('#join-group').value.trim();
+    const code = readCode(view.querySelector('#join-code').value);
+    if (!me) return say(t('join.needMe'));
+    if (!group) return say(t('groups.needName'));
+    if (!code) return say(t('groups.needCode'));
+    if (!state.remote) return say(t('join.noDatabase'));
+
+    setMyName(me);
+
+    // Already in this group: the invitation is worth keeping for someone else,
+    // so take what the group shares instead of spending it. Groups are told
+    // apart by name here, which is what the link carries — the database keeps
+    // those names unique for exactly this reason.
+    const held = groupNamed(group);
+    if (held) {
+      button.disabled = true;
+      say(t('groups.checking'));
+      let taken = 0;
+      try {
+        taken = await catchUpWith(held);
+      } catch {
+        button.disabled = false;
+        return say(t('groups.unsure'));
+      }
+      flash(taken
+        ? t('join.alreadyCaughtUp', { name: held.name, count: taken })
+        : t('join.alreadyUpToDate', { name: held.name }));
+      leaveInvitation();
+      return;
+    }
+
+    button.disabled = true;
+    knocking = true;
+    say(t('groups.checking'));
+    let answer = { status: 'unknown' };
+    try {
+      answer = await knockAs(group, code, me);
+    } catch {
+      button.disabled = false;
+      knocking = false;
+      return say(t('groups.unsure'));
+    }
+    button.disabled = false;
+    knocking = false;
+
+    if (answer.status === 'busy') return say(t('gate.busy'));
+    if (answer.status === 'who') return say(t('roster.whoNeeded'));
+    if (answer.status !== 'waiting') return say(t('groups.codeRefused'));
+
+    rememberPending({
+      ticket: answer.ticket,
+      groupId: answer.id,
+      groupName: answer.name || group,
+      me: answer.me,
+      at: Date.now(),
+    });
+    render();
+  });
+
+  view.querySelector('#join-me')?.focus();
+}
+
+/**
+ * While the overview is on screen, ask again for the knocks — fifteen seconds
+ * apart, and only redraw when the answer actually changed, so the screen does
+ * not flicker and the database is not hammered.
+ */
+/** The pages that show who is knocking: the groups tab, and "for you" at home. */
+function showsGate() {
+  return ['overview', 'groups'].includes(route().name);
+}
+
+/** When the knocks were last asked for, while the group's channel is heard. */
+let lastGateLook = 0;
+
+function watchGate() {
+  stopWatching();
+  if (!state.remote) return;
+  state.poll = setInterval(async () => {
+    if (isBusy() || isHidden() || !showsGate()) return;
+    // Heard as they happen: a knock is announced on the group's channel.
+    if (liveCoversGroups() && Date.now() - lastGateLook < 60000) return;
+    lastGateLook = Date.now();
+    if (await refreshGate()) render();
+  }, 15000);
+}
+
+/** While someone waits to be let in, look in on their own — five seconds apart. */
+function watchPending() {
+  stopWatching();
+  if (!state.remote) return;
+  state.poll = setInterval(async () => {
+    if (isBusy() || isHidden()) return;
+    const knock = pendingFor(route().group);
+    if (!knock) return;
+    const status = await checkPending(knock);
+    if (status && status !== 'waiting') {
+      stopWatching();
+      leaveInvitation();
+    }
+  }, 5000);
+}
+
+  // ---- src/view-people.js ----------------------------------------------
+/**
+ * People: one person's page, the table of everyone's evenings, and renaming a
+ * player in every game at once.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Rename a player in every game they appear in.
+ *
+ * The statistics gather players by name, because a game mints fresh ids for its
+ * own players and nothing ties them together otherwise. So a name that changed —
+ * "Alex" who comes back as "Alexandre" — is two people in the table, and only
+ * the person concerned can say it is one. This is how they say it.
+ */
+async function renameEverywhere(before) {
+  const after = await askForText({
+    title: t('stats.renameTitle'),
+    hint: t('stats.renameHint', { name: before }),
+    value: before,
+    confirmLabel: t('stats.rename'),
+  });
+  const clean = String(after || '').trim();
+  if (!clean || clean === before) return;
+
+  const key = sameName(before);
+  const { touched } = renameAcross(before, clean);
+
+  flash(touched ? t('stats.renamed', { name: clean, count: touched }) : t('stats.renamedNone'));
+  // The page may be keyed on the old name: follow the person to their new one.
+  if (route().name === 'person' && sameName(route().who) === key) {
+    navigate(`#/person/${encodeURIComponent(clean)}`);
+    return;
+  }
+  render();
+}
+
+/**
+ * Write `before` as `after` in every document that names them — or only in
+ * those `only` keeps (a group's). Games first, then lists, polls and accounts:
+ * the same person, written the same way. A name matched forgivingly here, as
+ * everywhere else — otherwise the rename would miss exactly the spellings it
+ * exists to reconcile. A document where `after` is already someone else is
+ * left as it is (it would have them twice), and counted in `left`.
+ */
+function renameAcross(before, after, only = () => true) {
+  const key = sameName(before);
+  let touched = 0;
+  let left = 0;
+
+  for (const game of state.games.filter(only)) {
+    const players = game.players.filter((player) => sameName(player.name) === key);
+    if (!players.length) continue;
+    if (game.players.some((player) => !players.includes(player) && sameName(player.name) === sameName(after))) {
+      left += 1;
+      continue;
+    }
+    let next = game;
+    for (const player of players) next = renamePlayer(next, player.id, after);
+    if (next === game) continue;
+    state.games = state.games.map((held) => (held.id === next.id ? next : held));
+    persist(next);
+    touched += 1;
+  }
+
+  const kinds = [
+    ['lists', renameListPerson, persistList],
+    ['polls', renamePollPerson, persistPoll],
+    ['spends', renameSpendPerson, persistSpend],
+  ];
+  for (const [kind, rename, keep] of kinds) {
+    for (const document_ of state[kind].filter(only)) {
+      const people = document_.people.filter((person) => sameName(person.name) === key);
+      if (!people.length) continue;
+      let next = document_;
+      for (const person of people) next = rename(next, person.id, after);
+      if (next === document_) {
+        // Written exactly so already, or `after` is someone else in there.
+        if (people.some((person) => person.name !== after)) left += 1;
+        continue;
+      }
+      state[kind] = state[kind].map((held) => (held.id === next.id ? next : held));
+      keep(next);
+      touched += 1;
+    }
+  }
+  return { touched, left };
+}
+
+/* ---------------------------------------------------------------- person --- */
+
+/**
+ * One person's page.
+ *
+ * The three tabs answer "where is this list" and "who is winning"; none of
+ * them answers "and Claire?" — what she was given, what she has not answered,
+ * how her evenings went. That question is asked about a name, so this page is
+ * keyed on a name, matched the forgiving way the tables match it.
+ *
+ * What waits on her comes first, because it is the only part anyone can act
+ * on; the rest is what she has done, newest first.
+ */
+function personView(who) {
+  const file = personFile(state, who);
+  const head = (title, tail) => `
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
+      ${title}
+    </div>
+    ${tail}`;
+
+
+  if (!file.known) {
+    return `
+      ${flashHtml()}
+      ${head(`<h1>${escapeHtml(file.name || who)}</h1>`, `<p class="muted small">${escapeHtml(t('person.none'))}</p>`)}`;
+  }
+
+  const inGroups = file.groupIds
+    .map((id) => groups().find((group) => group.id === id)?.name)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+
+  const waiting = waitingLine(file);
+
+  const tile = (value, label) => `
+    <div class="tile">
+      <span class="tile__value">${value}</span>
+      <span class="tile__label">${escapeHtml(label)}</span>
+    </div>`;
+
+  const entry = (goto, what, aside, value, tone) => `
+    <button type="button" class="entry" data-goto="${goto}">
+      <span class="entry__what">
+        ${what}${aside ? ` <span class="muted small">${aside}</span>` : ''}
+      </span>
+      <span class="entry__value ${tone || ''}">${value}</span>
+    </button>`;
+
+  const section = (title, entries) =>
+    entries.length
+      ? `<section class="section card">
+           <div class="section__head"><h2>${escapeHtml(title)}</h2></div>
+           <div class="entries">${entries.join('')}</div>
+         </section>`
+      : '';
+
+  return `
+    ${flashHtml()}
+    ${head(
+      `<div class="who">
+         <span class="who__mark" aria-hidden="true">${escapeHtml([...file.name][0] || '?')}</span>
+         <span>
+           <h1>${escapeHtml(file.name)}</h1>
+           ${inGroups.length ? `<span class="muted small">${escapeHtml(inGroups.join(' · '))}</span>` : ''}
+         </span>
+       </div>`,
+      waiting ? `<p class="banner">${escapeHtml(waiting)}</p>` : '',
+    )}
+
+    <div class="tiles">
+      ${tile(file.counts.games, t('person.statGames'))}
+      ${tile(file.counts.wins, t('person.statWins'))}
+      ${tile(file.counts.left, t('person.statLines'))}
+      ${tile(file.counts.votes, t('person.statVotes'))}
+    </div>
+
+    ${section(
+      t('person.lists'),
+      file.lines.map((row) =>
+        entry(
+          `#/list/${escapeHtml(row.list.id)}`,
+          escapeHtml(listTitle(row.list)),
+          // The soonest day still ahead of them, or nothing: a list with no
+          // days says nothing about when, and should not pretend to.
+          row.next ? escapeHtml(t(row.late ? 'lists.lateOn' : 'lists.dueOn', { day: formatDay(row.next) })) : '',
+          escapeHtml(t('person.assigned', { done: row.done, total: row.total })),
+          row.late ? 'entry__value--bad' : row.left ? '' : 'entry__value--good',
+        ),
+      ),
+    )}
+
+    ${section(
+      t('person.votes'),
+      file.votes.map((row) =>
+        entry(
+          `#/poll/${escapeHtml(row.poll.id)}`,
+          escapeHtml(pollTitle(row.poll)),
+          row.closed ? escapeHtml(t('polls.closed')) : '',
+          escapeHtml(row.answered ? t('person.answered') : t('person.notAnswered')),
+          row.closed ? '' : row.answered ? 'entry__value--good' : 'entry__value--bad',
+        ),
+      ),
+    )}
+
+    ${section(
+      t('person.spends'),
+      file.accounts.map((row) =>
+        entry(
+          `#/spend/${escapeHtml(row.spend.id)}`,
+          escapeHtml(spendTitle(row.spend)),
+          escapeHtml(t('spends.paidTotal', { amount: money(row.paid, row.spend) })),
+          escapeHtml(
+            row.balance === 0
+              ? t('spends.even')
+              : t(row.balance > 0 ? 'spends.isOwed' : 'spends.owes', {
+                  amount: money(Math.abs(row.balance), row.spend),
+                }),
+          ),
+          row.balance > 0 ? 'entry__value--good' : row.balance < 0 ? 'entry__value--bad' : '',
+        ),
+      ),
+    )}
+
+    ${section(
+      t('person.games'),
+      file.played
+        .slice(0, GAMES_SHOWN)
+        .map((row) =>
+          entry(
+            `#/game/${escapeHtml(row.game.id)}`,
+            escapeHtml(gameTitle(row.game)),
+            escapeHtml(formatDate(row.game.updatedAt)),
+            escapeHtml(
+              row.won
+                ? t('person.won', { total: row.total })
+                : t('person.rank', { rank: row.rank, of: row.of, total: row.total }),
+            ),
+            row.won ? 'entry__value--good' : '',
+          ),
+        ),
+    )}
+
+    <div class="row">
+      <button type="button" class="button button--small button--ghost"
+              data-rename-everywhere="${escapeHtml(file.name)}">
+        ${escapeHtml(t('stats.rename'))}
+      </button>
+    </div>
+
+    <p class="notes">${escapeHtml(t('person.sameName'))}</p>`;
+}
+
+/** How many of someone's evenings the page shows before it stops being a page. */
+const GAMES_SHOWN = 8;
+
+function statsView() {
+  const mine = shownDocs(state.games);
+  const played = presetsPlayed(mine);
+
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/games')}
+      <h1>${escapeHtml(t('stats.title'))}</h1>
+    </div>
+    ${groupChipsHtml()}
+
+    ${
+      played.length
+        ? played
+            .map(({ presetId, played: count }) => {
+              const preset = getPreset(presetId);
+              const rows = statsFor(mine, presetId);
+              return `
+                <section class="section card">
+                  <div class="section__head">
+                    <h2>${escapeHtml(preset ? presetLabel(preset) : presetId)}</h2>
+                    <span class="muted small">${escapeHtml(t('stats.games', { count }))}</span>
+                  </div>
+                  <div class="table-wrap">
+                    <table class="scores">
+                      <thead>
+                        <tr>
+                          <th>${escapeHtml(t('new.players'))}</th>
+                          <th>${escapeHtml(t('stats.played'))}</th>
+                          <th>${escapeHtml(t('stats.won'))}</th>
+                          <th>${escapeHtml(t('stats.average'))}</th>
+                          <th>${escapeHtml(t('stats.best'))}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${rows
+                          .map(
+                            (row) => `
+                            <tr>
+                              <td>
+                                ${escapeHtml(row.name)}
+                                <button type="button" class="button button--small button--ghost"
+                                        data-rename-everywhere="${escapeHtml(row.name)}"
+                                        title="${escapeHtml(t('stats.renameTitle'))}">✎</button>
+                              </td>
+                              <td>${row.played}</td>
+                              <td>${row.won}</td>
+                              <td>${row.average}</td>
+                              <td>${row.best}</td>
+                            </tr>`,
+                          )
+                          .join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>`;
+            })
+            .join('')
+        : `<p class="muted small">${escapeHtml(t('stats.empty'))}</p>`
+    }
+
+    <p class="notes">${escapeHtml(t('stats.note'))}</p>`;
+}
+
+  // ---- src/view-notify.js ----------------------------------------------
+/**
+ * Notifications on this device: turned on in the settings, and told to the
+ * notifier (supabase/functions/notifier) whenever this device writes
+ * something that may be news for its group, or knocks at one.
+ *
+ * Turning them on asks the phone, subscribes the browser with the database's
+ * public key, and hands the subscription to the database once per group, with
+ * that group's key — so a key cut off stops the notifications too.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+
+const TOLD = 'marque-points:told:v1';
+const REMINDED = 'marque-points:reminded:v1';
+
+/** What this browser can do with notifications. */
+function support() {
+  const served = Boolean(document.querySelector('link[rel="manifest"]'));
+  return pushSupport({
+    worker: served && 'serviceWorker' in navigator,
+    push: 'PushManager' in window,
+    notification: 'Notification' in window,
+    permission: 'Notification' in window ? Notification.permission : 'default',
+    phone: phoneToInstall(),
+    standalone: onHomeScreen(),
+  });
+}
+
+function isOn() {
+  return Boolean(state.prefs.push) && support() === 'ready' && Notification.permission === 'granted';
+}
+
+/** The app's own address, for a notification to open. */
+function appAddress() {
+  return `${location.origin}${location.pathname}`;
+}
+
+/** This device's time zone — « Europe/Paris » —, for the eve's reminder to come at its evening. */
+function timeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    return '';
+  }
+}
+
+/** The service worker, within a few seconds, or null. */
+async function worker() {
+  if (!('serviceWorker' in navigator)) return null;
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
+  ]);
+}
+
+/** Throw `error` on, saying which step of turning notifications on it stopped. */
+function stopAt(step, error) {
+  const stop = error instanceof Error ? error : new Error(String(error));
+  stop.step = stop.step || step;
+  throw stop;
+}
+
+/** This browser's subscription, made with the database's key if there is none yet. */
+async function subscribe(registration) {
+  const held = await registration.pushManager.getSubscription();
+  if (held) return held;
+  const answer = await state.remote.notifier({ action: 'key' }).catch((error) => stopAt('key', error));
+  // Answered, but not with a key: a function of that name that is not this one.
+  if (!answer?.key) stopAt('key', Object.assign(new Error('no key'), { status: 200 }));
+  return registration.pushManager
+    .subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(answer.key) })
+    .catch((error) => stopAt('subscribe', error));
+}
+
+/**
+ * Hand the subscription to the database, once per group. Answers what each
+ * group said — the database's answer, or the error on the way.
+ */
+async function register(subscription) {
+  const fields = subscriptionFields(subscription.toJSON());
+  if (!fields) stopAt('subscribe', new Error('no keys in the subscription'));
+  const said = [];
+  for (const group of groups()) {
+    said.push(await state.remote.pushSubscribe(group.key, fields, getLanguage(), appAddress(), timeZone()).catch((error) => error));
+  }
+  return said;
+}
+
+/**
+ * Whether the database itself answers, the notifier aside: a call to the
+ * notifier that got no answer the page could read is then the notifier's
+ * fault, not the network's.
+ */
+async function databaseAnswers() {
+  if (navigator.onLine === false) return false;
+  const [group] = groups();
+  if (!group) return false;
+  try {
+    await state.remote.groupOf(group.key);
+    return true;
+  } catch (error) {
+    return Boolean(error?.status);
+  }
+}
+
+/**
+ * Subscribe this browser and hand the subscription to the database. Answers
+ * null when done, or why not: { reason, detail } — the reason one of
+ * activationProblem's, the detail what the browser or the database said.
+ */
+async function turnOn() {
+  try {
+    const registration = await worker();
+    if (!registration) return { reason: activationProblem('worker'), detail: '' };
+    const said = await register(await subscribe(registration));
+    if (said.some((one) => one?.status === 'ok')) return null;
+    return { reason: activationProblem('register', said), detail: problemDetail(said[0]) };
+  } catch (error) {
+    const answers = error?.step === 'key' && !error.status ? await databaseAnswers() : true;
+    return { reason: activationProblem(error?.step, error, answers), detail: problemDetail(error) };
+  }
+}
+
+/* ---------------------------------------------------------------- screen --- */
+
+/** What to read for each reason turning them on can fail (notify.js). */
+const PROBLEMS = {
+  worker: 'notify.worker',
+  offline: 'notify.offline',
+  function: 'notify.notReady',
+  database: 'notify.database',
+  denied: 'notify.denied',
+  browser: 'notify.browser',
+  account: 'notify.account',
+  refused: 'notify.kept',
+  failed: 'notify.failed',
+};
+
+/** Why the last try failed, by the button that tries again: what to do, then what was said. */
+function problemHtml() {
+  const problem = state.notifyProblem;
+  if (!problem) return '';
+  // Brave turns Google's push service off: it refuses every subscription.
+  const reason = problem.reason === 'browser' && 'brave' in navigator ? 'notify.brave' : PROBLEMS[problem.reason];
+  return `
+      <p class="banner banner--warn" id="notify-problem">${escapeHtml(t(reason || PROBLEMS.failed))}</p>
+      ${problem.detail ? `<p class="muted small">${escapeHtml(t('notify.detail', { detail: problem.detail }))}</p>` : ''}`;
+}
+
+/** The settings section. */
+function notifyHtml() {
+  if (!state.remote) return '';
+  const can = support();
+  const on = isOn();
+  let body = '';
+  if (on) {
+    body = `
+      <p class="small">${escapeHtml(t('notify.on'))}</p>
+      <div class="row"><button type="button" class="button button--small button--ghost" id="notify-off">${escapeHtml(t('notify.disable'))}</button></div>`;
+  } else if (can === 'ready') {
+    body = groups().length
+      ? `${problemHtml()}
+      <div class="row"><button type="button" class="button button--small button--primary" id="notify-on">${escapeHtml(t('notify.enable'))}</button></div>`
+      : `<p class="muted small">${escapeHtml(t('notify.noGroup'))}</p>`;
+  } else {
+    body = `<p class="muted small">${escapeHtml(t(`notify.${can}`))}</p>`;
+  }
+  return `
+    <section class="section" id="notify">
+      <div class="section__head"><h2>${escapeHtml(t('notify.title'))}</h2></div>
+      <p class="muted small">${escapeHtml(t('notify.why'))}</p>
+      ${body}
+    </section>`;
+}
+
+function bindNotify() {
+  view.querySelector('#notify-on')?.addEventListener('click', async (event) => {
+    event.currentTarget.disabled = true;
+    state.notifyProblem = null;
+    const permission = await Notification.requestPermission().catch(() => 'denied');
+    if (permission !== 'granted') {
+      flash(t('notify.refused'), 'error');
+      render();
+      return;
+    }
+    // Said where the button is, and kept there: a banner at the top of the
+    // page would be out of sight, and gone before the reason was read.
+    state.notifyProblem = await turnOn();
+    if (state.notifyProblem) {
+      render();
+      return;
+    }
+    state.prefs = { ...state.prefs, push: true };
+    savePrefs(state.prefs);
+    flash(t('notify.enabled'));
+    render();
+  });
+  view.querySelector('#notify-off')?.addEventListener('click', async (event) => {
+    event.currentTarget.disabled = true;
+    try {
+      const registration = await worker();
+      const held = await registration?.pushManager.getSubscription();
+      if (held) {
+        await state.remote.pushUnsubscribe(held.endpoint).catch(() => null);
+        await held.unsubscribe().catch(() => null);
+      }
+    } catch {
+      // Turned off here all the same; the database forgets it at the next send.
+    }
+    state.prefs = { ...state.prefs, push: false };
+    savePrefs(state.prefs);
+    flash(t('notify.disabled'));
+    render();
+  });
+}
+
+/**
+ * On opening, and after joining a group: the database holds this device's
+ * subscription for every group it is in — a new group, a key made anew, a
+ * subscription the browser renewed.
+ */
+async function syncPush() {
+  if (!state.remote || !isOn()) return;
+  try {
+    const registration = await worker();
+    if (registration) await register(await subscribe(registration));
+  } catch {
+    // Tried again at the next opening.
+  }
+  askReminders();
+}
+
+/** Of an evening, ask for the eve's reminders, in case the hourly run is late. */
+function askReminders() {
+  let last = 0;
+  try {
+    last = Number(localStorage.getItem(REMINDED)) || 0;
+  } catch {
+    // No storage: asked at each opening, which the database answers once.
+  }
+  if (!mayAskReminders(last)) return;
+  try {
+    localStorage.setItem(REMINDED, String(Date.now()));
+  } catch {
+    // Same as above.
+  }
+  state.remote.notifier({ action: 'remind' }).catch(() => null);
+}
+
+/* --------------------------------------------------------------- telling --- */
+
+function told() {
+  try {
+    const list = JSON.parse(localStorage.getItem(TOLD) || '[]');
+    return Array.isArray(list) ? list.filter((one) => typeof one === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * A document written with a group key: the notifier decides whether that is
+ * news (new, or a day settled) and for whom. Asked once per document and day,
+ * whatever this device's own notifications.
+ */
+async function tell(document_, key) {
+  if (!state.remote || !key || !mayBeNews(document_)) return;
+  await tellOnce(toldKey(document_), { action: 'doc', key, id: document_.id });
+  // And the words left on it: the group hears them (reacts.js).
+  const words = wordsKey(document_);
+  if (words) await tellOnce(words, { action: 'words', key, id: document_.id });
+}
+
+/** Ask the notifier, unless this very thing was asked already. */
+async function tellOnce(said, body) {
+  if (told().includes(said)) return;
+  try {
+    await state.remote.notifier(body);
+  } catch (error) {
+    // No network: asked again at the next write. Anything else — no notifier
+    // in this database — is not worth asking again for the same thing.
+    if (!error?.status) return;
+  }
+  try {
+    localStorage.setItem(TOLD, JSON.stringify(rememberTold(told(), said)));
+  } catch {
+    // No storage: the notifier tells each piece of news once anyway.
+  }
+}
+
+/** Someone knocked from this device: the group's door-keepers hear of it. */
+function tellKnock(ticket) {
+  if (!state.remote || !ticket) return;
+  state.remote.notifier({ action: 'knock', ticket }).catch(() => null);
+}
+
+  // ---- src/view-search.js ----------------------------------------------
+/**
+ * The search page (#/search/<words>): a field, and what holds the words, kind
+ * by kind — in the group the pastilles choose, as on the other tabs. Typing
+ * redraws the results alone, so the field keeps its focus; the words go into
+ * the address, so coming back from a result finds them again.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+/** The kinds, in the order their sections come: events first, as on the Home page. */
+const SEARCH_KINDS = ['event', 'list', 'poll', 'spend', 'board', 'game'];
+
+/** The address of a search for these words. */
+function searchHash(words) {
+  const clean = String(words || '').trim();
+  return clean ? `#/search/${encodeURIComponent(clean)}` : '#/search';
+}
+
+/** A text with the words found in it marked, everything escaped. */
+function markedHtml(text, marks) {
+  let html = '';
+  let at = 0;
+  for (const [start, end] of marks) {
+    html += `${escapeHtml(text.slice(at, start))}<mark>${escapeHtml(text.slice(start, end))}</mark>`;
+    at = end;
+  }
+  return html + escapeHtml(text.slice(at));
+}
+
+/** One document found: its title, its group, and the parts that hold the words. */
+function foundHtml(hit) {
+  const group = groups().find((one) => one.id === hit.document.groupId);
+  return `
+    <button type="button" class="entry search-hit" data-search-goto="${escapeHtml(documentHref(hit.document))}">
+      <span class="entry__what">
+        <strong>${markedHtml(hit.title, hit.marks)}</strong>
+        ${group ? `<span class="muted small"> · ${escapeHtml(group.name)}</span>` : ''}
+        ${hit.parts.map((part) => `<span class="search-hit__part">${markedHtml(part.text, part.marks)}</span>`).join('')}
+        ${hit.more ? `<span class="muted small search-hit__part">${escapeHtml(t('search.more', { count: hit.more }))}</span>` : ''}
+      </span>
+    </button>`;
+}
+
+/** What the words find, in the chosen group, kind by kind. */
+function resultsHtml(words) {
+  if (!String(words || '').trim()) return `<p class="muted small">${escapeHtml(t('search.hint'))}</p>`;
+  const everywhere = searchDocuments(everything(), words, { titleOf: documentTitle });
+  const found = shownDocs(everywhere.map((hit) => hit.document));
+  const shown = everywhere.filter((hit) => found.includes(hit.document));
+  // What the chosen group keeps out of sight, and the way to look everywhere.
+  const hidden = everywhere.length > shown.length
+    ? `<p class="muted small">
+         ${escapeHtml(t('search.hidden', { count: everywhere.length - shown.length }))}
+         <button type="button" class="button button--small button--ghost" data-search-everywhere>${escapeHtml(t('filter.all'))}</button>
+       </p>`
+    : '';
+  if (!shown.length) {
+    return `<p class="muted">${escapeHtml(t('search.none', { words: String(words).trim() }))}</p>${hidden}`;
+  }
+  const kindOfHit = (hit) => (isEventDoc(hit.document) ? 'event' : kindOf(hit.document));
+  const sections = SEARCH_KINDS.map((kind) => {
+    const hits = shown.filter((hit) => kindOfHit(hit) === kind);
+    if (!hits.length) return '';
+    return `
+      <section class="section card">
+        <div class="section__head"><h2>${escapeHtml(t(`chain.kind.${kind}`))} · ${hits.length}</h2></div>
+        <div class="entries">${hits.map(foundHtml).join('')}</div>
+      </section>`;
+  });
+  return `<p class="muted small">${escapeHtml(t('search.count', { count: shown.length }))}</p>${sections.join('')}${hidden}`;
+}
+
+function searchView(words) {
+  return `
+    ${flashHtml()}
+    <div class="spread page-head">
+      ${backButtonHtml('#/')}
+      <h1>${escapeHtml(t('search.title'))}</h1>
+    </div>
+    <input type="search" id="search-words" class="field-pill" value="${escapeHtml(words)}" autocomplete="off"
+           enterkeyhint="search" placeholder="${escapeHtml(t('search.placeholder'))}"
+           aria-label="${escapeHtml(t('search.field'))}" />
+    ${groupChipsHtml()}
+    <div id="search-results" aria-live="polite">${resultsHtml(words)}</div>`;
+}
+
+function bindSearch(words) {
+  const field = document.getElementById('search-words');
+  const results = document.getElementById('search-results');
+  if (!field || !results) return;
+  // Opened with words, the caret goes after them; opened empty, ready to type.
+  field.focus();
+  field.setSelectionRange(field.value.length, field.value.length);
+  let shown = words;
+  field.addEventListener('input', () => {
+    if (field.value === shown) return;
+    shown = field.value;
+    rewriteHere(searchHash(shown));
+    results.innerHTML = resultsHtml(shown);
+  });
+  field.addEventListener('keydown', (event) => {
+    // The phone's « Search » key: the results are already there; the keyboard goes.
+    if (event.key === 'Enter') field.blur();
+  });
+  results.addEventListener('click', (event) => {
+    const hit = event.target.closest('[data-search-goto]');
+    if (hit) {
+      navigate(hit.dataset.searchGoto);
+      return;
+    }
+    if (event.target.closest('[data-search-everywhere]')) {
+      setGroupFilter('');
+      render();
+    }
+  });
+}
+
+  // ---- src/view-reacts.js ----------------------------------------------
+/**
+ * Reactions and a few words, on screen: under what they are about, a row of
+ * what was reacted — « 👍 2 », a tap adds one's own or takes it back — and a
+ * button that opens all of it: the five reactions, who gave which, the words
+ * left, and a field for some more. The same row under an idea, a poll's
+ * choice, an event and an activity; the logic is reacts.js.
+ *
+ * Calls back into app.js and the other views only from inside functions.
+ */
+
+
+
+
+
+
+
+
+/** The words shown under an event's row: the last few, the rest a tap away. */
+const WORDS_SHOWN = 2;
+
+/**
+ * The row under a thing: its reactions, and the way to react or say a word.
+ * `title` names the thing in the window; `said` shows the last words under
+ * the row (an event's page), where the rest only count them.
+ */
+function talkHtml(document_, target, { title = '', said = false } = {}) {
+  const me = myNameFor(document_);
+  const rows = reactionsTo(document_, target, me);
+  const words = wordsOn(document_, target, me);
+  const chips = rows.map((row) => `
+    <button type="button" class="talk__chip ${row.mine ? 'talk__chip--mine' : ''}" data-talk-react="${escapeHtml(row.emoji)}"
+            aria-pressed="${row.mine ? 'true' : 'false'}" title="${escapeHtml(row.names.join(', '))}"
+            aria-label="${escapeHtml(t('talk.chip', { emoji: row.emoji, names: row.names.join(', ') }))}">
+      <span aria-hidden="true">${escapeHtml(row.emoji)} ${row.names.length}</span>
+    </button>`).join('');
+  const open = words.length
+    ? `💬 ${words.length}`
+    : `<span aria-hidden="true">☺+</span>`;
+  return `
+    <div class="talk" data-talk="${escapeHtml(target)}" data-talk-doc="${escapeHtml(document_.id)}" data-talk-title="${escapeHtml(title)}">
+      ${chips}
+      <button type="button" class="talk__open" data-talk-open
+              aria-label="${escapeHtml(words.length ? t('talk.openWords', { count: words.length }) : t('talk.open'))}">${open}</button>
+    </div>
+    ${said && words.length ? `
+      <div class="talk__said">
+        ${words.slice(-WORDS_SHOWN).map((one) => `<p><strong>${escapeHtml(one.name)}</strong> ${escapeHtml(one.text)}</p>`).join('')}
+      </div>` : ''}`;
+}
+
+/**
+ * On a card, what is said of the whole document: « 🎉 3 · 👍 1 · 💬 2 », or
+ * nothing at all when nobody said anything.
+ */
+function talkSumHtml(document_) {
+  const { reactions, words } = talkTotals(document_);
+  if (!reactions.length && !words) return '';
+  const said = [...reactions.map((one) => `${one.emoji} ${one.count}`), ...(words ? [`💬 ${words}`] : [])].join(' · ');
+  const count = reactions.reduce((sum, one) => sum + one.count, 0);
+  return `<span class="game-card__meta talk-sum" aria-label="${escapeHtml(t('talk.sum', { count, words }))}">${escapeHtml(said)}</span>`;
+}
+
+/** The document a row is about, as it is now. */
+function talkDocument(id) {
+  return everything().find((one) => one.id === id) || null;
+}
+
+/** Keep a document a reaction or a word changed, where its kind is kept. */
+function keepTalk(next) {
+  if (next.kind === 'board') replaceBoard(next);
+  else if (next.kind === 'poll') replacePoll(next);
+}
+
+/**
+ * Who reacts on this device: its first name — asked once, if it has none yet —
+ * or, in a group that fixes its names, the one it is there.
+ */
+async function talkName(document_) {
+  if (rosterFor(document_).length) return myNameFor(document_) || askWhoIn(document_.groupId);
+  const held = myName();
+  if (held) return held;
+  const name = await askForText({
+    title: t('talk.whoTitle'),
+    hint: t('talk.whoHint'),
+    confirmLabel: t('action.save'),
+  });
+  return name && name.trim() ? setMyName(name) : '';
+}
+
+/** React with `emoji` — or take it back — as this device's first name. */
+async function reactTo(id, target, emoji) {
+  const name = await talkName(talkDocument(id));
+  const current = talkDocument(id);
+  if (!name || !current) return;
+  keepTalk(react(current, target, name, emoji));
+}
+
+/** The window: react, see who did, read the words, and add some. */
+function openTalk(id, target, title) {
+  const dialog = makeDialog('dialog dialog--talk');
+  const fill = () => {
+    const current = talkDocument(id);
+    if (!current) {
+      dialog.close();
+      return;
+    }
+    const me = myNameFor(current);
+    const mine = myReaction(current, target, me);
+    const rows = reactionsTo(current, target, me);
+    const words = wordsOn(current, target, me);
+    const typed = dialog.querySelector('[data-talk-text]')?.value || '';
+    dialog.innerHTML = `
+      <form method="dialog" class="stack">
+        <h2>${escapeHtml(title || t('talk.title'))}</h2>
+        <div class="talk-pick" role="group" aria-label="${escapeHtml(t('talk.pick'))}">
+          ${REACTIONS.map((emoji) => `
+            <button type="button" class="talk-pick__one ${emoji === mine ? 'talk-pick__one--on' : ''}" data-talk-pick="${escapeHtml(emoji)}"
+                    aria-pressed="${emoji === mine ? 'true' : 'false'}">${escapeHtml(emoji)}</button>`).join('')}
+        </div>
+        ${rows.length ? `<p class="muted small">${rows.map((row) => `${escapeHtml(row.emoji)} ${escapeHtml(row.names.join(', '))}`).join(' · ')}</p>` : ''}
+        <div class="talk-words">
+          ${words.length
+            ? words.map((one) => `
+                <p class="talk-word">
+                  <span><strong>${escapeHtml(one.name)}</strong> ${escapeHtml(one.text)}</span>
+                  ${one.mine ? `<button type="button" class="button button--small button--ghost" data-talk-drop="${escapeHtml(one.id)}"
+                                        aria-label="${escapeHtml(t('talk.drop'))}">✕</button>` : ''}
+                </p>`).join('')
+            : `<p class="muted small">${escapeHtml(t('talk.none'))}</p>`}
+        </div>
+        <label>
+          ${escapeHtml(t('talk.wordsLabel'))}
+          <textarea data-talk-text rows="2" maxlength="${WORDS_MOST}" placeholder="${escapeHtml(t('talk.placeholder'))}"></textarea>
+        </label>
+        <div class="row">
+          <button type="button" class="button button--primary" data-talk-send>${escapeHtml(t('talk.send'))}</button>
+          <button type="button" class="button" data-talk-close>${escapeHtml(t('action.close'))}</button>
+        </div>
+      </form>`;
+    const field = dialog.querySelector('[data-talk-text]');
+    field.value = typed;
+
+    dialog.querySelectorAll('[data-talk-pick]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        await reactTo(id, target, button.dataset.talkPick);
+        fill();
+      });
+    });
+    dialog.querySelectorAll('[data-talk-drop]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const now = talkDocument(id);
+        if (now) keepTalk(removeWords(now, button.dataset.talkDrop));
+        fill();
+      });
+    });
+    dialog.querySelector('[data-talk-send]').addEventListener('click', async () => {
+      const text = field.value.trim();
+      if (!text) {
+        field.focus();
+        return;
+      }
+      const name = await talkName(talkDocument(id));
+      const now = talkDocument(id);
+      if (!name || !now) return;
+      keepTalk(addWords(now, target, name, text));
+      field.value = '';
+      fill();
+    });
+    dialog.querySelector('[data-talk-close]').addEventListener('click', () => dialog.close());
+  };
+  fill();
+  dialog.showModal();
+}
+
+/** Make the rows of a page work. */
+function bindTalk(root) {
+  root.querySelectorAll('[data-talk]').forEach((row) => {
+    const id = row.dataset.talkDoc;
+    const target = row.dataset.talk;
+    row.querySelectorAll('[data-talk-react]').forEach((chip) => {
+      chip.addEventListener('click', () => reactTo(id, target, chip.dataset.talkReact));
+    });
+    row.querySelector('[data-talk-open]')?.addEventListener('click', () => openTalk(id, target, row.dataset.talkTitle));
+  });
+}
+
+  // ---- src/view-arcade.js ----------------------------------------------
+/**
+ * The arcade's place on the Games tab: its cards, the records kept on this
+ * phone, and each group's ranking. Light, and part of the app from the start.
+ *
+ * The games themselves — drawn on a canvas, the fingers, the sounds — are in
+ * view-arcade-play.js, with their logic (arcade.js): a part fetched only once
+ * a game is opened (later.js), so a first visit does not wait for them.
+ */
+
+
+
+
+
+
+const ARCADE_ICONS = {
+  glouton: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12 20.2 7.3A9.5 9.5 0 1 0 20.2 16.7z"/></svg>',
+  snake: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 16.5c2.6 0 2.6-7 5.2-7s2.6 7 5.2 7 2.6-7 5.2-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="19.6" cy="9.5" r="2.6"/></svg>',
+};
+/** The mode chosen for a game, kept on the phone. */
+function modeOf(id) {
+  return arcadeMode(state.prefs?.arcadeMode?.[id]);
+}
+
+/** Where a record is kept: the normal mode's where it always was. */
+function recordKey(id, mode) {
+  return mode === 'normal' ? id : `${id}:${mode}`;
+}
+
+function bestOf(id, mode = modeOf(id)) {
+  return Number(state.prefs?.arcade?.[recordKey(id, mode)]) || 0;
+}
+
+/** Keep a score if it beats the record; says whether it did. */
+function keepBest(id, mode, score) {
+  if (score <= bestOf(id, mode)) return false;
+  state.prefs.arcade = { ...(state.prefs.arcade || {}), [recordKey(id, mode)]: score };
+  savePrefs(state.prefs);
+  return true;
+}
+
+/* ---------------------------------------------------------------- ranking --- */
+
+/**
+ * Each group's ranking, in the database: the best score of each of its
+ * first names, by game and mode. A game over sends its score to every group
+ * this device is in, under the name it has there. The Games tab shows one
+ * group's best, game by game, under « Jouer ici ».
+ */
+const rankings = new Map();
+/** When each ranking was last asked for: the tab redraws often, the database is asked now and then. */
+const rankingAsked = new Map();
+const RANKING_FRESH_MS = 20000;
+const RANKING_SIZE = 5;
+/** Whether the database has ever answered: one not yet updated knows no ranking, and none shows. */
+let rankingKnown = false;
+
+function rankingKey(groupId, id, mode) {
+  return `${groupId}|${id}|${mode}`;
+}
+
+/**
+ * The group whose ranking shows: the one the tab is filtered on, else the
+ * one last chosen, else the first.
+ */
+function rankingGroup() {
+  const held = groups();
+  const filtered = groupFilter();
+  return held.find((group) => group.id === filtered)
+    || held.find((group) => group.id === state.prefs.arcadeGroup) || held[0] || null;
+}
+
+function rankingMode() {
+  return arcadeMode(state.prefs?.arcadeRankMode);
+}
+
+/** Send a score to every group, under this device's name there. Never throws. */
+async function sendScore(id, mode, score) {
+  if (!state.remote || !(score > 0)) return;
+  await Promise.all(groups().map(async (group) => {
+    const name = myNameIn(group.id);
+    if (!name) return;
+    try {
+      const top = await state.remote.arcadeScore(group.key, id, mode, name, score);
+      if (!top) return;
+      rankings.set(rankingKey(group.id, id, mode), top);
+      rankingKnown = true;
+    } catch {
+      // Offline, or a database not yet updated: the record stays here, and
+      // goes with the next game or the next visit.
+    }
+  }));
+}
+
+/** The ranking's inside: whom it is for, the mode, and each game's best. */
+function rankingInner() {
+  const group = rankingGroup();
+  if (!group) return '';
+  const mode = rankingMode();
+  const me = myNameIn(group.id);
+  const held = groups();
+  const filtered = held.some((one) => one.id === groupFilter());
+  const chips = held.length > 1 && !filtered ? `
+    <div class="row" role="group" aria-label="${escapeHtml(t('arcade.ranking.groups'))}">
+      ${held.map((one) => `
+        <button type="button" class="chip${one.id === group.id ? ' chip--on' : ''}" data-arcade-group="${escapeHtml(one.id)}"
+                aria-pressed="${one.id === group.id}">${escapeHtml(one.name || '')}</button>`).join('')}
+    </div>` : '';
+  const modes = `
+    <div class="segmented arcade__modes" role="group" aria-label="${escapeHtml(t('arcade.mode'))}">
+      ${ARCADE_MODES.map((option) => `
+        <button type="button" class="segmented__option" data-arcade-rank-mode="${option}"
+                aria-pressed="${option === mode}">${escapeHtml(t(`arcade.mode.${option}`))}</button>`).join('')}
+    </div>`;
+  const line = (entry, index) => {
+    const mine = me && entry.name.toLowerCase() === me.toLowerCase();
+    return `
+      <li class="arcade-ranking__line${mine ? ' arcade-ranking__line--me' : ''}">
+        <span class="arcade-ranking__rank">${index + 1}</span>
+        <span class="arcade-ranking__name">${escapeHtml(entry.name)}</span>
+        <strong class="arcade-ranking__score">${escapeHtml(String(entry.score))}</strong>
+      </li>`;
+  };
+  const game = ({ id }) => {
+    const top = (rankings.get(rankingKey(group.id, id, mode)) || []).slice(0, RANKING_SIZE);
+    return `
+      <div class="arcade-ranking__game" data-arcade-ranking="${escapeHtml(id)}">
+        <h3><span class="arcade-ranking__icon arcade-card__icon--${escapeHtml(id)}" aria-hidden="true">${ARCADE_ICONS[id] || ''}</span>${escapeHtml(t(`arcade.${id}.name`))}</h3>
+        ${top.length
+          ? `<ol class="arcade-ranking__list">${top.map(line).join('')}</ol>`
+          : `<p class="muted small">${escapeHtml(t('arcade.ranking.none'))}</p>`}
+      </div>`;
+  };
+  return `
+    <div class="section__head"><h2>${escapeHtml(t('arcade.ranking', { group: group.name || '' }))}</h2></div>
+    ${chips}
+    ${modes}
+    <div class="arcade-ranking__games">${ARCADE_GAMES.map(game).join('')}</div>
+    <p class="muted small">${escapeHtml(t(me ? 'arcade.ranking.how' : 'arcade.ranking.who'))}</p>`;
+}
+
+/** The ranking's section on the Games tab: hidden until the database has answered once. */
+function rankingHtml() {
+  if (!state.remote || !rankingGroup()) return '';
+  return `<section class="section arcade-ranking" id="arcade-ranking"${rankingKnown ? '' : ' hidden'}>${rankingKnown ? rankingInner() : ''}</section>`;
+}
+
+/** Redraw the ranking in place, and wire its buttons. */
+function drawRanking() {
+  const box = document.getElementById('arcade-ranking');
+  if (!box) return;
+  box.hidden = !rankingKnown;
+  if (!rankingKnown) return;
+  box.innerHTML = rankingInner();
+  box.querySelectorAll('[data-arcade-group]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.prefs.arcadeGroup = button.dataset.arcadeGroup;
+      savePrefs(state.prefs);
+      drawRanking();
+      void askRanking();
+    });
+  });
+  box.querySelectorAll('[data-arcade-rank-mode]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.prefs.arcadeRankMode = arcadeMode(button.dataset.arcadeRankMode);
+      savePrefs(state.prefs);
+      drawRanking();
+      void askRanking();
+    });
+  });
+}
+
+/** Ask the database for the shown group's ranking, each game, unless asked lately. */
+async function askRanking(force = false) {
+  const group = state.remote ? rankingGroup() : null;
+  if (!group) return;
+  const mode = rankingMode();
+  const now = Date.now();
+  const due = ARCADE_GAMES.filter(({ id }) => force || !(now - (rankingAsked.get(rankingKey(group.id, id, mode)) || 0) < RANKING_FRESH_MS));
+  if (!due.length) return;
+  let answered = false;
+  await Promise.all(due.map(async ({ id }) => {
+    const key = rankingKey(group.id, id, mode);
+    rankingAsked.set(key, now);
+    try {
+      rankings.set(key, await state.remote.arcadeTop(group.key, id, mode));
+      answered = true;
+    } catch {
+      rankingAsked.delete(key);
+    }
+  }));
+  if (answered) rankingKnown = true;
+  drawRanking();
+}
+
+/**
+ * Wire the ranking on the Games tab, once it is drawn. The records kept here
+ * go to the groups first, once a visit: one made before the ranking existed,
+ * or while offline.
+ */
+let recordsSent = false;
+function bindArcadeRanking() {
+  if (!document.getElementById('arcade-ranking')) return;
+  drawRanking();
+  if (!recordsSent && state.remote) {
+    recordsSent = true;
+    const sends = [];
+    for (const { id } of ARCADE_GAMES) {
+      for (const mode of ARCADE_MODES) sends.push(sendScore(id, mode, bestOf(id, mode)));
+    }
+    void Promise.all(sends).then(() => askRanking(true));
+    return;
+  }
+  void askRanking();
+}
+
+/** The arcade's cards, at the top of the Games tab. */
+function arcadeHtml() {
+  const card = (game) => {
+    const best = bestOf(game.id);
+    return `
+      <button type="button" class="arcade-card" data-goto="#/arcade/${escapeHtml(game.id)}">
+        <span class="arcade-card__icon arcade-card__icon--${escapeHtml(game.id)}" aria-hidden="true">${ARCADE_ICONS[game.id] || ''}</span>
+        <span class="arcade-card__text">
+          <strong>${escapeHtml(t(`arcade.${game.id}.name`))}</strong>
+          <span class="muted small">${escapeHtml(best ? t('arcade.best', { score: best }) : t(`arcade.${game.id}.short`))}</span>
+        </span>
+        <span class="arcade-card__play">${escapeHtml(t('arcade.play'))}</span>
+      </button>`;
+  };
+  return `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('arcade.title'))}</h2></div>
+      <div class="arcade-list">${ARCADE_GAMES.map(card).join('')}</div>
+    </section>
+    ${rankingHtml()}`;
+}
+
+  // ---- src/app.js ------------------------------------------------------
+/** UI layer: hash router, views, event wiring. */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const view = document.getElementById('view');
+
+// Together moved address: what this phone kept at the old one may arrive in
+// the address. It is put in place here, before anything below reads the
+// storage (src/move.js); the app says so once it is on screen.
+const arrival = (() => {
+  try {
+    return takeMove({ location, history, storage: localStorage, aside: sessionStorage, referrer: document.referrer });
+  } catch {
+    return null;
+  }
+})();
+
+const state = {
+  games: loadGames(),
+  lists: loadLists(),
+  polls: loadPolls(),
+  spends: loadSpends(),
+  boards: loadBoards(),
+  prefs: loadPrefs(),
+  flash: null, // { message, kind: 'info' | 'error' }
+  editingRoundId: null,
+  // New-game form draft, kept across re-renders of that view.
+  search: '',
+  newPresetId: null,
+  newConfig: null,
+  newName: '',
+  // Set once the host's document store answers; null means this browser only.
+  store: null,
+  // The shared database, when this copy of the app is configured for one.
+  remote: createRemote(remoteConfig()),
+  // Polling while a shared game is on screen.
+  poll: null,
+  // Changes heard as they happen, when the database announces them: live.js.
+  live: null,
+  // Why turning notifications on failed, shown in their section until the next
+  // try: { reason, detail } (view-notify.js).
+  notifyProblem: null,
+  // The set of games being fetched, so a redraw does not start a second fetch.
+  openingSet: null,
+  // The same, for a shared list opened from its link.
+  openingList: null,
+  // And for a poll.
+  openingPoll: null,
+  // And for a shared account of expenses.
+  openingSpend: null,
+  // And for a board of ideas.
+  openingBoard: null,
+  // Whose lines are on screen in a list: null for everyone, 'none' for the
+  // ones nobody has taken.
+  listFilter: null,
+  // The screens walked through to get here, oldest first, without loops: what
+  // "Back" returns to. See followTrail().
+  trail: [],
+  // The control just touched, as a selector, to be found again in the redraw
+  // its touch causes: see markTouched().
+  touched: null,
+  // The new-list form's draft, kept across re-renders like the new-game one:
+  // adding a person must not throw away the lines already typed.
+  newListName: '',
+  newListPeople: ['', ''],
+  newListLines: '',
+  // And the new board's.
+  newBoardName: '',
+  // And the new account's.
+  newSpendName: '',
+  newSpendCurrency: 'EUR',
+  // The account whose « add an expense » form is unfolded. Once an account has
+  // lines, the form folds behind one button, so the lines are what is in sight.
+  spendFormOpen: null,
+  newSpendPeople: ['', ''],
+  // Which half of an account's page is showing — reset when a different
+  // account is opened, kept when this one just redraws (adding a line, say).
+  spendTabId: null,
+  spendTab: 'expenses',
+  // And the new-poll form's.
+  newEventName: '',
+  newEventDay: '',
+  newEventHour: '',
+  newEventUntil: '',
+  newEventPeople: ['', ''],
+  newPollQuestion: '',
+  newPollChoices: '',
+  // Days picked on the calendar, as YYYY-MM-DD, shown apart from the typed choices.
+  newPollDays: [],
+  // One hour for all the picked days, when the evening has one.
+  newPollAt: '',
+  newPollOnDay: '',
+  newPollPeople: ['', ''],
+  // Names typed so far, so switching preset does not wipe them.
+  newGameNames: ['', '', ''],
+  // Whether anyone has touched the entrant fields since the form was emptied.
+  //
+  // My own first name is offered as the first *player*, never as a team, and the
+  // preset is only known once the form is drawn — so the offer is made at draw
+  // time. Which means it must be made once: put back after someone deleted it, it
+  // would put them in a game they had just taken themselves out of.
+  newGameTouched: false,
+  // Where a thing about to be created will land — decided on the form, before it
+  // exists, rather than left for a later that never came.
+  //
+  // A dialog would do the job and was tried; it puts a modal in front of every
+  // single creation, which is a heavy price for a question whose answer is
+  // almost always the obvious one. Chips answer it in advance, in the open, and
+  // cost a tap only when the answer is wrong.
+  //
+  // `chosen` is null until someone touches a chip, and only then does it beat
+  // the default — so opening the form after changing the pastille follows the
+  // pastille rather than a stale choice.
+  newGroupChoice: { touched: false, id: null },
+  // The event a new thing is made for, if any: the id of its poll. Picked on
+  // the form, or already set when « Ajouter » was pressed on the event.
+  newEventLink: null,
+  // The deal being entered on the Tarot screen.
+  deal: null,
+};
+
+/* ------------------------------------------------------------- utilities --- */
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]),
+  );
+}
+
+/** Read a score input: '' means "not filled in" (null), otherwise a number. */
+function parseScore(raw) {
+  const value = String(raw ?? '').trim().replace(',', '.');
+  if (value === '') return null;
+  const number = Number(value);
+  return Number.isNaN(number) ? NaN : number;
+}
+
+function parseIntOrNull(raw) {
+  const value = String(raw ?? '').trim();
+  if (value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.trunc(number) : null;
+}
+
+function presetLabel(preset) {
+  return preset.labelKey ? t(preset.labelKey) : preset.name;
+}
+
+function gameTitle(game) {
+  if (game.name) return game.name;
+  const preset = getPreset(game.presetId);
+  return preset ? presetLabel(preset) : t('new.customLabel');
+}
+
+/** The title of a game or of a list, whichever this is. */
+function documentTitle(document_) {
+  if (isValidList(document_)) return listTitle(document_);
+  if (isValidPoll(document_)) return pollTitle(document_);
+  if (isValidBoard(document_)) return boardTitle(document_);
+  if (isValidSpend(document_)) return spendTitle(document_);
+  return gameTitle(document_);
+}
+
+/** Where a document's page is, whatever its kind. */
+function documentHref(document_) {
+  const page = { list: 'list', poll: 'poll', spend: 'spend', board: 'idea', game: 'game' }[kindOf(document_)] || 'game';
+  return `#/${page}/${document_.id}`;
+}
+
+/** Every document this device holds, of every kind. */
+function everything() {
+  return allDocuments(state);
+}
+
+/** What a document hangs from, up to its event: the farthest first. */
+function chainOf(document_) {
+  return ancestorsOf(document_, everything());
+}
+
+/** A link in the chain, as it reads: an event says its day. */
+function chainLabel(document_) {
+  const title = isEventDoc(document_) ? eventName(document_) || pollTitle(document_) : documentTitle(document_);
+  return isEventDoc(document_) && document_.date ? t('event.named', { name: title, day: formatDay(document_.date) }) : title;
+}
+
+/**
+ * A day written `AAAA-MM-JJ`, shown the way the reader's language shows days.
+ * Built field by field rather than handed to Date(), which reads that form as
+ * UTC midnight and so shows the day before, west of Greenwich.
+ */
+function formatDay(day) {
+  const [year, month, date] = String(day || '').split('-').map(Number);
+  if (!year || !month || !date) return String(day || '');
+  try {
+    return new Date(year, month - 1, date).toLocaleDateString(getLanguage(), {
+      day: 'numeric',
+      month: 'short',
+    });
+  } catch {
+    return String(day);
+  }
+}
+
+/**
+ * When an event is: its day — or its first and last, when it runs over
+ * several — and its hour. `long` adds the weekday, as an agenda wants it.
+ */
+function whenText(poll, { long = false } = {}) {
+  const show = long ? formatDayLong : formatDay;
+  const days = poll.until && poll.until > poll.date
+    ? t('events.range', { from: show(poll.date), to: show(poll.until) })
+    : show(poll.date);
+  return [days, poll.at].filter(Boolean).join(' · ');
+}
+
+/**
+ * A day in an agenda: the weekday matters as much as the number, since "jeudi"
+ * is how anyone actually holds a date in their head.
+ */
+function formatDayLong(day) {
+  const [year, month, date] = String(day || '').split('-').map(Number);
+  if (!year || !month || !date) return String(day || '');
+  try {
+    return new Date(year, month - 1, date).toLocaleDateString(getLanguage(), {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    });
+  } catch {
+    return formatDay(day);
+  }
+}
+
+function formatDate(timestamp) {
+  try {
+    return new Date(timestamp).toLocaleDateString(getLanguage(), {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return '';
+  }
+}
+
+/** The app's own address, with no game attached to it. */
+function appLink() {
+  const { origin, pathname, search } = location;
+  return `${origin}${pathname}${search}`;
+}
+
+function flash(message, kind = 'info') {
+  state.flash = { message, kind, shownAt: null };
+}
+
+/**
+ * Arrived from the old address: say that everything came along, and how to
+ * keep the new address at hand. A hand-over that did not come from the old
+ * address is asked about first, and taken in only on a yes (src/move.js).
+ */
+async function welcomeMove(arrival) {
+  if (arrival?.status === 'moved') {
+    const dialog = makeDialog();
+    dialog.innerHTML = `
+      <div class="stack" id="move-welcome">
+        <h2>${escapeHtml(t('move.title'))}</h2>
+        <p>${escapeHtml(t('move.done', { groups: arrival.groups, documents: arrival.documents }))}</p>
+        <p class="muted small">${escapeHtml(t('move.homeScreen'))}</p>
+        <div class="row"><button type="button" class="button button--primary" data-move-ok>${escapeHtml(t('action.close'))}</button></div>
+      </div>`;
+    dialog.querySelector('[data-move-ok]').addEventListener('click', () => dialog.close());
+    dialog.showModal();
+    return;
+  }
+  if (arrival?.status === 'failed') {
+    flash(t('move.failed'), 'error');
+    render();
+    return;
+  }
+  if (arrival?.status !== 'asking') return;
+  let came = null;
+  try {
+    came = JSON.parse(sessionStorage.getItem('marque-points:arriving'));
+    sessionStorage.removeItem('marque-points:arriving');
+  } catch {
+    came = null;
+  }
+  if (!came) return;
+  const taken = await ask(t('move.ask', { groups: arrival.groups, documents: arrival.documents }), { confirmLabel: t('move.take') });
+  if (!taken) return;
+  try {
+    moveInto(localStorage, came);
+  } catch {
+    flash(t('move.failed'), 'error');
+    render();
+    return;
+  }
+  location.reload();
+}
+
+/**
+ * How long a message stays on screen once it has been read.
+ *
+ * Long enough to survive what follows it: something is answered, the app asks
+ * the database what the answer changed, and redraws when it knows. A message
+ * consumed by the first of those two redraws would flash and vanish. Going
+ * somewhere else, on the other hand, ends it — a line about a group accepted is
+ * nothing to a screen of games.
+ */
+const FLASH_KEPT = 4000;
+
+/* ------------------------------------------------------------- persisting --- */
+
+/* ----------------------------------------------------------------- router --- */
+
+function route() {
+  return routeOf(location.hash);
+}
+
+/** What an address opens, without going there. */
+function routeOf(address) {
+  // A form may come filled in: `#/lists/new?titre=…`. See prefill.js.
+  const hash = withoutPrefill(address).replace(/^#\/?/, '');
+  const [name, param] = hash.split('/');
+  if (name === 'games') return { name: 'home' };
+  // An invitation link carries both the six digits and the group's name, so
+  // the person who receives it has nothing to read out and nothing to type.
+  // A return link: a person's own token, which hands this browser a key.
+  if (name === 'back' && param) return { name: 'back', token: backTokenFrom(address) };
+  if (name === 'join' && param) {
+    const invitation = joinFrom(address);
+    if (invitation) return { name: 'join', code: invitation.code, group: invitation.name };
+    // Half a link is still half a link: whichever of the two survived is kept,
+    // and the page asks for the other rather than for both.
+    return { name: 'join', code: readCode(param), group: groupSegment(hash) };
+  }
+  // Someone's own page, reached from the overview. Both spellings open it: the
+  // app speaks two languages, and a link once sent is a link for ever.
+  if ((name === 'person' || name === 'personne') && param) {
+    return { name: 'person', who: personFrom(param) };
+  }
+  // One group, everything in it: #/group/<id>, from the overview.
+  if (name === 'group' && param) return { name: 'group', id: decodeSegment(param) };
+  if (name === 'groups') return { name: 'groups' };
+  if (name === 'settings' || name === 'reglages') return { name: 'settings' };
+  if (name === 'privacy' || name === 'confidentialite') return { name: 'privacy' };
+  // What the words find, the words in the address: #/search/<words>.
+  if (name === 'search' || name === 'recherche') return { name: 'search', words: param ? decodeSegment(param) : '' };
+  if (name === 'new') return { name: 'new' };
+  if (name === 'stats') return { name: 'stats' };
+  if (name === 'game' && param) return { name: 'game', id: param };
+  // A game played in the app itself: #/arcade/<id>. See view-arcade.js.
+  if (name === 'arcade' && param) return { name: 'arcade', id: param };
+  if (name === 'set' && param) return { name: 'set', id: param };
+  if (name === 'lists' && param === 'new') return { name: 'new-list' };
+  if (name === 'lists') return { name: 'lists' };
+  if (name === 'list' && param) return { name: 'list', id: param };
+  if (name === 'spends' && param === 'new') return { name: 'new-spend' };
+  if (name === 'spends') return { name: 'spends' };
+  if (name === 'agenda' && param === 'new') return { name: 'new-event' };
+  if (name === 'agenda') return { name: 'agenda' };
+  if (name === 'spend' && param) return { name: 'spend', id: param };
+  if (name === 'ideas' && param === 'new') return { name: 'new-board' };
+  if (name === 'ideas') return { name: 'ideas' };
+  if (name === 'idea' && param) return { name: 'board', id: param };
+  if (name === 'polls' && param === 'new') return { name: 'new-poll' };
+  if (name === 'polls') return { name: 'polls' };
+  // A shared link opens the poll alone: `#/poll/<id>/solo`. See pollView().
+  if (name === 'poll' && param) return { name: 'poll', id: param, solo: hash.split('/')[2] === 'solo' };
+  return { name: 'overview' };
+}
+
+/**
+ * Where a poll is listed, so its page goes back there: the agenda for a day
+ * that is settled or still being looked for, the home page's polls otherwise.
+ */
+function pollHome(poll) {
+  return isEvent(poll) || poll.date || (!poll.closedAt && seeksDay(poll)) ? '#/agenda' : '#/polls';
+}
+
+/** A segment of the address, decoded if it can be. */
+function decodeSegment(segment) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+/** The name written in `#/person/<name>`, decoded if it can be. */
+function personFrom(segment) {
+  try {
+    return decodeURIComponent(segment).trim();
+  } catch {
+    return String(segment).trim();
+  }
+}
+
+/** The group's name as written in `#/join/<code>/<name>`, decoded if it can be. */
+function groupSegment(hash) {
+  const segment = hash.split('/')[2] || '';
+  try {
+    return decodeURIComponent(segment).trim();
+  } catch {
+    return segment.trim();
+  }
+}
+
+function navigate(hash) {
+  if (location.hash === hash) render();
+  else location.hash = hash;
+}
+
+/**
+ * Change the address of the screen on show without going anywhere — the
+ * words being searched for —, so that coming back to it finds them.
+ */
+function rewriteHere(hash) {
+  const before = hereHash();
+  history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
+  state.trail = state.trail.map((one) => (one === before ? hash : one));
+}
+
+/** The address of the screen on show, spelled one way. */
+function hereHash() {
+  return location.hash && location.hash !== '#' ? location.hash : '#/';
+}
+
+/**
+ * Note the screen just reached. Reaching the one before is going back: it is
+ * taken off, so "Back" never bounces between two screens. Any other screen goes
+ * on top, and leaves the place it had lower down.
+ */
+function followTrail() {
+  const here = hereHash();
+  const trail = state.trail;
+  if (trail[trail.length - 1] === here) return;
+  if (trail[trail.length - 2] === here) state.trail = trail.slice(0, -1);
+  else state.trail = [...trail.filter((hash) => hash !== here), here].slice(-50);
+}
+
+/**
+ * Where "Back" goes: the screen one came from — the group's page for a list
+ * opened there, the person's for a poll opened from it — and the usual place
+ * when there is none (a link just opened). A form already filled in is not
+ * somewhere to go back to.
+ */
+function backTarget(fallback) {
+  const here = hereHash();
+  for (let index = state.trail.length - 1; index >= 0; index -= 1) {
+    const hash = state.trail[index];
+    if (hash === here || /^#\/(lists|polls|spends|agenda|ideas)\/new$|^#\/new$/.test(hash)) continue;
+    return hash;
+  }
+  return fallback;
+}
+
+/* ------------------------------------------------------------------ views --- */
+
+/**
+ * Say something to a screen reader without moving it: the page itself is not
+ * read out at each redraw (others' changes arrive every few seconds), so a
+ * message goes through this one place, which stays on the page.
+ */
+function announce(message) {
+  const out = document.getElementById('announce');
+  if (!out) return;
+  out.textContent = '';
+  // Emptied, then filled a beat later: the same message twice is read twice.
+  setTimeout(() => { out.textContent = message; }, 60);
+}
+
+function flashHtml() {
+  if (!state.flash) return '';
+  const { message, kind, shownAt } = state.flash;
+  // Shown for the first time: the clock starts here rather than when the message
+  // was raised, so one that had to wait — for a screen where someone was typing,
+  // say — is still read rather than silently dropped.
+  if (!shownAt) {
+    state.flash = { ...state.flash, shownAt: Date.now() };
+    state.flashFresh = kind === 'error';
+    announce(message);
+  } else if (Date.now() - shownAt > FLASH_KEPT) {
+    state.flash = null;
+    return '';
+  }
+  return `<p class="banner ${kind === 'error' ? 'banner--warn' : ''}">${escapeHtml(message)}</p>`;
+}
+
+/**
+ * « + New … » at the head of a tab. The "+" in the bar below makes anything
+ * from anywhere, so on a tab that already holds something this one steps
+ * back — small and soft — and it is lit, full width, only on an empty tab,
+ * where it is the one thing to do.
+ */
+function newButtonHtml(target, label, quiet) {
+  return `<button type="button" class="button ${quiet ? 'button--small button--new' : 'button--primary button--block'}" data-goto="${escapeHtml(target)}">
+      + ${escapeHtml(label)}
+    </button>`;
+}
+
+/** The colours a person's initial may take: the eight one may choose, in their night shades. */
+const FACE_COLOURS = ['red', 'orange', 'amber', 'green', 'cyan', 'blue', 'violet', 'pink'];
+
+/**
+ * A person's colour, from their name: Alice is the same colour on every card
+ * and every device, without anything to store or to agree on.
+ */
+function faceColour(name) {
+  let hash = 0;
+  for (const char of name.trim().toLowerCase()) hash = (hash * 31 + char.codePointAt(0)) % 1000003;
+  return FACE_COLOURS[hash % FACE_COLOURS.length];
+}
+
+/**
+ * The people on a card: their initials in colour, a few overlapping, then
+ * their names — a card reads as who it is with before it is read at all.
+ * The initials are drawn by the style (data-initial), so the card's words
+ * stay the names and nothing else.
+ */
+function peopleHtml(names) {
+  const named = names.map((name) => String(name || '').trim()).filter(Boolean);
+  if (!named.length) return '';
+  const shown = named.slice(0, 4);
+  const faces = shown
+    .map((name) => `<i class="face" style="--face: var(--night-${faceColour(name)})" data-initial="${escapeHtml(Array.from(name)[0].toUpperCase())}"></i>`)
+    .join('');
+  const more = named.length > shown.length ? `<i class="face face--more" data-initial="+${named.length - shown.length}"></i>` : '';
+  return `
+    <span class="game-card__meta people">
+      <span class="faces" aria-hidden="true">${faces}${more}</span>
+      <span>${escapeHtml(named.join(' · '))}</span>
+    </span>`;
+}
+
+/**
+ * Light drawings for the words of help, one per kind of thing, in the same
+ * hand as the tab bar's icons: lines of the colour, nothing filled but the
+ * pips of a die.
+ */
+const HINT_ART = {
+  lists: '<rect x="14" y="10" width="36" height="46" rx="6"/><path d="M21 23l3 3 6-6M21 35l3 3 6-6M34 24h9M34 36h9M21 47h22"/>',
+  polls: '<rect x="10" y="14" width="44" height="40" rx="6"/><path d="M10 25h44M22 9v9M42 9v9M24 39l6 6 11-12"/>',
+  games: '<g transform="rotate(-8 32 32)"><rect x="14" y="14" width="36" height="36" rx="8"/>'
+    + '<g class="hint__fill"><circle cx="24" cy="24" r="2.6"/><circle cx="40" cy="24" r="2.6"/><circle cx="32" cy="32" r="2.6"/>'
+    + '<circle cx="24" cy="40" r="2.6"/><circle cx="40" cy="40" r="2.6"/></g></g>',
+  spends: '<path d="M18 8h28v48l-4.7-3.5-4.6 3.5-4.7-3.5-4.7 3.5-4.6-3.5L18 56z"/><path d="M25 20h14M25 29h14M25 38h8"/>',
+  ideas: '<path d="M24 40c-4-3.2-7-7.6-7-13a15 15 0 0 1 30 0c0 5.4-3 9.8-7 13v5H24z"/>'
+    + '<path d="M25 51h14M28 56h8M32 4v3M9 27H6M58 27h-3M15 11l2 2M49 11l-2 2"/>',
+  agenda: '<rect x="10" y="14" width="44" height="40" rx="6"/><path d="M10 25h44M22 9v9M42 9v9"/>'
+    + '<path d="M32 31l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/>',
+};
+
+/**
+ * A word of help where a page would otherwise be a dark field: an empty tab,
+ * a tab with only one or two things on it, an account with a first expense.
+ * What the page is for, or what to do next, beside a light drawing; the call
+ * sites drop it once the page has enough on it to say so by itself.
+ */
+function hintHtml(art, text) {
+  return `
+    <div class="hint">
+      <svg class="hint__art" viewBox="0 0 64 64" aria-hidden="true">${HINT_ART[art] || HINT_ART.lists}</svg>
+      <p class="hint__text">${escapeHtml(text)}</p>
+    </div>`;
+}
+
+/**
+ * The way back, before a page's title: an arrow where phones put it, as big
+ * as a finger, named « Retour » for whoever cannot see it. It goes back to the
+ * screen one came from (data-back, see backTarget()), or to `target` when
+ * there is none — a link just opened.
+ */
+function backButtonHtml(target) {
+  const label = escapeHtml(t('action.back'));
+  return `<button type="button" class="back-button" data-goto="${escapeHtml(target)}" data-back aria-label="${label}" title="${label}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+  </button>`;
+}
+
+/**
+ * The group pastilles, shown above the lists, the polls and the games.
+ *
+ * From two groups on: with one, there is nothing to choose between, and a row
+ * of buttons that can only say "everything" is noise. The line under them is
+ * the same count the overview shows, for whatever is on screen.
+ */
+function groupChipsHtml() {
+  const held = groupsByName();
+  const everything = [...state.lists, ...state.polls, ...state.games, ...state.spends, ...state.boards];
+  const outside = everything.some(outsideGroups);
+  // With one group and nothing outside it, there is nothing to choose between.
+  if (!held.length || (held.length < 2 && !outside)) return '';
+  const active = groupFilter();
+  const counted = active === OUTSIDE_GROUPS
+    ? groupCounts({
+        lists: shownDocs(state.lists), polls: shownDocs(state.polls),
+        games: shownDocs(state.games), spends: shownDocs(state.spends), boards: shownDocs(state.boards),
+      })
+    : groupCounts(state, active);
+  const chip = (id, label) => `
+    <button type="button" class="chip ${active === id ? 'chip--on' : ''}"
+            data-group-filter="${escapeHtml(id)}" aria-pressed="${active === id ? 'true' : 'false'}">
+      ${escapeHtml(label)}
+    </button>`;
+  return `
+    <div class="row" role="group" aria-label="${escapeHtml(t('filter.by'))}">
+      ${chip('', t('filter.all'))}
+      ${held.map((group) => chip(group.id, group.name)).join('')}
+      ${outside || active === OUTSIDE_GROUPS ? chip(OUTSIDE_GROUPS, t('filter.others')) : ''}
+    </div>
+    <p class="muted small">${escapeHtml(countsText(counted))}</p>`;
+}
+
+/**
+ * What is going on, kind by kind, in the order of the tabs — leaving out the
+ * kinds with nothing: « 1 liste · 2 parties », not five numbers, three of
+ * them nought.
+ */
+function countsText(counts) {
+  const said = ['lists', 'polls', 'games', 'spends', 'boards']
+    .filter((kind) => counts[kind])
+    .map((kind) => t(`count.${kind}`, { count: counts[kind] }));
+  return said.length ? said.join(' · ') : t('count.none');
+}
+
+function gameCardHtml(game) {
+  const status = gameStatus(game);
+  const names = status.finished
+    ? status.winners.map((row) => row.name)
+    : status.leaders.map((row) => row.name);
+  let line = '';
+  if (game.rounds.length && names.length) {
+    const key = status.finished
+      ? names.length > 1 ? 'home.winners' : 'home.winner'
+      : 'home.leader';
+    line = t(key, { name: names.join(', ') });
+  }
+  return `
+    <button type="button" class="game-card" data-goto="#/game/${escapeHtml(game.id)}">
+      <span class="game-card__title">
+        ${escapeHtml(gameTitle(game))}
+        <span class="pill ${status.finished ? 'pill--done' : ''}">
+          ${status.finished ? escapeHtml(t('game.finished')) : escapeHtml(t('home.rounds', { count: game.rounds.length }))}
+        </span>
+      </span>
+      ${peopleHtml(game.players.map((p) => p.name))}
+      <span class="game-card__meta">${escapeHtml(formatDate(game.updatedAt))}${line ? ` — ${escapeHtml(line)}` : ''}</span>
+      ${eventTagHtml(game)}
+    </button>`;
+}
+
+/** « · Pour Raclette › Courses » after a line about something attached. */
+function forEventText(document_) {
+  const chain = document_ ? chainOf(document_) : [];
+  return chain.length ? ` · ${t('event.tagUndated', { name: chain.map(chainLabelShort).join(' › ') })}` : '';
+}
+/** A document's card, whatever its kind. */
+function documentCardHtml(document_) {
+  const kind = kindOf(document_);
+  if (kind === 'list') return listCardHtml(document_);
+  if (kind === 'poll') return isEventDoc(document_) ? eventCardHtml(document_) : pollCardHtml(document_);
+  if (kind === 'spend') return spendCardHtml(document_);
+  if (kind === 'board') return boardCardHtml(document_);
+  return gameCardHtml(document_);
+}
+/**
+ * On a document's page, what is attached to it — a poll under a list, a board
+ * under that poll — and the way to bring more. An event has its own section,
+ * which holds its whole chain.
+ */
+function attachedHtml(document_) {
+  const children = childrenOf(document_, everything()).filter(isLive);
+  if (!children.length) return '';
+  return `
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('chain.here'))}</h2></div>
+      <div class="game-list">${children.map(documentCardHtml).join('')}</div>
+    </section>`;
+}
+/** The buttons of « Plus d'actions » for the chain and the links: attach, detach, link. */
+function chainButtonsHtml(document_) {
+  // An event goes under another event only, as one of its activities; one
+  // with activities of its own stays on top.
+  const all = everything();
+  const attach = isEventDoc(document_) && !attachTargets(document_, all).length && !parentId(document_)
+    ? ''
+    : `<button type="button" class="button button--small button--ghost" data-attach-doc="${escapeHtml(document_.id)}">${escapeHtml(t(isEventDoc(document_) ? 'activity.attach' : 'chain.attach'))}</button>`;
+  return `${attach}<button type="button" class="button button--small button--ghost" data-relate-doc="${escapeHtml(document_.id)}">${escapeHtml(t('relate.button'))}</button>`;
+}
+/** A link in the chain, in a line of text: its title alone. */
+function chainLabelShort(document_) {
+  return isEventDoc(document_) ? eventName(document_) || pollTitle(document_) : documentTitle(document_);
+}
+/**
+ * Which kind of thing Home shows: everything at once, or one kind in full.
+ *
+ * The kinds used to be tabs of their own; they are one row of the home page
+ * now, so the tab bar can answer other questions — when, with whom — and each
+ * kind keeps its own address, so a link once sent still opens it.
+ */
+function kindsHtml(active) {
+  const kind = (id, goto, label) => `
+    <button type="button" class="segmented__option" data-goto="${goto}"
+            aria-current="${active === id ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
+  return `
+    <nav class="segmented segmented--kinds" aria-label="${escapeHtml(t('home.kinds'))}">
+      ${kind('overview', '#/', t('tab.all'))}
+      ${kind('lists', '#/lists', t('tab.lists'))}
+      ${kind('polls', '#/polls', t('tab.polls'))}
+      ${kind('games', '#/games', t('tab.games'))}
+      ${kind('spends', '#/spends', t('tab.spends'))}
+      ${kind('ideas', '#/ideas', t('tab.ideas'))}
+    </nav>`;
+}
+/**
+ * Ask for one line of text, the same way the app asks anything else: a dialog
+ * that removes itself, Escape answering null.
+ */
+function askForText({ title, hint, value = '', confirmLabel, maxLength = 40 }) {
+  return new Promise((resolve) => {
+    const dialog = makeDialog('dialog dialog--ask');
+    dialog.innerHTML = `
+      <div class="stack">
+        <h2>${escapeHtml(title)}</h2>
+        <p class="muted small">${escapeHtml(hint)}</p>
+        <input type="text" id="asked-text" value="${escapeHtml(value)}" maxlength="${Number(maxLength) || 40}" />
+        <div class="row">
+          <button type="button" class="button button--primary" id="asked-ok">${escapeHtml(confirmLabel)}</button>
+          <button type="button" class="button" id="asked-cancel">${escapeHtml(t('action.cancel'))}</button>
+        </div>
+      </div>`;
+
+    let answered = false;
+    const done = (answer) => {
+      if (answered) return;
+      answered = true;
+      resolve(answer);
+      dialog.close();
+    };
+    dialog.addEventListener('close', () => done(null));
+    dialog.querySelector('#asked-cancel').addEventListener('click', () => done(null));
+    dialog.querySelector('#asked-ok').addEventListener('click', () => done(dialog.querySelector('#asked-text').value));
+    dialog.querySelector('#asked-text').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') done(dialog.querySelector('#asked-text').value);
+    });
+    dialog.showModal();
+    dialog.querySelector('#asked-text').select();
+  });
+}
+
+function homeView() {
+  const query = (state.search || '').trim().toLowerCase();
+  const matches = (game) => {
+    if (!query) return true;
+    const preset = getPreset(game.presetId);
+    const haystack = [gameTitle(game), preset ? presetLabel(preset) : '', ...game.players.map((p) => p.name)]
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(query);
+  };
+
+  const mine = shownDocs(state.games);
+  const sorted = [...mine].sort((a, b) => b.updatedAt - a.updatedAt).filter(matches);
+  const live = sorted.filter(isLive);
+  const ongoing = live.filter((game) => !gameStatus(game).finished);
+  const finished = live.filter((game) => gameStatus(game).finished);
+
+  return `
+    ${flashHtml()}
+    ${kindsHtml('games')}
+    ${newButtonHtml('#/new', t('action.newGame'), mine.some(isLive))}
+    ${groupChipsHtml()}
+    ${arcadeHtml()}
+    ${
+      mine.length
+        ? `<div class="row">
+             <button type="button" class="button button--small button--ghost" data-goto="#/stats">${escapeHtml(t('action.stats'))}</button>
+           </div>`
+        : ''
+    }
+
+    ${
+      mine.length > 4
+        ? `<label class="visually-hidden" for="search">${escapeHtml(t('home.search'))}</label>
+           <input type="text" id="search" placeholder="${escapeHtml(t('home.search'))}" value="${escapeHtml(state.search || '')}" />`
+        : ''
+    }
+
+    <section class="section">
+      <div class="section__head"><h2>${escapeHtml(t('kinds.ongoing'))}</h2></div>
+      ${
+        ongoing.length
+          ? `<div class="game-list">${ongoing.map(swipeable(gameCardHtml)).join('')}</div>`
+          : hintHtml('games', t('home.empty'))
+      }
+      ${hiddenByGroupHtml(state.games)}
+    </section>
+    ${ongoing.length && live.length <= 2 ? hintHtml('games', t('hint.games')) : ''}
+
+    ${
+      finished.length
+        ? `<section class="section">
+             <div class="section__head"><h2>${escapeHtml(t('home.finished'))}</h2></div>
+             <div class="game-list">${finished.map(swipeable(gameCardHtml)).join('')}</div>
+           </section>`
+        : ''
+    }
+
+    ${archivedHtml(sorted, swipeable(gameCardHtml))}`;
+}
+
+/* ---------------------------------------------------------------- chrome --- */
+
+function applyStaticText() {
+  document.documentElement.lang = getLanguage();
+  document.querySelectorAll('[data-i18n]').forEach((node) => {
+    node.textContent = t(node.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach((node) => {
+    const label = t(node.dataset.i18nTitle);
+    node.title = label;
+    node.setAttribute('aria-label', label);
+  });
+}
+
+function bindChrome() {
+  // The address after "#" is the app's route: the link to skip the bars puts
+  // the reader on the page's heading instead of following it.
+  document.querySelector('.skip-link')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    const heading = view.querySelector('h1');
+    const target = heading || view;
+    target.tabIndex = -1;
+    target.focus();
+  });
+  document.getElementById('create')?.addEventListener('click', openCreateMenu);
+  // Night or light, from any page; the settings say the same, so on that page
+  // they are drawn again to show it. See view-look.js for the rest.
+  document.getElementById('search-open')?.addEventListener('click', () => navigate('#/search'));
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    state.prefs = { ...state.prefs, theme: lookIsDark() ? 'light' : 'dark' };
+    savePrefs(state.prefs);
+    applyLook();
+    if (route().name === 'settings') render();
+  });
+
+  // One button for "bring me what the others have done", on every screen: the
+  // tabs each show their own list, and a list is not refreshed by looking at it.
+  document.getElementById('sync').addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    if (button.disabled) return;
+    button.disabled = true;
+    button.classList.add('icon-button--busy');
+    let taken = 0;
+    let failed = false;
+    try {
+      taken = await catchUpAll();
+      if (showsGate()) await refreshGate();
+    } catch {
+      failed = true;
+    }
+    button.disabled = false;
+    button.classList.remove('icon-button--busy');
+    flash(failed ? t('sync.failed') : taken ? t('sync.done', { count: taken }) : t('sync.nothing'),
+      failed ? 'error' : 'info');
+    render();
+  });
+}
+
+/** Speak `lang` from now on, on this device: chosen in Réglages (view-look.js). */
+async function switchLanguage(lang) {
+  try {
+    await loadLanguage(lang);
+  } catch {
+    flash(t('lang.unreachable'), 'error');
+    render();
+    return;
+  }
+  setLanguage(lang);
+  state.prefs = { ...state.prefs, lang: getLanguage() };
+  savePrefs(state.prefs);
+  applyStaticText();
+  render();
+}
+
+/* ----------------------------------------------------------------- render --- */
+
+/**
+ * Where each marked box was scrolled to, taken just before a redraw.
+ *
+ * A redraw replaces the whole view, and a box that scrolls sideways — the poll
+ * grid with a dozen people across it — comes back at its left edge. Tapping
+ * Léa's cell at the far right then threw the grid back to Gui's, every single
+ * time. Boxes that should hold their place carry data-keep-scroll, keyed by
+ * what they show; a redraw of the same thing puts them back where they were.
+ */
+function keptScrolls() {
+  const kept = new Map();
+  view.querySelectorAll('[data-keep-scroll]').forEach((box) => {
+    kept.set(box.dataset.keepScroll, { left: box.scrollLeft, top: box.scrollTop });
+  });
+  return kept;
+}
+
+function restoreScrolls(kept) {
+  view.querySelectorAll('[data-keep-scroll]').forEach((box) => {
+    const was = kept.get(box.dataset.keepScroll);
+    if (!was) return;
+    box.scrollLeft = was.left;
+    box.scrollTop = was.top;
+  });
+}
+
+/**
+ * The page reduced to one poll, for whoever opened a shared link.
+ *
+ * Someone who got the link in a Messenger chat came to tick their evenings,
+ * not to find an app: the tabs, the overview, the button that makes a new list
+ * were all doors into rooms that are none of theirs — empty rooms, since their
+ * device holds nothing else, but doors all the same. Here there are none. The
+ * tabs go, the name at the top stops being a link, and the poll page keeps
+ * only what a guest does with it.
+ *
+ * It is a way of showing, not a lock: the data was already walled off by the
+ * database, which lists nothing of a group without its key. Someone who edits
+ * the address by hand reaches the app — their own, empty one.
+ */
+/** A game played here takes the whole screen: no tabs under the fingers. */
+function setPlaying(on) {
+  document.body.classList.toggle('playing', on);
+  const tabs = document.getElementById('tabs');
+  if (tabs && on) tabs.hidden = true;
+}
+
+function setSolo(on) {
+  document.body.classList.toggle('solo', on);
+  // Hidden outright, not only by the stylesheet: out of reach of a tap, of the
+  // keyboard and of a screen reader alike, whatever the styles do.
+  const tabs = document.getElementById('tabs');
+  if (tabs) tabs.hidden = on;
+  const search = document.getElementById('search-open');
+  if (search) search.hidden = on;
+  const skip = document.querySelector('.skip-link');
+  if (skip) skip.hidden = on;
+  const brand = document.querySelector('.app-bar__brand');
+  if (!brand) return;
+  if (on) {
+    brand.removeAttribute('href');
+    brand.setAttribute('aria-disabled', 'true');
+  } else {
+    brand.setAttribute('href', '#/');
+    brand.removeAttribute('aria-disabled');
+  }
+}
+
+/**
+ * A poll that is not there: back to the list — or, for a guest, a sentence and
+ * nothing else. Out of reach is not gone: the guest is asked to try again.
+ */
+function leavePoll(current, { unreachable = false } = {}) {
+  if (!current.solo) {
+    if (unreachable) flash(t('polls.unreachable'), 'error');
+    navigate('#/polls');
+    return;
+  }
+  if (!unreachable) {
+    view.innerHTML = `<p class="lead">${escapeHtml(t('polls.soloGone'))}</p>`;
+    return;
+  }
+  view.innerHTML = `
+    <p class="lead">${escapeHtml(t('polls.unreachable'))}</p>
+    <button type="button" class="button" id="poll-retry">${escapeHtml(t('polls.retry'))}</button>`;
+  view.querySelector('#poll-retry').addEventListener('click', () => render());
+}
+
+/**
+ * Put what a form's address fills in into that form's draft, once: the address
+ * then loses it, so going back or reloading keeps what the person changed.
+ */
+function takePrefill(current) {
+  const fill = prefillOf(location.hash);
+  if (!fill) return;
+  history.replaceState(null, '', `${location.pathname}${location.search}${withoutPrefill(location.hash)}`);
+  const people = fill.people ? [...fill.people, ...(fill.people.length < 2 ? [''] : [])] : null;
+  const lines = (list) => (list || []).join('\n');
+  if (current.name === 'new-list') {
+    if (fill.title) state.newListName = fill.title;
+    if (fill.lines) state.newListLines = lines(fill.lines);
+    if (people) state.newListPeople = people;
+  } else if (current.name === 'new-poll') {
+    if (fill.question || fill.title) state.newPollQuestion = fill.question || fill.title;
+    if (fill.choices) state.newPollChoices = lines(fill.choices);
+    if (people) state.newPollPeople = people;
+  } else if (current.name === 'new-spend') {
+    if (fill.title) state.newSpendName = fill.title;
+    if (CURRENCIES.includes(fill.currency)) state.newSpendCurrency = fill.currency;
+    if (people) state.newSpendPeople = people;
+  } else if (current.name === 'new-event') {
+    if (fill.title) state.newEventName = fill.title;
+    if (fill.day) state.newEventDay = fill.day;
+    if (fill.hour) state.newEventHour = fill.hour;
+    if (fill.until) state.newEventUntil = fill.until;
+    if (people) state.newEventPeople = people;
+  }
+}
+
+function render() {
+  draw();
+  namePage();
+}
+
+/**
+ * What a reader of the screen is told the page is: one heading at the top of
+ * each screen — a tab has none on show, it gets a hidden one with the name of
+ * where it is — and the window's title after it.
+ */
+function namePage() {
+  if (!view.querySelector('h1')) {
+    const kind = view.querySelector('.segmented--kinds [aria-current="true"]');
+    const tab = document.querySelector('#tabs [aria-current="page"]');
+    const name = kind && kind.dataset.goto !== '#/' ? kind.textContent.trim() : (tab?.textContent || '').trim();
+    if (name) view.insertAdjacentHTML('afterbegin', `<h1 class="visually-hidden">${escapeHtml(name)}</h1>`);
+  }
+  const heading = (view.querySelector('h1')?.textContent || '').trim().replace(/\s+/g, ' ');
+  const app = t('app.title');
+  document.title = heading && heading !== app ? `${heading} · ${app}` : app;
+}
+
+/**
+ * A new screen: a screen reader starts reading it at its heading, as it
+ * would a new page, unless the screen already put the cursor in a field.
+ */
+function focusPage() {
+  const active = document.activeElement;
+  if (active && active !== document.body && view.contains(active)) return;
+  if (document.querySelector('dialog[open]')) return;
+  const heading = view.querySelector('h1');
+  if (!heading) return;
+  heading.tabIndex = -1;
+  heading.focus({ preventScroll: true });
+}
+
+/**
+ * While something is fetched from the database: the shape of a page to come,
+ * and a sentence that says what is coming — read out by a screen reader.
+ */
+function loadingHtml(text) {
+  return `
+    <div class="loading" role="status">
+      <span class="loading__bar loading__bar--title" aria-hidden="true"></span>
+      <span class="loading__bar" aria-hidden="true"></span>
+      <span class="loading__bar loading__bar--short" aria-hidden="true"></span>
+      <p class="muted small">${escapeHtml(text)}</p>
+    </div>`;
+}
+
+/** A document asked for that this device does not hold: say so, then show its kind. */
+function missing(tab) {
+  flash(t('doc.missing'));
+  navigate(tab);
+}
+
+function draw() {
+  const current = route();
+  takePrefill(current);
+  markTab(current);
+  setSolo(Boolean(current.solo));
+  setPlaying(current.name === 'arcade');
+  listenLive(current);
+  const kept = keptScrolls();
+  // Nothing to fetch without a database, or before this device is in a group.
+  const sync = document.getElementById('sync');
+  if (sync) sync.hidden = !(state.remote && groups().length);
+  if (current.name === 'lists') {
+    stopWatching();
+    view.innerHTML = listsView();
+    bindDocSwipes();
+  } else if (current.name === 'new-list') {
+    stopWatching();
+    view.innerHTML = newListView();
+    bindNewList();
+  } else if (current.name === 'list') {
+    const list = getList(current.id);
+    if (!list) {
+      stopWatching();
+      // Perhaps a list someone shared: ask the database before giving up.
+      if (state.remote) {
+        view.innerHTML = loadingHtml(t('lists.loading'));
+        // A redraw while it is on its way must not ask for it twice.
+        if (state.openingList !== current.id) {
+          const asked = current.id;
+          state.openingList = asked;
+          pullList(asked).then((found) => {
+            if (state.openingList !== asked) return;
+            state.openingList = null;
+            if (found) render();
+            else if (route().id === asked) missing('#/lists');
+          });
+        }
+        return;
+      }
+      missing('#/lists');
+      return;
+    }
+    watchList(list.id);
+    view.innerHTML = listView(list);
+    bindList(list);
+  } else if (current.name === 'agenda') {
+    stopWatching();
+    view.innerHTML = agendaView();
+    bindDocSwipes();
+  } else if (current.name === 'new-event') {
+    stopWatching();
+    view.innerHTML = newEventView();
+    bindNewEvent();
+  } else if (current.name === 'new-spend') {
+    stopWatching();
+    view.innerHTML = newSpendView();
+    bindNewSpend();
+  } else if (current.name === 'spend') {
+    const spend = getSpend(current.id);
+    if (!spend) {
+      stopWatching();
+      // Peut-être un compte que quelqu'un partage : demander avant d'abandonner.
+      if (state.remote) {
+        view.innerHTML = loadingHtml(t('spends.loading'));
+        if (state.openingSpend !== current.id) {
+          const asked = current.id;
+          state.openingSpend = asked;
+          pullSpend(asked).then((found) => {
+            if (state.openingSpend !== asked) return;
+            state.openingSpend = null;
+            if (found) render();
+            else if (route().id === asked) missing('#/spends');
+          });
+        }
+        return;
+      }
+      missing('#/spends');
+      return;
+    }
+    watchSpend(spend.id);
+    view.innerHTML = spendView(spend);
+    bindSpend(spend);
+  } else if (current.name === 'ideas') {
+    stopWatching();
+    view.innerHTML = ideasView();
+    bindDocSwipes();
+  } else if (current.name === 'new-board') {
+    stopWatching();
+    view.innerHTML = newBoardView();
+    bindNewBoard();
+  } else if (current.name === 'board') {
+    const board = getBoard(current.id);
+    if (!board) {
+      stopWatching();
+      // Perhaps a board someone shares: ask before giving up.
+      if (state.remote) {
+        view.innerHTML = loadingHtml(t('ideas.loading'));
+        if (state.openingBoard !== current.id) {
+          const asked = current.id;
+          state.openingBoard = asked;
+          pullBoard(asked).then((found) => {
+            if (state.openingBoard !== asked) return;
+            state.openingBoard = null;
+            if (found) render();
+            else if (route().id === asked) missing('#/ideas');
+          });
+        }
+        return;
+      }
+      missing('#/ideas');
+      return;
+    }
+    watchBoard(board.id);
+    view.innerHTML = boardView(board);
+    bindBoard(board);
+  } else if (current.name === 'polls') {
+    stopWatching();
+    view.innerHTML = pollsView();
+    bindDocSwipes();
+  } else if (current.name === 'new-poll') {
+    stopWatching();
+    view.innerHTML = newPollView();
+    bindNewPoll();
+  } else if (current.name === 'poll') {
+    const poll = getPoll(current.id);
+    if (!poll) {
+      stopWatching();
+      if (state.remote) {
+        view.innerHTML = loadingHtml(t('polls.loading'));
+        if (state.openingPoll !== current.id) {
+          const asked = current.id;
+          state.openingPoll = asked;
+          pullPoll(asked).then((found) => {
+            if (state.openingPoll !== asked) return;
+            state.openingPoll = null;
+            if (found) render();
+            else if (route().id === asked) leavePoll(current, { unreachable: found === null });
+          });
+        }
+        return;
+      }
+      leavePoll(current);
+      return;
+    }
+    watchPoll(poll.id);
+    view.innerHTML = pollView(poll, { solo: current.solo });
+    bindPoll(poll);
+  } else if (current.name === 'stats') {
+    stopWatching();
+    view.innerHTML = statsView();
+  } else if (current.name === 'new') {
+    stopWatching();
+    view.innerHTML = newGameView();
+    bindNewGame();
+  } else if (current.name === 'set') {
+    stopWatching();
+    view.innerHTML = loadingHtml(t('shareSet.loading'));
+    // A redraw while the games are on their way must not fetch them twice.
+    if (state.openingSet !== current.id) {
+      const asked = current.id;
+      state.openingSet = asked;
+      openSet(asked).then(() => {
+        // Another lot may have been asked for meanwhile: that one is now the
+        // one in flight, and neither its guard nor its view is ours to clear.
+        if (state.openingSet !== asked) return;
+        state.openingSet = null;
+        // Somewhere else by now: leave them there, the games are in the list.
+        if (route().name === 'set') navigate('#/');
+      });
+    }
+    return;
+  } else if (current.name === 'game') {
+    const game = getGame(current.id);
+    if (!game) {
+      // Perhaps it is a game someone shared: ask the database before giving up.
+      if (state.remote) {
+        view.innerHTML = loadingHtml(t('share.loading'));
+        pullGame(current.id).then((found) => {
+          if (found) render();
+          else if (route().id === current.id) missing('#/games');
+        });
+        return;
+      }
+      missing('#/games');
+      return;
+    }
+    watchGame(game.id);
+    if (state.editingRoundId && !game.rounds.some((round) => round.id === state.editingRoundId)) {
+      state.editingRoundId = null;
+    }
+    view.innerHTML = gameView(game);
+    bindGame(game);
+  } else if (current.name === 'arcade') {
+    stopWatching();
+    // The games are a part of their own, fetched the first time one is
+    // opened (later.js): the page's shape meanwhile, then the game.
+    const part = laterPart('arcade', () => togetherPart('arcade', () => ({ ARCADE_MODES, arcadeMode, backButtonHtml, bestOf, escapeHtml, keepBest, modeOf, savePrefs, sendScore, state, t })));
+    if (!part.module) {
+      view.innerHTML = `<div class="spread page-head">${backButtonHtml('#/games')}</div>${loadingHtml(t('later.loading'))}`;
+      const id = current.id;
+      part.coming.then(
+        () => {
+          if (route().name === 'arcade' && route().id === id) render();
+        },
+        () => {
+          if (route().name !== 'arcade' || route().id !== id) return;
+          flash(t('later.failed'), 'error');
+          navigate('#/games');
+        },
+      );
+    } else {
+      const page = part.module.arcadeView(current.id);
+      if (!page) {
+        navigate('#/games');
+        return;
+      }
+      view.innerHTML = page;
+      part.module.bindArcade(current.id);
+    }
+  } else if (current.name === 'person') {
+    stopWatching();
+    view.innerHTML = personView(current.who);
+  } else if (current.name === 'group') {
+    stopWatching();
+    const group = groups().find((held) => held.id === current.id);
+    if (!group) {
+      flash(t('group.missing'));
+      navigate('#/groups');
+      return;
+    }
+    // Looking at a group sets nothing for the rest of the app: it used to set
+    // the filter, which then quietly sent everything the "+" made afterwards,
+    // from anywhere, into this group. The "+" opened here proposes it instead.
+    view.innerHTML = groupView(group);
+    bindGroup(group);
+  } else if (current.name === 'back') {
+    stopWatching();
+    view.innerHTML = backView(current.token);
+    bindBack(current.token);
+  } else if (current.name === 'join') {
+    view.innerHTML = joinView(current);
+    bindJoin();
+    bindInstall();
+    if (pendingFor(current.group)) watchPending();
+    else stopWatching();
+  } else if (current.name === 'home') {
+    stopWatching();
+    view.innerHTML = homeView();
+    bindHome();
+    bindDocSwipes();
+    bindArcadeRanking();
+  } else if (current.name === 'spends') {
+    stopWatching();
+    view.innerHTML = spendsView();
+    bindDocSwipes();
+  } else if (current.name === 'search') {
+    stopWatching();
+    view.innerHTML = searchView(current.words);
+    bindSearch(current.words);
+  } else if (current.name === 'privacy') {
+    stopWatching();
+    view.innerHTML = privacyView();
+    bindOverview();
+  } else if (current.name === 'settings') {
+    stopWatching();
+    view.innerHTML = settingsView();
+    bindOverview();
+    bindAccount();
+    bindNotify();
+    bindLook(view);
+  } else if (current.name === 'groups') {
+    view.innerHTML = groupsView();
+    bindOverview();
+    bindAccount();
+    if (state.remote && groups().some((group) => group.admits !== false)) watchGate();
+    else stopWatching();
+  } else {
+    view.innerHTML = overviewView();
+    bindOverview();
+    bindHoloPlace();
+    if (state.remote && groups().some((group) => group.admits !== false)) watchGate();
+    else stopWatching();
+  }
+
+  view.querySelectorAll('[data-goto]').forEach((node) => {
+    node.addEventListener('click', () => navigate('back' in node.dataset ? backTarget(node.dataset.goto) : node.dataset.goto));
+  });
+  view.querySelectorAll('[data-create-menu]').forEach((node) => {
+    node.addEventListener('click', openCreateMenu);
+  });
+  bindEventChips(view);
+  bindFlows(view);
+  bindInstall(view);
+  view.querySelectorAll('[data-attach-doc]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const document_ = everything().find((one) => one.id === node.dataset.attachDoc);
+      if (document_) openAttachDialog(document_);
+    });
+  });
+  view.querySelectorAll('[data-relate-doc]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const document_ = everything().find((one) => one.id === node.dataset.relateDoc);
+      if (document_) openRelateDialog(document_);
+    });
+  });
+  view.querySelectorAll('[data-gather-doc]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const document_ = everything().find((one) => one.id === node.dataset.gatherDoc);
+      if (document_) openGatherDialog(document_);
+    });
+  });
+
+  // The group pastilles, and the overview's numbers — which pick a group and
+  // open its tab in one tap, so the filter is set before the page changes.
+  view.querySelectorAll('[data-group-filter]').forEach((node) => {
+    node.addEventListener('click', () => {
+      setGroupFilter(node.dataset.groupFilter);
+      render();
+    });
+  });
+  view.querySelectorAll('[data-put-in-group]').forEach((node) => {
+    node.addEventListener('click', () => {
+      node.disabled = true;
+      void putInGroup(node.dataset.putInGroup);
+    });
+  });
+
+  view.querySelectorAll('[data-copy-to-group]').forEach((node) => {
+    node.addEventListener('click', () => {
+      node.disabled = true;
+      void copyToGroup(node.dataset.copyToGroup);
+    });
+  });
+
+  view.querySelectorAll('[data-group-tile]').forEach((node) => {
+    node.addEventListener('click', () => {
+      setGroupFilter(node.dataset.groupTile);
+      navigate(node.dataset.tileGoto);
+    });
+  });
+
+  // Offered from the statistics, where two spellings show as two lines, and
+  // from a person's own page, which is the other place a name is looked at.
+  view.querySelectorAll('[data-rename-everywhere]').forEach((button) => {
+    button.addEventListener('click', () => renameEverywhere(button.dataset.renameEverywhere));
+  });
+
+  restoreScrolls(kept);
+  showFreshError();
+  fadeKinds();
+  showTouched();
+  arrive();
+}
+
+/**
+ * A mistake said at the head of a long form — two players with one name, a
+ * code refused — while the thumb is on the button at its foot: brought into
+ * sight, or the button seems to do nothing.
+ */
+function showFreshError() {
+  if (!state.flashFresh) return;
+  state.flashFresh = false;
+  const banner = view.querySelector('.banner--warn');
+  const bar = document.querySelector('.app-bar')?.getBoundingClientRect().bottom || 0;
+  if (banner && banner.getBoundingClientRect().top < bar) banner.scrollIntoView({ block: 'center' });
+}
+
+/**
+ * The kinds on Home fit a phone's width; with a larger text they may not, and
+ * the row scrolls. A fade on the side that hides more says there is more, and
+ * the kind on show is brought into view rather than left behind the edge.
+ */
+function fadeKinds() {
+  view.querySelectorAll('.segmented--kinds').forEach((row) => {
+    const mark = () => {
+      const more = row.scrollWidth - row.clientWidth;
+      row.classList.toggle('fade-start', more > 1 && row.scrollLeft > 1);
+      row.classList.toggle('fade-end', more > 1 && row.scrollLeft < more - 1);
+    };
+    const on = row.querySelector('[aria-current="true"]');
+    if (on && row.scrollWidth > row.clientWidth) {
+      const left = on.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft;
+      row.scrollLeft = Math.max(0, left - (row.clientWidth - on.offsetWidth) / 2);
+    }
+    mark();
+    row.addEventListener('scroll', mark, { passive: true });
+  });
+}
+
+/**
+ * « Jusqu'au » cannot come before the day: the calendar starts at the day,
+ * and moving the day past it empties it — rather than an end kept silently
+ * nowhere (setPollDate() drops an end before the start).
+ */
+function keepUntilAfter(dayField, untilField) {
+  if (!dayField || !untilField) return;
+  const follow = () => {
+    untilField.min = dayField.value || '';
+    if (dayField.value && untilField.value && untilField.value <= dayField.value) untilField.value = '';
+  };
+  follow();
+  dayField.addEventListener('input', follow);
+  dayField.addEventListener('change', follow);
+  untilField.addEventListener('change', follow);
+}
+
+/** The names already written in a form, to offer only the others. */
+function writtenNames(names) {
+  return new Set((names || []).map((name) => String(name || '').trim().toLowerCase()).filter(Boolean));
+}
+
+/**
+ * Name the control just touched — a box ticked, a vote cast — so that the
+ * redraw this touch causes can show it answering: the tick pops in, the vote
+ * pulses (styles.css, `.touched`). Only that one, and only once: every box
+ * replaying its tick on each redraw would be noise.
+ */
+function markTouched(selector) {
+  state.touched = selector;
+}
+
+function showTouched() {
+  if (!state.touched) return;
+  view.querySelector(state.touched)?.classList.add('touched');
+  state.touched = null;
+}
+
+/**
+ * A new screen comes in gently, its parts one after the other (styles.css,
+ * `.view--arrive`); a screen redrawn in place — a vote, a refresh from the
+ * others — does not, or every change would make the page twitch. The style
+ * says nothing moves when the phone asks for less movement.
+ */
+let shownHash = null;
+function arrive() {
+  const here = hereHash();
+  view.classList.toggle('view--arrive', here !== shownHash);
+  shownHash = here;
+}
+
+/**
+ * Pull one game from the shared database and take it if it is newer than what
+ * this browser holds — which is how a link to a game opens that game for
+ * someone who has never seen it.
+ */
+async function pullGame(id) {
+  if (!state.remote) return false;
+  let stored = null;
+  try {
+    stored = await state.remote.get(id);
+  } catch {
+    return false;
+  }
+  if (stored === null) return whenAbsent(id);
+  return isValidGame(stored) ? adoptGame(stored) : false;
+}
+
+/**
+ * Take in a game the database handed over. Merge rather than replace: two
+ * people scoring the same evening on two phones would otherwise lose whichever
+ * round was written second.
+ */
+function adoptGame(stored) {
+  const local = getGame(stored.id);
+  const merged = local ? mergeGames(local, stored) : stored;
+  if (local && merged === local) return false;
+
+  const adopted = { ...merged, shared: true };
+  state.games = local
+    ? state.games.map((game) => (game.id === stored.id ? adopted : game))
+    : [...state.games, adopted];
+  saveGames(state.games);
+  return true;
+}
+
+/** Which part of the app we are in, so the tab bar says so. */
+function markTab(current) {
+  const bar = document.getElementById('tabs');
+  if (!bar) return;
+  const tabOf = (at) => {
+    if (['agenda', 'new-event'].includes(at.name)) return 'agenda';
+    if (['groups', 'group', 'person', 'join', 'back'].includes(at.name)) return 'groups';
+    if (at.name === 'settings') return 'settings';
+    return 'home';
+  };
+  // A document's page stays under the tab it was opened from: a poll opened
+  // from Home does not light up Agenda. Opened from a link, it goes where it
+  // is listed.
+  const document_ = ['list', 'poll', 'spend', 'board', 'game', 'person'].includes(current.name);
+  const from = document_ ? backTarget(null) : null;
+  const poll = current.name === 'poll' ? getPoll(current.id) : null;
+  const here = from
+    ? tabOf(routeOf(from))
+    : poll && pollHome(poll) === '#/agenda'
+      ? 'agenda'
+      : tabOf(current);
+  bar.querySelectorAll('[data-tab]').forEach((tab) => {
+    if (tab.dataset.tab === here) tab.setAttribute('aria-current', 'page');
+    else tab.removeAttribute('aria-current');
+  });
+}
+
+/**
+ * Fetch by identifier without being told what it is: a lot holds games and
+ * lists side by side, and a link pasted in says even less.
+ */
+async function pullAny(id) {
+  if (!state.remote) return false;
+  let stored = null;
+  try {
+    stored = await state.remote.get(id);
+  } catch {
+    return false;
+  }
+  // One request, then whichever kind it turns out to be — a lot of twenty
+  // would otherwise cost forty.
+  if (isValidGame(stored)) return adoptGame(stored);
+  if (isValidList(stored)) return adoptList(stored);
+  if (isValidPoll(stored)) return adoptPoll(stored);
+  if (isValidSpend(stored)) return adoptSpend(stored);
+  if (isValidBoard(stored)) return adoptBoard(stored);
+  if (stored === null) return whenAbsent(id);
+  return false;
+}
+
+/* ------------------------------------------------------------------- live --- */
+
+/**
+ * The channels worth hearing now: every group this device is in, and the
+ * document on screen — a visitor's poll included, which belongs to no group of
+ * theirs.
+ */
+function liveTopics(current) {
+  const topics = [...groups().filter((group) => group.channel).map((group) => groupTopic(group.channel)),
+    ...linkOnlyPolls().map((poll) => docTopic(poll.id))];
+  if (['game', 'list', 'spend', 'board', 'poll'].includes(current.name) && current.id) topics.push(docTopic(current.id));
+  return [...new Set(topics)];
+}
+
+/**
+ * The link-only polls held here: listed for no group, so no group's channel
+ * speaks of them — each is heard on its own, as the catch-up asks for each.
+ */
+function linkOnlyPolls() {
+  return state.polls.filter((poll) => poll.shared && poll.linkOnly && !poll.archivedAt);
+}
+
+/** Groups asked for their channel this session, so a database without one is asked once. */
+const askedChannel = new Set();
+
+function listenLive(current) {
+  if (!state.live) return;
+  state.live.watch(liveTopics(current));
+  for (const group of groups().filter((held) => !held.channel && !askedChannel.has(held.id))) {
+    askedChannel.add(group.id);
+    void refreshGroup(group).then((learnt) => learnt && state.live.watch(liveTopics(route())));
+  }
+}
+
+/**
+ * True when the app need not ask the database itself this time: the channel is
+ * heard, and was asked less than a minute ago. The watchers keep their clock;
+ * they only skip their turn.
+ */
+function liveQuiet(topic) {
+  return Boolean(state.live?.quiet(topic));
+}
+
+/** Whether everything the catch-up asks for would be heard as it happens. */
+function liveCoversGroups() {
+  return Boolean(state.live)
+    && groups().every((group) => group.channel && state.live.covers(groupTopic(group.channel)))
+    && linkOnlyPolls().every((poll) => state.live.covers(docTopic(poll.id)));
+}
+
+/** Announcements arriving in a burst — a list ticked line after line — cost one fetch at a time. */
+const hearing = new Map();
+
+async function heard(topic) {
+  if (hearing.has(topic)) {
+    hearing.set(topic, true);
+    return;
+  }
+  hearing.set(topic, false);
+  try {
+    let changed = false;
+    const group = groups().find((held) => held.channel && groupTopic(held.channel) === topic);
+    if (group) {
+      changed = (await catchUpWith(group)) > 0;
+      if (showsGate()) changed = (await refreshGate()) || changed;
+    } else if (topic.startsWith('doc-')) {
+      changed = await pullAny(topic.slice('doc-'.length));
+    }
+    if (changed && !isBusy()) render();
+  } catch {
+    // Out of reach for now: the watchers ask again on their own.
+  } finally {
+    const again = hearing.get(topic);
+    hearing.delete(topic);
+    if (again) void heard(topic);
+  }
+}
+
+/**
+ * Every write with a group key may be news for the group, and every knock is
+ * news for its door-keepers: the notifier is told after the database has
+ * taken it (view-notify.js). Wrapped here once, rather than at each of the
+ * many places that write.
+ */
+function tellTheNotifier() {
+  const { put, ask } = state.remote;
+  state.remote.put = async (document_, key = null, owner = null) => {
+    const answer = await put(document_, key, owner);
+    if (key) void tell(document_, key);
+    return answer;
+  };
+  state.remote.ask = async (...args) => {
+    const answer = await ask(...args);
+    if (answer?.status === 'waiting') tellKnock(answer.ticket);
+    return answer;
+  };
+}
+
+function startLive() {
+  state.live = createLive({ url: liveUrl(remoteConfig()), key: remoteConfig()?.key, onChange: (topic) => void heard(topic) });
+  if (!state.live) return;
+  // A phone closes the socket of an app left in the background: open it again
+  // on coming back, rather than after the next wait.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') state.live.wake();
+  });
+}
+
+/** While a shared list is on screen, watch for what the others are ticking. */
+function watchList(id) {
+  stopWatching();
+  if (!state.remote) return;
+  state.poll = setInterval(async () => {
+    if (isBusy() || isHidden() || liveQuiet(docTopic(id))) return;
+    if (await pullList(id)) render();
+  }, 5000);
+}
+
+/** While a game is on screen, watch for rounds someone else has entered. */
+function watchGame(id) {
+  stopWatching();
+  if (!state.remote) return;
+  state.poll = setInterval(async () => {
+    if (isBusy() || isHidden()) return; // never redraw under someone's fingers
+    if (liveQuiet(docTopic(id))) return;
+    if (await pullGame(id)) render();
+  }, 5000);
+}
+
+function stopWatching() {
+  if (state.poll) clearInterval(state.poll);
+  state.poll = null;
+  // The same timer serves lists and games: forget whose it was.
+  state.pollWatched = null;
+}
+
+/** A list's identity for comparison: which games, and how recently each changed. */
+function signature(games) {
+  return games
+    .map((game) => `${game.id}:${game.updatedAt}`)
+    .sort()
+    .join('|');
+}
+
+/**
+ * The app is in the background: nobody is looking, so the watchers ask the
+ * base nothing until it comes back (a document is caught up at once then).
+ */
+function isHidden() {
+  return document.visibilityState === 'hidden';
+}
+
+/** Someone is typing, or a dialog is open: a bad moment to redraw the view. */
+function isBusy() {
+  if (document.querySelector('dialog[open]')) return true;
+  const active = document.activeElement;
+  return Boolean(
+    active && active.closest?.('#view') && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName),
+  );
+}
+
+/**
+ * Ask the host for a document store. It answers late or not at all, so the
+ * app is already running by the time this resolves.
+ */
+/**
+ * Games created before sharing became deliberate were all being sent up, so
+ * they are already in the database: keep them that way rather than silently
+ * cutting them off.
+ */
+function adoptOlderGames() {
+  if (!state.remote) return;
+  const migrated = state.games.map((game) =>
+    game.shared === undefined ? { ...game, shared: true } : game,
+  );
+  if (migrated.some((game, index) => game !== state.games[index])) {
+    state.games = migrated;
+    saveGames(state.games);
+  }
+}
+
+function connectToStore() {
+  connectStore({
+    getLocalGames: () => state.games,
+    onGames: (games) => {
+      if (signature(games) === signature(state.games)) return;
+      state.games = games;
+      saveGames(games);
+      // Redrawing under someone's fingers would throw away what they are
+      // typing; the next render picks the change up anyway.
+      if (!isBusy()) render();
+    },
+    onLost: () => {
+      state.store = null;
+      if (!isBusy()) render();
+    },
+  }).then((store) => {
+    if (!store) return;
+    state.store = store;
+    if (!isBusy()) render();
+  });
+}
+
+applyLook();
+
+/** The screen's frame and its first drawing, once the words are here (start()). */
+function startScreen() {
+  applyStaticText();
+  bindChrome();
+  bindPullToRefresh();
+  followTrail();
+  window.addEventListener('hashchange', onHashChange);
+}
+
+function onHashChange() {
+  followTrail();
+  // An event chosen for a form holds for that form only.
+  if (!/^new/.test(route().name)) state.newEventLink = null;
+  state.editingRoundId = null;
+  state.listFilter = null;
+  // A message already read belongs to the screen it was read on. One that has
+  // not been seen yet follows, so that nothing is lost on the way.
+  if (state.flash?.shownAt) state.flash = null;
+  commitPendingDelete();
+  renderMoving();
+}
+
+/**
+ * The screens a tab shows: going from one to a page under it slides forward,
+ * coming back slides back, and moving between two of them crossfades.
+ */
+const TOP_SCREENS = ['home', 'overview', 'agenda', 'groups', 'settings', 'lists', 'polls', 'spends', 'ideas', 'search', 'stats'];
+let shownScreen = route().name;
+
+/** Draw the new screen, sliding it in where the browser can and motion is welcome. */
+function renderMoving() {
+  const before = shownScreen;
+  const after = route().name;
+  shownScreen = after;
+  // A browser driven by a test acts within the slide, when the browser hands
+  // taps to nothing: tests see the screens as they are (tests/navigateur/
+  // transitions.mjs turns the slide back on to check it).
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches || navigator.webdriver;
+  if (!document.startViewTransition || still || before === after || isBusy()) {
+    render();
+    focusPage();
+    return;
+  }
+  const depth = (name) => (TOP_SCREENS.includes(name) ? 0 : 1);
+  const step = depth(after) - depth(before);
+  document.documentElement.dataset.nav = step > 0 ? 'forward' : step < 0 ? 'back' : 'across';
+  const moving = document.startViewTransition(() => {
+    render();
+    focusPage();
+  });
+  moving.finished.finally(() => delete document.documentElement.dataset.nav);
+}
+
+// Coming back to the app, perhaps days later: the season and the moon move
+// on, and Réglages, which names the season, says the new one.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && refreshSky() && route().name === 'settings') render();
+});
+
+/**
+ * Another tab of the same app changed what is kept on this device. Take it in:
+ * two tabs each holding their own idea of the keys, and the last one to write
+ * anything would wipe the other's — a ticket that only exists on this device
+ * included.
+ */
+window.addEventListener('storage', (event) => {
+  if (event.key && !event.key.startsWith('marque-points:')) return;
+  state.prefs = loadPrefs();
+  // The look chosen over there, here too.
+  applyLook();
+  state.games = loadGames();
+  state.lists = loadLists();
+  state.polls = loadPolls();
+  state.spends = loadSpends();
+  state.boards = loadBoards();
+  if (!isBusy()) render();
+});
+/**
+ * Register the cache that makes the app open without a network. It is absent
+ * from a file opened off the disk and from a page served without https, and
+ * the app must not care either way.
+ */
+function registerOfflineCache() {
+  if (!('serviceWorker' in navigator)) return;
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
+  // The served app carries a manifest; the single-file build has it stripped,
+  // and has no sw.js beside it to register either.
+  if (!document.querySelector('link[rel="manifest"]')) return;
+
+  window.addEventListener('load', () => {
+    // `updateViaCache: 'none'` is what makes a published update arrive at all:
+    // without it the browser may hand the *old* sw.js back from its own HTTP
+    // cache, and an app added to the home screen then stays on that version for
+    // as long as the cache holds it.
+    navigator.serviceWorker
+      .register('sw.js', { updateViaCache: 'none' })
+      .then((registration) => {
+        state.worker = registration;
+        // Coming back to the app is when to ask whether a new one was published
+        // — an app on a home screen is opened far more often than it is
+        // reloaded, and may never be reloaded at all.
+        const look = () => {
+          if (document.visibilityState === 'visible') registration.update().catch(() => {});
+        };
+        document.addEventListener('visibilitychange', look);
+        window.addEventListener('focus', look);
+      })
+      .catch(() => {
+        // No offline cache, then: everything else still works.
+      });
+
+    // A new worker has taken over: the page is showing the old version's code,
+    // so it is reloaded once — never twice, whatever happens next.
+    //
+    // Only when a worker was already in charge, though. On a page's very first
+    // visit the brand-new worker claims it too, and reloading there would make
+    // every first visit reload itself — under the fingers of someone who may
+    // already be typing.
+    let controlled = Boolean(navigator.serviceWorker.controller);
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!controlled) {
+        // The first worker taking charge of a page that had none: nothing to
+        // reload, and the page is now controlled — so the *next* hand-over is
+        // a new version, and that one is worth a reload.
+        controlled = true;
+        return;
+      }
+      if (state.reloading) return;
+      state.reloading = true;
+      location.reload();
+    });
+  });
+}
+
+/**
+ * Which copy of the app this is: the version, bumped by hand when something
+ * worth announcing changes, and the build stamp, which moves on its own
+ * whenever any source file does.
+ */
+function appVersion() {
+  const version = document.querySelector('meta[name="app-version"]')?.content || '';
+  const build = document.querySelector('meta[name="app-build"]')?.content || '';
+  return [version, build].filter(Boolean).join(' · ');
+}
+
+/**
+ * Go and see whether a newer copy has been published, and say what came of it.
+ *
+ * The app is network-first, so a reload with a network is usually enough — but
+ * "usually" is not something to leave someone guessing about, least of all on a
+ * phone where the app is resumed rather than opened.
+ */
+async function lookForUpdate() {
+  if (!state.worker) return 'unsupported';
+  try {
+    await state.worker.update();
+  } catch {
+    return 'failed';
+  }
+  if (state.worker.installing || state.worker.waiting) return 'coming';
+  return 'current';
+}
+
+/**
+ * Everything that draws or talks, once the language in use is here: the
+ * published app fetches its words beside it (i18n.js, loadLanguage), and a
+ * screen drawn before would show keys instead of words. Served from src/, or
+ * in the single-file build, they are already here.
+ */
+function start() {
+  startScreen();
+  adoptOlderGames();
+  offerMeInForms();
+  startInstall();
+  render();
+  void welcomeMove(arrival);
+  startTalking();
+  connectToStore();
+}
+
+// What happened while the app was closed, learnt on opening it rather than left
+// waiting for someone to press a button: a knock answered, a key cut off.
+function startTalking() {
+  if (!state.remote) return;
+  tellTheNotifier();
+  startLive();
+  (async () => {
+    const answered = pendings().length ? await checkAllPendings() : false;
+    const changed = await verifyGroups();
+    if ((answered || changed) && !isBusy()) render();
+    // Signed in: what the account holds that this device does not — a group
+    // joined on the phone, a poll organised on the computer — and the other way.
+    await syncAccount({ force: true });
+    // And what the others pushed meanwhile, without being asked for it.
+    await catchUpQuietly();
+    // Notifications on: the database has this device's subscription for
+    // every group it is now in.
+    await syncPush();
+  })();
+
+  // Coming back to the app — from Safari, from another app, from a locked
+  // screen — is exactly the moment to find out what happened elsewhere.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void catchUpQuietly();
+  });
+  window.addEventListener('focus', () => void catchUpQuietly());
+
+  // And while it stays open in front of someone: the answers to a poll left
+  // on the list, or on the overview, arrive without anyone having to leave
+  // and come back. Nothing is asked of a hidden page, nor more often than the
+  // catch-up allows itself: it is looked at every few seconds, and goes only
+  // when its own twenty have passed. Ticking at exactly twenty would miss by
+  // a hair every other time, and make it forty.
+  setInterval(() => {
+    if (document.visibilityState === 'visible') void catchUpQuietly();
+  }, 5000);
+}
+
+const firstLanguage = state.prefs.lang || detectLanguage();
+// Its words could not be fetched (offline on a first visit): French, the
+// app's own, then whatever is here — a screen of keys beats a blank one.
+loadLanguage(firstLanguage)
+  .catch(() => loadLanguage('fr'))
+  .catch(() => 'fr')
+  .then((lang) => {
+    setLanguage(lang);
+    start();
+  });
+registerOfflineCache();
+})();

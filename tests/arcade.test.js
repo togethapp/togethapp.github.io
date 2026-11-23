@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  ARCADE_DIRS, ARCADE_GAMES, ARCADE_MODES, EXTRA_LIFE, FRUITS, angerOf, fruitOf, inTunnel, speeds, GLOUTON_MAZE, SNAKE_SIZE, canEnter, cellAt, newGlouton, newSnake, parseMaze, pelletsLeft,
+  ARCADE_DIRS, EXTRA_LIFE, FRUITS, angerOf, fruitOf, inTunnel, speeds, GLOUTON_MAZE, SNAKE_SIZE, canEnter, cellAt, newGlouton, newSnake, parseMaze, pelletsLeft,
   snakeRate, starPoints, steerGlouton, steerSnake, stepGlouton, stepSnake, togglePause,
 } from '../src/arcade.js';
+import { ARCADE_GAMES, ARCADE_MODES } from '../src/arcade-games.js';
 import { t, setLanguage } from '../src/i18n.js';
 
 /** A random that always says the same, so a game replays the same way. */
