@@ -57,7 +57,8 @@ async function open(width, height) {
 
 const page = await open(390, 800);
 const bar = await page.locator('#tabs').boundingBox();
-check('la barre est collée en bas de l’écran', Math.abs(bar.y + bar.height - 800) < 2, JSON.stringify(bar));
+// Since November 2026 the bar floats 10px above the bottom edge, like a dock.
+check('la barre flotte juste au-dessus du bas de l’écran', Math.abs(bar.y + bar.height - 790) < 2, JSON.stringify(bar));
 check('sur une seule ligne', bar.height < 90, JSON.stringify(bar));
 const tabs = (await page.locator('.tab').allTextContents()).map((s) => s.trim());
 check('quatre onglets, deux de chaque côté du « + »',
@@ -121,7 +122,7 @@ check('Réglages : le prénom et les données',
 await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 await page.waitForTimeout(200);
 const after = await page.locator('#tabs').boundingBox();
-check('elle reste là quand on descend', Math.abs(after.y + after.height - 800) < 2, JSON.stringify(after));
+check('elle reste là quand on descend', Math.abs(after.y + after.height - 790) < 2, JSON.stringify(after));
 
 // Le bas de la page n'est pas caché sous la barre.
 const last = await page.evaluate(() => {
@@ -154,7 +155,7 @@ await page.waitForSelector('.group-link');
 check('chaque groupe de l’onglet Groupes s’ouvre', (await page.locator('.group-link').count()) === 2);
 check('et l’on peut y entrer dans un autre', await page.locator('#group-join').isVisible());
 await page.locator('.group-link', { hasText: 'Mifa' }).click();
-await page.waitForSelector('h1');
+await page.waitForFunction(() => document.querySelector('h1')?.textContent.trim() === 'Mifa', null, { timeout: 5000 }).catch(() => {});
 check('la page porte le nom du groupe', (await page.locator('h1').textContent()).trim() === 'Mifa');
 check('l’adresse est celle du groupe', page.url().endsWith('#/group/grp_famille'), page.url());
 const text = await page.locator('#view').textContent();

@@ -105,7 +105,9 @@ guide en français.
   horizontale ; votes fusionnés case par case (`{v, at}`), dans l'app et dans la
   base ; un sondage clos ne prend plus de votes. Visiteurs : vue seule
   (`#/poll/<id>/solo`), sans navigation.
-- **Apparence** (octobre 2026) : style « hologramme » par défaut, nuit quel
+- **Apparence** (octobre 2026) : style « hologramme » par défaut (« verre
+  liquide » depuis novembre 2026 : verre flou pour barres et boutons, barre du
+  bas flottante, plus de grille ni de capitales façon console ; fin de `styles.css`), nuit quel
   que soit le réglage du téléphone ; Réglages → Apparence (`view-look.js`) :
   styles Classique / Épuré / Astronomie / Saisons (suit le calendrier,
   `src/sky.js`), huit couleurs (celle du style en fait partie, pas de

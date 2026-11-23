@@ -10,7 +10,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v17" />
-    <meta name="app-build" content="4b8cb2f6" />
+    <meta name="app-build" content="94d45592" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -91,7 +91,7 @@
   --ring: color-mix(in srgb, var(--accent) 30%, transparent);
   /* The grid on the glass, the haze from the top, the glass of the bars, a
      field to type in, the veil behind a dialog. */
-  --grid: rgb(95 243 255 / 4%);
+  --grid: transparent;
   --haze: rgb(40 110 190 / 30%);
   --glass: rgb(5 11 22 / 74%);
   --field: #07111f;
@@ -106,25 +106,28 @@
   --decor-light: #ffffff;
   --shadow: 0 1px 2px rgb(0 0 0 / 50%), 0 8px 24px rgb(0 0 0 / 35%);
   --shadow-lift: 0 0 0 1px var(--ring), 0 12px 30px rgb(0 0 0 / 45%), 0 0 22px var(--glow);
-  /* What makes the hologram one: the instrument face, small capitals spaced
-     out, a tick of light on titles and panels, a thread under the top bar,
-     a sheen of the colour on panels. The other styles turn them off. */
+  /* What made the hologram one until November 2026 — the instrument face,
+     small capitals spaced out, a tick of light on titles and panels, a
+     thread under the top bar — read as a film's console from another
+     decade: the default look now keeps the sans face in plain case, and
+     its light lives in the glass and the gradients (« the hologram,
+     today », at the end). Other styles still set these their own way. */
   --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
-  --hud: var(--mono);
-  --hud-case: uppercase;
-  --hud-spacing: 0.16em;
-  --section-size: 0.74rem;
-  --section-weight: 600;
-  --section-color: var(--accent);
-  --brand-font: var(--mono);
-  --brand-size: 0.95rem;
-  --brand-spacing: 0.2em;
-  --brand-case: uppercase;
-  --tick: block;
-  --thread: 0.5;
-  --sheen: 5%;
-  --radius: 16px;
-  --radius-sm: 11px;
+  --hud: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --hud-case: none;
+  --hud-spacing: 0em;
+  --section-size: 1.05rem;
+  --section-weight: 700;
+  --section-color: var(--text);
+  --brand-font: inherit;
+  --brand-size: 1.12rem;
+  --brand-spacing: -0.02em;
+  --brand-case: none;
+  --tick: none;
+  --thread: 0;
+  --sheen: 0%;
+  --radius: 22px;
+  --radius-sm: 14px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   color-scheme: dark;
 }
@@ -150,7 +153,7 @@
   --accent-text: #ffffff;
   --glow: color-mix(in srgb, var(--accent) 16%, transparent);
   --ring: color-mix(in srgb, var(--accent) 22%, transparent);
-  --grid: rgb(0 90 140 / 5%);
+  --grid: transparent;
   --haze: rgb(120 200 240 / 35%);
   --glass: rgb(255 255 255 / 78%);
   --field: #f7fafd;
@@ -976,7 +979,6 @@ a { color: inherit; }
 }
 
 @media (max-width: 380px) {
-  :root:not([data-look]) .app-bar__brand strong { font-size: 0.8rem; letter-spacing: 0.08em; }
 }
 .app-bar__brand small { display: block; color: var(--muted); font-size: 0.75rem; }
 /* The mark: two tokens side by side, in the accent, at the size of a word. */
@@ -3662,6 +3664,122 @@ body.playing .toast { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
   .loading__bar { animation: loading-breathe 1.2s ease-in-out infinite alternate; }
 }
 @keyframes loading-breathe { from { opacity: 0.45; } to { opacity: 1; } }
+
+/* ------------------------------------------------- the hologram, today --- */
+/*
+ * The default look, as of November 2026: liquid glass. The grid, the neon
+ * and the console capitals made it a 1980s idea of the future; what reads as
+ * new now is light behind glass. Pools of the colour and of violet lie at
+ * the page's edges; what one steers with — the top bar, the floating dock,
+ * the round buttons, the row of kinds — is a pane of real glass (blurred,
+ * saturated) whose edges catch the light, brighter on top; the current
+ * choice sits under a small lens of the same glass. Panels of content stay
+ * crisp, only a little translucent, with the same lit edge: glass is for
+ * the layer one steers with, not for what one reads. Only for the default
+ * style (no data-look).
+ */
+:root:not([data-look]) {
+  --lg-tint: rgb(255 255 255 / 7%);
+  --lg-tint-low: rgb(255 255 255 / 2%);
+  --lg-edge: rgb(255 255 255 / 14%);
+  --lg-spec: rgb(255 255 255 / 24%);
+  --lg-spec-low: rgb(255 255 255 / 6%);
+  --lg-lens: rgb(255 255 255 / 12%);
+  --lg-drop: 0 18px 40px -14px rgb(0 0 0 / 60%);
+  --lg-blur: blur(26px) saturate(1.9);
+}
+:root[data-theme='light']:not([data-look]) {
+  --lg-tint: rgb(255 255 255 / 55%);
+  --lg-tint-low: rgb(255 255 255 / 30%);
+  --lg-edge: rgb(255 255 255 / 80%);
+  --lg-spec: rgb(255 255 255 / 95%);
+  --lg-spec-low: rgb(10 30 60 / 6%);
+  --lg-lens: rgb(10 30 60 / 7%);
+  --lg-drop: 0 16px 40px -14px rgb(10 30 60 / 30%);
+}
+
+:root:not([data-look]) body {
+  background-image:
+    radial-gradient(70% 45% at 6% -6%, color-mix(in srgb, var(--holo-hue) 20%, transparent), transparent 72%),
+    radial-gradient(60% 40% at 104% 12%, color-mix(in srgb, var(--night-violet) 18%, transparent), transparent 72%),
+    radial-gradient(85% 45% at 50% 108%, color-mix(in srgb, var(--night-pink) 10%, transparent), transparent 72%);
+  background-size: auto;
+}
+
+:root:not([data-look]) h1 { text-shadow: none; }
+:root:not([data-look]) .app-bar__logo { filter: none; }
+
+/* The glass itself. */
+:root:not([data-look]) :is(.app-bar, .tabs, .icon-button, .segmented) {
+  background-color: color-mix(in srgb, var(--surface) 45%, transparent);
+  background-image: linear-gradient(180deg, var(--lg-tint), var(--lg-tint-low));
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+  border: 1px solid var(--lg-edge);
+  box-shadow: inset 0 1px 0 var(--lg-spec), inset 0 -1px 0 var(--lg-spec-low), var(--lg-drop);
+}
+:root:not([data-look]) .app-bar {
+  border-width: 0 0 1px;
+  box-shadow: inset 0 -1px 0 var(--lg-spec-low);
+}
+:root:not([data-look]) .icon-button { box-shadow: inset 0 1px 0 var(--lg-spec), inset 0 -1px 0 var(--lg-spec-low); }
+:root:not([data-look]) .segmented { box-shadow: inset 0 1px 0 var(--lg-spec), inset 0 -1px 0 var(--lg-spec-low); }
+:root:not([data-look]) .icon-button:hover { box-shadow: inset 0 1px 0 var(--lg-spec), 0 0 0 1px var(--ring); }
+
+/* The current choice, under a lens of the same glass. */
+:root:not([data-look]) .segmented__option[aria-current="true"],
+:root:not([data-look]) .segmented__option[aria-pressed="true"] {
+  background: var(--lg-lens);
+  color: var(--text);
+  box-shadow: inset 0 1px 0 var(--lg-spec), 0 2px 8px -2px rgb(0 0 0 / 25%);
+}
+
+/* Panels of content: crisp, a little translucent, the edge lit on top. */
+:root:not([data-look]) :is(.card, .game-card) {
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  border-color: color-mix(in srgb, var(--text) 9%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 10%, transparent), 0 10px 30px -12px rgb(0 0 0 / 45%);
+}
+:root[data-theme='light']:not([data-look]) :is(.card, .game-card) {
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border-color: color-mix(in srgb, var(--text) 8%, transparent);
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(10 30 60 / 5%), 0 12px 30px -14px rgb(10 30 60 / 18%);
+}
+
+/* The one thing to do: a drop of the colour, drifting toward violet, with
+   a highlight on top and its own light beneath rather than a neon ring. */
+:root:not([data-look]) :is(.button--primary, .tabs__new) {
+  background: var(--accent);
+  background-image:
+    linear-gradient(180deg, rgb(255 255 255 / 28%), rgb(255 255 255 / 0%) 55%),
+    linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 55%, var(--accent-violet)));
+  border-color: transparent;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 55%), inset 0 -2px 6px rgb(0 0 0 / 14%), 0 12px 28px -10px var(--accent);
+}
+:root:not([data-look]) .button--primary:hover { filter: brightness(1.06); }
+:root:not([data-look]) .button:hover:not(.button--primary) { box-shadow: none; }
+
+/* Places left to fill: a quiet panel, not a dashed frame. */
+:root:not([data-look]) :is(.hint, .button--new, .code-box) {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* The bar floats: a dock above the bottom edge, as wide as a phone even on
+   a large screen, the current tab under its lens. */
+:root:not([data-look]) .tabs {
+  left: 12px;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 4px 0;
+  border-radius: 30px;
+}
+:root:not([data-look]) .tab { border-top: none; margin: 0 3px; padding: 6px 0 5px; border-radius: 24px; }
+:root:not([data-look]) .tab[aria-current="page"] { background: var(--lg-lens); box-shadow: inset 0 1px 0 var(--lg-spec); }
+:root:not([data-look]) .tab[aria-current="page"] .tab__icon { background: none; filter: none; }
+:root:not([data-look]) .tabs__new { border-color: transparent; margin-top: -24px; -webkit-backdrop-filter: none; backdrop-filter: none; }
     </style>
     <!-- Before the first paint: the style, colour, theme and background chosen
          in the settings, and the season of the day, so the page does not
