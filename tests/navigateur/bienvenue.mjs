@@ -22,7 +22,6 @@ await page.waitForSelector('.welcome');
 
 check('la première ouverture souhaite la bienvenue', (await page.locator('.welcome h2').textContent()).trim() === 'Bienvenue');
 check('sans sections vides en dessous', (await page.locator('#view .section').count()) === 0);
-check('ni la rangée des sortes, vide à ce stade', (await page.locator('#view .segmented--kinds').count()) === 0);
 check('et sans rien demander : pas de champ prénom', (await page.locator('#view input').count()) === 0);
 const main = page.locator('.welcome .button--primary');
 check('une seule action en avant', (await main.count()) === 1 && (await main.textContent()).trim() === 'Rejoindre ou créer un groupe');
@@ -53,6 +52,11 @@ await page.click('#spend-add-open');
 await page.waitForSelector('#spend-text');
 check('« Noter une dépense » le rouvre', (await page.locator('#add-spend').count()) === 1);
 
+// Le prénom, pas demandé à la bienvenue, se donne dans Réglages.
+await page.goto('http://localhost:8099/dist/marque-points.html#/settings');
+await page.fill('#me-name', 'Gui');
+await page.click('#me-save');
+await page.waitForTimeout(300);
 await page.goto('http://localhost:8099/dist/marque-points.html#/');
 await page.waitForSelector('.game-card');
 check('l’accueil dit ce qu’on vous doit, en livres', /21,15\s?£/.test(await page.locator('#view').textContent()));

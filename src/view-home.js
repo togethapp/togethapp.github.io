@@ -1081,6 +1081,7 @@ export function overviewView() {
   if (nothingYet && !groups().length) {
     return `
       ${flashHtml()}
+      ${kindsHtml('overview')}
       ${welcomeHtml()}`;
   }
 
