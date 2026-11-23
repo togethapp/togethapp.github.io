@@ -8,8 +8,8 @@
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-GbccGr8qkLkFTuo/bm9FHHkwgLQQ3z2B6Bd+Guk0y+8='; object-src 'none'; base-uri 'none'" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
-    <meta name="app-version" content="v16" />
-    <meta name="app-build" content="a36b711a" />
+    <meta name="app-version" content="v17" />
+    <meta name="app-build" content="9d46e18c" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -141,7 +141,17 @@
       </a>
     </nav>
 
-    <main id="view" class="view"></main>
+    <!-- The shape of a screen until the app draws the real one: a first visit
+         on a slow network should not look like an empty page. -->
+    <main id="view" class="view">
+      <div class="loading loading--start" aria-hidden="true">
+        <span class="loading__bar loading__bar--title"></span>
+        <span class="loading__bar"></span>
+        <span class="loading__bar loading__bar--short"></span>
+        <span class="loading__block"></span>
+        <span class="loading__block"></span>
+      </div>
+    </main>
     <p id="announce" class="visually-hidden" role="status"></p>
 
     <!-- The app, every module in one file (tools/bundle.js): one request on a

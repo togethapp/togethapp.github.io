@@ -1,26 +1,25 @@
 /**
- * The cache that lets the app open without a network.
+ * The cache that lets the app open at once, with or without a network.
  *
- * Everything the app is made of is fetched once and kept. Afterwards the app
- * opens from the cache — in a cellar, a train, a cottage — while anything it
- * talks to (the shared database) still goes to the network, and fails the way
- * the app already knows how to handle.
+ * Everything the app is made of is fetched when this worker is installed and
+ * kept in a cache named after the build. Afterwards the app opens from that
+ * cache straight away — no round trip to ask whether something changed, which
+ * on a slow network was most of the wait — while anything it talks to (the
+ * shared database) still goes to the network.
  *
- * The trap with this kind of cache is leaving people stranded on an old
- * version — and on a phone, where the app on the home screen is resumed rather
- * than reloaded, being stranded can last for ever. So, in order: the cache name
- * carries a version and older caches are deleted on activation; a new worker
- * takes over as soon as it is installed rather than waiting for every tab to
- * close; every network attempt revalidates instead of trusting the browser's own
- * copy; the app registers this file with `updateViaCache: 'none'`, asks for an
- * update each time it comes back to the front, and reloads itself once a new
- * worker takes over. Bump VERSION whenever the app changes — tools/bundle.js
- * checks that it matches both the files it built and the version the page shows.
+ * An update is never missed for that: every change to the app changes this
+ * file (tools/bundle.js stamps BUILD from the sources), the app asks for this
+ * file each time it comes back to the front (`updateViaCache: 'none'`), and a
+ * new worker fetches the new files — past the browser's own copies — into a
+ * cache of its own, takes over at once, deletes the old cache, and the app
+ * reloads itself once. A cache holds one build only, never a mix of two.
+ * Bump VERSION when something worth announcing changes — tools/bundle.js
+ * checks that it matches the version the page shows.
  */
 
-const VERSION = 'v16';
+const VERSION = 'v17';
 /** Written by tools/bundle.js from the sources: it moves whenever they do. */
-const BUILD = 'a36b711a';
+const BUILD = '9d46e18c';
 const CACHE = `marque-points-${VERSION}-${BUILD}`;
 
 const SHELL = [
@@ -45,8 +44,11 @@ self.addEventListener('install', (event) => {
     caches
       .open(CACHE)
       // One missing file must not sink the whole install, so each is added on
-      // its own and a failure is survivable.
-      .then((cache) => Promise.all(SHELL.map((url) => cache.add(url).catch(() => null))))
+      // its own and a failure is survivable. `reload`: from the site, never the
+      // browser's own copy — GitHub Pages lets one be held for ten minutes,
+      // and an old file kept under the new build would stay until the next.
+      .then((cache) => Promise.all(SHELL.map((url) =>
+        cache.add(new Request(url, { cache: 'reload' })).catch(() => null))))
       .then(() => self.skipWaiting()),
   );
 });
@@ -69,26 +71,26 @@ self.addEventListener('fetch', (event) => {
   // and anything else must keep talking to the network.
   if (url.origin !== self.location.origin) return;
 
+  // Opening the app: its page from the cache, whatever comes after the
+  // address (?…, #…). Other pages of the site (the old links' relays) go to
+  // the network, as before.
+  const path = url.pathname.slice(new URL(self.registration.scope).pathname.length);
+  const isApp = request.mode === 'navigate' && (path === '' || path === 'index.html');
+
   event.respondWith(
-    // Network first, so a published update is picked up as soon as there is a
-    // network; the cache is what makes the app work when there is none.
-    //
-    // `cache: 'no-cache'` makes that first step revalidate rather than take the
-    // browser's own copy: GitHub Pages lets a page be held for ten minutes, and
-    // an app just added to a home screen would otherwise open on whatever
-    // Safari happened to have kept. It costs one conditional request, answered
-    // with a 304 when nothing changed.
-    fetch(new Request(request.url, { cache: 'no-cache', credentials: 'same-origin' }))
-      .then((response) => {
-        if (response && response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
-        }
-        return response;
-      })
-      .catch(() =>
-        caches.match(request).then((cached) => cached || caches.match('./index.html')),
-      ),
+    caches.open(CACHE).then((cache) =>
+      cache.match(isApp ? './index.html' : request, { ignoreSearch: isApp }).then((kept) => {
+        if (kept) return kept;
+        // Not kept (yet): the network, remembered for next time; and with no
+        // network, the app's page rather than the browser's error.
+        return fetch(new Request(request.url, { cache: 'no-cache', credentials: 'same-origin' }))
+          .then((response) => {
+            if (response && response.ok && !isApp) cache.put(request, response.clone()).catch(() => {});
+            return response;
+          })
+          .catch(() => cache.match('./index.html').then((page) => page || Response.error()));
+      }),
+    ),
   );
 });
 
