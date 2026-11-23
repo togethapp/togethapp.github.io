@@ -6,11 +6,11 @@
     <!-- Only the app's own scripts run: its files, and the script below named
          by its hash. Written by tools/bundle.js; first, since it only covers
          what comes after it. -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-z/+C/mUXO+n5g4AG1a2w2i7GPCN1zLsju2o8xzLzRUo='; object-src 'none'; base-uri 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-g1S9zJ7zIeN6refcyFA4xRTkzKPDS4haMiI54RJ+8gs='; object-src 'none'; base-uri 'none'" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="23b00002" />
+    <meta name="app-build" content="59f7c026" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -563,7 +563,7 @@ body {
 h1, h2, h3 { line-height: 1.2; margin: 0; letter-spacing: -0.015em; }
 h1 { font-size: 1.65rem; font-weight: 750; letter-spacing: -0.025em; text-shadow: 0 0 28px var(--glow); }
 h2 { font-size: 1.15rem; font-weight: 700; }
-h3 { font-size: 1rem; }
+h3, h2.h3 { font-size: 1rem; }
 p { margin: 0; }
 
 a { color: inherit; }
@@ -3614,6 +3614,41 @@ body.playing .toast { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
   pointer-events: none;
 }
 .pull--ready { color: var(--accent-text); background: var(--accent); border-color: var(--accent); }
+
+/* --- finishing: what is on its way, where to skip to ----------------------- */
+
+/* The heading a new screen puts the cursor on: read out, not ringed. */
+#view h1:focus { outline: none; }
+
+/* First thing a keyboard reaches: past the bars, straight to the page. */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+  text-decoration: none;
+}
+.skip-link:focus { top: 12px; }
+
+/* A page fetched from the database: its shape, breathing, until it is there. */
+.loading { display: grid; gap: 12px; padding: 8px 0; }
+.loading__bar {
+  display: block;
+  height: 14px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+.loading__bar--title { height: 26px; width: 60%; }
+.loading__bar--short { width: 40%; }
+@media (prefers-reduced-motion: no-preference) {
+  .loading__bar { animation: loading-breathe 1.2s ease-in-out infinite alternate; }
+}
+@keyframes loading-breathe { from { opacity: 0.45; } to { opacity: 1; } }
     </style>
     <!-- Before the first paint: the style, colour, theme and background chosen
          in the settings, and the season of the day, so the page does not
@@ -3642,6 +3677,7 @@ body.playing .toast { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
     </script>
   </head>
   <body>
+    <a class="skip-link" href="#view" data-i18n="a11y.skip">Aller au contenu</a>
     <!-- What moves behind the page when a background is chosen — the sky, an
          aurora, the season, confetti: drawn by styles.css (« backgrounds »),
          the two children for the moon and a shooting star. -->
@@ -3699,7 +3735,8 @@ body.playing .toast { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
       </a>
     </nav>
 
-    <main id="view" class="view" aria-live="polite"></main>
+    <main id="view" class="view"></main>
+    <p id="announce" class="visually-hidden" role="status"></p>
 
     <script>
 (() => {
@@ -3872,6 +3909,9 @@ const STRINGS = {
     'arcade.snake.mode.normal': 'Normal : les bords sont des murs ; chaque pomme vaut 10.',
     'arcade.snake.mode.hard': 'Difficile : rapide dès le départ, chaque pomme vaut 20.',
     'tab.home': 'Accueil',
+    'a11y.skip': 'Aller au contenu',
+    'doc.missing': 'Ce document n’est pas sur cet appareil : il a peut-être été supprimé, ou il appartient à un groupe où cet appareil n’est pas.',
+    'group.missing': 'Cet appareil n’est pas (ou plus) dans ce groupe.',
     'tab.groups': 'Groupes',
     'tab.settings': 'Réglages',
     'move.title': 'Together a déménagé',
@@ -5241,6 +5281,9 @@ const STRINGS = {
     'arcade.snake.mode.normal': 'Normal: the edges are walls; each apple is worth 10.',
     'arcade.snake.mode.hard': 'Hard: fast from the start, each apple is worth 20.',
     'tab.home': 'Home',
+    'a11y.skip': 'Skip to content',
+    'doc.missing': 'That is not on this device: it may have been deleted, or it belongs to a group this device is not in.',
+    'group.missing': 'This device is not (or no longer) in that group.',
     'tab.groups': 'Groups',
     'tab.settings': 'Settings',
     'move.title': 'Together has moved',
@@ -19662,7 +19705,7 @@ function newGameView() {
       </label>
 
       <div class="stack">
-        <h3>${escapeHtml(t(isTeam ? 'new.teams' : 'new.players'))}</h3>
+        <h2 class="h3">${escapeHtml(t(isTeam ? 'new.teams' : 'new.players'))}</h2>
         <div class="score-rows">${nameRows}</div>
         ${
           known.length
@@ -19675,7 +19718,7 @@ function newGameView() {
       </div>
 
       <div class="stack">
-        <h3>${escapeHtml(t('new.rules'))}</h3>
+        <h2 class="h3">${escapeHtml(t('new.rules'))}</h2>
         <div class="field-grid">
           <label>
             ${escapeHtml(t('new.direction'))}
@@ -27006,7 +27049,7 @@ function dataHtml() {
             ? `<button type="button" class="button button--small" id="my-shares">${escapeHtml(t('lots.title', { count: lots().length }))}</button>`
             : ''
         }
-        <input type="file" id="import-file" accept="application/json,.json" class="visually-hidden" />
+        <input type="file" id="import-file" accept="application/json,.json" class="visually-hidden" tabindex="-1" aria-hidden="true" />
       </div>
       <p class="muted small">${escapeHtml(
         t(state.remote ? 'home.storedShared' : state.store ? 'home.storedCloud' : 'home.storedLocal'),
@@ -31237,6 +31280,19 @@ function backTarget(fallback) {
 
 /* ------------------------------------------------------------------ views --- */
 
+/**
+ * Say something to a screen reader without moving it: the page itself is not
+ * read out at each redraw (others' changes arrive every few seconds), so a
+ * message goes through this one place, which stays on the page.
+ */
+function announce(message) {
+  const out = document.getElementById('announce');
+  if (!out) return;
+  out.textContent = '';
+  // Emptied, then filled a beat later: the same message twice is read twice.
+  setTimeout(() => { out.textContent = message; }, 60);
+}
+
 function flashHtml() {
   if (!state.flash) return '';
   const { message, kind, shownAt } = state.flash;
@@ -31246,6 +31302,7 @@ function flashHtml() {
   if (!shownAt) {
     state.flash = { ...state.flash, shownAt: Date.now() };
     state.flashFresh = kind === 'error';
+    announce(message);
   } else if (Date.now() - shownAt > FLASH_KEPT) {
     state.flash = null;
     return '';
@@ -31591,6 +31648,15 @@ function applyStaticText() {
 }
 
 function bindChrome() {
+  // The address after "#" is the app's route: the link to skip the bars puts
+  // the reader on the page's heading instead of following it.
+  document.querySelector('.skip-link')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    const heading = view.querySelector('h1');
+    const target = heading || view;
+    target.tabIndex = -1;
+    target.focus();
+  });
   document.getElementById('create')?.addEventListener('click', openCreateMenu);
   // Night or light, from any page; the settings say the same, so on that page
   // they are drawn again to show it. See view-look.js for the rest.
@@ -31691,6 +31757,8 @@ function setSolo(on) {
   if (tabs) tabs.hidden = on;
   const search = document.getElementById('search-open');
   if (search) search.hidden = on;
+  const skip = document.querySelector('.skip-link');
+  if (skip) skip.hidden = on;
   const brand = document.querySelector('.app-bar__brand');
   if (!brand) return;
   if (on) {
@@ -31754,6 +31822,62 @@ function takePrefill(current) {
 }
 
 function render() {
+  draw();
+  namePage();
+}
+
+/**
+ * What a reader of the screen is told the page is: one heading at the top of
+ * each screen — a tab has none on show, it gets a hidden one with the name of
+ * where it is — and the window's title after it.
+ */
+function namePage() {
+  if (!view.querySelector('h1')) {
+    const kind = view.querySelector('.segmented--kinds [aria-current="true"]');
+    const tab = document.querySelector('#tabs [aria-current="page"]');
+    const name = kind && kind.dataset.goto !== '#/' ? kind.textContent.trim() : (tab?.textContent || '').trim();
+    if (name) view.insertAdjacentHTML('afterbegin', `<h1 class="visually-hidden">${escapeHtml(name)}</h1>`);
+  }
+  const heading = (view.querySelector('h1')?.textContent || '').trim().replace(/\s+/g, ' ');
+  const app = t('app.title');
+  document.title = heading && heading !== app ? `${heading} · ${app}` : app;
+}
+
+/**
+ * A new screen: a screen reader starts reading it at its heading, as it
+ * would a new page, unless the screen already put the cursor in a field.
+ */
+function focusPage() {
+  const active = document.activeElement;
+  if (active && active !== document.body && view.contains(active)) return;
+  if (document.querySelector('dialog[open]')) return;
+  const heading = view.querySelector('h1');
+  if (!heading) return;
+  heading.tabIndex = -1;
+  heading.focus({ preventScroll: true });
+}
+
+/**
+ * While something is fetched from the database: the shape of a page to come,
+ * and a sentence that says what is coming — read out by a screen reader.
+ */
+function loadingHtml(text) {
+  return `
+    <div class="loading" role="status">
+      <span class="loading__bar loading__bar--title" aria-hidden="true"></span>
+      <span class="loading__bar" aria-hidden="true"></span>
+      <span class="loading__bar loading__bar--short" aria-hidden="true"></span>
+      <p class="muted small">${escapeHtml(text)}</p>
+    </div>`;
+}
+
+/** A document asked for that this device does not hold: say so, then show its kind. */
+function missing(tab) {
+  flash(t('doc.missing'));
+  navigate(tab);
+}
+
+function draw() {
   const current = route();
   takePrefill(current);
   markTab(current);
@@ -31778,7 +31902,7 @@ function render() {
       stopWatching();
       // Perhaps a list someone shared: ask the database before giving up.
       if (state.remote) {
-        view.innerHTML = `<p class="muted small">${escapeHtml(t('lists.loading'))}</p>`;
+        view.innerHTML = loadingHtml(t('lists.loading'));
         // A redraw while it is on its way must not ask for it twice.
         if (state.openingList !== current.id) {
           const asked = current.id;
@@ -31787,12 +31911,12 @@ function render() {
             if (state.openingList !== asked) return;
             state.openingList = null;
             if (found) render();
-            else if (route().id === asked) navigate('#/lists');
+            else if (route().id === asked) missing('#/lists');
           });
         }
         return;
       }
-      navigate('#/lists');
+      missing('#/lists');
       return;
     }
     watchList(list.id);
@@ -31816,7 +31940,7 @@ function render() {
       stopWatching();
       // Peut-être un compte que quelqu'un partage : demander avant d'abandonner.
       if (state.remote) {
-        view.innerHTML = `<p class="muted small">${escapeHtml(t('spends.loading'))}</p>`;
+        view.innerHTML = loadingHtml(t('spends.loading'));
         if (state.openingSpend !== current.id) {
           const asked = current.id;
           state.openingSpend = asked;
@@ -31824,12 +31948,12 @@ function render() {
             if (state.openingSpend !== asked) return;
             state.openingSpend = null;
             if (found) render();
-            else if (route().id === asked) navigate('#/spends');
+            else if (route().id === asked) missing('#/spends');
           });
         }
         return;
       }
-      navigate('#/spends');
+      missing('#/spends');
       return;
     }
     watchSpend(spend.id);
@@ -31849,7 +31973,7 @@ function render() {
       stopWatching();
       // Perhaps a board someone shares: ask before giving up.
       if (state.remote) {
-        view.innerHTML = `<p class="muted small">${escapeHtml(t('ideas.loading'))}</p>`;
+        view.innerHTML = loadingHtml(t('ideas.loading'));
         if (state.openingBoard !== current.id) {
           const asked = current.id;
           state.openingBoard = asked;
@@ -31857,12 +31981,12 @@ function render() {
             if (state.openingBoard !== asked) return;
             state.openingBoard = null;
             if (found) render();
-            else if (route().id === asked) navigate('#/ideas');
+            else if (route().id === asked) missing('#/ideas');
           });
         }
         return;
       }
-      navigate('#/ideas');
+      missing('#/ideas');
       return;
     }
     watchBoard(board.id);
@@ -31881,7 +32005,7 @@ function render() {
     if (!poll) {
       stopWatching();
       if (state.remote) {
-        view.innerHTML = `<p class="muted small">${escapeHtml(t('polls.loading'))}</p>`;
+        view.innerHTML = loadingHtml(t('polls.loading'));
         if (state.openingPoll !== current.id) {
           const asked = current.id;
           state.openingPoll = asked;
@@ -31909,7 +32033,7 @@ function render() {
     bindNewGame();
   } else if (current.name === 'set') {
     stopWatching();
-    view.innerHTML = `<p class="muted small">${escapeHtml(t('shareSet.loading'))}</p>`;
+    view.innerHTML = loadingHtml(t('shareSet.loading'));
     // A redraw while the games are on their way must not fetch them twice.
     if (state.openingSet !== current.id) {
       const asked = current.id;
@@ -31929,14 +32053,14 @@ function render() {
     if (!game) {
       // Perhaps it is a game someone shared: ask the database before giving up.
       if (state.remote) {
-        view.innerHTML = `<p class="muted small">${escapeHtml(t('share.loading'))}</p>`;
+        view.innerHTML = loadingHtml(t('share.loading'));
         pullGame(current.id).then((found) => {
           if (found) render();
-          else if (route().id === current.id) navigate('#/games');
+          else if (route().id === current.id) missing('#/games');
         });
         return;
       }
-      navigate('#/games');
+      missing('#/games');
       return;
     }
     watchGame(game.id);
@@ -31961,6 +32085,7 @@ function render() {
     stopWatching();
     const group = groups().find((held) => held.id === current.id);
     if (!group) {
+      flash(t('group.missing'));
       navigate('#/groups');
       return;
     }
@@ -32499,12 +32624,16 @@ function renderMoving() {
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches || navigator.webdriver;
   if (!document.startViewTransition || still || before === after || isBusy()) {
     render();
+    focusPage();
     return;
   }
   const depth = (name) => (TOP_SCREENS.includes(name) ? 0 : 1);
   const step = depth(after) - depth(before);
   document.documentElement.dataset.nav = step > 0 ? 'forward' : step < 0 ? 'back' : 'across';
-  const moving = document.startViewTransition(() => render());
+  const moving = document.startViewTransition(() => {
+    render();
+    focusPage();
+  });
   moving.finished.finally(() => delete document.documentElement.dataset.nav);
 }
 

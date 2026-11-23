@@ -9,7 +9,7 @@
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="23b00002" />
+    <meta name="app-build" content="59f7c026" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -61,6 +61,7 @@
     </script>
   </head>
   <body>
+    <a class="skip-link" href="#view" data-i18n="a11y.skip">Aller au contenu</a>
     <!-- What moves behind the page when a background is chosen — the sky, an
          aurora, the season, confetti: drawn by styles.css (« backgrounds »),
          the two children for the moon and a shooting star. -->
@@ -118,7 +119,8 @@
       </a>
     </nav>
 
-    <main id="view" class="view" aria-live="polite"></main>
+    <main id="view" class="view"></main>
+    <p id="announce" class="visually-hidden" role="status"></p>
 
     <script type="module" src="src/app.js"></script>
   </body>

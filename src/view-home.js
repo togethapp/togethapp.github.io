@@ -1281,7 +1281,7 @@ function dataHtml() {
             ? `<button type="button" class="button button--small" id="my-shares">${escapeHtml(t('lots.title', { count: lots().length }))}</button>`
             : ''
         }
-        <input type="file" id="import-file" accept="application/json,.json" class="visually-hidden" />
+        <input type="file" id="import-file" accept="application/json,.json" class="visually-hidden" tabindex="-1" aria-hidden="true" />
       </div>
       <p class="muted small">${escapeHtml(
         t(state.remote ? 'home.storedShared' : state.store ? 'home.storedCloud' : 'home.storedLocal'),
