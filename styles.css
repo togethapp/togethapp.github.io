@@ -3613,6 +3613,16 @@ body.playing .toast { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 }
 .loading__bar--title { height: 26px; width: 60%; }
 .loading__bar--short { width: 40%; }
+.loading__block {
+  display: block;
+  height: 88px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+/* The page's own, before the app: it breathes, so that it reads as coming. */
+.loading--start > * { animation: loading-breathe 1.4s ease-in-out infinite alternate; }
+@keyframes loading-breathe { from { opacity: 0.55; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .loading--start > * { animation: none; } }
 @media (prefers-reduced-motion: no-preference) {
   .loading__bar { animation: loading-breathe 1.2s ease-in-out infinite alternate; }
 }

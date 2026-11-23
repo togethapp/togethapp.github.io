@@ -266,3 +266,41 @@ test('a part, run, gets from the app all it takes', async () => {
     }
   }
 });
+
+test('the comments go, and nothing a string, a template or a pattern holds', async () => {
+  const { stripComments } = await import('../tools/bundle.js');
+  const source = [
+    '/** A comment */',
+    "const address = 'https://example.org/a'; // after",
+    '  const page = `',
+    '    <pre>  // kept, it is text',
+    '      /* kept too */ ${count /* gone */ + `${nested}`}</pre>`;',
+    '',
+    '',
+    'const pattern = /\\/\\/[a/]*/g;',
+    'const half = total / 2 / 3;',
+    'function f() {',
+    '  return /x/.test(word);',
+    '}',
+  ].join('\n');
+  const out = stripComments(source);
+  assert.equal(out, [
+    "const address = 'https://example.org/a'; ",
+    'const page = `',
+    '    <pre>  // kept, it is text',
+    '      /* kept too */ ${count   + `${nested}`}</pre>`;',
+    'const pattern = /\\/\\/[a/]*/g;',
+    'const half = total / 2 / 3;',
+    'function f() {',
+    'return /x/.test(word);',
+    '}',
+  ].join('\n'));
+  assert.throws(() => stripComments('const a = `never closed'));
+});
+
+test('the published app carries no comment', async () => {
+  const built = await servedFiles();
+  const app = built['app.js'];
+  assert.ok(!/^\s*\/\*\*/m.test(app), 'no block of explanation left');
+  assert.ok(app.length < 700 * 1024, `dist/app.js weighs ${Math.round(app.length / 1024)} KB`);
+});

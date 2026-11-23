@@ -87,6 +87,148 @@ const LEFTOVER_MODULE = /^\s*(?:import|export)\b/m;
 /** Top-level declarations, used to catch a name defined by two modules. */
 const TOP_LEVEL_DECLARATION = /^(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm;
 
+/**
+ * The code as the browser needs it: no comments, no indentation, no blank
+ * line. The sources are written to be read — a third of the app is
+ * explanation — and a phone on a slow network should not wait for that.
+ *
+ * A small scanner of JavaScript, not a pattern: it knows the strings, the
+ * template literals (and the code inside their `${…}`) and the regular
+ * expressions, so that nothing in them is touched — the HTML of a template
+ * keeps its every space, an address keeps its `//`. Line breaks between
+ * statements are kept, one at least, so that no statement runs into the next.
+ */
+const REGEX_AFTER = new Set([...'(,=:[!&|?{};+-*%<>~^']);
+const REGEX_KEYWORDS = new Set(['return', 'typeof', 'case', 'do', 'else', 'in', 'of', 'new', 'delete', 'void', 'throw', 'instanceof', 'yield', 'await']);
+
+export function stripComments(source) {
+  let out = '';
+  // What we are in: code (`depth` counts its braces, so that the one closing
+  // a template's `${` is told apart), or a template literal.
+  const stack = [{ kind: 'code', depth: 0 }];
+  let lineStart = true;
+  let last = '';
+  let lastWord = '';
+  const emit = (text) => {
+    out += text;
+    const trimmed = text.trimEnd();
+    if (trimmed) last = trimmed[trimmed.length - 1];
+  };
+  const newline = () => {
+    if (!lineStart) out += '\n';
+    lineStart = true;
+  };
+  let i = 0;
+  const n = source.length;
+  while (i < n) {
+    const frame = stack[stack.length - 1];
+    const c = source[i];
+    if (frame.kind === 'template') {
+      const start = i;
+      while (i < n && source[i] !== '`' && !(source[i] === '$' && source[i + 1] === '{')) i += source[i] === '\\' ? 2 : 1;
+      emit(source.slice(start, i));
+      if (source[i] === '`') {
+        emit('`');
+        stack.pop();
+        i += 1;
+      } else if (i < n) {
+        emit('${');
+        stack.push({ kind: 'code', depth: 0 });
+        i += 2;
+      }
+      lineStart = false;
+      lastWord = '';
+      continue;
+    }
+    if (c === '\n') {
+      newline();
+      i += 1;
+      continue;
+    }
+    if ((c === ' ' || c === '\t' || c === '\r') && lineStart) {
+      i += 1;
+      continue;
+    }
+    if (c === '/' && source[i + 1] === '/') {
+      while (i < n && source[i] !== '\n') i += 1;
+      continue;
+    }
+    if (c === '/' && source[i + 1] === '*') {
+      const end = source.indexOf('*/', i + 2);
+      if (end < 0) throw new Error('Cannot strip: a comment is never closed.');
+      const inside = source.slice(i, end + 2);
+      i = end + 2;
+      if (inside.includes('\n')) newline();
+      else if (!lineStart) out += ' ';
+      continue;
+    }
+    lineStart = false;
+    if (c === '"' || c === "'") {
+      const start = i;
+      i += 1;
+      while (i < n && source[i] !== c) {
+        if (source[i] === '\n') throw new Error(`Cannot strip: a string runs past its line, near ${JSON.stringify(source.slice(start, start + 40))}.`);
+        i += source[i] === '\\' ? 2 : 1;
+      }
+      i += 1;
+      emit(source.slice(start, i));
+      lastWord = '';
+      continue;
+    }
+    if (c === '`') {
+      emit('`');
+      stack.push({ kind: 'template' });
+      i += 1;
+      continue;
+    }
+    if (c === '/' && (!last || REGEX_AFTER.has(last) || REGEX_KEYWORDS.has(lastWord))) {
+      const start = i;
+      i += 1;
+      let inClass = false;
+      while (i < n) {
+        const d = source[i];
+        if (d === '\n') throw new Error(`Cannot strip: a regular expression runs past its line, near ${JSON.stringify(source.slice(start, start + 40))}.`);
+        if (d === '\\') {
+          i += 2;
+          continue;
+        }
+        if (d === '[') inClass = true;
+        else if (d === ']') inClass = false;
+        else if (d === '/' && !inClass) break;
+        i += 1;
+      }
+      i += 1;
+      while (i < n && /[a-z]/i.test(source[i])) i += 1;
+      emit(source.slice(start, i));
+      lastWord = '';
+      continue;
+    }
+    if (/[\w$]/.test(c)) {
+      const start = i;
+      while (i < n && /[\w$]/.test(source[i])) i += 1;
+      lastWord = source.slice(start, i);
+      emit(lastWord);
+      continue;
+    }
+    if (c === '{') frame.depth += 1;
+    if (c === '}') {
+      if (frame.depth === 0 && stack.length > 1) {
+        stack.pop();
+        emit('}');
+        i += 1;
+        lastWord = '';
+        continue;
+      }
+      frame.depth -= 1;
+    }
+    emit(c);
+    if (c !== ' ' && c !== '\t') lastWord = '';
+    i += 1;
+  }
+  if (stack.length !== 1) throw new Error('Cannot strip: a template literal or a `${` is never closed.');
+  return out.trimEnd();
+}
+
 const GENERATED_BY = 'Généré par tools/bundle.js — modifiez les sources, pas ce fichier.';
 const GENERATED = '<!-- Generated by tools/bundle.js — edit the sources, not this file. -->';
 
@@ -415,7 +557,8 @@ function partImports(modules, part) {
   return [...names].sort();
 }
 
-const section = (name, code) => `  // ---- src/${name} ${'-'.repeat(Math.max(0, 60 - name.length))}\n${code}`;
+/** One module in a bundle, stripped once every check has read it as written. */
+const section = (name, code) => `// ---- src/${name} ${'-'.repeat(Math.max(0, 60 - name.length))}\n${stripComments(code)}`;
 
 /** Every module in one script, the parts included: the single-file builds. */
 async function buildScript() {
@@ -486,7 +629,7 @@ export async function servedFiles() {
         throw new Error(`Cannot bundle: src/${module.name} must be one object, \`export const ${language.symbol} = {…};\`, and nothing else.`);
       }
       files[`lang-${language.lang}.js`] =
-        `// ${GENERATED_BY}\n${module.code.replace(opening, `(globalThis.TOGETHER_STRINGS ||= {}).${language.lang} = {`)}\n`;
+        `// ${GENERATED_BY}\n${stripComments(module.code).replace(opening, `(globalThis.TOGETHER_STRINGS ||= {}).${language.lang} = {`)}\n`;
       continue;
     }
     if (PART_OF.has(module.name)) continue;
