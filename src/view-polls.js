@@ -49,6 +49,7 @@ import { pollLink, wasDeleted } from './remote.js';
 import { bindTalk, talkHtml, talkSumHtml } from './view-reacts.js';
 import { swipeable } from './swipe.js';
 import { t, getLanguage } from './i18n.js';
+import { eventNewsHtml } from './view-news.js';
 
 /* ------------------------------------------------------------------ polls --- */
 
@@ -375,6 +376,7 @@ export function pollView(poll, { solo = false } = {}) {
       // then its date, to change.
       solo ? '' : eventHtml(poll, { guest })
     }
+    ${solo || (!poll.date && !isActivity(poll, everything())) ? '' : eventNewsHtml(poll)}
 
     ${guest ? soloDateHtml(poll) : poll.date || fixed ? dateCardHtml(poll, fixed) : ''}
 

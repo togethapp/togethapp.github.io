@@ -519,6 +519,20 @@ Avec plusieurs groupes, l'app ne mélange plus tout.
   idées — chaque section titrée par sa sorte, avec « Tout voir » vers
   l'onglet, déjà réglé sur ce groupe. Repliée en bas :
   « Voir qui doit quoi », les prénoms de ce groupe et ce qui les attend.
+- **Quoi de neuf**, sur la page d'un groupe et sur celle d'un événement : ce
+  qui a changé depuis votre dernier passage sur cette page — qui a répondu à
+  un sondage, la date retenue, les lignes ajoutées et cochées (« coché : Pain,
+  Lait »), les dépenses notées et par qui, les remboursements, les idées, les
+  manches jouées, les mots et les réactions —, une ligne par élément, qui
+  l'ouvre. Vos propres votes, mots et réactions n'y sont pas ; une coche ne
+  dit pas qui l'a faite, elle y est donc toujours. Une page jamais ouverte
+  regarde les 7 derniers jours. Sur l'onglet **Groupes**, chaque groupe dit
+  combien de nouveautés l'attendent (« 3 nouveautés »). Rien de nouveau n'est
+  stocké : chaque ligne, vote, dépense, idée, mot porte déjà son heure ; seul
+  le moment du dernier passage est gardé sur l'appareil (`prefs.seen`), et
+  reste le même pendant la visite, pour qu'une page redessinée par une
+  arrivée ne vide pas son fil. Logique pure dans `src/news.js`, écran dans
+  `src/view-news.js` ; suite `nouveautes`.
 - **Retour** ramène là d'où l'on vient : une liste ouverte depuis la page d'un
   groupe revient à cette page, un sondage ouvert depuis l'Accueil revient à
   l'Accueil, et l'onglet allumé reste celui d'où l'on est parti. Ouverte par un

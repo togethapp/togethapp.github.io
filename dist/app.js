@@ -567,6 +567,7 @@ id: uid('r'),
 scores: normaliseScores(game, scores),
 meta,
 note,
+at: Date.now(),
 };
 return { ...game, rounds: [...game.rounds, round], updatedAt: Date.now() };
 }
@@ -3510,6 +3511,116 @@ return descendantsOf(event, all).filter(
 );
 }
 
+// ---- src/news.js -----------------------------------------------------
+const NEWS_NAMED = 3;
+function factsOf(document_, since, me = '') {
+if (!document_ || (document_.updatedAt || 0) <= since) return null;
+const kind = kindOf(document_);
+const mine = (name) => Boolean(me) && sameName(name) === sameName(me);
+const fresh = (document_.createdAt || 0) > since;
+const from = fresh ? document_.createdAt || 0 : since;
+const facts = [];
+let latest = 0;
+const seen = (at) => {
+if (at > latest) latest = at;
+};
+if (fresh) {
+facts.push({ type: 'new' });
+seen(document_.createdAt);
+}
+if (kind === 'list') {
+const items = document_.items || [];
+const added = items.filter((item) => (item.createdAt || 0) > from);
+const ticked = items.filter((item) => item.done && (item.updatedAt || 0) > since);
+added.forEach((item) => seen(item.createdAt));
+ticked.forEach((item) => seen(item.updatedAt));
+if (added.length) facts.push({ type: 'added', count: added.length });
+if (ticked.length) {
+facts.push({ type: 'ticked', count: ticked.length, texts: ticked.slice(0, NEWS_NAMED).map((item) => item.text) });
+}
+}
+if (kind === 'poll') {
+const names = [];
+for (const [key, vote] of Object.entries(document_.votes || {})) {
+if (!vote?.v || (vote.at || 0) <= since) continue;
+const person = (document_.people || []).find((one) => one.id === key.split('|')[0]);
+if (!person || mine(person.name) || names.some((name) => sameName(name) === sameName(person.name))) continue;
+names.push(person.name);
+seen(vote.at);
+}
+if (names.length) facts.push({ type: 'answered', names });
+const choices = (document_.options || []).filter((option) => (option.createdAt || 0) > from);
+choices.forEach((option) => seen(option.createdAt));
+if (choices.length) facts.push({ type: 'choices', count: choices.length });
+const closedAt = document_.closedAt || 0;
+if (closedAt > since && closedAt !== document_.createdAt) {
+seen(closedAt);
+facts.push(document_.date ? { type: 'dated', date: document_.date, at: document_.at || null } : { type: 'closed' });
+}
+}
+if (kind === 'spend') {
+const lines = (document_.lines || []).filter((line) => (line.createdAt || 0) > from);
+lines.forEach((line) => seen(line.createdAt));
+const spent = lines.filter((line) => !line.repay);
+const repaid = lines.filter((line) => line.repay);
+if (spent.length) {
+const names = [];
+for (const line of spent) {
+const name = (document_.people || []).find((person) => person.id === line.by)?.name;
+if (name && !names.some((other) => sameName(other) === sameName(name))) names.push(name);
+}
+facts.push({ type: 'spent', count: spent.length, cents: spent.reduce((sum, line) => sum + (line.amount || 0), 0), names });
+}
+if (repaid.length) facts.push({ type: 'repaid', count: repaid.length });
+}
+if (kind === 'board') {
+const cards = (document_.cards || []).filter((card) => (card.createdAt || 0) > from);
+cards.forEach((card) => seen(card.createdAt));
+if (cards.length) facts.push({ type: 'cards', count: cards.length });
+}
+if (kind === 'game') {
+const rounds = (document_.rounds || []).filter((round) => (round.at || 0) > from);
+rounds.forEach((round) => seen(round.at));
+if (rounds.length) facts.push({ type: 'rounds', count: rounds.length });
+}
+const words = Object.values(document_.comments || {})
+.filter((cell) => cell?.t && typeof cell.made === 'number' && cell.made > since && !mine(cell.n))
+.sort((a, b) => a.made - b.made);
+if (words.length) {
+const last = words.at(-1);
+seen(last.made);
+facts.push({ type: 'words', count: words.length, name: last.n, text: last.t });
+}
+const reactions = Object.values(document_.reacts || {}).filter((cell) => cell?.e && (cell.at || 0) > since && !mine(cell.n));
+if (reactions.length) {
+reactions.forEach((cell) => seen(cell.at));
+facts.push({ type: 'reacts', count: reactions.length });
+}
+return facts.length ? { latest, facts } : null;
+}
+function newsOf(documents, since, { me = '', here = null } = {}) {
+const entries = [];
+for (const document_ of documents || []) {
+if (!document_ || document_.archivedAt || document_.template) continue;
+const found = factsOf(document_, since, typeof me === 'function' ? me(document_) : me);
+const facts = (found?.facts || []).filter((fact) => !(fact.type === 'new' && document_.id === here));
+if (facts.length) entries.push({ doc: document_, at: found.latest || document_.updatedAt || 0, facts });
+}
+return entries.sort((a, b) => b.at - a.at || (a.doc.id < b.doc.id ? -1 : 1));
+}
+function newsKey(scope, id) {
+return `${scope}:${id}`;
+}
+const NEWS_FIRST_LOOK = 7 * 24 * 60 * 60 * 1000;
+const NEWS_KEPT = 200;
+function seenWith(seen, key, now = Date.now()) {
+const next = { ...(seen && typeof seen === 'object' ? seen : {}), [key]: now };
+const keys = Object.keys(next);
+if (keys.length <= NEWS_KEPT) return next;
+const kept = keys.sort((a, b) => next[b] - next[a]).slice(0, NEWS_KEPT);
+return Object.fromEntries(kept.map((one) => [one, next[one]]));
+}
+
 // ---- src/ics.js ------------------------------------------------------
 function icsEscape(text) {
 return String(text ?? '')
@@ -5386,6 +5497,7 @@ poll.people.length && !fixed
     ${
 solo ? '' : eventHtml(poll, { guest })
 }
+    ${solo || (!poll.date && !isActivity(poll, everything())) ? '' : eventNewsHtml(poll)}
 
     ${guest ? soloDateHtml(poll) : poll.date || fixed ? dateCardHtml(poll, fixed) : ''}
 
@@ -12626,6 +12738,124 @@ on('data-menu-cancel', () => {});
 dialog.showModal();
 }
 
+// ---- src/view-news.js ------------------------------------------------
+const NEWS_SHOWN = 5;
+let newsVisit = null;
+function visitSince(key) {
+const now = Date.now();
+if (newsVisit?.key !== key) {
+const last = state.prefs.seen?.[key];
+newsVisit = { key, since: typeof last === 'number' ? last : now - NEWS_FIRST_LOOK, first: typeof last !== 'number' };
+}
+if (now - (state.prefs.seen?.[key] || 0) > 5000) {
+state.prefs.seen = seenWith(state.prefs.seen, key, now);
+savePrefs({ seen: state.prefs.seen });
+}
+return newsVisit;
+}
+function endNewsVisit(route) {
+if (!newsVisit) return;
+const [scope, id] = newsVisit.key.split(':');
+const still = (scope === 'group' && route.name === 'group' && route.id === id)
+|| (scope === 'event' && route.name === 'poll' && route.id === id);
+if (!still) newsVisit = null;
+}
+function agoText(at) {
+const minutes = Math.round((Date.now() - at) / 60000);
+try {
+const format = new Intl.RelativeTimeFormat(getLanguage(), { numeric: 'auto' });
+if (minutes < 60) return format.format(-Math.max(1, minutes), 'minute');
+if (minutes < 24 * 60) return format.format(-Math.round(minutes / 60), 'hour');
+return format.format(-Math.round(minutes / (24 * 60)), 'day');
+} catch {
+return '';
+}
+}
+function factText(fact, document_) {
+switch (fact.type) {
+case 'new': return t('news.new');
+case 'added': return t('news.added', { count: fact.count });
+case 'ticked': {
+const what = fact.texts.join(', ') + (fact.count > fact.texts.length ? '…' : '');
+return t('news.ticked', { count: fact.count, what });
+}
+case 'answered': return t('news.answered', { count: fact.names.length, names: fact.names.join(', ') });
+case 'choices': return t('news.choices', { count: fact.count });
+case 'dated': return t('news.dated', { day: [formatNewsDay(fact.date), fact.at].filter(Boolean).join(' · ') });
+case 'closed': return t('news.closed');
+case 'spent': {
+const amount = money(fact.cents, document_);
+return fact.names.length
+? t('news.spentBy', { count: fact.count, amount, names: fact.names.join(', ') })
+: t('news.spent', { count: fact.count, amount });
+}
+case 'repaid': return t('news.repaid', { count: fact.count });
+case 'cards': return t('news.cards', { count: fact.count });
+case 'rounds': return t('news.rounds', { count: fact.count });
+case 'words': {
+const text = fact.text.length > 60 ? `${fact.text.slice(0, 59)}…` : fact.text;
+return fact.count > 1
+? t('news.wordsMore', { name: fact.name, text, count: fact.count - 1 })
+: t('news.words', { name: fact.name, text });
+}
+case 'reacts': return t('news.reacts', { count: fact.count });
+default: return '';
+}
+}
+function formatNewsDay(day) {
+const [year, month, date] = String(day).split('-').map(Number);
+try {
+return new Date(year, month - 1, date).toLocaleDateString(getLanguage(), { weekday: 'long', day: 'numeric', month: 'short' });
+} catch {
+return day;
+}
+}
+function newsRowHtml(entry) {
+const meta = entry.facts.map((fact) => factText(fact, entry.doc)).filter(Boolean).join(' · ');
+return `
+    <button type="button" class="game-card" data-goto="${escapeHtml(documentHref(entry.doc))}">
+      <span class="game-card__title">${escapeHtml(documentTitle(entry.doc))}</span>
+      <span class="game-card__meta">${escapeHtml(kindLabel(entry.doc))} · ${escapeHtml(agoText(entry.at))}</span>
+      <span class="game-card__meta">${escapeHtml(meta)}</span>
+    </button>`;
+}
+function newsSectionHtml(key, documents, here = null) {
+const visit = visitSince(key);
+const entries = newsOf(documents, visit.since, { me: myNameFor, here });
+const since = visit.first ? t('news.sinceWeek') : t('news.since', { when: agoText(visit.since) });
+const rows = entries.slice(0, NEWS_SHOWN).map(newsRowHtml).join('');
+const rest = entries.slice(NEWS_SHOWN);
+return `
+    <section class="section stack stack--tight" id="news">
+      <div class="section__head"><h2>${escapeHtml(t('news.title'))}</h2></div>
+      <p class="muted small">${escapeHtml(since)}</p>
+      ${
+entries.length
+? `<div class="game-list">${rows}</div>
+             ${
+rest.length
+? `<details class="news-more">
+                      <summary class="muted small">${escapeHtml(t('news.more', { count: rest.length }))}</summary>
+                      <div class="game-list">${rest.map(newsRowHtml).join('')}</div>
+                    </details>`
+: ''
+}`
+: `<p class="muted small">${escapeHtml(t('news.nothing'))}</p>`
+}
+    </section>`;
+}
+function groupNewsHtml(group) {
+return newsSectionHtml(newsKey('group', group.id), everything().filter((one) => inGroup(one, group.id)));
+}
+function eventNewsHtml(poll) {
+return newsSectionHtml(newsKey('event', poll.id), [poll, ...descendantsOf(poll, everything())], poll.id);
+}
+function groupNewsCount(group) {
+const last = state.prefs.seen?.[newsKey('group', group.id)];
+if (typeof last !== 'number') return 0;
+return newsOf(everything().filter((one) => inGroup(one, group.id)), last, { me: myNameFor }).length;
+}
+
 // ---- src/view-account.js ---------------------------------------------
 let awaiting = '';
 let lastSync = 0;
@@ -13572,6 +13802,7 @@ return `
 }
 function groupBoardHtml(group) {
 const counts = groupCounts(state, group.id);
+const fresh = groupNewsCount(group);
 const tile = (value, label, goto) => `
     <button type="button" class="tile" data-group-tile="${escapeHtml(group.id)}" data-tile-goto="${goto}"
             aria-label="${escapeHtml(`${group.name} — ${value} ${label}`)}">
@@ -13601,7 +13832,9 @@ group.admits === false
       <p class="muted small">
         ${escapeHtml(t('dash.peopleCount', { count: counts.people }))}${
 counts.at ? ` · ${escapeHtml(formatDate(counts.at))}` : ''
-}${counts.late ? ` · <span class="late">${escapeHtml(t('lists.late', { count: counts.late }))}</span>` : ''}
+}${counts.late ? ` · <span class="late">${escapeHtml(t('lists.late', { count: counts.late }))}</span>` : ''}${
+fresh ? ` · <span class="pill">${escapeHtml(t('news.badge', { count: fresh }))}</span>` : ''
+}
       </p>
       ${rosterLineHtml(group)}
     </div>`;
@@ -13865,6 +14098,7 @@ return `
       + ${escapeHtml(t('create.title'))}
     </button>
     ${rosterFirst ? roster : ''}
+    ${groupNewsHtml(group)}
     ${sections || `<p class="muted small">${escapeHtml(t('group.nothing'))}</p>`}
     ${rosterFirst ? '' : roster}
     ${groupPeopleHtml(group)}`;
@@ -17230,6 +17464,7 @@ window.addEventListener('hashchange', onHashChange);
 }
 function onHashChange() {
 followTrail();
+endNewsVisit(route());
 if (!/^new/.test(route().name)) state.newEventLink = null;
 state.editingRoundId = null;
 state.listFilter = null;

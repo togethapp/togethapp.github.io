@@ -41,7 +41,7 @@ RPC `security definer` ; la table n'est jamais exposée.
   `app.js` depuis leurs fonctions seulement ; textes dans `src/lang-fr.js` et
   `src/lang-en.js` (ajouter les deux ; pluriel : `{count|ligne|lignes}`),
   `t()` dans `src/i18n.js` ; `src/remote.js` : appels à la base ; `polls.js`,
-  `lists.js`, `spends.js`, `ideas.js`, `search.js`, `reacts.js`, `model.js` (parties), `arcade.js` (jeux joués dans l'app, `#/arcade/<id>`) : la logique pure, testée.
+  `lists.js`, `spends.js`, `ideas.js`, `search.js`, `reacts.js`, `news.js` (« Quoi de neuf »), `model.js` (parties), `arcade.js` (jeux joués dans l'app, `#/arcade/<id>`) : la logique pure, testée.
 - `tools/bundle.js` construit `dist/*.html` (fichier unique), l'app en ligne
   (`dist/app.js`, une langue par fichier `dist/lang-*.js`, et `dist/holo.js`,
   `dist/arcade.js` chargés à l'ouverture via `src/later.js`, liste `PARTS`) et
