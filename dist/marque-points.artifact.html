@@ -31699,6 +31699,8 @@ function setSolo(on) {
   if (tabs) tabs.hidden = on;
   const search = document.getElementById('search-open');
   if (search) search.hidden = on;
+  const skip = document.querySelector('.skip-link');
+  if (skip) skip.hidden = on;
   const brand = document.querySelector('.app-bar__brand');
   if (!brand) return;
   if (on) {

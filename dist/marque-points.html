@@ -6,11 +6,11 @@
     <!-- Only the app's own scripts run: its files, and the script below named
          by its hash. Written by tools/bundle.js; first, since it only covers
          what comes after it. -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-xL6BnKSg/Z7OlQSUuzXYIEIOfOwsdu5060n1Q0NHG9U='; object-src 'none'; base-uri 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-zmOxWxllqScjJ47K9YIsThamJXWwjvZv/dpQwZFvgwI=' 'sha256-g1S9zJ7zIeN6refcyFA4xRTkzKPDS4haMiI54RJ+8gs='; object-src 'none'; base-uri 'none'" />
     <!-- Kept in step with sw.js by tools/bundle.js, and shown in the app so
          anyone can tell which copy of it they are looking at. -->
     <meta name="app-version" content="v15" />
-    <meta name="app-build" content="e5495621" />
+    <meta name="app-build" content="59f7c026" />
     <!-- viewport-fit=cover : sans lui, iOS ne remplit jamais env(safe-area-inset-*),
          et la barre du bas colle contre la zone de la barre d'accueil au lieu de
          s'arrêter au-dessus. -->
@@ -31757,6 +31757,8 @@ function setSolo(on) {
   if (tabs) tabs.hidden = on;
   const search = document.getElementById('search-open');
   if (search) search.hidden = on;
+  const skip = document.querySelector('.skip-link');
+  if (skip) skip.hidden = on;
   const brand = document.querySelector('.app-bar__brand');
   if (!brand) return;
   if (on) {
