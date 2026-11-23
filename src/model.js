@@ -66,6 +66,8 @@ export function addRound(game, { scores, meta = null, note = '' }) {
     scores: normaliseScores(game, scores),
     meta,
     note,
+    // When it was played, for what is new in the group (news.js).
+    at: Date.now(),
   };
   return { ...game, rounds: [...game.rounds, round], updatedAt: Date.now() };
 }

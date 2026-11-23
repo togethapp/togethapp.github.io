@@ -41,6 +41,7 @@ import {
   refreshGroup, setGroupFilter, shownDocs, verifyGroups,
 } from './view-groups.js';
 import { bindFlows } from './view-flows.js';
+import { endNewsVisit } from './view-news.js';
 import { bindAccount, privacyView, syncAccount } from './view-account.js';
 import { bindInstall, startInstall } from './view-install.js';
 import { applyLook, bindLook, lookIsDark, refreshSky } from './view-look.js';
@@ -1856,6 +1857,7 @@ function startScreen() {
 
 function onHashChange() {
   followTrail();
+  endNewsVisit(route());
   // An event chosen for a form holds for that form only.
   if (!/^new/.test(route().name)) state.newEventLink = null;
   state.editingRoundId = null;

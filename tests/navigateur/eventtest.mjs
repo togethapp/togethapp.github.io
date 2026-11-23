@@ -62,7 +62,7 @@ check('et ramène à l’événement', /Annecy · .*12 oct/.test(await text(`[da
 
 await page.click(`[data-goto="#/poll/${poll.id}"]`);
 await page.waitForSelector('#event-spend');
-check('revenu au sondage, la liste y est', (await page.locator('.section .game-card[data-goto^="#/list/"]').count()) === 1);
+check('revenu au sondage, la liste y est', (await page.locator('#event-parts .game-card[data-goto^="#/list/"]').count()) === 1);
 check('et il ne reste que le compte à ouvrir', (await page.locator('#event-list').count()) === 0);
 
 await page.click('#event-spend');
@@ -72,8 +72,8 @@ check('le compte aussi ramène à l’événement', (await page.locator(`[data-g
 await page.click(`[data-goto="#/poll/${poll.id}"]`);
 await page.waitForSelector('#poll-day', { state: 'attached' });
 check('l’événement montre la liste et le compte',
-  (await page.locator('.section .game-card[data-goto^="#/list/"]').count()) === 1 &&
-    (await page.locator('.section .game-card[data-goto^="#/spend/"]').count()) === 1);
+  (await page.locator('#event-parts .game-card[data-goto^="#/list/"]').count()) === 1 &&
+    (await page.locator('#event-parts .game-card[data-goto^="#/spend/"]').count()) === 1);
 check('et plus rien à préparer', (await page.locator('#event-list, #event-spend').count()) === 0);
 
 /* ---- 3. ça tient au rechargement ---------------------------------------- */

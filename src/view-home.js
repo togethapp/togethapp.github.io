@@ -24,6 +24,7 @@ import {
   accountHtml, accountNeededHtml, accountOfferHtml, accountToken, leaveWithAccount, syncAccount,
 } from './view-account.js';
 import { openActivityDialog, openActivityPicker, unblockedHtml } from './view-flows.js';
+import { groupNewsCount, groupNewsHtml } from './view-news.js';
 import { purchasesToWrite } from './flows.js';
 import { distinctNames } from './people.js';
 import { renameAcross } from './view-people.js';
@@ -497,6 +498,7 @@ function byGroupHtml() {
 
 function groupBoardHtml(group) {
   const counts = groupCounts(state, group.id);
+  const fresh = groupNewsCount(group);
   const tile = (value, label, goto) => `
     <button type="button" class="tile" data-group-tile="${escapeHtml(group.id)}" data-tile-goto="${goto}"
             aria-label="${escapeHtml(`${group.name} — ${value} ${label}`)}">
@@ -528,7 +530,9 @@ function groupBoardHtml(group) {
       <p class="muted small">
         ${escapeHtml(t('dash.peopleCount', { count: counts.people }))}${
           counts.at ? ` · ${escapeHtml(formatDate(counts.at))}` : ''
-        }${counts.late ? ` · <span class="late">${escapeHtml(t('lists.late', { count: counts.late }))}</span>` : ''}
+        }${counts.late ? ` · <span class="late">${escapeHtml(t('lists.late', { count: counts.late }))}</span>` : ''}${
+          fresh ? ` · <span class="pill">${escapeHtml(t('news.badge', { count: fresh }))}</span>` : ''
+        }
       </p>
       ${rosterLineHtml(group)}
     </div>`;
@@ -847,6 +851,7 @@ export function groupView(group) {
       + ${escapeHtml(t('create.title'))}
     </button>
     ${rosterFirst ? roster : ''}
+    ${groupNewsHtml(group)}
     ${sections || `<p class="muted small">${escapeHtml(t('group.nothing'))}</p>`}
     ${rosterFirst ? '' : roster}
     ${groupPeopleHtml(group)}`;

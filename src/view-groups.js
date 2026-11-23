@@ -51,7 +51,7 @@ export function replaceAny(next) {
 }
 
 /** What a document is, in a word: « Liste », « Sondage »… — an event says so. */
-function kindLabel(document_) {
+export function kindLabel(document_) {
   if (isEventDoc(document_)) return t('chain.kind.event');
   return t(`chain.kind.${kindOf(document_) || 'game'}`);
 }
