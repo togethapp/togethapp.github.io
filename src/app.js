@@ -16,7 +16,7 @@ import { connectStore } from './cloud.js';
 import { backTokenFrom, createRemote, joinFrom } from './remote.js';
 import { readCode } from './lock.js';
 import { remoteConfig } from './config.js';
-import { detectLanguage, getLanguage, setLanguage, t } from './i18n.js';
+import { detectLanguage, getLanguage, loadLanguage, setLanguage, t } from './i18n.js';
 import {
   adoptPoll, adoptSpend, bindNewPoll, bindPoll, eventTagHtml, getPoll, getSpend, newPollView, pollCardHtml,
   pollsView, pollTitle, pollView, pullPoll, pullSpend, watchPoll, watchSpend, whenAbsent,
@@ -43,17 +43,17 @@ import {
 import { bindFlows } from './view-flows.js';
 import { bindAccount, privacyView, syncAccount } from './view-account.js';
 import { bindInstall, startInstall } from './view-install.js';
-import { bindHolo } from './view-holo.js';
 import { applyLook, bindLook, lookIsDark, refreshSky } from './view-look.js';
 import { bindPullToRefresh, commitPendingDelete, swipeable } from './swipe.js';
 import { prefillOf, withoutPrefill } from './prefill.js';
 import { createLive, docTopic, groupTopic, liveUrl } from './live.js';
 import { bindNotify, syncPush, tell, tellKnock } from './view-notify.js';
-import { bindGroup, bindOverview, groupsView, groupView, openCreateMenu, overviewView, settingsView } from './view-home.js';
+import { bindGroup, bindHoloPlace, bindOverview, groupsView, groupView, openCreateMenu, overviewView, settingsView } from './view-home.js';
 import { backView, bindBack, bindJoin, joinView, showsGate, watchGate, watchPending } from './view-join.js';
 import { personView, renameEverywhere, statsView } from './view-people.js';
 import { bindSearch, searchView } from './view-search.js';
-import { arcadeHtml, arcadeView, bindArcade, bindArcadeRanking } from './view-arcade.js';
+import { arcadeHtml, bindArcadeRanking } from './view-arcade.js';
+import { laterPart } from './later.js';
 import { moveInto, takeMove } from './move.js';
 
 export const view = document.getElementById('view');
@@ -923,7 +923,14 @@ function bindChrome() {
 }
 
 /** Speak `lang` from now on, on this device: chosen in Réglages (view-look.js). */
-export function switchLanguage(lang) {
+export async function switchLanguage(lang) {
+  try {
+    await loadLanguage(lang);
+  } catch {
+    flash(t('lang.unreachable'), 'error');
+    render();
+    return;
+  }
   setLanguage(lang);
   state.prefs = { ...state.prefs, lang: getLanguage() };
   savePrefs(state.prefs);
@@ -1302,13 +1309,31 @@ function draw() {
     bindGame(game);
   } else if (current.name === 'arcade') {
     stopWatching();
-    const page = arcadeView(current.id);
-    if (!page) {
-      navigate('#/games');
-      return;
+    // The games are a part of their own, fetched the first time one is
+    // opened (later.js): the page's shape meanwhile, then the game.
+    const part = laterPart('arcade', () => import('./view-arcade-play.js'));
+    if (!part.module) {
+      view.innerHTML = `<div class="spread page-head">${backButtonHtml('#/games')}</div>${loadingHtml(t('later.loading'))}`;
+      const id = current.id;
+      part.coming.then(
+        () => {
+          if (route().name === 'arcade' && route().id === id) render();
+        },
+        () => {
+          if (route().name !== 'arcade' || route().id !== id) return;
+          flash(t('later.failed'), 'error');
+          navigate('#/games');
+        },
+      );
+    } else {
+      const page = part.module.arcadeView(current.id);
+      if (!page) {
+        navigate('#/games');
+        return;
+      }
+      view.innerHTML = page;
+      part.module.bindArcade(current.id);
     }
-    view.innerHTML = page;
-    bindArcade(current.id);
   } else if (current.name === 'person') {
     stopWatching();
     view.innerHTML = personView(current.who);
@@ -1369,7 +1394,7 @@ function draw() {
   } else {
     view.innerHTML = overviewView();
     bindOverview();
-    bindHolo();
+    bindHoloPlace();
     if (state.remote && groups().some((group) => group.admits !== false)) watchGate();
     else stopWatching();
   }
@@ -1818,13 +1843,18 @@ function connectToStore() {
   });
 }
 
-setLanguage(state.prefs.lang || detectLanguage());
-applyStaticText();
 applyLook();
-bindChrome();
-bindPullToRefresh();
-followTrail();
-window.addEventListener('hashchange', () => {
+
+/** The screen's frame and its first drawing, once the words are here (start()). */
+function startScreen() {
+  applyStaticText();
+  bindChrome();
+  bindPullToRefresh();
+  followTrail();
+  window.addEventListener('hashchange', onHashChange);
+}
+
+function onHashChange() {
   followTrail();
   // An event chosen for a form holds for that form only.
   if (!/^new/.test(route().name)) state.newEventLink = null;
@@ -1835,7 +1865,7 @@ window.addEventListener('hashchange', () => {
   if (state.flash?.shownAt) state.flash = null;
   commitPendingDelete();
   renderMoving();
-});
+}
 
 /**
  * The screens a tab shows: going from one to a page under it slides forward,
@@ -1978,14 +2008,27 @@ export async function lookForUpdate() {
   return 'current';
 }
 
-adoptOlderGames();
-offerMeInForms();
-startInstall();
-render();
-void welcomeMove(arrival);
+/**
+ * Everything that draws or talks, once the language in use is here: the
+ * published app fetches its words beside it (i18n.js, loadLanguage), and a
+ * screen drawn before would show keys instead of words. Served from src/, or
+ * in the single-file build, they are already here.
+ */
+function start() {
+  startScreen();
+  adoptOlderGames();
+  offerMeInForms();
+  startInstall();
+  render();
+  void welcomeMove(arrival);
+  startTalking();
+  connectToStore();
+}
+
 // What happened while the app was closed, learnt on opening it rather than left
 // waiting for someone to press a button: a knock answered, a key cut off.
-if (state.remote) {
+function startTalking() {
+  if (!state.remote) return;
   tellTheNotifier();
   startLive();
   (async () => {
@@ -2019,5 +2062,15 @@ if (state.remote) {
     if (document.visibilityState === 'visible') void catchUpQuietly();
   }, 5000);
 }
-connectToStore();
+
+const firstLanguage = state.prefs.lang || detectLanguage();
+// Its words could not be fetched (offline on a first visit): French, the
+// app's own, then whatever is here — a screen of keys beats a blank one.
+loadLanguage(firstLanguage)
+  .catch(() => loadLanguage('fr'))
+  .catch(() => 'fr')
+  .then((lang) => {
+    setLanguage(lang);
+    start();
+  });
 registerOfflineCache();

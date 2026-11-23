@@ -4,20 +4,12 @@
  * which grows with every apple until it bites its tail.
  *
  * Pure logic, tested: the maze, the moves, the ghosts' minds, the score. The
- * screen (view-arcade.js) only draws what this says and passes the fingers on.
+ * screen (view-arcade-play.js) only draws what this says and passes the fingers on.
  * Positions are in tiles, a whole number being the middle of one; time in
  * seconds. Randomness is passed in, so a test replays the same game.
  */
 
-/** The games of the arcade, in the order shown. */
-export const ARCADE_GAMES = [{ id: 'glouton' }, { id: 'snake' }];
-
-/** How hard a game is, chosen before it starts; each keeps its own record. */
-export const ARCADE_MODES = ['easy', 'normal', 'hard'];
-
-export function arcadeMode(mode) {
-  return ARCADE_MODES.includes(mode) ? mode : 'normal';
-}
+import { arcadeMode } from './arcade-games.js';
 
 /**
  * The maze. `#` wall, `.` pellet, `o` big pellet, `-` the ghosts' door,

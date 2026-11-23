@@ -3079,6 +3079,9 @@ body:not(.solo) .view {
   font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 }
 
+/* Its place, while the 3D view is fetched (view-home.js): as tall as it will be. */
+.holo--waiting { height: clamp(230px, 36vh, 340px); }
+
 .holo__canvas {
   display: block;
   width: 100%;

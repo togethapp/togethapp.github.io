@@ -38,13 +38,17 @@ RPC `security definer` ; la table n'est jamais exposée.
 - `src/app.js` : routeur, rendu, relèves ; `src/view-*.js` : un écran chacun
   (accueil, entrée dans un groupe, personnes, sondages, listes, comptes, idées,
   parties, groupes, recherche), qui rappellent
-  `app.js` depuis leurs fonctions seulement ; `src/i18n.js` : tous les textes
-  (FR et EN, ajouter les deux ; pluriel : `{count|ligne|lignes}`) ; `src/remote.js` : appels à la base ; `polls.js`,
+  `app.js` depuis leurs fonctions seulement ; textes dans `src/lang-fr.js` et
+  `src/lang-en.js` (ajouter les deux ; pluriel : `{count|ligne|lignes}`),
+  `t()` dans `src/i18n.js` ; `src/remote.js` : appels à la base ; `polls.js`,
   `lists.js`, `spends.js`, `ideas.js`, `search.js`, `reacts.js`, `model.js` (parties), `arcade.js` (jeux joués dans l'app, `#/arcade/<id>`) : la logique pure, testée.
-- `tools/bundle.js` construit `dist/*.html` et les deux fonctions
-  (`supabase/functions/agenda/index.ts`, `…/notifier/index.ts`), et tamponne
-  `sw.js`/`index.html`. Liste explicite `MODULES` : un nouveau module
-  s'y ajoute, et dans `SHELL` de `sw.js`. Pas d'import renommé (`as`), pas deux
+- `tools/bundle.js` construit `dist/*.html` (fichier unique), l'app en ligne
+  (`dist/app.js`, une langue par fichier `dist/lang-*.js`, et `dist/holo.js`,
+  `dist/arcade.js` chargés à l'ouverture via `src/later.js`, liste `PARTS`) et
+  les deux fonctions (`supabase/functions/agenda/index.ts`, `…/notifier/index.ts`),
+  et tamponne `sw.js`/`index.html`. `index.html` charge `dist/`, pas `src/` :
+  rebâtir pour voir un changement. Liste explicite `MODULES` : un nouveau
+  module s'y ajoute (pas dans `SHELL` de `sw.js`, qui garde les fichiers de `dist/`). Pas d'import renommé (`as`), pas deux
   noms identiques au niveau supérieur de deux modules (tout finit dans une portée).
 - Rappels de la veille : `.github/workflows/rappels.yml` (toutes les heures)
   → `tools/rappels.js` → `notifier` → `marque_points_push_reminders`.

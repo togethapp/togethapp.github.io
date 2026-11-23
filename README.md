@@ -994,8 +994,25 @@ PORT=3000 npm start  # autre port
 python3 -m http.server 8080
 ```
 
-Passer par `http://` est ici nécessaire : les modules ES séparés ne se chargent
-pas depuis un `file://` — c'est précisément ce que le fichier unique résout.
+La page servie (`index.html`, celle qui est en ligne) charge l'app
+**construite** : après une modification dans `src/`, relancer `npm run bundle`
+puis recharger. Elle charge, dans l'ordre où l'on en a besoin :
+
+- `dist/app.js` — tous les modules en un seul fichier : une requête au lieu
+  d'une par module, ce qui compte surtout à la toute première ouverture sur un
+  réseau lent ;
+- `dist/lang-fr.js` **ou** `dist/lang-en.js` — la langue utilisée seulement,
+  demandée par `index.html` en même temps que l'app ; l'autre est chargée si on
+  la choisit dans Réglages (`loadLanguage`, `src/i18n.js`) ;
+- `dist/holo.js` (la vue 3D de l'Accueil) et `dist/arcade.js` (les jeux de
+  l'arcade) — seulement quand on les ouvre (`src/later.js`). La place de la 3D
+  est gardée pendant qu'elle arrive, pour que l'Accueil ne saute pas.
+
+Le service worker garde ensuite tous ces fichiers, pour le hors-ligne. Une
+pièce chargée plus tard s'atteint seulement par `import('./module.js')` dans
+`laterPart()` ; elle se déclare dans `PARTS` (`tools/bundle.js`), qui refuse
+qu'un module de l'app l'importe directement. `tests/navigateur/chargement.mjs`
+vérifie ce qui est réellement téléchargé.
 
 Pour jouer avec le téléphone pendant que l'ordinateur sert l'appli, ouvrez
 `http://<ip-locale-de-l-ordinateur>:8080` depuis le même réseau Wi-Fi.
@@ -1079,7 +1096,11 @@ src/games.js      définition des jeux (presets) et de leurs compteurs
 src/helpers.js    arithmétique du compteur de cartes
 src/tarot.js      calcul d'une donne de Tarot, contrat par contrat
 src/arcade.js     les jeux joués dans l'app (Glouton, Snake) : règles, mouvements, score
-src/view-arcade.js  leur écran : dessin sur canvas, doigt, flèches, clavier
+src/arcade-games.js  la liste des jeux de l'arcade et leurs niveaux
+src/view-arcade.js  leurs cartes sur l'onglet Jeux, records, classement par groupe
+src/view-arcade-play.js  l'écran d'un jeu : dessin sur canvas, doigt, flèches, clavier
+                  (chargé à l'ouverture d'un jeu, avec arcade.js)
+src/later.js      ce qui se charge seulement quand on l'ouvre (3D, arcade)
 src/stats.js      statistiques par joueur, jeu par jeu
 src/dashboard.js  ce que tient un groupe, et le dossier d'une personne
 src/search.js     la recherche : des mots trouvés sans accents ni majuscules
@@ -1102,7 +1123,8 @@ src/remote.js     base de parties partagées (HTTP simple, sans bibliothèque)
 src/config.js     l'adresse de cette base, à remplir pour activer le partage
 tools/check-remote.js  vérifie que la base est correctement configurée
 docs/DEPLOIEMENT.md    mise en ligne pas à pas
-src/i18n.js       traductions fr / en
+src/i18n.js       traductions : t(), la langue, son chargement
+src/lang-fr.js, src/lang-en.js  tous les textes, une langue par fichier
 src/app.js        routeur, rendu, relèves, et les aides communes aux écrans
 src/view-*.js     un écran chacun : accueil et réglages (home), entrée dans un
                   groupe (join), personnes (people), sondages, listes, comptes,
@@ -1111,8 +1133,8 @@ src/live.js       les changements entendus aussitôt (Supabase Realtime)
 src/notify.js     notifications : ce qui se décide sans navigateur
 supabase/functions/notifier/  la fonction qui envoie les notifications
 tools/serve.js    serveur statique de développement
-tools/bundle.js   construction du fichier unique autonome
-dist/             le fichier unique, livré dans le dépôt
+tools/bundle.js   construction du fichier unique et des fichiers de l'app en ligne
+dist/             ces fichiers, livrés dans le dépôt
 tests/            tests unitaires
 ```
 
