@@ -1776,6 +1776,17 @@ export function signed(document_) {
   return name ? { ...document_, signedBy: name } : document_;
 }
 
+/**
+ * A new event keeps a trace of who made it: the nickname this device signs
+ * with, or else its first name in the event's group (or its own name).
+ */
+export function signedEvent(document_) {
+  const made = signed(document_);
+  if (made.signedBy) return made;
+  const name = String(myNameFor(document_) || '').trim();
+  return name ? { ...made, signedBy: name } : made;
+}
+
 export function openSignatureDialog(document_, save) {
   const current = String(document_.signedBy || '').trim();
   const remembered = String(state.prefs.signature || '').trim();

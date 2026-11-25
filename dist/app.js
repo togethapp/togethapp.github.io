@@ -6570,6 +6570,12 @@ function signed(document_) {
 const name = String(state.prefs.signature || '').trim();
 return name ? { ...document_, signedBy: name } : document_;
 }
+function signedEvent(document_) {
+const made = signed(document_);
+if (made.signedBy) return made;
+const name = String(myNameFor(document_) || '').trim();
+return name ? { ...made, signedBy: name } : made;
+}
 function openSignatureDialog(document_, save) {
 const current = String(document_.signedBy || '').trim();
 const remembered = String(state.prefs.signature || '').trim();
@@ -7758,7 +7764,7 @@ render();
 form.addEventListener('submit', (event) => {
 event.preventDefault();
 snapshot();
-const poll = signed(organise(landing(createEvent({
+const poll = signedEvent(organise(landing(createEvent({
 name: state.newEventName,
 names: peopleForNew(state.newEventPeople),
 date: state.newEventDay,
@@ -12076,7 +12082,7 @@ render();
 function settlePollActivity(poll, how) {
 const settled = settleAsActivity(poll, everything(), how);
 if (!settled) return false;
-const made = organise(signed(settled.activity));
+const made = organise(signedEvent(settled.activity));
 state.polls = [...state.polls, made];
 persistPoll(made);
 flash(t('activity.made', { name: documentTitle(made), event: chainLabelShort(byId(made.parent) || made) }));
@@ -12409,7 +12415,7 @@ dialog.querySelector('#activity-name').focus();
 return;
 }
 const at = dialog.querySelector('#activity-at').value || null;
-const made = organise(signed(activityFor(event, { name: what, date: day || null, at: day ? at : null, from, names })));
+const made = organise(signedEvent(activityFor(event, { name: what, date: day || null, at: day ? at : null, from, names })));
 dialog.close();
 state.polls = [...state.polls, made];
 persistPoll(made);
@@ -12479,7 +12485,7 @@ dialog.querySelectorAll('[data-idea-activity]').forEach((node) => {
 node.addEventListener('click', () => {
 const one = ideas.find((idea) => idea.card.id === node.dataset.ideaActivity);
 if (!one) return;
-const made = organise(signed(activityFor(event, { name: one.text, from: { doc: board.id, part: one.card.id } })));
+const made = organise(signedEvent(activityFor(event, { name: one.text, from: { doc: board.id, part: one.card.id } })));
 state.polls = [...state.polls, made];
 persistPoll(made);
 flash(t('activity.made', { name: one.text, event: documentTitle(event) }));
@@ -12570,7 +12576,7 @@ node.addEventListener('click', () => {
 const poll = owner(node);
 const split = poll && splitPollActivity(poll, everything());
 if (!split) return;
-const made = organise(signed(split.activity));
+const made = organise(signedEvent(split.activity));
 state.polls = [...state.polls, made];
 persistPoll(made);
 replacePoll(split.poll, { redraw: false });

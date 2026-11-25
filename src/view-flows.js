@@ -13,7 +13,7 @@ import {
   askForText, chainLabel, chainLabelShort, chainOf, documentHref, documentTitle, escapeHtml, everything, flash, formatDayLong, navigate,
   render, state, whenText,
 } from './app.js';
-import { persistPoll, replacePoll, signed, choiceLabel } from './view-polls.js';
+import { persistPoll, replacePoll, signed, signedEvent, choiceLabel } from './view-polls.js';
 import { makeDialog } from './view-games.js';
 import {
   deleteDocument, myNameFor, openAttachDialog, openRelateDialog, organise, replaceAny, shownDocs, isOrganiser,
@@ -48,7 +48,7 @@ import {
 export function settlePollActivity(poll, how) {
   const settled = settleAsActivity(poll, everything(), how);
   if (!settled) return false;
-  const made = organise(signed(settled.activity));
+  const made = organise(signedEvent(settled.activity));
   state.polls = [...state.polls, made];
   persistPoll(made);
   flash(t('activity.made', { name: documentTitle(made), event: chainLabelShort(byId(made.parent) || made) }));
@@ -445,7 +445,7 @@ export function openActivityDialog(event, { name = '', date = null, at = null, f
         return;
       }
       const at = dialog.querySelector('#activity-at').value || null;
-      const made = organise(signed(activityFor(event, { name: what, date: day || null, at: day ? at : null, from, names })));
+      const made = organise(signedEvent(activityFor(event, { name: what, date: day || null, at: day ? at : null, from, names })));
       dialog.close();
       state.polls = [...state.polls, made];
       persistPoll(made);
@@ -525,7 +525,7 @@ function openIdeaActivitiesDialog(board) {
       node.addEventListener('click', () => {
         const one = ideas.find((idea) => idea.card.id === node.dataset.ideaActivity);
         if (!one) return;
-        const made = organise(signed(activityFor(event, { name: one.text, from: { doc: board.id, part: one.card.id } })));
+        const made = organise(signedEvent(activityFor(event, { name: one.text, from: { doc: board.id, part: one.card.id } })));
         state.polls = [...state.polls, made];
         persistPoll(made);
         flash(t('activity.made', { name: one.text, event: documentTitle(event) }));
@@ -622,7 +622,7 @@ export function bindFlows(root) {
       const poll = owner(node);
       const split = poll && splitPollActivity(poll, everything());
       if (!split) return;
-      const made = organise(signed(split.activity));
+      const made = organise(signedEvent(split.activity));
       state.polls = [...state.polls, made];
       persistPoll(made);
       replacePoll(split.poll, { redraw: false });
