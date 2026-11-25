@@ -88,6 +88,13 @@ const stored = await me.evaluate(async (id) => {
 }, pollId);
 check('la base garde la signature de l’organisateur', stored === 'Guigui', String(stored));
 
+// Un événement garde trace de qui l'a créé, même sans surnom : son prénom.
+const lou = await device('Lou', { me: 'Lou', groups: [MIFA] });
+await lou.goto('http://localhost:8099/dist/marque-points.html#/agenda/new'); await lou.waitForSelector('#new-event');
+await lou.fill('#event-name', 'Pique-nique'); await lou.fill('#event-day', '2027-06-12');
+await lou.click('#new-event button[type=submit]'); await lou.waitForSelector('#poll-sign', { state: 'attached' });
+check('un événement créé sans surnom porte le prénom de qui l’a créé', (await signedText(lou)) === 'Proposé par Lou', await signedText(lou));
+
 check('aucune erreur de page', errors.length === 0, errors.join(' | '));
 await browser.close();
 const bad = results.filter((r) => !r.ok);

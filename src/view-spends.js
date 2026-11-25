@@ -13,7 +13,7 @@ import {
 } from './app.js';
 import {
   actionsHtml, eventLinkHtml, eventTagHtml, getSpend, persistPoll, persistSpend, pollCardHtml, pollTitle,
-  replaceSpend, shareBarHtml, signed,
+  replaceSpend, shareBarHtml, signed, signedEvent,
 } from './view-polls.js';
 import { archivedHtml, openPeopleEditor } from './view-lists.js';
 import { ask, makeDialog, showCopyDialog } from './view-games.js';
@@ -334,7 +334,7 @@ export function bindNewEvent() {
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     snapshot();
-    const poll = signed(organise(landing(createEvent({
+    const poll = signedEvent(organise(landing(createEvent({
       name: state.newEventName,
       names: peopleForNew(state.newEventPeople),
       date: state.newEventDay,
